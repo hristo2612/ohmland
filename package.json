@@ -1,0 +1,17 @@
+{
+  "name": "ohmland",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.30.3",
+  "engines": { "node": ">=22.12" },
+  "scripts": {
+    "dev": "pnpm --filter @ohmland/web dev",
+    "build": "pnpm --filter @ohmland/web build",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint:copy": "node scripts/check-copy.mjs"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
