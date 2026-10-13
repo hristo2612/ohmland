@@ -1,7 +1,7 @@
 ---
 import Page from "../layouts/Page.astro";
 import HeroActions from "../components/HeroActions";
-import { IsleArt } from "../components/IsleArt";
+import IsleHero from "../isle/IsleHero";
 import { Icon } from "../components/Icon";
 import { Badge } from "../components/Badge";
 import { Mascot } from "../mascot/Mascot";
@@ -32,12 +32,9 @@ const binParts = ["resistor", "led", "battery", "capacitor", "multimeter", "tran
         <HeroActions client:load outline={course.outline} />
         <p class="hero__reassure small"><Icon name="device" size={16} />{m.landing.reassure}</p>
       </div>
-      <figure class="hero__isle" data-isle-slot>
+      <figure class="hero__isle">
         <div class="hero__isle-glow" aria-hidden="true"></div>
-        <IsleArt label={m.landing.isleLabel} className="hero__isle-art" />
-        <div class="hero__mascot">
-          <Mascot pose="happy" size={96} />
-        </div>
+        <IsleHero client:idle label={m.landing.isleLabel} />
         <figcaption class="small muted">{m.landing.isleCaption}</figcaption>
       </figure>
     </div>
@@ -191,19 +188,15 @@ const binParts = ["resistor", "led", "battery", "capacitor", "multimeter", "tran
   }
   .hero__lead { font-size: var(--text-lead); line-height: var(--leading-lead); color: var(--ink-2); max-width: 54ch; }
   .hero__reassure { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--ink-2); }
-  .hero__isle { position: relative; margin: 0; display: grid; justify-items: center; }
+  .hero__isle { position: relative; margin: 0; display: grid; justify-items: center; gap: var(--space-4); width: 100%; max-width: 600px; justify-self: center; }
   .hero__isle-glow {
     position: absolute;
-    inset: 8% 6% 14% 6%;
+    inset: -6% -8% 4% -8%;
     border-radius: var(--radius-full);
     background: radial-gradient(closest-side, var(--glow-soft), transparent);
-    filter: blur(8px);
+    filter: blur(12px);
   }
-  .hero__isle :global(.hero__isle-art) { position: relative; width: 100%; max-width: 600px; height: auto; }
-  .hero__mascot { position: absolute; top: 2%; left: 62%; transform: translateX(-50%); }
-  .hero__isle figcaption { position: relative; margin-top: calc(-1 * var(--space-4)); }
-  :global(:root[data-motion="full"] .hero__isle-art .isle-art__cloud) { animation: drift var(--dur-drift) var(--ease-in-out) infinite alternate; }
-  @keyframes drift { from { transform: translateX(-6px); } to { transform: translateX(8px); } }
+  .hero__isle figcaption { position: relative; }
 
   .how { padding-top: var(--space-16); }
   .how__steps {
@@ -326,7 +319,7 @@ const binParts = ["resistor", "led", "battery", "capacitor", "multimeter", "tran
 
   @media (max-width: 1020px) {
     .hero__inner { grid-template-columns: 1fr; gap: var(--space-6); min-height: 0; padding-block: var(--space-10) var(--space-8); }
-    .hero__isle { order: -1; max-width: 520px; justify-self: center; width: 100%; }
+    .hero__isle { order: -1; max-width: 520px; }
     .how__steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .how__steps::before { display: none; }
     .features__grid { grid-template-columns: 1fr; }
@@ -336,9 +329,8 @@ const binParts = ["resistor", "led", "battery", "capacitor", "multimeter", "tran
   @media (max-width: 767px) {
     .hero__inner { padding-block: var(--space-4) var(--space-8); gap: var(--space-4); }
     .hero__copy { gap: var(--space-4); }
-    .hero__isle { max-width: 300px; }
+    .hero__isle { max-width: 320px; }
     .hero__isle figcaption { display: none; }
-    .hero__mascot :global(svg) { width: 64px; height: 64px; }
     .how { padding-top: var(--space-10); }
     .how__steps { grid-template-columns: 1fr; gap: var(--space-5); }
     .how__step { grid-template-columns: 52px 1fr; column-gap: var(--space-4); row-gap: var(--space-1); }

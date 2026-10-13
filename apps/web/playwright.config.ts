@@ -11,6 +11,8 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     reducedMotion: "reduce",
     trace: "retain-on-failure",
+    // SwiftShader gives headless Chromium WebGL, so the island draws
+    launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },

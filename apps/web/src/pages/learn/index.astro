@@ -2,8 +2,7 @@
 import Page from "../../layouts/Page.astro";
 import CourseMap from "../../components/CourseMap";
 import ProgressCard from "../../components/ProgressCard";
-import { IsleArt } from "../../components/IsleArt";
-import { Icon } from "../../components/Icon";
+import IsleCard from "../../isle/IsleCard";
 import { getCourse } from "../../content/load";
 import { mapOf } from "../../content/map";
 import { m } from "../../i18n";
@@ -22,12 +21,7 @@ const map = mapOf(course);
       <CourseMap client:load units={map.units} upcoming={map.upcoming} outline={course.outline} />
       <aside class="learn__side">
         <ProgressCard client:idle outline={course.outline} />
-        <a class="isle-card card card--raised card--interactive" href="/isle">
-          <IsleArt className="isle-card__art" />
-          <span class="eyebrow">{m.map.isleTitle}</span>
-          <span class="muted small">{m.map.isleBody}</span>
-          <span class="isle-card__link">{m.map.isleLink}<Icon name="arrow-right" size={16} /></span>
-        </a>
+        <IsleCard client:idle outline={course.outline} />
       </aside>
     </div>
   </div>
@@ -36,15 +30,22 @@ const map = mapOf(course);
 <style>
   .learn__grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--space-10); align-items: start; }
   .learn__side { position: sticky; top: calc(var(--header-h) + var(--space-6)); display: grid; gap: var(--space-5); }
-  .isle-card { display: grid; gap: var(--space-2); color: var(--ink); text-decoration: none; overflow: hidden; }
-  .isle-card :global(.isle-card__art) { width: 100%; height: auto; margin-bottom: var(--space-2); border-radius: var(--radius-m); background: var(--surface-sunk); }
-  .isle-card__link { display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); color: var(--accent-ink); font-weight: var(--weight-semibold); }
+  .learn__side :global(.isle-card) { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-3) var(--space-5); color: var(--ink); text-decoration: none; overflow: hidden; }
+  .learn__side :global(.isle-card__frame) { aspect-ratio: 3 / 2; border-radius: var(--radius-m); }
+  .learn__side :global(.isle-card__text) { display: grid; gap: var(--space-2); padding-inline: var(--space-3); }
+  .learn__side :global(.isle-card__link) { display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1); color: var(--accent-ink); font-weight: var(--weight-semibold); }
   @media (max-width: 1020px) {
     .learn__grid { grid-template-columns: 1fr; }
     .learn__side { position: static; grid-template-columns: 1fr 1fr; order: -1; }
+    .learn__side :global(.isle-card__frame) { aspect-ratio: 16 / 9; }
   }
   @media (max-width: 640px) {
-    .learn__side { grid-template-columns: 1fr; order: 1; }
-    .isle-card { display: none; }
+    /* the island card leads the page; the level card follows the map */
+    .learn__grid { gap: var(--space-6); }
+    .learn__side { display: contents; }
+    .learn__side :global(.progress-card) { order: 1; }
+    .learn__side :global(.isle-card) { order: -1; grid-template-columns: 128px 1fr; align-items: center; padding: var(--space-2); }
+    .learn__side :global(.isle-card__frame) { aspect-ratio: 1; }
+    .learn__side :global(.isle-card__text) { padding-inline: var(--space-1) var(--space-3); gap: var(--space-1); }
   }
 </style>

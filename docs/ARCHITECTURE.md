@@ -50,7 +50,8 @@ apps/web/                 the site (Astro + React islands)
   src/lesson/             lesson player and step renderers
   src/quiz/               quiz item components and grading
   src/lab/                lab runtime: bench + simulator + goals + instruments + mascot hints
-  src/progress/           local-first learner store, XP, levels, achievements, parts bin
+  src/progress/           local-first learner store, XP, levels, achievements, parts bin, island events
+  src/isle/               the island in the app: lazy loader, /isle page, landing hero, map card, finale reveal
   src/account/            Firebase auth + sync (lazy)
   src/i18n/               UI messages (en.ts); no UI words inline in components
   src/styles/tokens.css   the only file allowed to hold raw design values
@@ -218,7 +219,10 @@ Derived, never stored:
 - **Parts bin** = union of `unlocks.parts` of completed lessons.
 - **Course map states**: the current lesson is the first not done in course order; a lesson right after a done one
   is open; the rest are locked. Locks suggest an order; a locked lesson's page still works.
-- **Island** = `makeIsle(seed, events)` where events are lesson and module completions ordered by `at`.
+- **Island** = `makeIsle(seed, events)` from `progress/isleEvents.ts`: one event per finished lesson ordered by `at`
+  (ties in course order), each module's event right after the lesson that finished it, and
+  `seed = seedFrom(first lesson id, its at)` (a fixed seed before any lesson). Pieces and landmarks pass through as the
+  content names them; ids the isle does not know fall back to its planner.
 
 Achievements are a registry in `progress/achievements.ts`: `{ id, title, description, icon, xp, hidden?, check }`,
 where `check({ state, outline, events })` is a pure predicate over the learner record, the course outline and the
@@ -235,9 +239,13 @@ Cloud sync plugs in through `ProgressSync` (`progress/sync.ts`): `pull()`, `push
 `subscribe(onRemote)`, `disconnect()`. The store's `attachSync(sync)` pulls, merges, pushes, and then pushes after
 every change. Firebase (`src/account`, lazy) will provide the implementation.
 
-The lesson player reports to the island through `IsleHooks` (`lesson/isle-hooks.ts`): `prefetch()` when the quiz
-starts, `prime()` inside the tap on "Finish lesson", and `reveal({ before, after, muted })` after the lesson is
-saved; the finale waits for the reveal (at most a few seconds). Today the hooks are a stub.
+The lesson player reports to the island through `IsleHooks` (`lesson/isle-hooks.ts`): `prefetch()` once the learner
+moves past the quiz (never on a lesson's first load), `prime()` inside the tap on "Finish lesson" (audio), and
+`reveal({ before, after, outline, muted, signal, onShow })` after a first finish is saved. The reveal is a modal
+dialog (`isle/reveal.tsx`, loaded on demand) that resolves with what it showed once the learner closes it. Through
+`revealWithin()` the finale waits for it to get on screen for at most `REVEAL_TIMEOUT_MS`; a reveal that fails or is
+late is aborted and never blocks the finale. Every island view loads the isle and three.js through `isle/load.ts`
+(one dynamic import) and passes the isle its words from `en.ts`.
 
 ## Simulator (`packages/sim`)
 
@@ -422,4 +430,6 @@ content check (the web build fails on invalid content) and `pnpm --filter @ohmla
 or durations outside `tokens.css`).
 
 `apps/web/scripts/screenshots.mjs` takes screenshots of every page and lesson step in both themes at 1440x900 and
-390x844 for visual review; a curated set lives in `apps/web/screenshots/`.
+390x844 for visual review; a curated set lives in `apps/web/screenshots/`. Headless Chromium gets WebGL from
+SwiftShader (`--use-angle=swiftshader --enable-unsafe-swiftshader`). `apps/web/scripts/isle-poster.mjs` renders the
+landing hero's day and night stills from the live island.

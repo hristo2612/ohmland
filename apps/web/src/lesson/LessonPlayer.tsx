@@ -11,7 +11,7 @@ import { flushSaves, useLearner, type Completion } from "../progress/store";
 import { useLearnerReady } from "../progress/useLearner";
 import type { ItemRecord } from "../quiz/types";
 import { Finale } from "./Finale";
-import { getIsleHooks, REVEAL_TIMEOUT_MS } from "./isle-hooks";
+import { getIsleHooks, revealWithin, type IsleRevealResult } from "./isle-hooks";
 import { ExplainStep } from "./steps/ExplainStep";
 import { HookStep } from "./steps/HookStep";
 import { LabStepHost } from "./steps/LabStepHost";
@@ -31,8 +31,10 @@ export default function LessonPlayer(props: PlayerProps) {
   const [restored, setRestored] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [completion, setCompletion] = useState<Completion | null>(null);
+  const [isle, setIsle] = useState<IsleRevealResult>(null);
   const [live, setLive] = useState("");
   const stageRef = useRef<HTMLDivElement>(null);
+  const lastStep = useRef(0);
   const hooks = useMemo(() => getIsleHooks(), []);
   const steps = lesson.steps;
   const current = steps[step];
@@ -42,6 +44,7 @@ export default function LessonPlayer(props: PlayerProps) {
     if (!ready || restored) return;
     const saved = useLearner.getState().learner.inProgress[lesson.id];
     if (saved && (saved.version === undefined || saved.version === lesson.version) && saved.step > 0 && saved.step < steps.length) {
+      lastStep.current = saved.step;
       setStep(saved.step);
       setAnswers(saved.answers);
       toast({ title: m.lesson.resumed, icon: "play", duration: 3500 });
@@ -69,10 +72,18 @@ export default function LessonPlayer(props: PlayerProps) {
     window.scrollTo({ top: 0 });
   }, [step, completion]);
 
-  // Warm the island while the learner does the quiz.
+  // Warm the island once the learner moves on from the quiz (the last quiz step, or the step before the wrap in a
+  // lesson without one). Only a step reached in this visit counts, so resuming a lesson never fetches it on load, and
+  // a lesson already finished has nothing new to reveal.
+  const afterQuiz = useMemo(() => {
+    const last = steps.reduce((k, s, i) => (s.type === "quiz" ? i : k), -1);
+    return last >= 0 ? last + 1 : steps.length - 1;
+  }, [steps]);
   useEffect(() => {
-    if (current?.type === "quiz") hooks.prefetch();
-  }, [current?.type, hooks]);
+    const from = lastStep.current;
+    lastStep.current = step;
+    if (step > from && step >= afterQuiz && !useLearner.getState().learner.lessons[lesson.id]) hooks.prefetch();
+  }, [step, afterQuiz, hooks, lesson.id]);
 
   // Enter runs the primary action when focus is not in a control.
   useEffect(() => {
@@ -119,12 +130,13 @@ export default function LessonPlayer(props: PlayerProps) {
 
   const finish = async () => {
     if (finishing) return;
-    hooks.prime();
+    if (!muted) hooks.prime();
     setFinishing(true);
     await useLearner.getState().init(outline);
     const result = useLearner.getState().completeLesson({ lessonId: lesson.id, version: lesson.version, ...score });
     await flushSaves();
-    await Promise.race([hooks.reveal({ before: result.before, after: result.after, muted }).catch(() => undefined), new Promise((r) => setTimeout(r, REVEAL_TIMEOUT_MS))]);
+    // a first finish reveals what the lesson added to the island; a replay adds nothing
+    if (!result.replay) setIsle(await revealWithin(hooks, { before: result.before, after: result.after, outline, muted }));
     setCompletion(result);
     setFinishing(false);
   };
@@ -142,7 +154,7 @@ export default function LessonPlayer(props: PlayerProps) {
 
   let body: ReactNode = null;
   if (completion) {
-    body = <Finale completion={completion} lesson={lesson} parts={parts} module={module} next={next} mapHref={mapHref} firstTry={score.firstTry} items={score.items} />;
+    body = <Finale completion={completion} lesson={lesson} parts={parts} module={module} next={next} mapHref={mapHref} firstTry={score.firstTry} items={score.items} isle={isle} />;
   } else if (current) {
     switch (current.type) {
       case "hook":

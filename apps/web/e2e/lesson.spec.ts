@@ -46,6 +46,13 @@ test("a guest finishes the first lesson and sees XP on the finale", async ({ pag
   await expect(page.locator("[data-step-type=wrap]")).toBeVisible();
   await primary(page).click();
 
+  // The island reveal: a modal dialog with the new piece's caption and one way on.
+  const reveal = page.getByRole("dialog");
+  await expect(reveal).toBeVisible();
+  await expect(reveal.locator(".reveal__lines")).toContainText("Welcome to the bench");
+  await reveal.getByRole("button", { name: "Continue" }).click();
+  await expect(reveal).toBeHidden();
+
   // Finale: 30 for the lesson + 5 first tries x 10 + "First spark" (20) + "Clean sweep" (25) = 125 XP.
   const finale = page.locator("[data-finale]");
   await expect(finale).toBeVisible();
@@ -55,4 +62,17 @@ test("a guest finishes the first lesson and sees XP on the finale", async ({ pag
   // The XP survives a reload: the header chip on the course map shows level 2.
   await page.goto("/learn");
   await expect(page.locator(".level-chip__badge")).toHaveText("2");
+});
+
+test("a lesson's first load carries no three.js", async ({ page }) => {
+  const scripts: Promise<string>[] = [];
+  page.on("response", (res) => {
+    if (res.request().resourceType() === "script") scripts.push(res.text().catch(() => ""));
+  });
+  await page.goto("/learn/basics/sample-first-glow", { waitUntil: "networkidle" });
+  await expect(page.locator("[data-step-type=hook]")).toBeVisible();
+  const bodies = await Promise.all(scripts);
+  expect(bodies.length).toBeGreaterThan(0);
+  // three.js names its renderer in its source, and so does the island
+  expect(bodies.filter((js) => js.includes("WebGLRenderer"))).toHaveLength(0);
 });

@@ -1,0 +1,25 @@
+/* Framed islands: the landing hero and the course map card. The sky shows while the island loads. */
+
+.isle-frame {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  background: linear-gradient(to bottom, var(--isle-sky-top), var(--isle-sky-bottom));
+  isolation: isolate;
+}
+.isle-frame__live {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+.isle-frame[data-live] .isle-frame__live { opacity: 1; }
+
+/* The hero: a poster of this same island sits under the live one, so the swap is seamless. */
+.isle-frame--hero {
+  aspect-ratio: 6 / 5;
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--isle-poster) center / cover no-repeat, linear-gradient(to bottom, var(--isle-sky-top), var(--isle-sky-bottom));
+  box-shadow: var(--shadow-2);
+}
