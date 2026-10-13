@@ -58,6 +58,47 @@ export const CUP = { dia: 58, height: 66, water: 46 };
 
 export const LEMON = { dia: 60, height: 29, stripW: 8, stripUp: 17 };
 
+/** Bigger resistor bodies: a 1 W film resistor and a 5 W ceramic power resistor (body length, size, lead). */
+export const RESISTOR_1W = { len: 11.5, dia: 4.4, deskLead: 14 };
+export const RESISTOR_5W = { len: 22, w: 9.5, deskLead: 9 };
+
+/** AA cell (lying in a cradle) and a 2032 coin cell (in a holder with two tabs). */
+export const AA = { len: 50.5, dia: 14.5, lift: 4 };
+export const COIN = { dia: 20, thick: 3.2, holder: 26, tab: 15 };
+
+/** Resistor holder: a block with two spring clips; a seated part's leads run through the clips at `leadY`. */
+export const HOLDER = { len: 62, h: 6, d: 16, clipX: 12, leadY: 10.6, termX: 26 };
+
+/** Height of an axial part's leads above its origin when it lies on the desk (resistors by power rating, diodes). */
+export function axialLift(kind: string, params: { watts?: number; model?: string }): number {
+  if (kind === "diode") return params.model === "1N4148" ? 0.9 : DIODE.dia / 2;
+  const w = params.watts ?? 0.25;
+  if (w >= 2) return RESISTOR_5W.w / 2;
+  if (w >= 0.75) return RESISTOR_1W.dia / 2;
+  return RESISTOR.dia / 2;
+}
+
+/** Battery test station: a base with a battery bay, two terminal posts and a load switch. */
+export const STATION = { w: 104, h: 7, d: 58, postX: 40, postZ: 16, postH: 15, bayZ: -6 };
+
+/** Electrodes for the fruit cell. */
+export const ELECTRODE = { coin: 19, coinT: 1.5, stripW: 8, stripL: 40, stripT: 0.7, inside: 12 };
+
+/** Material samples: a bare copper wire and a plastic ruler, with a probe point near each end. */
+export const SAMPLE = { wire: 100, wireR: 0.55, ruler: 150, rulerW: 28, rulerT: 2 };
+
+/** Skin patch with probe marks 1 cm apart. */
+export const SKIN = { w: 78, h: 12, d: 30, mark: 10, base: 4, padZ: -8, baseW: 100, baseD: 62 };
+
+/** Pencil card: the line starts at x0 and runs +x, 10 mm per cm, probe points every 5 mm. */
+export const CARD = { w: 132, d: 66, t: 0.8, x0: -55, lineZ: 2 };
+
+export const TAG = { w: 24, d: 13 };
+export const BIN = { w: 74, h: 13, d: 48 };
+export const CHART = { w: 100, d: 66 };
+export const CLOCK = { w: 54, h: 30, d: 22 };
+export const SHOWCASE = { w: 120, h: 62, d: 64 };
+
 /** Electrolytic can size and lead spacing (in board pitches) by value, after common radial series. */
 export function electrolyticSize(farads: number, volts = 16): { d: number; h: number; pitch: 1 | 2; lead: number } {
   const uf = farads * 1e6 * Math.max(1, volts / 16);

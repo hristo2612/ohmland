@@ -31,6 +31,32 @@ export type BenchLabels = {
   meterModes: Record<MeterMode, string>;
   /** Accessible name of the 3D view. */
   canvas: string;
+  /** Part settings on the selection bar, by "<kind>.<key>": a label, value names, and a unit for numbers. */
+  settings: Record<string, { label: string; values?: Record<string, string>; unit?: string }>;
+  /** One-shot part actions on the selection bar, by "<kind>.<action>". */
+  actions: Record<string, string>;
+  /** Touch-feel words for the heat readout. */
+  heat: { cool: string; warm: string; hot: string; ouch: string };
+  /** Words printed on lab props. */
+  print: {
+    rejects: string;
+    tester: string;
+    load: string;
+    on: string;
+    off: string;
+    cm: string;
+    start: string;
+    chart: string;
+    digit: string;
+    multiplier: string;
+    tolerance: string;
+    bands: Record<string, string>;
+    time: string;
+    showcase: string;
+    phonePack: string;
+    carBattery: string;
+    used: string;
+  };
 };
 
 export const DEFAULT_LABELS: BenchLabels = {
@@ -74,6 +100,18 @@ export const DEFAULT_LABELS: BenchLabels = {
     lemon: "Lemon cell",
     "dpdt-switch": "DPDT switch",
     "touch-pads": "Touch pads",
+    holder: "Resistor holder",
+    station: "Battery tester",
+    fruit: "Lemon half",
+    electrode: "Electrode",
+    skin: "Skin patch",
+    sample: "Sample",
+    card: "Pencil card",
+    tag: "Value label",
+    bin: "Reject bin",
+    chart: "Colour chart",
+    clock: "Clock",
+    showcase: "Display case",
   },
   colors: {
     red: "Red",
@@ -97,6 +135,49 @@ export const DEFAULT_LABELS: BenchLabels = {
     "dca-ma": "DC milliamps",
   },
   canvas: "Workbench. Use the arrow keys to move the selected part, R to rotate, Delete to remove.",
+  settings: {
+    "skin.moisture": { label: "Skin", values: { dry: "Dry", damp: "Damp", wet: "Wet", salty: "Salty" } },
+    "skin.pressure": { label: "Probe pressure", values: { light: "Light", firm: "Firm" } },
+    "station.load": { label: "Test load", values: { false: "Off", true: "On" } },
+    "fruit.touching": { label: "Metals", values: { false: "Apart", true: "Touching" } },
+    "card.length": { label: "Line", unit: "cm" },
+    "card.layers": { label: "Layers" },
+    "card.wide": { label: "Width", values: { false: "Narrow", true: "Wide" } },
+  },
+  actions: { "card.erase": "Erase" },
+  heat: { cool: "cool", warm: "warm", hot: "hot", ouch: "ouch" },
+  print: {
+    rejects: "REJECTS",
+    tester: "BATTERY TESTER",
+    load: "LOAD 100 Ω",
+    on: "ON",
+    off: "OFF",
+    cm: "cm",
+    start: "START",
+    chart: "Resistor colour code",
+    digit: "Digit",
+    multiplier: "Multiplier",
+    tolerance: "Tolerance",
+    bands: {
+      black: "Black",
+      brown: "Brown",
+      red: "Red",
+      orange: "Orange",
+      yellow: "Yellow",
+      green: "Green",
+      blue: "Blue",
+      violet: "Violet",
+      grey: "Grey",
+      white: "White",
+      gold: "Gold",
+      silver: "Silver",
+    },
+    time: "TIME",
+    showcase: "LOOK, DON'T TOUCH",
+    phonePack: "Phone Li-ion pack. Never puncture, crush or short it.",
+    carBattery: "Car battery, 12 V. Hundreds of amps into a short.",
+    used: "USED",
+  },
 };
 
 export function mergeLabels(over?: Partial<BenchLabels>): BenchLabels {
@@ -108,6 +189,10 @@ export function mergeLabels(over?: Partial<BenchLabels>): BenchLabels {
     colors: { ...DEFAULT_LABELS.colors, ...(over.colors ?? {}) },
     water: { ...DEFAULT_LABELS.water, ...(over.water ?? {}) },
     meterModes: { ...DEFAULT_LABELS.meterModes, ...(over.meterModes ?? {}) },
+    settings: { ...DEFAULT_LABELS.settings, ...(over.settings ?? {}) },
+    actions: { ...DEFAULT_LABELS.actions, ...(over.actions ?? {}) },
+    heat: { ...DEFAULT_LABELS.heat, ...(over.heat ?? {}) },
+    print: { ...DEFAULT_LABELS.print, ...(over.print ?? {}), bands: { ...DEFAULT_LABELS.print.bands, ...(over.print?.bands ?? {}) } },
   };
 }
 

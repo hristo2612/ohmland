@@ -38,6 +38,8 @@ export type LabViewInput = {
   /** The pushbutton the auto-tapper is working, or null. */
   tapping?: string | null;
   onTrigger?: (name: string) => void;
+  /** When each task was done in this visit, with the meter as it read then. */
+  doneAt?: Readonly<Record<string, { t: number; meter: MeterView | null }>>;
 };
 
 const SPDT = { has: (kind: string) => isThrowSwitch(kind as PlacedPart["kind"]) };
@@ -69,7 +71,7 @@ export function acrossPins(part: PlacedPart): [string, string] {
   if (SPDT.has(part.kind)) return ["com", "b"];
   if (part.kind === "pushbutton") return ["a1", "b1"];
   const legs = partLegs(part);
-  return [legs[0]!, legs[1]!];
+  return [legs[0] ?? "", legs[1] ?? ""];
 }
 
 /** Parses a meter display into a number in its own unit: "OL" is Infinity, blank is null. */
@@ -192,6 +194,7 @@ export function createLabView(input: LabViewInput): LabView {
     const p = partOf(partId);
     if (!p || !bench.meter || !net) return false;
     const [a, b] = acrossPins(p);
+    if (!a || !b) return false;
     const na = pinNode(partId, a);
     const nb = pinNode(partId, b);
     const red = nodeOf("probe:red");
@@ -298,6 +301,53 @@ export function createLabView(input: LabViewInput): LabView {
     return !!last && last.size === 2 && last.has(ids[0]!) && last.has(ids[ids.length - 1]!);
   };
 
+  /** The two-lead parts linked end to end, in any order; see LabView.chain. */
+  const chain = (ids: readonly string[]): { ends: [string, string]; flipped: string[] } | null => {
+    if (!ids.length || !net) return null;
+    type Edge = { id: string; legs: [string, string]; nodes: [NodeId, NodeId] };
+    const edges: Edge[] = [];
+    for (const id of ids) {
+      const p = partOf(id);
+      if (!p) return null;
+      const legs = acrossPins(p);
+      const na = pinNode(id, legs[0]);
+      const nb = pinNode(id, legs[1]);
+      if (!legs[0] || !legs[1] || !na || !nb || na === nb) return null;
+      edges.push({ id, legs, nodes: [na, nb] });
+    }
+    const degree = new Map<NodeId, number>();
+    for (const e of edges) for (const n of e.nodes) degree.set(n, (degree.get(n) ?? 0) + 1);
+    const ends = [...degree].filter(([, d]) => d === 1).map(([n]) => n);
+    if (ends.length !== 2 || [...degree.values()].some((d) => d > 2) || degree.size !== edges.length + 1) return null;
+    // Nothing else may hang on a link between two of the parts.
+    const at = partsAtNodes();
+    for (const [n, d] of degree) if (d === 2 && (at.get(n)?.size ?? 0) !== 2) return null;
+    const walk = (start: NodeId) => {
+      const order: { e: Edge; forward: boolean }[] = [];
+      const used = new Set<string>();
+      let node = start;
+      for (;;) {
+        const e = edges.find((x) => !used.has(x.id) && x.nodes.includes(node));
+        if (!e) break;
+        used.add(e.id);
+        const forward = e.nodes[0] === node;
+        order.push({ e, forward });
+        node = forward ? e.nodes[1] : e.nodes[0];
+      }
+      return order;
+    };
+    let order = walk(ends[0]!);
+    if (order.length !== edges.length) return null;
+    if (order.filter((o) => o.forward).length < order.filter((o) => !o.forward).length) order = walk(ends[1]!);
+    const first = order[0]!;
+    const last = order[order.length - 1]!;
+    const startLeg = first.forward ? first.e.legs[0] : first.e.legs[1];
+    const endLeg = last.forward ? last.e.legs[1] : last.e.legs[0];
+    return { ends: [`${first.e.id}.${startLeg}`, `${last.e.id}.${endLeg}`], flipped: order.filter((o) => !o.forward).map((o) => o.e.id) };
+  };
+
+  const heldMap = (id: string): Record<string, string | undefined> => ((partOf(id)?.params as { held?: Record<string, string | undefined> } | undefined)?.held ?? {});
+
   const view: LabView = {
     t,
     bench: Object.assign(Object.create(null) as object, bench, {
@@ -366,6 +416,39 @@ export function createLabView(input: LabViewInput): LabView {
       return !!na && na === nb;
     },
     seriesLoop,
+    chain,
+    parallel(a, b) {
+      const pa = partOf(a);
+      const pb = partOf(b);
+      if (!pa || !pb || a === b) return false;
+      const [a0, a1] = acrossPins(pa).map((l) => pinNode(a, l));
+      const [b0, b1] = acrossPins(pb).map((l) => pinNode(b, l));
+      if (!a0 || !a1 || !b0 || !b1 || a0 === a1) return false;
+      return (a0 === b0 && a1 === b1) || (a0 === b1 && a1 === b0);
+    },
+    probed(a, b, dir) {
+      const m = bench.meter;
+      if (!m || !m.probes.red.tip.to || !m.probes.black.tip.to || !net) return false;
+      const na = nodeOf(resolveAttach(bench, a));
+      const nb = nodeOf(resolveAttach(bench, b));
+      if (!na || !nb || na === nb) return false;
+      const red = nodeOf("probe:red");
+      const black = nodeOf("probe:black");
+      const fwd = red === na && black === nb;
+      const rev = red === nb && black === na;
+      return dir === "rev" ? rev : dir === "either" ? fwd || rev : fwd;
+    },
+    holds: (holderId) => Object.values(heldMap(holderId)).filter((x): x is string => !!x),
+    heldBy(partId) {
+      for (const p of bench.parts) if (Object.values(heldMap(p.id)).includes(partId)) return p.id;
+      return null;
+    },
+    distance(a, b) {
+      const pa = partOf(a);
+      const pb = partOf(b);
+      return pa && pb ? Math.hypot(pa.pos[0] - pb.pos[0], pa.pos[1] - pb.pos[1]) : Infinity;
+    },
+    doneAt: (taskId) => input.doneAt?.[taskId],
     loopOpen(partId) {
       if (partId) return Math.abs(snapshot?.parts[partId]?.i ?? 0) < 1e-6;
       for (const p of bench.parts) {

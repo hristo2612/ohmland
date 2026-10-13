@@ -13,8 +13,11 @@ import { LabelsContext, mergeLabels, type BenchLabels } from "../labels";
 import { anchorPosition, fitCamera, workCenter } from "../layout";
 import { connectivity } from "../netlist";
 import { BenchStoreContext, createBenchStore, useBench, type BenchStore } from "../store";
-import type { BenchAction, BenchState, Quality, TrayItem } from "../types";
+import { heldOf } from "../seats";
+import type { BenchAction, BenchState, PlacedPart, Quality, TrayItem } from "../types";
+import { Readouts, inspectKey } from "./Readouts";
 import { Breadboard, XRAY_HEX } from "../models/Breadboard";
+import { RoomLight } from "../models/common";
 import { JumperWire } from "../models/Leads";
 import { BACKGROUND, Desk, StudioEnvironment, StudioLights } from "./Studio";
 import { useInteraction, handleBenchKey, type InteractionApi } from "./Interaction";
@@ -344,10 +347,13 @@ function BenchScene({
   // Draw a frame on any change, except snapshots that change nothing visible (the simulator sends about 30 a second
   // even when the circuit is steady; rendering each one would keep shadows and post-processing busy for nothing).
   useEffect(() => {
-    let seen = snapshotKey(store.getState().snapshot);
+    // Readouts and the desk clock also change with the snapshot.
+    const extra = (s: ReturnType<typeof store.getState>) =>
+      (s.bench.parts.some((p) => p.kind === "clock") ? `|t${Math.floor((s.snapshot?.t ?? 0) / 60)}` : "") + (s.inspect.length ? `|${inspectKey(s)}` : "");
+    let seen = snapshotKey(store.getState().snapshot) + extra(store.getState());
     return store.subscribe((s, prev) => {
       if (s.snapshot !== prev.snapshot && s.bench === prev.bench && s.ui === prev.ui) {
-        const key = snapshotKey(s.snapshot);
+        const key = snapshotKey(s.snapshot) + extra(s);
         if (key === seen) return;
         seen = key;
       }
@@ -380,6 +386,14 @@ function BenchScene({
   }, [ui.hover, conn, bench.board]);
 
   const hl = useMemo(() => new Set(highlight ?? []), [highlight]);
+  // Parts sitting in holders take their pose from the holder.
+  const holders = useMemo(() => {
+    const out = new Map<string, PlacedPart>();
+    for (const h of bench.parts) for (const id of Object.values(heldOf(h))) if (id) out.set(id, h);
+    return out;
+  }, [bench.parts]);
+  const ambient = useBench((s) => s.ambient);
+  const inspect = useBench((s) => s.inspect);
   const leadOpen = (id: string, end: "a" | "b") => (ui.dragging && ui.selection?.type === "lead" && ui.selection.id === id ? (end === "a" ? 0.25 : 0.25) : 0);
 
   // Wire being drawn.
@@ -391,17 +405,20 @@ function BenchScene({
 
   return (
     <>
-      <StudioEnvironment />
-      <StudioLights quality={quality} center={center} />
+      <StudioEnvironment intensity={0.5 * ambient} />
+      <StudioLights quality={quality} center={center} dim={ambient} />
+      <RoomTone ambient={ambient} />
       <Desk quality={quality} />
       <CameraRig center={center} initial={camera} bench={bench} viewPad={viewPad} />
       <ReadySignal onReady={onReady} />
+      <RoomLight.Provider value={ambient}>
       <Selection>
         {bench.board && <Breadboard spec={bench.board} xray={ui.xray} litStrips={xr?.strips} litHoles={xr?.holes} />}
         {bench.parts.map((p) => (
           <PartView
             key={p.id}
             part={p}
+            holder={holders.get(p.id)}
             board={bench.board}
             selected={ui.selection?.type === "part" && ui.selection.id === p.id}
             hinted={hl.has(p.id)}
@@ -435,6 +452,7 @@ function BenchScene({
         )}
         {quality === "high" && <PostEffects />}
       </Selection>
+      </RoomLight.Provider>
       {draftFrom && (
         <>
           <TargetMarker at={[draftFrom[0], BOARD_TOP + 0.2, draftFrom[1]]} color={SELECT_HEX} />
@@ -455,8 +473,22 @@ function BenchScene({
         const p = anchorPosition(bench, a);
         return p ? <TargetMarker key={a} at={[p[0], p[1] + 0.3, p[2]]} color={ACCENT} pulse size={2.6} /> : null;
       })}
+      {inspect.length > 0 && <Readouts bench={bench} inspect={inspect} />}
     </>
   );
+}
+
+/** Scene background and fog follow the room lights. */
+function RoomTone({ ambient }: { ambient: number }) {
+  const scene = useThree((s) => s.scene);
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    const c = new THREE.Color(BACKGROUND).multiplyScalar(0.12 + 0.88 * Math.max(0, Math.min(1, ambient)));
+    scene.background = c;
+    if (scene.fog) (scene.fog as THREE.Fog).color = c;
+    invalidate();
+  }, [scene, ambient, invalidate]);
+  return null;
 }
 
 export { boardOrigin };

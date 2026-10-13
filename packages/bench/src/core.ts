@@ -20,13 +20,21 @@ export {
   wiredAs,
   terminalNumber,
   shuffleFor,
+  skinOhms,
+  pencilOhms,
   type PartDef,
   type FootprintLeg,
+  type SeatDef,
+  type SettingDef,
+  type ActionDef,
+  type Hotspot,
+  type NetContext,
 } from "./parts";
+export { seatsOf, heldOf, holderOf, seatNear, SEAT_REACH } from "./seats";
 export { partPose, anchorPosition, benchBounds, fitCamera, isOnBoard, METER, DIAL_MODES, type PartPose } from "./layout";
 export { resistorBands, formatOhms, formatFarads } from "./colorCode";
 // The store needs React and zustand but not three.js, so a host can own it before the 3D view loads.
-export { createBenchStore, type BenchStore, type BenchStoreState, type BenchUi } from "./store";
+export { createBenchStore, type BenchStore, type BenchStoreState, type BenchUi, type InspectSpec } from "./store";
 export { DEFAULT_LABELS, type BenchLabels } from "./labels";
 
 export type {
@@ -56,4 +64,7 @@ export type {
   WaterKind,
   Wire,
   WireColor,
+  Held,
+  BatterySize,
+  Moisture,
 } from "./types";

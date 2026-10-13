@@ -40,8 +40,11 @@ export interface Simulation {
   /** Advances simulated time with wall time x speed, emitting snapshots at about 30 Hz. */
   run(opts?: RunOptions): void;
   pause(): void;
-  /** Advances exactly dt simulated seconds, synchronously. Returns (and emits) a snapshot. */
-  step(dt: number): Snapshot;
+  /**
+   * Advances exactly dt simulated seconds, synchronously. Returns (and emits) a snapshot. `speed` lets the solver
+   * take the larger steps a time-lapse run at that speed would (headless replays of time-lapse labs).
+   */
+  step(dt: number, opts?: { speed?: number }): Snapshot;
   /** The current state, with the events raised since the previous snapshot. */
   snapshot(): Snapshot;
   onSnapshot(cb: SnapshotListener): () => void;

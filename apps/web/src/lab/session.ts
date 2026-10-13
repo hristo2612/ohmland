@@ -80,6 +80,8 @@ export class LabSession {
   private wiring = "";
   private timing: { start: number; watch?: number } | null = null;
   private trig = new Map<string, boolean>();
+  /** When each task was done in this visit, with the meter as it read then (LabView.doneAt). */
+  doneAt: Record<string, { t: number; meter: LabView["meter"] }> = {};
   private memory = new Map<string, Record<string, unknown>>();
   private shared: Record<string, unknown> = {};
   private fired = new Set<string>();
@@ -199,6 +201,7 @@ export class LabSession {
       loggerStart: this.loggerT0,
       tapping: this.tapper?.on ? this.tapper.part : null,
       onTrigger: (name) => this.pendingTriggers.push(name),
+      doneAt: this.doneAt,
     });
   }
 
@@ -272,6 +275,7 @@ export class LabSession {
         }
         if (ok) {
           this.status[t.id] = "done";
+          this.doneAt[t.id] = { t: s.t, meter: v.meter };
           update.completed.push(t);
           if (t.trigger) this.pendingTriggers.push(t.trigger);
         }

@@ -5,13 +5,14 @@ export { PartPreview, type PartPreviewProps, type PreviewKind } from "./preview/
 export { PartGallery, DEFAULT_GALLERY, type GalleryItem, type PartGalleryProps } from "./preview/Gallery";
 
 export { benchToNetlist, connectivity, type BenchNetlist, type BenchNetlistOptions, type Connectivity } from "./netlist";
-export { createBenchStore, useBench, useBenchStore, BenchStoreContext, type BenchStore, type BenchStoreState, type BenchUi, type BenchMode } from "./store";
+export { createBenchStore, useBench, useBenchStore, BenchStoreContext, type BenchStore, type BenchStoreState, type BenchUi, type BenchMode, type InspectSpec } from "./store";
+export { seatsOf, heldOf, holderOf, seatNear, SEAT_REACH } from "./seats";
 export * as benchOps from "./ops";
 export { emptyBench, defaultMeter } from "./ops";
 
 export { holeAnchor, pinAnchor, wireAnchor, leadAnchor, probeAnchor, socketAnchor, parseAnchor, type ParsedAnchor } from "./anchors";
 export { PITCH, boardGeometry, parseHole, holeWorld, nearestHole, type BoardGeometry, type HoleInfo, type StripInfo } from "./board";
-export { PART_KINDS, partDef, partLegs, defaultParams, footprintOf, isThrowSwitch, mysteryOrder, physicalLeg, wiredAs, terminalNumber, shuffleFor, type PartDef, type FootprintLeg } from "./parts";
+export { PART_KINDS, partDef, partLegs, defaultParams, footprintOf, isThrowSwitch, mysteryOrder, physicalLeg, wiredAs, terminalNumber, shuffleFor, skinOhms, pencilOhms, type PartDef, type FootprintLeg, type SeatDef, type SettingDef, type Hotspot } from "./parts";
 export { partPose, anchorPosition, clipTargets, METER, DIAL_MODES, type PartPose, type ClipTarget } from "./layout";
 export { resistorBands, bandsToOhms, formatOhms, formatFarads, ceramicCode, isPreferredValue, BAND_HEX, type BandColor } from "./colorCode";
 export { DEFAULT_LABELS, mergeLabels, type BenchLabels } from "./labels";
@@ -50,4 +51,7 @@ export type {
   WaterKind,
   Wire,
   WireColor,
+  Held,
+  BatterySize,
+  Moisture,
 } from "./types";

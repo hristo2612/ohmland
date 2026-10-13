@@ -82,6 +82,8 @@ export class LabRuntime {
   private audioOff: (() => void) | null = null;
   private tone = createToneMeter();
   private noteSpecs = new Map<string, { unit?: string }>();
+  /** Simulated seconds per real second (1, or more for a time-lapse). */
+  private speed = 1;
 
   constructor(lab: LabDefinition, built: BuiltBench, done: readonly string[], hooks: RuntimeHooks) {
     this.lab = lab;
@@ -94,6 +96,15 @@ export class LabRuntime {
     const start = done.length && cur ? this.checkpoint(cur.id) : null;
     this.store = createBenchStore(start?.bench ?? built.bench);
     if (start) this.session.setBench(start.bench);
+    // Readouts over parts and the room lights live in the bench store; the speed control sets the run speed.
+    this.speed = lab.speed ?? 1;
+    const patch: { inspect?: NonNullable<BuiltBench["inspect"]>; ambient?: number } = {};
+    if (built.inspect?.length) patch.inspect = built.inspect;
+    for (const c of built.controls) {
+      if (c.key === "speed") this.speed = c.value;
+      if (c.key === "room") patch.ambient = c.value;
+    }
+    if (Object.keys(patch).length) this.store.setState(patch);
     this.ui = createStore<RuntimeUi>()(() => ({
       ready: false,
       failed: false,
@@ -141,12 +152,12 @@ export class LabRuntime {
     client.load(this.session.net.netlist);
     for (const i of this.startInputs) client.setInput(i.id, i.key, i.value);
     this.syncAudio(this.session.bench);
-    client.run({ speed: this.lab.speed ?? 1 });
+    client.run({ speed: this.speed });
     this.ui.setState({ ready: true });
     const onVis = () => {
       if (!this.sim) return;
       if (document.hidden) this.sim.pause();
-      else this.sim.run({ speed: this.lab.speed ?? 1 });
+      else this.sim.run({ speed: this.speed });
     };
     document.addEventListener("visibilitychange", onVis);
     this.unsub.push(() => document.removeEventListener("visibilitychange", onVis));
@@ -308,10 +319,17 @@ export class LabRuntime {
     const c = this.built.controls.find((x) => x.id === id);
     if (!c) return;
     this.session.setControl(id, value);
-    for (const target of controlTargets(this.session.bench, c)) {
-      // A knob's position lives on the bench too, so the 3D knob turns with the slider.
-      if (c.key === "position" && this.store.getState().bench.parts.some((p) => p.id === target)) this.store.getState().setParams(target, { position: value });
-      else this.sim?.setInput(target, c.key, value);
+    if (c.key === "speed") {
+      // run() with a new speed while running just changes the speed.
+      this.speed = value;
+      this.sim?.run({ speed: value });
+    } else if (c.key === "room") this.store.setState({ ambient: value });
+    else {
+      for (const target of controlTargets(this.session.bench, c)) {
+        // A knob's position lives on the bench too, so the 3D knob turns with the slider.
+        if (c.key === "position" && this.store.getState().bench.parts.some((p) => p.id === target)) this.store.getState().setParams(target, { position: value });
+        else this.sim?.setInput(target, c.key, value);
+      }
     }
     this.ui.setState({ controls: { ...this.session.controls } });
   }

@@ -333,6 +333,7 @@ sim.load(netlist);                               // full rebuild; keeps state (c
 sim.setInput(partId, key, value);                // pressed, closed, to, position, light, ohms, mode, range,
                                                  // replaceFuse (meter: fit a new mA fuse), replace (any part: fresh part, same id)
 sim.run({ speed: 1 });                           // real time; below 1 slow motion; up to 3600 time-lapse (audio muted above 4)
+                                                 // in-thread step(dt, { speed }) takes a time-lapse's larger steps (replays)
 sim.onSnapshot((s: Snapshot) => ...);            // about 30 per second
 type Snapshot = {
   t: number;                                     // simulated seconds
@@ -377,11 +378,17 @@ React Three Fiber components and logic for the lab bench:
   jumper wires, solderless breadboard, multimeter (rotary dial, LCD, banana sockets, probes), pushbutton, slide and
   toggle switches, fuse, capacitors (electrolytic, ceramic, with legs that bend to reach holes up to seven apart),
   potentiometer, relay (DPDT, or single changeover with `poles: 1`), NPN transistor (TO-92), phototransistor, small
-  speaker, touch pads, plus lab props (cups of water, fruit cells).
+  speaker, touch pads, AA and coin cells, 1 W and 5 W resistors, plus lab props: cups of water, fruit cells, a
+  resistor holder, a battery tester, a lemon half with copper and zinc electrodes, a skin patch, a copper wire and a
+  plastic ruler, a pencil card, value labels, a reject bin, a colour chart, a desk clock, a display case.
 - Desk modules for circuits built with clip leads: a pushbutton, slide or toggle switch, panel pot, relay or DPDT
   switch (`dpdt-switch`) mounted on a wooden block with brass screw terminals (`base: true`, `tag` prints a name on
   its front). A relay or DPDT switch can be a mystery (`mystery`: its terminals are wired inside in a shuffled order
   and show only numbers; `peek` shows the inside). `partLegs(part)` gives the leads a part actually has.
+- Holders have seats (`PartDef.seats`, who sits where in `params.held`): a part dropped on one goes in and its leads
+  join the holder's contacts. Props have settings and actions on the selection bar and clickable spots on the model
+  (`PartDef.settings`, `actions`, `hotspots`). A part dropped right on one of its kind swaps places and wiring.
+- The store also holds `inspect` (stress and heat readouts drawn over parts) and `ambient` (room lights, 1 to 0.1).
 - Interaction: drag from a tray, snap leads into breadboard holes, rotate, delete, wire hole to hole, clip alligator
   leads and meter probes onto leads or terminals. Mouse, touch and keyboard.
 - `benchToNetlist(bench: BenchState): { netlist: Netlist; nodeOf(anchor): NodeId }` using union-find over the
@@ -392,7 +399,10 @@ React Three Fiber components and logic for the lab bench:
 
 `@ohmland/bench/core` exports the pure half (BenchState ops, layout, `benchToNetlist`, the store) without React Three
 Fiber or three.js, for lab runtimes, solution replays and tests. `benchToNetlist` gives each crocodile lead 0.15 Ω
-(`leadOhms`, 0 merges the clips into one node). `<Bench locked>` keeps parts in place; `<Bench store>` without a
+(`leadOhms`, 0 merges the clips into one node) and each plugged-in meter probe lead 0.1 Ω (`probeOhms`, parts
+`<meter>:red` and `<meter>:black`). Part mappings may build small internal networks (the skin's and the pencil
+line's resistor ladders, internal nodes named `<id>#k`) and look at other parts (`NetContext`: a fruit cell reads its
+electrodes). `<Bench locked>` keeps parts in place; `<Bench store>` without a
 `snapshot` prop leaves the snapshot to whoever owns the store (each part model subscribes to its own state).
 
 ## Labs (`content/labs/*.ts`)
@@ -423,27 +433,32 @@ export default defineLab({
 ```
 
 Places (`at`) are shorthand: holes (`"e12"`, `"e5-e9"`, `"rail+:12"`), `"rails"` for a snap battery, desk spots
-(`"desk:x,z"` in mm). Attach points are `"R1.a"`, `"e12"`, `"W1.b"`, `"TL1.a"`, `"red"`, and in solutions
-`"wired:K1.coil1"` (the terminal of a mystery part wired as that lead). `frame` names the desk rectangle the camera
-frames. `defineLab` checks the cheap invariants (kebab-case id, unique task, part and panel ids, checkpoints and
-panel answers that name real tasks and panels) when the lab loads. The first-draft form of the Unit 1 and 2 stubs
-(simulator kinds, `props`, `kind: "wire"` leads) still loads.
+(`"desk:x,z"` in mm), a holder's seat (`"in:H1"`), and in solutions another part's place (`"on:B1"`, a swap).
+Attach points are `"R1.a"`, `"e12"`, `"W1.b"`, `"TL1.a"`, `"red"`, and in solutions `"wired:K1.coil1"` (the terminal
+of a mystery part wired as that lead). `frame` names the desk rectangle the camera frames. `defineLab` checks the
+cheap invariants (kebab-case id, unique task, part and panel ids, checkpoints and panel answers that name real tasks
+and panels) when the lab loads. The first-draft form of the Unit 1 and 2 stubs (simulator kinds, `props`,
+`kind: "wire"` leads) still loads.
 
 Labs can declare panels (worksheets beside the tasks, `panels.ts` logic and `panels-ui.tsx`): continuity and truth
 tables that fill themselves from the bench, a pin map that counts wrong submissions, tags, a hole hunt and a symbol
 builder. Instruments beyond the meter and scope: a data logger (plot from a trigger, with a cursor), a stopwatch
-(starts on a switch, stops on a relay's contact, keeps runs) and an auto-tapper (works a pushbutton in simulated time).
-The scope can take a single shot: the runtime pauses the worker, applies the learner's switch action and steps the
-simulator in sub-microsecond to tens-of-microsecond steps through the next few milliseconds (a coil's kickback).
+(starts on a switch, stops on a relay's contact, keeps runs), an auto-tapper (works a pushbutton in simulated time)
+and `{ kind: "inspect" }` readouts over parts. The scope can take a single shot: the runtime pauses the worker,
+applies the learner's switch action and steps the simulator in sub-microsecond to tens-of-microsecond steps through
+the next few milliseconds (a coil's kickback).
 
 `goal` receives a read-only `LabView` (`createLabView(...)`, pure): the bench, the latest snapshot, the event log and
 recent history, the meter (mode, range, sockets, parsed value), the notebook, and helpers for the blueprint's checks
 (`isLit`, `closed`, `fried`, `died`, `event`, `count`, `volts`, `amps`, `connected`, `joins`, `legs`, `seriesLoop`,
-`loopOpen`, `across`, `inSeries`, `meterReads`, `heldFor`, `history`, `stats`, `timeAbove`, `periods`,
-`blinkPeriod`, `relayPeriods`, `toneHz`, `toneHistory`, `relayClicks`, `actual`, `panel`, `runs`, `loggerStart`,
-`tapping`, `logged`, `note`, `control`, `trigger`, per-task `memory` and lab-wide `shared`). Required tasks are
-checked in order, one at a time; bonus tasks all the time. Every lab ships a `solution` (bench actions with `check`
-points); `apps/web/src/lab/solutions.test.ts` replays each one headlessly (`replay.ts`: bench ops + the in-thread simulator) and fails when a required task is not done.
+`chain`, `parallel`, `loopOpen`, `across`, `probed`, `inSeries`, `meterReads`, `heldFor`, `history`, `stats`,
+`timeAbove`, `periods`, `blinkPeriod`, `relayPeriods`, `toneHz`, `toneHistory`, `relayClicks`, `actual`, `panel`,
+`runs`, `loggerStart`, `tapping`, `logged`, `note`, `control`, `holds`, `heldBy`, `distance`, `doneAt`, `trigger`,
+per-task `memory` and lab-wide `shared`). Required tasks are checked in order, one at a time; bonus tasks all the
+time. Every lab ships a `solution` (bench actions with `check` points); `apps/web/src/lab/solutions.test.ts` replays
+each one headlessly (`replay.ts`: bench ops + the in-thread simulator) and fails when a required task is not done or
+a lab has no solution. Controls can drive a part's input (every part of a kind with `part: "*"`), the run speed
+(`key: "speed"`, a time-lapse the replay fast-forwards too) or the room lights (`key: "room"`).
 
 Runtime (`apps/web/src/lab`):
 
