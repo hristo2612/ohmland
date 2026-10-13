@@ -1,109 +1,192 @@
-// Lab for lesson `siren` (docs/curriculum/unit-2.md, Lesson 19), the unit's landmark build.
-// Board: a full 830-point breadboard with both rail pairs bridged. Two pre-built oscillators, labeled "slow" and
-// "fast", plus a speaker driver. Netlist pins are noted beside each part; `at` anchors are provisional until
-// packages/bench owns BenchState. Tray comments give the ids the goals expect placed parts to get.
-// Instruments: scope with a frequency readout, and meter.
-// Numbers: the bridge (two 100 kΩ from both fast bases to the slow collector) should give tones near 1.4 kHz and
-// 1.9 kHz. Verify in the simulator and adjust the goal windows. The whole circuit draws about 40 mA.
-// LAB NEEDS: tone frequency over time (50 ms windows) for every goal in this lab.
-// Damage moments: a plain wire instead of R8 or R9 locks the oscillators into one muddy pitch or stalls the fast one
-// (the robot explains). Holding the button for long drains the battery faster.
-// Notice: the slow oscillator's LED glows faintly in its "off" half, because a little current now flows into the
-// bridge. Small side effects like this are normal when circuits are joined.
-import { defineLab } from "@ohmland/lab";
-import { closed, happened, placed } from "./lib/goals-switching";
+// Blueprint: docs/curriculum/unit-2.md, Lesson 19, the unit's landmark build. The siren button S1 (rows 2 and 4)
+// powers the near + rail, bridged to the far rails. The slow oscillator (lesson 17's flasher: 1 kΩ, 68 kΩ, 10 µF)
+// sits in rows 10 to 13, Q1 near and Q2 far; Q1's collector (row 12) is also brought out to row 16 by a jumper. The
+// fast oscillator (1 kΩ, 68 kΩ, 10 nF ceramics) sits in rows 20 to 22, Q3 near and Q4 far. Q5 (far rows 26 to 28) drives
+// the speaker from Q4's collector through R11 (4.7 kΩ), with R12 (220 Ω, 0.5 W) from the far + rail.
+//
+// The learner bridges the fast bases (near row 21 and far row 21) to Q1's collector (row 16) with R8 and R9
+// (100 kΩ), then moves their joined end to row 17 and adds R10 (10 kΩ, row 17 to row 16) and C5 (22 µF, row 17 to
+// minus): a low-pass filter that turns the two-tone into a glide.
+import { defineLab, type LabView } from "@ohmland/lab";
+
+/** Pitch samples over the last `seconds`, voiced ones only. */
+const tones = (lab: LabView, seconds: number) => lab.toneHistory(seconds).map(([, f]) => f).filter((f) => f > 0);
+
+function quantile(xs: number[], q: number): number {
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.max(0, Math.floor(q * (s.length - 1))))] ?? 0;
+}
+
+/** Highest over lowest pitch (90th over 10th percentile) in the last `seconds`. */
+function range(lab: LabView, seconds: number): number {
+  const f = tones(lab, seconds);
+  if (f.length < 20) return 1;
+  return quantile(f, 0.9) / Math.max(1, quantile(f, 0.1));
+}
+
+/** Seconds between pitch swings: crossings of the middle pitch, upward ones, averaged. */
+function swing(lab: LabView, seconds: number): number | null {
+  const h = lab.toneHistory(seconds).filter(([, f]) => f > 0);
+  const f = h.map(([, x]) => x);
+  if (f.length < 20) return null;
+  const mid = Math.sqrt(quantile(f, 0.9) * quantile(f, 0.1));
+  const ups: number[] = [];
+  for (let i = 1; i < h.length; i++) if (h[i - 1]![1] < mid && h[i]![1] >= mid) ups.push(h[i]![0]);
+  if (ups.length < 2) return null;
+  return (ups[ups.length - 1]! - ups[0]!) / (ups.length - 1);
+}
+
+/** The bridge resistors run from both fast bases to `to`. */
+const bridged = (lab: LabView, to: string) => lab.joins("R8", "Q3.b", to) && lab.joins("R9", "Q4.b", to);
+
+const held = (lab: LabView) => lab.closed("S1");
 
 export default defineLab({
   id: "siren",
   title: "The siren button",
   bench: {
-    board: "breadboard",
+    board: "full",
+    frame: ["desk:-130,-80", "desk:6,32"],
     parts: [
-      // Power. pins { pos: vcc, neg: gnd } and the siren button { a: vcc, b: vp }
-      { id: "B1", kind: "battery", at: "rails", props: { emf: 9, internalOhms: 1.5 }, locked: true },
-      { id: "S1", kind: "pushbutton", at: "rail+:2-a2", locked: true },
-      // Slow oscillator, as in lesson 17. Q1's collector node is c1.
-      { id: "R1", kind: "resistor", at: "e2-e6", props: { ohms: 1000 }, locked: true },
-      { id: "D1", kind: "led", at: "a6-a9", props: { color: "red" }, locked: true },
-      { id: "Q1", kind: "npn", at: "e9", props: { model: "2N3904" }, locked: true },
-      { id: "R2", kind: "resistor", at: "j2-j18", props: { ohms: 1000 }, locked: true },
-      { id: "D2", kind: "led", at: "f18-f21", props: { color: "red" }, locked: true },
-      { id: "Q2", kind: "npn", at: "j21", props: { model: "2N3904" }, locked: true },
-      { id: "R3", kind: "resistor", at: "c2-c10", props: { ohms: 68000 }, locked: true },
-      { id: "R4", kind: "resistor", at: "h2-h22", props: { ohms: 68000 }, locked: true },
-      { id: "C1", kind: "capacitor", at: "b9-g22", props: { farads: 0.00001, volts: 16, polarized: true } },
-      { id: "C2", kind: "capacitor", at: "g21-b10", props: { farads: 0.00001, volts: 16, polarized: true } },
-      // Fast oscillator. pins { c: c3, b: b3, e: gnd } and { c: c4, b: b4, e: gnd }, 1 kΩ collector and 68 kΩ base
-      // resistors to vp, 10 nF ceramics from c3 to b4 and from c4 to b3.
-      { id: "Q3", kind: "npn", at: "e35", props: { model: "2N3904" }, locked: true },
-      { id: "Q4", kind: "npn", at: "j45", props: { model: "2N3904" }, locked: true },
-      { id: "RC3", kind: "resistor", at: "rail+:35-a35", props: { ohms: 1000 }, locked: true },
-      { id: "RC4", kind: "resistor", at: "rail+:45-f45", props: { ohms: 1000 }, locked: true },
-      { id: "RB3", kind: "resistor", at: "rail+:36-a36", props: { ohms: 68000 }, locked: true },
-      { id: "RB4", kind: "resistor", at: "rail+:46-f46", props: { ohms: 68000 }, locked: true },
-      { id: "C3", kind: "capacitor", at: "b35-g46", props: { farads: 1e-8, polarized: false }, locked: true },
-      { id: "C4", kind: "capacitor", at: "g45-b36", props: { farads: 1e-8, polarized: false }, locked: true },
-      // Driver. pins { c: spb, b: q5b, e: gnd }, R11 { a: c4, b: q5b }, R12 0.5 W { a: vp, b: spa }, SP1 { a: spa, b: spb }
-      { id: "Q5", kind: "npn", at: "e55", props: { model: "2N3904" }, locked: true },
-      { id: "R11", kind: "resistor", at: "i45-i55", props: { ohms: 4700 }, locked: true },
-      { id: "R12", kind: "resistor", at: "rail+:58-a58", props: { ohms: 220, watts: 0.5 }, locked: true },
-      { id: "SP1", kind: "speaker", at: "e58-a54", props: { ohms: 8 }, locked: true },
+      { id: "B1", kind: "battery", at: "desk:-114,10", holes: { pos: "a2", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "S1", kind: "pushbutton", at: "e2", params: { cap: "red" }, locked: true, label: "Siren button S1" },
+      // The slow oscillator.
+      { id: "Q1", kind: "npn", at: "d10", locked: true, label: "Slow Q1" },
+      { id: "D1", kind: "led", at: "c13", rot: 180, params: { color: "red" }, locked: true, label: "Red LED D1" },
+      { id: "R1", kind: "resistor", at: "rail+:13-b13", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor R1" },
+      { id: "R3", kind: "resistor", at: "rail+:11-b11", params: { ohms: 68000 }, locked: true, label: "68 kΩ resistor R3" },
+      { id: "Q2", kind: "npn", at: "g10", locked: true, label: "Slow Q2" },
+      { id: "D2", kind: "led", at: "h13", rot: 180, params: { color: "red" }, locked: true, label: "Red LED D2" },
+      { id: "R2", kind: "resistor", at: "top+:13-i13", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor R2" },
+      { id: "R4", kind: "resistor", at: "top+:11-i11", params: { ohms: 68000 }, locked: true, label: "68 kΩ resistor R4" },
+      { id: "C1", kind: "electrolytic-cap", at: "e12-f11", params: { farads: 10e-6, volts: 16 }, label: "10 µF capacitor C1" },
+      { id: "C2", kind: "electrolytic-cap", at: "f12-e11", params: { farads: 10e-6, volts: 16 }, label: "10 µF capacitor C2" },
+      // The fast oscillator.
+      { id: "Q3", kind: "npn", at: "d20", locked: true, label: "Fast Q3" },
+      { id: "RC3", kind: "resistor", at: "rail+:22-b22", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor" },
+      { id: "RB3", kind: "resistor", at: "rail+:21-b21", params: { ohms: 68000 }, locked: true, label: "68 kΩ resistor" },
+      { id: "Q4", kind: "npn", at: "g20", locked: true, label: "Fast Q4" },
+      { id: "RC4", kind: "resistor", at: "top+:22-i22", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor" },
+      { id: "RB4", kind: "resistor", at: "top+:21-i21", params: { ohms: 68000 }, locked: true, label: "68 kΩ resistor" },
+      { id: "C3", kind: "ceramic-cap", at: "e22-f21", params: { farads: 10e-9 }, locked: true, label: "10 nF capacitor" },
+      { id: "C4", kind: "ceramic-cap", at: "f22-e21", params: { farads: 10e-9 }, locked: true, label: "10 nF capacitor" },
+      // The speaker driver.
+      { id: "Q5", kind: "npn", at: "g26", locked: true, label: "Driver Q5" },
+      { id: "R11", kind: "resistor", at: "j22-j27", params: { ohms: 4700 }, locked: true, label: "4.7 kΩ resistor R11" },
+      { id: "R12", kind: "resistor", at: "top+:30-i30", params: { ohms: 220, watts: 0.5 }, locked: true, label: "220 Ω resistor R12, 0.5 W" },
+      { id: "SP1", kind: "speaker", at: "desk:-14,-58", holes: { a: "h30", b: "h28" }, params: { ohms: 8 }, locked: true, label: "8 Ω speaker" },
+    ],
+    wires: [
+      { id: "W1", from: "a4", to: "rail+:4", color: "red" },
+      { id: "W2", from: "rail+:6", to: "top+:6", color: "red" },
+      { id: "W3", from: "rail-:7", to: "top-:7", color: "black" },
+      { id: "W4", from: "a10", to: "rail-:10", color: "black" },
+      { id: "W5", from: "j10", to: "top-:10", color: "black" },
+      { id: "W6", from: "a20", to: "rail-:19", color: "black" },
+      { id: "W7", from: "j20", to: "top-:19", color: "black" },
+      { id: "W8", from: "i26", to: "top-:25", color: "black" },
+      // Q1's collector, brought out to row 16.
+      { id: "W9", from: "a12", to: "a16", color: "yellow" },
     ],
     tray: [
-      // R8 and R9: 100 kΩ, the bridge.
-      { kind: "resistor", props: { ohms: 100000 }, count: 2 },
-      // R10: 10 kΩ, for the wail filter.
-      { kind: "resistor", props: { ohms: 10000 }, count: 1 },
-      // C5: 22 µF, 16 V, for the wail filter.
-      { kind: "capacitor", props: { farads: 0.000022, volts: 16, polarized: true }, count: 1 },
-      // C6 and C7: 1 µF ceramics, for the trill.
-      { kind: "capacitor", props: { farads: 1e-6, polarized: false }, count: 2 },
-      { kind: "wire", count: 4 },
+      { id: "R8", kind: "resistor", params: { ohms: 100_000 }, count: 2, label: "100 kΩ" },
+      { id: "R10", kind: "resistor", params: { ohms: 10_000 }, count: 1, label: "10 kΩ" },
+      { id: "C5", kind: "electrolytic-cap", params: { farads: 22e-6, volts: 16 }, count: 1, label: "22 µF" },
+      { id: "C6", kind: "ceramic-cap", params: { farads: 1e-6 }, count: 2, label: "1 µF (105)" },
     ],
-    instruments: ["meter"],
+    instruments: [{ kind: "scope", traces: [{ label: "Slow Q1 collector", volts: "Q1.c" }], window: 3, range: [-1, 10], pitch: "SP1" }],
   },
+  mascot: {
+    start: "Two heartbeats, one voice. Let's introduce them.",
+    hint: "Gentle resistors make good neighbours.",
+    success: "Nee-naw! The island has a voice.",
+    exit: "Wail, trill, swoop. You're a sound designer now.",
+  },
+  fried: { npn: "2N3904 in the siren" },
   tasks: [
     {
       id: "two-voices",
       prompt: "Hold the siren button. You should see a blink and hear a steady tone.",
-      // GOAL: with S1 held, the slow LEDs alternate and the tone stays within 5% of one frequency for 2 s.
-      goal: (lab) => closed(lab, "S1") && !placed(lab, "R8") && !placed(lab, "R9") && lab.isLit("D1", 0.5) !== lab.isLit("D2", 0.5),
-      hints: ["Keep holding: the slow side takes about a second per blink."],
+      goal: (lab) => {
+        if (!held(lab) || lab.benchPart("R8") || lab.blinkPeriod("D1") === null) return false;
+        const f = tones(lab, 2);
+        if (f.length < 40) return false;
+        const mean = f.reduce((a, b) => a + b, 0) / f.length;
+        return f.every((x) => Math.abs(x - mean) <= mean * 0.05);
+      },
+      hints: ["Keep holding: the slow side takes most of a second per blink."],
+      highlight: ["S1"],
       success: "Two separate oscillators, ignoring each other. Let's introduce them.",
     },
     {
       id: "bridge",
-      prompt: "Connect `R8` from `Q3`'s base to `Q1`'s collector, and `R9` from `Q4`'s base to `Q1`'s collector.",
-      // GOAL: the tone alternates between two frequencies whose ratio is 1.15 to 1.8, switching every 0.3 to 0.7 s.
-      goal: (lab) =>
-        closed(lab, "S1") &&
-        placed(lab, "R8") &&
-        placed(lab, "R9") &&
-        Math.abs(lab.part("R8")?.i ?? 0) > 1e-6 &&
-        Math.abs(lab.part("R9")?.i ?? 0) > 1e-6,
-      hints: ["Both resistors meet at `Q1`'s collector strip."],
-      success:
-        "Nee-naw! When `Q1` is off, its high collector pushes extra current into the fast bases: higher pitch. When `Q1` is on, it pulls them down: lower pitch.",
+      prompt: "Connect **R8** from Q3's base (row 21, near half) to Q1's collector, and **R9** from Q4's base (row 21, far half) to Q1's collector. Q1's collector comes out at row 16.",
+      goal: (lab) => {
+        if (!held(lab) || !bridged(lab, "Q1.c")) return false;
+        const r = range(lab, 3);
+        const s = swing(lab, 3);
+        return r >= 1.15 && r <= 1.8 && s !== null && s >= 0.6 && s <= 1.4;
+      },
+      hints: ["Both resistors meet at Q1's collector strip, row 16.", "Bend R9 across the channel from far row 21 to near row 16."],
+      highlight: ["hole:c21", "hole:h21", "hole:c16"],
+      success: "Nee-naw! When Q1 is off, its high collector pushes extra current into the fast bases: higher pitch. When Q1 is on, it pulls them down: lower pitch.",
+      notice: "The slow LED now glows faintly in its off half: a little current flows into the bridge. Small side effects like this are normal when circuits are joined.",
     },
     {
       id: "wail",
       prompt:
-        "Make it glide: move the joined end of `R8` and `R9` to an empty strip, connect that strip to `Q1`'s collector through `R10`, and put `C5` from that strip to ground, stripe to ground.",
-      // GOAL: the tone's range ratio is at least 1.15, with no jump larger than 5% between successive 50 ms windows.
-      goal: (lab) => closed(lab, "S1") && placed(lab, "R10") && placed(lab, "C5") && !happened(lab, "C5", "reversed") && placed(lab, "R8"),
-      hints: ["`R10` and `C5` make an RC filter, like the smoothing in the capacitor module."],
+        "Make it glide: move the joined end of R8 and R9 to the empty row 17, connect row 17 to Q1's collector (row 16) through **R10**, and put **C5** from row 17 to the minus rail, stripe to minus.",
+      goal: (lab) => {
+        if (!held(lab) || !bridged(lab, "R10.a") && !bridged(lab, "R10.b")) return false;
+        const j = lab.joins("R10", "Q1.c", "R8.a") || lab.joins("R10", "Q1.c", "R8.b");
+        const cap = lab.bench.parts.some((p) => p.kind === "electrolytic-cap" && p.params.farads === 22e-6 && (lab.joins(p.id, "R10.a", "B1.neg", "forward") || lab.joins(p.id, "R10.b", "B1.neg", "forward")) && !lab.connected(`${p.id}.pos`, "Q1.c"));
+        if (!j || !cap || range(lab, 3) < 1.15) return false;
+        const h = lab.toneHistory(3).filter(([, f]) => f > 0);
+        if (h.length < 40) return false;
+        // No jumps: each pitch reading (over the last 60 ms, one per frame) is within 5% of the one before.
+        for (let k = 1; k < h.length; k++) if (Math.abs(h[k]![1] - h[k - 1]![1]) > 0.05 * h[k - 1]![1]) return false;
+        return true;
+      },
+      hints: ["R10 and C5 make an RC filter, like the smoothing in the capacitor module.", "R8 and R9 keep their base ends; only their other ends move to row 17."],
+      highlight: ["hole:c17", "hole:d17"],
       success: "Now it swoops up and down. The capacitor turns sudden steps into slopes.",
+      trigger: "siren-wail",
     },
     {
       id: "trill",
-      prompt: "Bonus: swap the slow oscillator's 10 µF capacitors for 1 µF.",
-      // GOAL: the pitch modulation rate is 6 to 16 per second.
-      goal: (lab) => closed(lab, "S1") && placed(lab, "C6") && placed(lab, "C7") && !placed(lab, "C1") && !placed(lab, "C2"),
-      hints: ["Swap both cross-coupling capacitors on the slow side."],
+      prompt: "Bonus: swap the slow oscillator's 10 µF capacitors (C1 and C2) for the **1 µF** ceramics, and take C5 out so the fast steps get through.",
+      goal: (lab) => {
+        if (!held(lab)) return false;
+        const s = swing(lab, 2);
+        return s !== null && 1 / s >= 6 && 1 / s <= 16 && range(lab, 2) > 1.08;
+      },
+      hints: [
+        "Same places as C1 and C2: each from a collector (row 12) across the channel to the other base (row 11).",
+        "A filter that smooths a slow swing also smooths away a fast one. Without C5, R10 just passes the steps on.",
+      ],
       success: "A frantic trill. Every knob you've learned in this unit is now a sound design tool.",
-      optional: true,
+      bonus: true,
     },
   ],
-  // TODO(solution): bench actions that solve every task, once packages/bench defines anchors.
-  solution: [],
+  solution: [
+    { do: "press", part: "S1", seconds: 3.5 },
+    { do: "check", task: "two-voices" },
+    { do: "place", part: "R8", kind: "resistor", at: "c21-c16", params: { ohms: 100_000 } },
+    { do: "place", part: "R9", kind: "resistor", at: "h21-d16", params: { ohms: 100_000 } },
+    { do: "press", part: "S1", seconds: 4 },
+    { do: "check", task: "bridge" },
+    { do: "move", part: "R8", at: "c21-c17" },
+    { do: "move", part: "R9", at: "h21-d17" },
+    { do: "place", part: "R10", kind: "resistor", at: "a17-d16", params: { ohms: 10_000 } },
+    { do: "place", part: "C5", kind: "electrolytic-cap", at: "b17-rail-:18", params: { farads: 22e-6, volts: 16 } },
+    { do: "press", part: "S1", seconds: 5 },
+    { do: "check", task: "wail" },
+    { do: "remove", part: "C1" },
+    { do: "remove", part: "C2" },
+    { do: "place", part: "C6", kind: "ceramic-cap", at: "e12-f11", params: { farads: 1e-6 } },
+    { do: "place", part: "C7", kind: "ceramic-cap", at: "f12-e11", params: { farads: 1e-6 } },
+    { do: "remove", part: "C5" },
+    { do: "press", part: "S1", seconds: 3 },
+    { do: "check", task: "trill" },
+  ],
 });

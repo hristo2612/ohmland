@@ -27,7 +27,8 @@ describe("lab solutions", () => {
     });
 
     const run = lab.solution.length ? it : it.skip;
-    run(`${lab.id}: the solution completes every required task`, () => {
+    // Oscillators with a speaker step at the audio rate: the siren's replay takes several seconds.
+    run(`${lab.id}: the solution completes every required task`, { timeout: 120_000 }, () => {
       const r = replayLab(lab);
       expect(r.problems, "steps that did not apply").toEqual([]);
       expect(r.failedChecks, "checkpoints not done in time").toEqual([]);

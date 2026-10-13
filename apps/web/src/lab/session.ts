@@ -300,16 +300,15 @@ export class LabSession {
   private holds(t: TriggerSpec, s: Snapshot): boolean {
     if ("to" in t) return (this.bench.parts.find((p) => p.id === t.part)?.params as { to?: string } | undefined)?.to === t.to;
     if ("pressed" in t) return (s.parts[t.part]?.extra?.["pressed"] === true) === t.pressed;
-    return s.events.some((e) => e.type === "clicked" && e.partId === t.part && e.data?.["to"] === t.contact);
+    return s.parts[t.part]?.extra?.["contact"] === t.contact;
   }
 
-  /** True when a trigger has just begun to hold (an edge since the previous snapshot). Contact triggers are events. */
+  /** True when a trigger has just begun to hold (an edge since the previous snapshot). */
   private edge(key: string, t: TriggerSpec, s: Snapshot): boolean {
     const now = this.holds(t, s);
-    if ("contact" in t) return now;
     const was = this.trig.get(key) ?? now;
     this.trig.set(key, now);
-    return now && !was;
+    return (now && !was) || ("contact" in t && s.events.some((e) => e.type === "clicked" && e.partId === t.part && e.data?.["to"] === t.contact) && !was);
   }
 
   /** The stopwatch, the logger's start and the auto-tapper. */
@@ -317,13 +316,22 @@ export class LabSession {
     const sw = this.built.stopwatch;
     if (sw) {
       const started = this.edge("sw-start", sw.start, s);
-      const stopped = this.edge("sw-stop", sw.stop, s);
+      // The stop condition counts whenever it holds during a run: a relay that never let go stops a restart at once.
+      const stopped = this.holds(sw.stop, s);
       if (started && !this.timing) {
+        // The switch moved since the previous snapshot: start from then (exact in a replay, within a frame live).
+        const prev = this.history[this.history.length - 2]?.t ?? s.t;
         const w = sw.watch ? view.volts(sw.watch) : undefined;
-        this.timing = { start: s.t, ...(w !== undefined ? { watch: w } : {}) };
+        this.timing = { start: prev, ...(w !== undefined ? { watch: w } : {}) };
         update.panels = true;
-      } else if (this.timing && stopped) {
-        const run: StopwatchRun = { start: this.timing.start, stop: s.t, seconds: s.t - this.timing.start, ...(this.timing.watch !== undefined ? { watch: this.timing.watch } : {}) };
+      }
+      if (this.timing && stopped) {
+        // A relay's click carries its own time; a fast restart can start and stop within one snapshot.
+        const st = sw.stop;
+        const clicks = "contact" in st ? s.events.filter((e) => e.type === "clicked" && e.partId === st.part && e.data?.["to"] === st.contact).map((e) => e.t) : [];
+        const at = clicks.length ? Math.max(...clicks) : started ? this.timing.start : s.t;
+        const stop = Math.max(this.timing.start, at);
+        const run: StopwatchRun = { start: this.timing.start, stop, seconds: stop - this.timing.start, ...(this.timing.watch !== undefined ? { watch: this.timing.watch } : {}) };
         this.runs = [...this.runs, run].slice(-MAX_RUNS);
         this.timing = null;
         update.panels = true;

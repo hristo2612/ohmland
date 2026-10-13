@@ -1,89 +1,129 @@
-// Lab for lesson `meet-the-transistor` (docs/curriculum/unit-2.md, Lesson 13).
-// Netlist pins are noted beside each part; `at` anchors are provisional until packages/bench owns BenchState. Tray
-// comments give the ids the goals expect placed parts to get. A base resistor socket joins strips sb and qb.
-// Instruments: meter (DC mA, 200 µA and 20 mA ranges).
-// Numbers: 9 V through 470 kΩ gives about 17.8 µA of base current; through 220 kΩ about 38 µA. With β near 200 the
-// LED gets about 3.6 mA and 7.6 mA, both short of saturation (about 15 mA through 470 Ω).
-// SIM NEEDS: per-instance β 150 to 250 exposed to the lab; reverse-mode β 1 to 5 with a `reversed` event; near-instant
-// death with an unlimited base current.
-// LAB NEEDS: numeric answer entry checked against the instance Ic ÷ Ib (measure-gain).
-// Damage moments: task 5 by design. Q1 with C and E swapped gives a dim LED (reverse β about 3) and a `reversed` event.
-import { defineLab } from "@ohmland/lab";
-import { between, closed, died, extraNum, happened, placed } from "./lib/goals-switching";
+// Blueprint: docs/curriculum/unit-2.md, Lesson 13. R1 (470 Ω) runs from the + rail into row 23; the red LED's long leg
+// is in row 23 and its short leg in row 22. Q1 goes in rows 20 to 22 (E B C, flat face toward you), with row 20
+// jumped to the minus rail. Button S1 (rows 14 and 16) gives row 16 plus; the base resistor bridges row 16 to Q1's
+// base in row 21. The meter starts on its milliamp sockets for measuring the base and collector currents in series.
+//
+// Measured in the simulator: with 470 kΩ the base gets about 17.7 µA and the LED about 3.4 mA (this Q1's gain is
+// about 190); with 220 kΩ about 38 µA and 7 mA, about twice. A plain jumper to the base kills Q1 at once.
+import { defineLab, type LabView } from "@ohmland/lab";
+
+/** The resistor in the base socket (from row 16 to Q1's base), as its marked value, or null. */
+function baseOhms(lab: LabView): number | null {
+  for (const p of lab.bench.parts) if (p.kind === "resistor" && lab.joins(p.id, "S1.b1", "Q1.b")) return Number(lab.prop(p.id)?.["ohms"]);
+  return null;
+}
+
+const ic = (lab: LabView) => lab.amps("Q1");
 
 export default defineLab({
   id: "meet-the-transistor",
   title: "A tiny current in charge",
   bench: {
-    board: "breadboard",
+    board: "full",
+    frame: ["desk:-92,-30", "desk:-6,74"],
     parts: [
-      // pins { pos: vcc, neg: gnd }
-      { id: "B1", kind: "battery", at: "rails", props: { emf: 9, internalOhms: 1.5 }, locked: true },
-      // pins { a: vcc, b: la }
-      { id: "R1", kind: "resistor", at: "rail+:10-a10", props: { ohms: 470 }, locked: true },
-      // pins { anode: la, cathode: lc }
-      { id: "D1", kind: "led", at: "e10-e14", props: { color: "red" }, locked: true },
-      // pins { a: vcc, b: sb }
-      { id: "S1", kind: "pushbutton", at: "rail+:20-a20", locked: true },
+      { id: "B1", kind: "battery", at: "rails", params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "R1", kind: "resistor", at: "rail+:23-b23", params: { ohms: 470 }, locked: true, label: "470 Ω resistor R1" },
+      { id: "D1", kind: "led", at: "d23", rot: 180, params: { color: "red" }, locked: true, label: "Red LED D1" },
+      { id: "S1", kind: "pushbutton", at: "e14", params: { cap: "red" }, locked: true, label: "Button S1" },
+    ],
+    wires: [
+      { id: "W1", from: "a14", to: "rail+:15", color: "red" },
+      { id: "W2", from: "a20", to: "rail-:21", color: "black" },
     ],
     tray: [
-      // Q1: 2N3904. Target pins { c: lc, b: qb, e: gnd }
-      { kind: "npn", props: { model: "2N3904" }, count: 1 },
-      // Base resistors for the socket between sb and qb.
-      { kind: "resistor", props: { ohms: 1000000 }, count: 1 },
-      { kind: "resistor", props: { ohms: 470000 }, count: 1 },
-      { kind: "resistor", props: { ohms: 220000 }, count: 1 },
-      { kind: "wire", count: 4 },
+      { id: "Q1", kind: "npn", count: 1, label: "2N3904" },
+      { id: "R2", kind: "resistor", params: { ohms: 1_000_000 }, count: 1, label: "1 MΩ" },
+      { id: "R3", kind: "resistor", params: { ohms: 470_000 }, count: 1, label: "470 kΩ" },
+      { id: "R4", kind: "resistor", params: { ohms: 220_000 }, count: 1, label: "220 kΩ" },
     ],
-    instruments: ["meter"],
+    instruments: [{ kind: "meter", at: "desk:-40,76", rot: 0, mode: "dca-ma", range: "200uA", red: "ma", black: "com" }],
   },
+  mascot: {
+    start: "Tiny trickle, big river. I love this part.",
+    hint: "E, B, C. Flat face, friendly face.",
+    success: "A trickle in the base, a stream through the LED.",
+    fried: "That transistor gave its life for science. Hall of Fried Parts, row two.",
+    exit: "Base current in, collector current out, about two hundred times bigger.",
+  },
+  fried: { npn: "2N3904, base with no resistor" },
   tasks: [
     {
       id: "place-q1",
-      prompt:
-        "Place `Q1` with its flat face toward you. Its legs are E, B, C from left to right. Put C in the LED's strip, B in the base strip and E on ground.",
-      // GOAL: Q1's pins land on lc, qb and gnd respectively.
-      goal: (lab) => placed(lab, "Q1") && !happened(lab, "Q1", "reversed") && extraNum(lab, "Q1", "vbc") !== undefined,
-      hints: ["Hover over a leg to see its name.", "Flat face toward you, legs pointing down: the emitter is on the left."],
+      prompt: "Place **Q1** with its flat face toward you: its legs are E, B, C from left to right. Put E in row 20, B in row 21 and C in row 22, the LED's short-leg row.",
+      goal: (lab) => lab.connected("Q1.c", "D1.cathode") && lab.connected("Q1.e", "B1.neg") && lab.connected("Q1.b", "c21"),
+      hints: ["Hover a leg to see its name.", "Flat face toward you, legs pointing down: the emitter is on the left. Drop it on row 20 near the channel."],
+      highlight: ["hole:c20", "hole:c21", "hole:c22"],
       success: "Correct way round. A backwards transistor sort of works, badly, which is the worst kind of bug.",
     },
     {
       id: "small-steers-big",
-      prompt: "Put the 470 kΩ resistor in the base socket. Press `S1`.",
-      // GOAL: D1 glow is above 0.15 with S1 held and below 0.02 with it released.
-      goal: (lab) => closed(lab, "S1") && lab.isLit("D1", 0.15) && between(extraNum(lab, "Q1", "ib"), 12e-6, 24e-6),
-      hints: ["The base resistor bridges the gap between the button's strip and the base strip."],
-      success: "A trickle into the base, and a real current through the LED.",
+      prompt: "Put the **470 kΩ** resistor in the base socket: from row 16 (the button's strip) to row 21 (the base). Press S1.",
+      goal: (lab) => {
+        if (baseOhms(lab) !== 470_000) return false;
+        if (lab.closed("S1") && (lab.part("D1")?.glow ?? 0) > 0.15) lab.memory["on"] = true;
+        if (!lab.closed("S1") && (lab.part("D1")?.glow ?? 1) < 0.02) lab.memory["off"] = true;
+        if (lab.closed("S1") && lab.part("Q1")?.extra?.["region"] === "active") {
+          lab.shared["ic470"] = ic(lab);
+          lab.shared["beta470"] = lab.actual("Q1", "beta");
+        }
+        return lab.memory["on"] === true && lab.memory["off"] === true;
+      },
+      hints: ["Bend the resistor's legs to reach from row 16 to row 21.", "Hold the button down and watch the LED."],
+      highlight: ["hole:b16", "hole:b21"],
+      success: "A trickle into the base, a real current through the LED.",
     },
     {
       id: "measure-gain",
-      prompt: "Measure the base current, then the collector current. Divide them to get the gain.",
-      // GOAL: the learner's β entry is within 10% of the instance's Ic ÷ Ib at that operating point.
-      goal: (lab) => closed(lab, "S1") && lab.meter?.mode === "dca-ma" && (extraNum(lab, "Q1", "beta") ?? 0) > 50,
+      prompt: "Measure the base current, then the collector current, and type their ratio: the gain.",
+      note: { id: "beta", label: "Gain (collector ÷ base)", unit: "" },
+      goal: (lab) => {
+        if (lab.closed("S1") && baseOhms(lab) === 470_000 && lab.part("Q1")?.extra?.["region"] === "active") {
+          lab.shared["ic470"] = ic(lab);
+          lab.shared["beta470"] = lab.actual("Q1", "beta");
+        }
+        const beta = lab.shared["beta470"];
+        const x = lab.note("beta");
+        return typeof beta === "number" && x !== null && Math.abs(x - beta) <= beta * 0.1;
+      },
       hints: [
-        "Break the base path and put the meter in series, on the 200 µA range.",
-        "Then do the same in the collector path, on the 20 mA range.",
+        "Break the base path: move one end of the resistor to an empty row, then bridge the gap with the meter's probes. Use the 200 µA range and hold S1.",
+        "Then do the same in the collector path, between R1 and the LED, on the 20 mA range.",
       ],
       success: "Your transistor multiplies base current by about β. Every 2N3904 is a little different.",
     },
     {
       id: "double-it",
-      prompt: "Swap to 220 kΩ. Predict the collector current first, then measure it.",
-      // GOAL: the collector current with 220 kΩ is 1.7 to 2.4 times the value with 470 kΩ.
-      goal: (lab) => closed(lab, "S1") && between(extraNum(lab, "Q1", "ib"), 30e-6, 46e-6) && lab.isLit("D1"),
+      prompt: "Swap the base resistor for **220 kΩ**. Predict the collector current first, then press S1 and see.",
+      goal: (lab) => {
+        const was = lab.shared["ic470"];
+        return baseOhms(lab) === 220_000 && lab.closed("S1") && typeof was === "number" && ic(lab) / was >= 1.7 && ic(lab) / was <= 2.4;
+      },
       hints: ["About twice the base current. What does that do to the collector current?"],
       success: "About twice the base current, about twice the collector current.",
     },
     {
       id: "no-resistor",
-      prompt: "Optional experiment: remove the base resistor and jumper `S1` straight to the base. Press once.",
-      // GOAL: Q1 died (it lands in the Hall of Fried Parts).
-      goal: (lab) => died(lab, "Q1"),
-      hints: ["A plain jumper from the button's strip to the base strip."],
+      prompt: "Optional experiment: remove the base resistor and put a plain jumper from row 16 to the base. Press S1 once.",
+      goal: (lab) => lab.died("Q1"),
+      hints: ["A plain jumper from the button's strip to the base strip, with the Wire tool."],
       success: "The base-emitter junction is like a diode. With no resistor, it took amps from the battery and burned out in a blink.",
-      optional: true,
+      bonus: true,
     },
   ],
-  // TODO(solution): bench actions that solve every task, once packages/bench defines anchors.
-  solution: [],
+  solution: [
+    { do: "place", part: "Q1", kind: "npn", at: "c20" },
+    { do: "check", task: "place-q1" },
+    { do: "place", part: "R3", kind: "resistor", at: "b16-b21", params: { ohms: 470_000 } },
+    { do: "press", part: "S1", seconds: 1 },
+    { do: "wait", seconds: 0.3 },
+    { do: "check", task: "small-steers-big" },
+    { do: "press", part: "S1", seconds: 1 },
+    { do: "note", id: "beta", value: "190" },
+    { do: "check", task: "measure-gain" },
+    { do: "remove", part: "R3" },
+    { do: "place", part: "R4", kind: "resistor", at: "b16-b21", params: { ohms: 220_000 } },
+    { do: "press", part: "S1", seconds: 1 },
+    { do: "check", task: "double-it" },
+  ],
 });
