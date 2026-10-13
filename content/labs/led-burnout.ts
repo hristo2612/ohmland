@@ -23,7 +23,7 @@ export default defineLab({
       { id: "B1", kind: "battery", at: "desk:-92,10", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
       { id: "H1", kind: "holder", at: "desk:2,-42", locked: true, label: "Resistor holder" },
       { id: "R1", kind: "resistor", at: "in:H1", params: { ohms: 1500, watts: 0.25 }, label: "1.5 kΩ resistor" },
-      { id: "D1", kind: "led", at: "desk:62,28", rot: 180, params: { color: "red", maxmA: 50 }, label: "Red LED" },
+      { id: "D1", kind: "led", at: "desk:62,22", rot: 90, params: { color: "red", maxmA: 50 }, label: "Red LED" },
     ],
     leads: [
       { id: "TL1", from: "B1.pos", to: "H1.a", color: "red" },
