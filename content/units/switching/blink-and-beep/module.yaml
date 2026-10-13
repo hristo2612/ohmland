@@ -1,0 +1,12 @@
+id: blink-and-beep
+title: Blink and beep
+summary: A phototransistor night light, a two-transistor flasher, a tone in a speaker and a two-oscillator siren.
+# Reveal caption: Two heartbeats, one voice. Switchback Isle can finally call out to the archipelago.
+landmark:
+  id: siren-tower
+  name: the Siren Tower
+lessons:
+  - night-light
+  - twin-flasher
+  - flasher-to-tone
+  - siren

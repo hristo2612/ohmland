@@ -1,0 +1,11 @@
+id: transistors
+title: Transistors
+summary: NPN pins, gain, the 0.7 V threshold, saturation, transistor versus relay, a touch switch and an adjustable delay timer.
+# Reveal caption: A small guard at the gate decides when the great crowd may pass.
+landmark:
+  id: transistor-gatehouse
+  name: the Transistor Gatehouse
+lessons:
+  - meet-the-transistor
+  - touch-switch
+  - delay-timer

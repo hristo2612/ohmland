@@ -1,0 +1,135 @@
+id: delay-timer
+version: 1
+title: Wait for it
+summary: Combine a capacitor, a transistor and a relay into a timer you can set with a screwdriver.
+minutes: 14
+unlocks:
+  parts: [trimmer]
+  isle: pot
+steps:
+  - type: hook
+    body: |
+      You know how to make time with a capacitor and a resistor, and how to switch big things with a relay. Put them
+      together and you should get a timer: flip a switch, wait, click.
+
+      The robot tried it and nothing clicked, ever. Something is draining the capacitor as fast as it fills. Find the
+      culprit, fix it with a transistor, and then tune your timer to exactly five seconds.
+    visual: { kind: part, part: trimmer }
+    predict:
+      prompt: A 1,000 µF capacitor charges through 1 kΩ and also powers a 540 Ω relay coil directly. Will the relay click?
+      options:
+        - Yes, after about a second
+        - Yes, after a long time
+        - Never
+    mascot: Wait for it... wait for it... click!
+
+  - type: lab
+    lab: delay-timer
+    intro: The bench stopwatch starts when you switch on and stops when the relay clicks.
+
+  - type: explain
+    cards:
+      - title: Why it never clicked
+        body: |
+          The coil is a 540 Ω path to ground hanging on the capacitor. With 1 kΩ feeding it, the capacitor can only
+          reach 9 V × 540 ÷ 1,540, about 3.2 V, before the coil drains current as fast as it arrives.
+
+          The relay wants 6 V. Patience can't fix a voltage divider.
+      - title: The emitter follower
+        body: |
+          Hang the load from the emitter and feed the collector from the supply. The emitter sits about 0.7 V below
+          the base and follows it up.
+
+          The base draws only the load current divided by β, so the capacitor barely notices. Current gain, no
+          voltage gain: the output is a little lower than the input, but much stronger.
+        mascot: The transistor carries the coil so the capacitor doesn't have to.
+      - title: Timing it
+        body: |
+          The relay clicks when the emitter reaches 6 V, so the capacitor must reach about 6.7 V. On a 9 V supply that
+          takes about 1.4 time constants.
+
+          With 1 kΩ and 1,000 µF, τ = 1 s, so the delay is about 1.4 s. Add about 2.6 kΩ with the trimmer and τ grows
+          to 3.6 s: about 5 s of delay.
+        mascot: Five seconds. I counted. Twice.
+      - title: The trimmer
+        body: |
+          A trimmer is a small resistor track with a sliding contact, the **wiper**. Between its two ends it's always
+          the full value. Between the wiper and one end you get anything from zero to full.
+
+          The fixed 1 kΩ in series makes sure the total never reaches zero. On schematics it's a resistor with an
+          arrow or a little T.
+
+  - type: quiz
+    items:
+      - id: why-transistor
+        type: choice
+        prompt: Why does the timer need a transistor?
+        options:
+          - text: Fed directly, the coil drains the capacitor so it never reaches pull-in
+            correct: true
+            why: The transistor lets a tiny base current control the coil current.
+          - text: The relay needs AC
+            why: It's a DC relay.
+          - text: The transistor makes the delay longer
+            why: The resistor and capacitor set the delay.
+        explain: The coil and the charging resistor form a divider stuck near 3 V. The follower removes that load.
+
+      - id: follower-volts
+        type: numeric
+        prompt: An emitter follower's base is held at 5.0 V. What voltage is its emitter at?
+        answer: 4.3
+        unit: V
+        tolerance: 3
+        hint: The emitter sits one base-emitter drop below the base.
+        explain: "About 0.7 V below the base: 5.0 V - 0.7 V = 4.3 V."
+
+      - id: largest-tau
+        type: numeric
+        prompt: A timer uses 1 kΩ in series with a 10 kΩ trimmer, and 470 µF. What is the largest τ it can have?
+        answer: 5.17
+        unit: s
+        tolerance: 2
+        hint: The largest resistance is 11 kΩ.
+        explain: "11,000 Ω × 0.00047 F = 5.17 s. The smallest is 1,000 Ω × 0.00047 F = 0.47 s."
+
+      - id: quick-restart
+        type: choice
+        prompt: You restart the timer straight after switching it off. The delay is...
+        options:
+          - text: Shorter, because the capacitor is still partly charged
+            correct: true
+            why: It starts part of the way up the curve.
+          - text: Longer, because the capacitor is tired
+            why: Capacitors don't get tired.
+          - text: The same
+            why: Only if the capacitor is fully emptied first.
+        explain: A timer measures from wherever the capacitor starts. Empty it for a full delay.
+
+      - id: outer-legs
+        type: choice
+        prompt: A trimmer is wired using its two outer legs only. Turning it...
+        options:
+          - text: Changes the resistance from 0 to 10 kΩ
+            why: That needs the wiper.
+          - text: Does nothing, because it's always the full 10 kΩ
+            correct: true
+            why: The ends are fixed. Only the wiper moves.
+          - text: Shorts the circuit
+            why: The track still has its full resistance.
+        explain: Use the wiper and one end to make a variable resistor.
+
+  - type: wrap
+    rules:
+      - A load that drains the timing capacitor ruins the timing. Buffer it with a transistor.
+      - An emitter follows its base about 0.7 V lower, with current gain.
+      - The wiper and one end of a trimmer make a variable resistor. Keep a fixed resistor in series.
+      - Empty the capacitor before each timing run.
+    realWorld:
+      parts:
+        - A 2N3904, a relay with a 9 V coil and a 1N4001 diode
+        - A 1,000 µF electrolytic capacitor rated 16 V
+        - 1 kΩ, 100 Ω and 470 Ω resistors, and a 10 kΩ trimmer
+        - A green LED, a slide switch and a pushbutton
+        - A 9 V battery and a breadboard
+      safety:
+        - Keep the protection diode across the coil, band toward positive.

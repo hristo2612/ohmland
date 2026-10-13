@@ -1,0 +1,153 @@
+id: coil-kickback
+version: 1
+title: The coil kicks back
+summary: Catch the voltage spike a coil makes when you switch it off, and tame it with a diode.
+minutes: 12
+unlocks:
+  parts: [diode-1n4001, scope]
+  isle: diode
+steps:
+  - type: hook
+    body: |
+      A coil has a stubborn streak. While current flows, it builds a magnetic field and stores a little energy there.
+      Cut the current suddenly and that energy has to go somewhere, right now.
+
+      The coil will push as hard as it takes to keep the current moving, even if that means hundreds of volts from a
+      9 V battery. Today you get an oscilloscope to watch it happen, and a tiny part that tames it.
+    visual: { kind: part, part: diode-1n4001 }
+    predict:
+      prompt: You switch off a relay powered by 9 V. What's the biggest voltage you'd expect across its coil?
+      options:
+        - 9 V
+        - About 0 V
+        - Much more than 9 V
+    mascot: Band toward positive. Say it with me.
+
+  - type: lab
+    lab: coil-kickback
+    intro: The scope watches the top of the coil. Press, release, and keep your eyes on the moment you let go.
+
+  - type: explain
+    cards:
+      - title: Coils resist change
+        body: |
+          Current in a coil builds a magnetic field, and building it takes a moment. Collapsing it does too. While
+          the field collapses, it drives current onward in the same direction.
+
+          If the circuit is open, that current has nowhere to go, so the voltage climbs until something conducts: the
+          air, as a spark, or a fragile transistor.
+        mascot: That spark was the coil saying "not so fast!"
+      - title: How big?
+        body: |
+          The voltage a coil makes is its inductance times how fast its current changes. Inductance is measured in
+          henries (H). A small relay coil might be 0.3 H.
+
+          Stop 17 mA in 10 µs and that coil produces about 500 V. Faster switching means a bigger spike, so the spike
+          is worst exactly when the switch is good.
+      - title: The diode, a one-way valve
+        body: |
+          A **diode** lets conventional current flow from its **anode** to its **cathode** and blocks the other way.
+          The band marks the cathode.
+
+          Silicon diodes like the 1N4001 drop about 0.7 V when they conduct and handle 1 A. On a schematic it's a
+          triangle pointing at a bar: the arrow shows the direction current may flow.
+      - title: Why the diode faces backwards
+        body: |
+          With its band toward positive, the diode is reverse-biased while the coil is powered, so it does nothing.
+
+          At switch-off the coil's voltage flips, the diode conducts, and the coil's current circles through it until
+          the energy is used up. The spike is clamped to under a volt. The relay just lets go a few milliseconds
+          later than before.
+        mascot: Backwards diode, happy coil.
+
+  - type: quiz
+    items:
+      - id: spike-size
+        type: numeric
+        prompt: A 0.5 H coil carries 20 mA. A switch stops that current in 10 µs. Using V = L × (change in current ÷ time), how big is the spike?
+        answer: 1000
+        unit: V
+        tolerance: 5
+        hint: The change in current is 0.02 A, and the time is 0.00001 s.
+        explain: "0.5 × 0.02 ÷ 0.00001 = 1,000 V. Real circuits spark or break down before it gets that high."
+
+      - id: band-faces
+        type: choice
+        prompt: A protection diode sits across a relay coil. Which way should its band face?
+        options:
+          - text: Toward the end of the coil that connects to the positive supply
+            correct: true
+            why: That keeps it reverse-biased while the coil is powered, ready for the kickback.
+          - text: Toward the end of the coil that connects to ground
+            why: Then it conducts as soon as the coil is powered, shorting the supply.
+          - text: Either way, as long as it's across the coil
+            why: A diode only works one way. Backwards here means a short circuit.
+        explain: Band toward positive keeps the diode reverse-biased in normal use, ready to catch the kickback.
+
+      - id: no-waste
+        type: choice
+        prompt: Why doesn't the protection diode waste current while the relay is on?
+        options:
+          - text: It's reverse-biased, so it blocks
+            correct: true
+            why: Current only flows through it when the coil's voltage flips.
+          - text: It's too small to matter
+            why: Size isn't the reason. Direction is.
+          - text: It does waste some, but only a little
+            why: A reverse-biased silicon diode passes almost nothing.
+        explain: In normal use the diode points against the supply. It only conducts during the kickback.
+
+      - id: release-order
+        type: order
+        prompt: A diode is fitted across the coil. Put these in order after you release the button.
+        items:
+          - The button's contacts open
+          - The coil's field starts to collapse
+          - The coil's voltage flips
+          - The diode conducts
+          - Current circles through the diode and fades
+          - The relay lets go
+        explain: The diode gives the coil's current a loop to fade in, instead of a spark.
+
+      - id: diode-forwards
+        type: choice
+        prompt: You fit the diode the wrong way round and press the button. What happens?
+        options:
+          - text: The relay clicks a little slower
+            why: Wrong way round, the diode is no longer waiting for the kickback. It's straight across the supply.
+          - text: It shorts the battery through the diode
+            correct: true
+            why: Forward-biased, it's a low-resistance path straight across the supply.
+          - text: Nothing, because diodes work both ways
+            why: Diodes are one-way by design.
+        explain: Backwards is right for a protection diode. Forwards, it conducts the moment the button closes.
+
+      - id: which-cathode
+        type: choice
+        prompt: Which end of a diode is the cathode?
+        options:
+          - text: The end with the band
+            correct: true
+            why: The band marks the cathode, matching the bar in the symbol.
+          - text: The longer lead
+            why: That's the LED rule for the anode, and diodes usually have equal leads.
+          - text: The end without the band
+            why: That's the anode.
+        explain: Band equals bar equals cathode.
+
+  - type: wrap
+    rules:
+      - A coil that is switched off makes a reverse voltage spike.
+      - Put a diode across every relay coil, band toward positive.
+      - Diodes pass current from anode to cathode. The band marks the cathode.
+      - Faster switching makes bigger spikes.
+    realWorld:
+      parts:
+        - A relay with a 9 V coil
+        - A 1N4001 diode
+        - A red LED and a second 1N4001, for the LED test
+        - A pushbutton
+        - A 9 V battery and snap
+      safety:
+        - The kickback can give a small sting if you hold the coil's leads while switching. Keep fingers off the coil terminals.
+        - A real LED is only rated for about 5 V backwards, so in the LED test put a 1N4001 in series with it, pointing the same way.

@@ -1,0 +1,137 @@
+id: night-light
+version: 1
+title: Lights on at dusk
+summary: Use a phototransistor to sense light, then flip its logic so a lamp turns on as darkness falls.
+minutes: 12
+unlocks:
+  parts: [phototransistor]
+  isle: phototransistor
+steps:
+  - type: hook
+    body: |
+      Street lamps don't wait for someone to flip a switch at sunset. They notice the dark by themselves. The trick is
+      a transistor with a window: light falling on it does the job your fingertip did last module.
+
+      Your mission is a lamp for Switchback Isle that wakes as the light fades and sleeps when morning comes. The
+      catch: a sensor that conducts in the light needs a little cunning to light a lamp in the dark.
+    visual: { kind: part, part: phototransistor }
+    predict:
+      prompt: A phototransistor conducts more when light shines on it. Wired in series with an LED, when is the LED brightest?
+      options:
+        - In the dark
+        - In bright light
+        - It doesn't change
+    mascot: Dusk detected. Lamp deployed.
+
+  - type: lab
+    lab: night-light
+    intro: A desk lamp with a shade sets the light level for every phototransistor on the bench.
+
+  - type: explain
+    cards:
+      - title: A transistor with a window
+        body: |
+          In a phototransistor, light falling on the base region frees charge that acts like base current. No base leg
+          is needed, so most have just a collector and an emitter.
+
+          More light means more collector current, up to a few milliamps in bright light. It's a valve that light
+          opens.
+      - title: Stealing base current
+        body: |
+          In the night light, Q1's base is fed through the trimmer, and PT2 sits between that base and ground. In the
+          dark, PT2 barely conducts, so Q1 gets its current and the lamp shines.
+
+          In the light, PT2 opens and the current takes the easy road to ground instead of into Q1's base. Q1 switches
+          off. The sensor's action is flipped.
+        mascot: Light steals the base current. Sneaky but effective.
+      - title: Setting the threshold
+        body: |
+          The lamp changes state when PT2's current roughly equals what the trimmer supplies. Less resistance supplies
+          more, so it takes brighter light to steal it all, and the lamp switches on earlier in the evening.
+
+          That's a sensitivity knob, and every automatic light has one somewhere.
+        mascot: Turn the trimmer, change the sunset.
+      - title: The fuzzy edge
+        body: |
+          Between dark and light, the lamp passes through dim. A real street light would flicker at dusk as clouds
+          drift by.
+
+          The cure is hysteresis: switch on at one level and off at a clearly different one. Remember the relay's
+          pull-in and drop-out? Same idea, coming back in Unit 4.
+
+  - type: quiz
+    items:
+      - id: why-off-in-light
+        type: choice
+        prompt: In the night light, why does bright light turn the lamp off?
+        options:
+          - text: The phototransistor diverts Q1's base current to ground
+            correct: true
+            why: No base current, no collector current.
+          - text: Light weakens the LED
+            why: LEDs don't care about room light.
+          - text: The phototransistor blocks the battery
+            why: It sits across Q1's base, not in the lamp's path.
+        explain: The sensor steals the base current that would turn Q1 on.
+
+      - id: current-at-0-3
+        type: numeric
+        prompt: A phototransistor passes 2 mA at full light, and its current scales evenly with light. What does it pass at light 0.3?
+        answer: 0.6
+        unit: mA
+        tolerance: 2
+        hint: Multiply the full-light current by the light level.
+        explain: "2 mA × 0.3 = 0.6 mA."
+
+      - id: turns-on-late
+        type: choice
+        prompt: Your night light turns on too late, only when it's nearly pitch dark. Which way do you turn the trimmer?
+        options:
+          - text: Toward less resistance
+            correct: true
+            why: More base current means it takes more light to steal it all, so the lamp switches on earlier.
+          - text: Toward more resistance
+            why: That makes it even slower to switch on.
+          - text: Neither, swap the LED
+            why: The LED doesn't set the threshold.
+        explain: Feeding Q1 more current raises the light level needed to keep it off.
+
+      - id: how-many-legs
+        type: choice
+        prompt: How many legs does a typical phototransistor have?
+        options:
+          - text: Two, collector and emitter
+            correct: true
+            why: Light does the base's job.
+          - text: Three, like any transistor
+            why: Some have a base leg, but most don't.
+          - text: Four
+            why: Not for a basic phototransistor.
+        explain: The light-sensitive base usually has no leg at all.
+
+      - id: evening-order
+        type: order
+        prompt: Put what happens as evening falls in order.
+        items:
+          - The light on PT2 fades
+          - PT2's current drops
+          - More of the trimmer's current reaches Q1's base
+          - Q1 turns on
+          - The lamp lights
+        explain: Less light means less theft, so Q1 gets its base current back.
+
+  - type: wrap
+    rules:
+      - A phototransistor conducts more as the light increases.
+      - To flip a sensor's action, let it steal a transistor's base current.
+      - A trimmer in the base feed sets the switching threshold.
+      - Without hysteresis, a slow input gives a fuzzy switch.
+    realWorld:
+      parts:
+        - A phototransistor and a 2N3904
+        - A 50 kΩ trimmer
+        - 4.7 kΩ and 470 Ω resistors
+        - A yellow LED
+        - A 9 V battery and a breadboard
+      safety:
+        - Nothing risky here. Don't stare into bright lamps while you test it.

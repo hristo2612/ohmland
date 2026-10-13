@@ -1,0 +1,143 @@
+id: siren
+version: 1
+title: The siren button
+summary: Let the slow flasher steer the fast tone and build a two-tone siren, then smooth it into a wail. The unit's landmark build.
+minutes: 15
+unlocks:
+  parts: []
+  isle: pushbutton
+steps:
+  - type: hook
+    body: |
+      Switchback Isle has lamps that blink and a speaker that sings. Time to give it a voice that means business.
+
+      You already own the two ingredients: a slow oscillator that flips about once a second, and a fast one that
+      makes a tone. Let the slow one lean on the fast one and the tone will change pitch with every flip. Add one
+      capacitor and the pitch will slide. Then press the big button and let the whole island hear it.
+    visual: { kind: part, part: speaker }
+    predict:
+      prompt: The slow flasher nudges the tone generator up and down each time it flips. What will you hear?
+      options:
+        - One steady tone
+        - Two tones taking turns
+        - Silence
+    mascot: Press it once more. For science.
+
+  - type: lab
+    lab: siren
+    intro: The slow and fast oscillators are built and labeled. The button powers both. Your job is to introduce them.
+
+  - type: explain
+    cards:
+      - title: One oscillator steering another
+        body: |
+          The fast oscillator's pitch depends on how hard its bases are pulled up. R8 and R9 add a second, gentler
+          pull from Q1's collector.
+
+          When that collector is high, the bases charge faster: higher pitch. When it's low, they charge slower: lower
+          pitch. Changing one signal with another is called **modulation**.
+        mascot: Nee-naw! The island has a voice.
+      - title: Why resistors, not wires?
+        body: |
+          A wire would tie the two circuits' nodes together so they'd fight. The fast one would stall, or both would
+          settle on some muddy rhythm in between.
+
+          A 100 kΩ resistor only nudges: it adds a little current without taking over. Joining circuits gently is a
+          skill you'll use again and again.
+        mascot: Gentle resistors make good neighbours.
+      - title: From steps to slides
+        body: |
+          Q1's collector jumps between high and low. R10 and C5 form an RC filter, the smoothing trick from the
+          capacitor module, so the control voltage rises and falls along curves instead.
+
+          The pitch follows the curves: a wail instead of a two-tone. A bigger C5 gives slower, lazier slides.
+        mascot: Wail, trill, swoop. You're a sound designer now.
+      - title: Calm debugging
+        body: |
+          Big circuits fail in small ways. Check the supply first: measure the current, and anything over about
+          100 mA here means a short. Then, with the black probe on ground, probe each node and compare it with what
+          you expect.
+
+          Check part values and orientation, one at a time. If you're stuck, step away for five minutes. It works.
+
+  - type: quiz
+    items:
+      - id: why-100k
+        type: choice
+        prompt: Why join the oscillators through 100 kΩ resistors instead of plain wires?
+        options:
+          - text: Resistors only nudge the fast oscillator, while wires would force the circuits together
+            correct: true
+            why: Gentle coupling keeps both oscillating.
+          - text: Resistors make it louder
+            why: Loudness comes from the driver stage.
+          - text: Wires are too expensive
+            why: It's about behaviour, not cost.
+        explain: A resistor adds a little influence. A wire takes over completely.
+
+      - id: what-c5-does
+        type: choice
+        prompt: What does C5 do in the wailing siren?
+        options:
+          - text: It sets the tone's pitch
+            why: The 10 nF capacitors set the pitch range.
+          - text: It smooths the control voltage so the pitch glides
+            correct: true
+            why: Together with R10 it forms an RC filter.
+          - text: It protects the speaker
+            why: The 220 Ω resistor does that.
+        explain: R10 and C5 turn the slow oscillator's square steps into curves.
+
+      - id: tone-ratio
+        type: choice
+        prompt: The siren alternates between 1,400 Hz and 1,900 Hz. Roughly what is the ratio of the high tone to the low one?
+        options:
+          - text: "0.74"
+            why: That's low divided by high. Divide the high tone by the low one.
+          - text: "1.36"
+            correct: true
+            why: "1,900 ÷ 1,400 ≈ 1.36."
+          - text: "500"
+            why: That's the difference in hertz, not the ratio.
+        explain: "1,900 Hz ÷ 1,400 Hz ≈ 1.36. The high tone is about a third higher than the low one."
+
+      - id: too-much-current
+        type: choice
+        prompt: Your siren draws 350 mA when you press the button. What's most likely?
+        options:
+          - text: A short circuit somewhere
+            correct: true
+            why: A healthy siren draws about 40 mA.
+          - text: A very loud tone
+            why: Volume doesn't explain nearly nine times the normal current.
+          - text: A fresh battery
+            why: A battery doesn't force extra current into a healthy circuit.
+        explain: Measure the supply current early. Far too much means a wiring error.
+
+      - id: debug-order
+        type: order
+        prompt: Put a calm debugging routine in order.
+        items:
+          - Check the supply voltage and current
+          - Probe each node with the black probe on ground
+          - Compare the readings with what you expect
+          - Check suspect parts' values and orientation
+          - Fix one thing, then test again
+        explain: Start broad, then narrow down, changing one thing at a time.
+
+  - type: wrap
+    rules:
+      - "Modulation: one signal changes another's frequency or level."
+      - Join circuits through resistors, not wires, when you want influence without takeover.
+      - An RC filter turns steps into slopes.
+      - Debug from the supply inward, one change at a time.
+    realWorld:
+      parts:
+        - Five 2N3904 transistors and two red LEDs
+        - Four 1 kΩ, four 68 kΩ, two 100 kΩ, a 10 kΩ and a 4.7 kΩ resistor
+        - A 220 Ω resistor rated 0.5 W
+        - Two 10 µF and one 22 µF electrolytic capacitors, and two 10 nF ceramics
+        - An 8 Ω speaker, a pushbutton, a 9 V battery and a full-size breadboard
+      safety:
+        - Keep the volume reasonable.
+        - At about 40 mA, holding the button for minutes drains a 9 V battery fast. Give it a rest.

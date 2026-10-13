@@ -1,12 +1,13 @@
 /**
  * Build-time course loader. Reads the repo's content/ folder with fs, parses YAML, validates every file against the
- * zod schemas, checks cross-references (folders, labs, parts), renders markdown fields to HTML and returns one typed
+ * zod schemas, checks cross-references (folders, labs, parts, island pieces), renders markdown fields to HTML and returns one typed
  * Course. Any problem fails the build with every issue listed, file by file. Server only: never import from islands.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import type { z } from "zod";
+import { ISLE_PIECES, isIslePiece } from "./isle-pieces";
 import { blockMd, inlineMd } from "./markdown";
 import type { CourseOutline } from "./outline";
 import {
@@ -203,6 +204,8 @@ export function loadCourse(root = findContentDir()): Course {
         lesson.unlocks.parts.forEach((p, i) => {
           if (!partIds.has(p)) issues.push(`unlocks.parts[${i}]: no part "${p}" in content/parts.yaml`);
         });
+        if (lesson.unlocks.isle && !isIslePiece(lesson.unlocks.isle))
+          issues.push(`unlocks.isle: "${lesson.unlocks.isle}" is not an island piece (known pieces: ${ISLE_PIECES.join(", ")})`);
         lesson.steps.forEach((s, i) => {
           if (s.type === "lab" && !existsSync(join(root, "labs", `${s.lab}.ts`)))
             issues.push(`steps[${i}].lab: no lab file content/labs/${s.lab}.ts`);
