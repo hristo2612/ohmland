@@ -24,6 +24,7 @@ export type StepProps<S extends Step = Step> = {
   lesson: LessonData;
   parts: Record<string, PartInfo>;
   answers: Answers;
+  /** Stores an answer; pass a function to derive it from the previous value. */
   setAnswer(key: string, value: unknown): void;
   onNext(): void;
   onBack: (() => void) | undefined;

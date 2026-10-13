@@ -29,6 +29,8 @@ export default defineConfig({
     plugins: [watchContent()],
     resolve: {
       alias: { "@ohmland/lab": labApi },
+      // The bench package resolves these from its own folder; keep one copy of each.
+      dedupe: ["react", "react-dom", "three", "zustand"],
     },
     server: {
       fs: { allow: [fileURLToPath(new URL("../..", import.meta.url))] },

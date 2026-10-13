@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { m } from "../i18n";
 import { IconButton } from "../components/IconButton";
 import { toast } from "../components/toast-store";
+import { prefetchLab } from "../lab/prefetch";
 import { flushSaves, useLearner, type Completion } from "../progress/store";
 import { useLearnerReady } from "../progress/useLearner";
 import type { ItemRecord } from "../quiz/types";
@@ -85,6 +86,29 @@ export default function LessonPlayer(props: PlayerProps) {
     if (step > from && step >= afterQuiz && !useLearner.getState().learner.lessons[lesson.id]) hooks.prefetch();
   }, [step, afterQuiz, hooks, lesson.id]);
 
+  // Warm the lab (its code, the 3D bench chunk and the simulator worker) while the learner reads the step before it:
+  // on their first tap or key there, or after a few seconds, never as part of the page's first load.
+  useEffect(() => {
+    const next = steps[step + 1];
+    if (next?.type !== "lab") return;
+    let done = false;
+    const go = () => {
+      if (done) return;
+      done = true;
+      prefetchLab(next.lab);
+    };
+    const opts = { once: true, passive: true } as const;
+    window.addEventListener("pointerdown", go, opts);
+    window.addEventListener("keydown", go, opts);
+    const timer = window.setTimeout(go, 4000);
+    return () => {
+      done = true;
+      window.removeEventListener("pointerdown", go);
+      window.removeEventListener("keydown", go);
+      window.clearTimeout(timer);
+    };
+  }, [step, steps]);
+
   // Enter runs the primary action when focus is not in a control.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -106,7 +130,10 @@ export default function LessonPlayer(props: PlayerProps) {
     requestAnimationFrame(() => setLive(text));
   }, []);
 
-  const setAnswer = useCallback((key: string, value: unknown) => setAnswers((a) => ({ ...a, [key]: value })), []);
+  const setAnswer = useCallback(
+    (key: string, value: unknown) => setAnswers((a) => ({ ...a, [key]: typeof value === "function" ? (value as (prev: unknown) => unknown)(a[key]) : value })),
+    [],
+  );
   const goTo = (i: number) => setStep(Math.max(0, Math.min(steps.length - 1, i)));
 
   const score = useMemo(() => {
