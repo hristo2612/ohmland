@@ -3,7 +3,7 @@
  */
 import { benchOps, defaultParams, type BenchState, type LeadColor, type PlacedPart, type WireColor } from "@ohmland/bench/core";
 import { resolveAttach, resolveHole } from "./anchors";
-import { addLeadBetween, placePart, type SimInput } from "./build";
+import { addLeadBetween, placePart, seatSpot, type SimInput } from "./build";
 import type { SolutionStep } from "./define";
 
 export type StepEffect = {
@@ -31,16 +31,36 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
   switch (step.do) {
     case "place": {
       const part = { id: step.part, kind: step.kind, params: { ...defaultParams(step.kind), ...(step.params ?? {}) }, pos: [0, 40], rot: step.rot ?? 0 } as PlacedPart;
+      const seat = seatSpot(step.at);
+      if (seat) {
+        // From the tray straight into a holder (or onto a part of its kind, taking its place and wiring).
+        const added = { ...bench, parts: [...bench.parts.filter((p) => p.id !== step.part), part] };
+        return seated(added, step.part, seat, done);
+      }
+      if (step.at.startsWith("on:")) {
+        const target = bench.parts.find((p) => p.id === step.at.slice(3));
+        if (!target) return done(bench, { problem: `place: no part ${step.at.slice(3)}` });
+        const added = { ...bench, parts: [...bench.parts.filter((p) => p.id !== step.part), part] };
+        return done(benchOps.dropOnto(added, step.part, target.id, [target.pos[0], target.pos[1] + 34]));
+      }
       const r = placePart({ ...bench, parts: bench.parts.filter((p) => p.id !== step.part) }, part, step.at, undefined, () => [0, 60]);
       return done({ ...bench, parts: [...bench.parts.filter((p) => p.id !== step.part), r.part] }, r.warning ? { problem: r.warning } : {});
     }
     case "move": {
       const cur = bench.parts.find((p) => p.id === step.part);
       if (!cur) return done(bench, { problem: `no part ${step.part}` });
-      const others = { ...bench, parts: bench.parts.filter((p) => p.id !== step.part) };
+      const seat = seatSpot(step.at);
+      if (seat) return seated(bench, step.part, seat, done);
+      if (step.at.startsWith("on:")) {
+        if (!bench.parts.some((p) => p.id === step.at.slice(3))) return done(bench, { problem: `move: no part ${step.at.slice(3)}` });
+        return done(benchOps.dropOnto(bench, step.part, step.at.slice(3), cur.pos));
+      }
+      // Out of any holder, then where `at` says.
+      const free = benchOps.unseat(bench, step.part);
+      const others = { ...free, parts: free.parts.filter((p) => p.id !== step.part) };
       const { holes: _h, ...rest } = cur;
       const r = placePart(others, { ...rest, rot: step.rot ?? cur.rot } as PlacedPart, step.at, undefined, () => cur.pos);
-      return done({ ...bench, parts: bench.parts.map((p) => (p.id === step.part ? r.part : p)) }, r.warning ? { problem: r.warning } : {});
+      return done({ ...free, parts: free.parts.map((p) => (p.id === step.part ? r.part : p)) }, r.warning ? { problem: r.warning } : {});
     }
     case "rotate":
       return done(benchOps.rotatePart(bench, step.part));
@@ -108,6 +128,17 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
       const to = step.to ?? (p.params.to === "a" ? "b" : "a");
       return { bench: benchOps.setPartParams(bench, p.id, { to }), inputs: [{ id: p.id, key: "to", value: to }], wait: SETTLE };
     }
+    case "param": {
+      if (!bench.parts.some((p) => p.id === step.part)) return done(bench, { problem: `param: no part ${step.part}` });
+      let b = bench;
+      for (const [key, value] of Object.entries(step.params)) b = benchOps.setPartParams(b, step.part, benchOps.settingParams(b, step.part, key, value) as never);
+      return done(b);
+    }
+    case "action": {
+      const p = benchOps.actionParams(bench, step.part, step.action);
+      if (!p) return done(bench, { problem: `action: ${step.part} has no "${step.action}"` });
+      return done(benchOps.setPartParams(bench, step.part, p as never));
+    }
     case "press": {
       const s = step.seconds ?? 0.3;
       return { bench, inputs: [{ id: step.part, key: "pressed", value: true }, { id: step.part, key: "pressed", value: false, after: s }], wait: s + SETTLE };
@@ -127,6 +158,13 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
     case "check":
       return { bench, inputs: [], wait: 0, check: step.task };
   }
+}
+
+/** Puts a part in a holder's seat, reporting a step that does not fit. */
+function seated(bench: BenchState, id: string, seat: { holder: string; seat?: string }, done: (b: BenchState, extra?: Partial<StepEffect>) => StepEffect): StepEffect {
+  if (!bench.parts.some((p) => p.id === seat.holder)) return done(bench, { problem: `no holder ${seat.holder}` });
+  const next = benchOps.seatPart(bench, id, seat.holder, seat.seat);
+  return next === bench ? done(bench, { problem: `${id} does not fit in ${seat.holder}` }) : done(next);
 }
 
 /** Index ranges of the solution that belong to each checked task: steps after the previous check up to this one. */

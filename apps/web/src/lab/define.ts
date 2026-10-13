@@ -27,6 +27,9 @@ export { createLabView } from "./view";
  * - "rails": a battery with snap leads plugged into the near rails at the left end of the board;
  * - a desk spot: "desk:left", "desk:right", "desk:front", "desk:back", "desk:center", "desk:front-left" ... or
  *   "desk:x,z" in millimetres from the centre of the work area (x to the right, z toward you);
+ * - a holder's seat: "in:H1" (the first free seat that fits) or "in:H1.r" (that seat): resistor clips, a test
+ *   station's bay, a lemon's electrode slot, a reject bin;
+ * - another part's place: "on:B1" (solutions only) swaps the two, clips and probe tips included;
  * - "shelf" and other names ("mat:relay", "prop:lemon"): a free desk spot (the back row for "shelf").
  */
 export type Spot = string;
@@ -116,26 +119,36 @@ export type PlannedInstrument =
   | { kind: "stopwatch"; start?: { event: SimEventType | "input"; part?: string }; stop?: { event: SimEventType | "input"; part?: string } }
   | { kind: "tapper"; part: string; hz?: number };
 
-export type InstrumentConfig = "meter" | "scope" | MeterConfig | ScopeConfig | PlannedInstrument;
-
 /**
- * A slider bound to a simulator input: light on a phototransistor, a fingertip's resistance, a trimmer's knob.
- * Goals read it with `lab.control(id)`.
+ * Readouts drawn over parts on the bench: "stress" is a bar of an LED's current as a share of its maximum (green,
+ * amber past half, red past 90%); "heat" a part's temperature with a touch-feel word (cool, warm, hot, ouch).
+ * `parts` lists part ids or kinds ("D1", "resistor"), so parts dragged in from the tray get one too.
  */
-export type ControlConfig = {
+export type InspectConfig = { kind: "inspect"; show: "stress" | "heat"; parts: string[] };
+
+export type InstrumentConfig = "meter" | "scope" | MeterConfig | ScopeConfig | InspectConfig | PlannedInstrument;
+
+type ControlCommon = {
   id: string;
   label: string;
-  part: string;
-  key: Extract<InputKey, "light" | "ohms" | "position">;
   min: number;
   max: number;
   value: number;
   step?: number;
-  /** "log" for resistances that span decades. */
+  /** "log" for values that span decades. */
   scale?: "linear" | "log";
-  /** How to show the value: a unit such as "Ω" or "%". */
+  /** How to show the value: a unit such as "Ω", "%" or "×". */
   unit?: string;
 };
+
+/**
+ * A slider. Bound to a simulator input of a part (light on a phototransistor, a fingertip's resistance, a trimmer's
+ * knob), to the simulation's speed (`key: "speed"`, 1 is real time, up to 3600 for a time-lapse), or to the room
+ * lights (`key: "room"`, 1 bright down to 0.1, so faint glows show). Goals read it with `lab.control(id)`.
+ */
+export type ControlConfig =
+  | (ControlCommon & { part: string; key: Extract<InputKey, "light" | "ohms" | "position"> })
+  | (ControlCommon & { key: "speed" | "room"; part?: undefined });
 
 export type BenchConfig = {
   /** "half" is a 400-point board, "full" (or "breadboard") an 830-point one. */
@@ -216,6 +229,10 @@ export type SolutionStep =
   | { do: "dial"; mode: MeterMode; range?: string }
   /** Throw a slide or toggle switch (to the other side, or to `to`). */
   | { do: "flip"; part: string; to?: "a" | "b" }
+  /** Change a part's settings as the learner would from its selection bar (moisture, a test load, a pencil line). */
+  | { do: "param"; part: string; params: Record<string, string | number | boolean> }
+  /** A part's one-shot action from its selection bar (the pencil card's "erase"). */
+  | { do: "action"; part: string; action: string }
   /** Hold a pushbutton for `seconds` (default 0.3), then let go. */
   | { do: "press"; part: string; seconds?: number }
   /** A raw simulator input. */
@@ -336,6 +353,24 @@ export type LabView = {
   connected(a: Attach, b: Attach): boolean;
   /** The parts form one closed series loop in this order, starting from the first part's plus side, nothing else on any junction. */
   seriesLoop(ids: readonly string[]): boolean;
+  /**
+   * The parts (two leads each) are linked end to end in one open chain, in any order, with nothing else on the links
+   * between them. `ends` are the two free leads, the first where the chain's majority direction starts (a stack of
+   * cells: its plus end); `flipped` lists parts turned against that direction (a reversed cell). Null otherwise.
+   */
+  chain(ids: readonly string[]): { ends: [Attach, Attach]; flipped: string[] } | null;
+  /** Both parts' two leads sit on the same pair of nodes (side by side). */
+  parallel(a: string, b: string): boolean;
+  /** The red probe touches `a` (or metal joined to it) and the black probe `b`; "rev" the other way, "either" both. */
+  probed(a: Attach, b: Attach, dir?: "rev" | "either"): boolean;
+  /** The part ids in a holder's seats (resistor clips, a test station, a lemon's slots, a bin). */
+  holds(holderId: string): string[];
+  /** The holder a part sits in, or null. */
+  heldBy(partId: string): string | null;
+  /** Desk distance between two parts' positions, in millimetres (Infinity when one is missing). */
+  distance(a: string, b: string): number;
+  /** When a task in this lab was done in this visit: the time and the meter as it read then. */
+  doneAt(taskId: string): { t: number; meter: MeterView | null } | undefined;
   /** Current flows nowhere (or not through `partId`): below 1 µA. */
   loopOpen(partId?: string): boolean;
 

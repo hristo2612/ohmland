@@ -43,12 +43,16 @@ export function replayLab(lab: LabDefinition): ReplayResult {
 
   sim.load(session.net.netlist);
   for (const i of built.inputs) sim.setInput(i.id, i.key, i.value);
+  // Simulated seconds per real second, as the runtime would run (a "speed" control turns it up for a time-lapse).
+  let speed = lab.speed ?? 1;
+  for (const c of built.controls) if (c.key === "speed") speed = c.value;
 
+  /** Lets `seconds` of real time pass (frames of 1/30 s, each `speed` simulated frames long). */
   const advance = (seconds: number) => {
     let left = seconds;
     while (left > 1e-9) {
       const dt = Math.min(FRAME, left);
-      const s = sim.step(dt);
+      const s = sim.step(dt * speed, { speed });
       left -= dt;
       for (let k = delayed.length - 1; k >= 0; k--) {
         const d = delayed[k]!;
@@ -71,6 +75,9 @@ export function replayLab(lab: LabDefinition): ReplayResult {
     for (const inp of eff.inputs) {
       if (inp.after) delayed.push({ at: sim.time + inp.after, id: inp.id, key: inp.key, value: inp.value });
       else sim.setInput(inp.id, inp.key, inp.value);
+      // A fresh part (or meter fuse) may fry again.
+      if (inp.key === "replace") session.revive(inp.id);
+      if (inp.key === "replaceFuse") session.revive(`${inp.id}:fuse`);
     }
     if (eff.note) {
       const spec = lab.tasks.flatMap((t) => (t.note ? (Array.isArray(t.note) ? t.note : [t.note]) : [])).find((n) => n.id === eff.note!.id);
@@ -81,7 +88,8 @@ export function replayLab(lab: LabDefinition): ReplayResult {
       if (!c) problems.push(`step ${i + 1}: no control "${eff.control.id}"`);
       else {
         session.setControl(c.id, eff.control.value);
-        sim.setInput(c.part, c.key, eff.control.value);
+        if (c.key === "speed") speed = eff.control.value;
+        else if (c.part !== undefined) sim.setInput(c.part, c.key, eff.control.value);
       }
     }
     if (eff.check) {

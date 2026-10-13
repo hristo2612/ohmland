@@ -16,6 +16,7 @@ import {
   partDef,
   type BenchPartKind,
   type BenchState,
+  type InspectSpec,
   type LeadColor,
   type MeterSocket,
   type PlacedPart,
@@ -46,6 +47,8 @@ export type BuiltBench = {
   inputs: SimInput[];
   /** Spare meter fuses, or null for unlimited. */
   spareFuses: number | null;
+  /** Readouts over parts (stress bars, temperatures). */
+  inspect?: InspectSpec[];
   warnings: string[];
 };
 
@@ -65,6 +68,18 @@ const DESK_WIDTH: Partial<Record<BenchPartKind, number>> = {
   speaker: 48,
   relay: 30,
   "toggle-switch": 50,
+  holder: 62,
+  station: 104,
+  fruit: 64,
+  electrode: 22,
+  skin: 100,
+  sample: 120,
+  card: 132,
+  tag: 24,
+  bin: 74,
+  chart: 100,
+  clock: 54,
+  showcase: 124,
 };
 
 type Normal = {
@@ -283,11 +298,13 @@ export function buildBench(config: BenchConfig): BuiltBench {
   const leads: LeadSpec[] = [];
   const wires: WireSpec[] = [];
 
+  const inspect: InspectSpec[] = [];
   for (const ins of config.instruments) {
     if (ins === "meter") meter = { kind: "meter", ...(meter ?? {}) };
     else if (ins === "scope") warnings.push('scope: list its traces with { kind: "scope", traces: [...] }');
     else if (ins.kind === "meter") meter = { ...(meter ?? {}), ...ins };
     else if (ins.kind === "scope") scope = ins;
+    else if (ins.kind === "inspect") inspect.push({ show: ins.show, parts: ins.parts });
     else planned.push(ins);
   }
 
@@ -323,8 +340,16 @@ export function buildBench(config: BenchConfig): BuiltBench {
 
   const front: PlacedPart[] = [];
   const back: PlacedPart[] = [];
+  const seats: { id: string; holder: string; seat?: string }[] = [];
   for (const q of pending) {
     const part = { id: q.id, kind: q.n.kind, params: { ...defaultParams(q.n.kind), ...q.n.params }, pos: [0, 0], rot: q.rot } as PlacedPart;
+    const seat = q.at ? seatSpot(q.at) : null;
+    if (seat) {
+      // Seated once every part is on the bench (the holder may come later in the list).
+      seats.push({ id: q.id, ...seat });
+      bench = { ...bench, parts: [...bench.parts, part] };
+      continue;
+    }
     const shelf = q.at === "shelf";
     const res = placePart(bench, part, q.at, q.holes, () => [Number.NaN, Number.NaN]);
     if (res.warning) warnings.push(res.warning);
@@ -351,6 +376,15 @@ export function buildBench(config: BenchConfig): BuiltBench {
   const g = bench.board ? boardGeometry(bench.board) : null;
   row(front, g ? g.depth / 2 + 40 : 10);
   row(back, g ? -g.depth / 2 - 50 : -80);
+  for (const s of seats) {
+    if (!bench.parts.some((p) => p.id === s.holder)) {
+      warnings.push(`${s.id}: no holder "${s.holder}"`);
+      continue;
+    }
+    const before = bench;
+    bench = benchOps.seatPart(bench, s.id, s.holder, s.seat);
+    if (bench === before) warnings.push(`${s.id}: does not fit in ${s.holder}${s.seat ? `.${s.seat}` : ""}`);
+  }
 
   // Jumper wires and clip leads.
   wires.forEach((w, i) => {
@@ -411,9 +445,16 @@ export function buildBench(config: BenchConfig): BuiltBench {
   }
   if (meter?.spareFuses !== undefined) spareFuses = meter.spareFuses;
 
-  for (const c of config.controls ?? []) inputs.push({ id: c.part, key: c.key, value: c.value });
+  for (const c of config.controls ?? []) if (c.part !== undefined) inputs.push({ id: c.part, key: c.key, value: c.value });
 
-  return { bench, locked, tray, meter, scope, planned, controls: config.controls ?? [], nodes: config.nodes ?? {}, labels, inputs, spareFuses, warnings };
+  return { bench, locked, tray, meter, scope, planned, controls: config.controls ?? [], nodes: config.nodes ?? {}, labels, inputs, spareFuses, inspect, warnings };
+}
+
+/** "in:H1" or "in:H1.r": a holder (and seat) a part starts in or is moved to. */
+export function seatSpot(at: string): { holder: string; seat?: string } | null {
+  const m = /^in:([A-Za-z][A-Za-z0-9_-]*)(?:\.([A-Za-z0-9_-]+))?$/.exec(at.trim());
+  if (!m) return null;
+  return m[2] ? { holder: m[1]!, seat: m[2] } : { holder: m[1]! };
 }
 
 function defaultMeterSpot(bench: BenchState): Vec2 {
