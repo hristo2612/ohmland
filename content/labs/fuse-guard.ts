@@ -40,15 +40,15 @@ export default defineLab({
   tasks: [
     {
       id: "blow-1a",
-      prompt: "Clip the 1 A fuse straight across the battery with two clip leads. Watch the thin wire inside.",
+      prompt: "Clip the 1 A fuse straight across the battery. Watch the wire.",
       goal: (lab) => lab.event("blown", "F1"),
-      hints: ["One lead from battery plus to one end of the fuse, the other from its far end to battery minus."],
+      hints: ["Two clip leads: battery plus to one end, the other end to minus."],
       highlight: ["F1", "pin:B1.pos", "pin:B1.neg"],
-      success: "Snap. The wire melted and left a gap. The fuse gave its life in a fraction of a second.",
+      success: "Snap. The wire melted in a fraction of a second.",
     },
     {
       id: "continuity-check",
-      prompt: "Set the dial to continuity (the sound-wave symbol). Test the blown fuse, then the 3 A fuse.",
+      prompt: "Dial to continuity. Test the blown fuse, then the 3 A one.",
       goal: (lab) => {
         const mem = lab.memory as { open?: boolean; beep?: boolean };
         if (lab.meter?.mode === "continuity") {
@@ -57,14 +57,13 @@ export default defineLab({
         }
         return !!mem.open && !!mem.beep;
       },
-      hints: ["Touch a probe to each metal end cap.", "Unclip the fuse from the battery first: a meter can't test a part that has power on it."],
+      hints: ["A probe on each metal end cap.", "Unclip the fuse from the battery first. Powered parts can't be tested."],
       highlight: ["F1", "F2"],
-      success: "Silence from the blown one, a beep from the good one. That's how you test a fuse in two seconds.",
+      success: "Silence from the blown one, a beep from the good one.",
     },
     {
       id: "measure-big",
-      prompt:
-        "Measure the current through the 3 A fuse. Red lead into **10A**, dial to **10A**. Make one loop: battery, 3 A fuse, meter, back to battery. Hold it for 3 seconds, then break the loop.",
+      prompt: "On **10A**, loop battery, 3 A fuse and meter. Hold 3 seconds.",
       goal: (lab) =>
         lab.meter?.red === "a10" &&
         lab.meter.mode === "dca-10a" &&
@@ -72,20 +71,20 @@ export default defineLab({
         lab.heldFor(3, lab.part("F2")?.health !== "dead" && lab.amps("F2") > 1) &&
         readsIn(lab, 1.4, 2.6),
       hints: [
-        "Big currents use the 10A socket, never mA.",
-        "One clip lead from battery plus to the fuse. Red probe on the fuse's other end, black probe on battery minus.",
-        "Keep it short. The 10A input isn't built for long runs.",
+        "Red lead in the 10A socket, dial on 10A. Never mA.",
+        "Clip battery plus to the fuse. Red probe on its other end, black on minus.",
+        "Keep it short, then break the loop.",
       ],
       highlight: ["socket:a10", "F2"],
-      success: "About 2 A. Too much for the 1 A fuse, within the 3 A fuse's rating. Two fuses bracketed the current.",
+      success: "About 2 A. Too much for 1 A, fine for 3 A. Bracketed.",
     },
     {
       id: "battery-check",
-      prompt: "Back to DC volts. Measure the battery now, then again after 30 seconds.",
+      prompt: "DC volts. Measure the battery now, and again in 30 seconds.",
       goal: recovered,
-      hints: ["Red lead back into VΩ. Hold the probes on the battery for the first reading, then come back half a minute later."],
+      hints: ["Red lead back into VΩ. Read once, then wait half a minute."],
       highlight: ["pin:B1.pos", "pin:B1.neg"],
-      success: "It dipped, then crept back up, but not all the way. Heavy current tires a battery. Next lesson shows why.",
+      success: "It dipped, then crept back, not all the way. Next lesson shows why.",
       bonus: true,
     },
   ],

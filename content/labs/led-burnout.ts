@@ -51,29 +51,29 @@ export default defineLab({
       id: "brighter",
       prompt: "Swap the 1.5 kΩ resistor for the **470 Ω** one.",
       goal: (lab) => slotOhms(lab) === 470 && lab.isLit("D1") && glow(lab, "D1") > 0.5,
-      hints: ["Drag a resistor from the tray onto the two clips. The old one pops out."],
+      hints: ["Drag a resistor onto the clips. The old one pops out."],
       highlight: ["H1"],
-      success: "Brighter. Less resistance lets more current through.",
+      success: "Brighter. Less resistance, more current.",
     },
     {
       id: "brighter-still",
-      prompt: "Now try **150 Ω**. Watch the LED's stress bar.",
+      prompt: "Now **150 Ω**. Watch the stress bar.",
       goal: (lab) => slotOhms(lab) === 150 && glow(lab, "D1") > 0.8 && lab.part("D1")?.health !== "dead",
-      hints: ["Same as before: drop the 150 Ω resistor onto the clips."],
+      hints: ["Drop the 150 Ω resistor onto the clips."],
       highlight: ["H1"],
-      success: "Dazzling, and the stress bar is nearly full. It's alive, but close to its limit.",
+      success: "Dazzling, and nearly at its limit. Still alive.",
     },
     {
       id: "too-far",
-      prompt: "Go on. Try the **15 Ω** resistor.",
+      prompt: "Go on. Try **15 Ω**.",
       goal: (lab) => lab.fried("led"),
-      hints: ["Drop the 15 Ω resistor onto the clips and watch closely."],
+      hints: ["Drop the 15 Ω resistor onto the clips. Watch closely."],
       highlight: ["H1"],
-      success: "Flash, then nothing. Far too much current, and the LED died. It goes to the Hall of Fried Parts.",
+      success: "Flash, then nothing. Far too much current. To the Hall of Fried Parts.",
     },
     {
       id: "no-comeback",
-      prompt: "Put the 1.5 kΩ resistor back. Does the dead LED recover? Then swap in a fresh LED.",
+      prompt: "Put 1.5 kΩ back. Does the LED recover? Then fit a fresh one.",
       goal: (lab) => {
         const safe = slotOhms(lab) === 1500;
         const mem = lab.memory as { dark?: boolean };
@@ -81,12 +81,9 @@ export default defineLab({
         if (safe && lab.part("D1")?.health === "dead" && lab.connected("D1.anode", "H1.b")) mem.dark = true;
         return !!mem.dark && safe && leds(lab).some((id) => lab.isLit(id) && lab.connected(`${id}.anode`, "H1.b"));
       },
-      hints: [
-        "Drag the 1.5 kΩ resistor back onto the clips, and look at the LED.",
-        "Then drag a spare LED from the tray right onto the dead one: it takes its place and its clips.",
-      ],
+      hints: ["Drag the 1.5 kΩ resistor back onto the clips. Look at the LED.", "Drop a spare LED right onto the dead one. It takes its clips."],
       highlight: ["H1", "D1"],
-      success: "Dead LEDs stay dead. The fresh one is happy at a safe current.",
+      success: "Dead LEDs stay dead. The fresh one is happy.",
     },
   ],
   solution: [

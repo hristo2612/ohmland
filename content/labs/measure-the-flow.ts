@@ -34,50 +34,46 @@ export default defineLab({
   tasks: [
     {
       id: "set-up-amps",
-      prompt: "Set the meter up for current: red lead into **mA**, dial to DC mA, **200mA** range.",
+      prompt: "Red lead into **mA**. Dial to DC mA, **200mA** range.",
       goal: (lab) => lab.meter?.red === "ma" && lab.meter.mode === "dca-ma" && rangeIs(lab, "200mA"),
-      hints: ["The mA socket is for small currents.", "Not sure how big a current is? Start on the biggest mA range."],
+      hints: ["The mA socket is for small currents.", "Unsure of the size? Start on the biggest mA range."],
       highlight: ["socket:ma"],
       success: "Ready to count milliamps.",
     },
     {
       id: "break-and-bridge",
-      prompt:
-        "Unclip lead L1 (the red one) from the battery's plus terminal. Then close the gap with the meter: red probe on battery plus, black probe on the lead's free clip.",
+      prompt: "Unclip the red lead from **+**. Bridge the gap with the meter.",
       goal: (lab) => lab.inSeries("M1", "D1") && lab.isLit("D1") && readsIn(lab, 14, 17.5),
-      hints: ["The current has to go through the meter, so the meter fills the gap.", "Red toward the battery's plus, black toward the resistor."],
+      hints: ["The current must flow through the meter.", "Red probe on battery plus, black on the lead's free clip."],
       highlight: ["L1", "pin:B1.pos"],
       success: "About 15.8 mA, flowing right through your meter.",
     },
     {
       id: "other-side",
-      prompt: "Restore L1, then measure again on the far side of the LED: between its short leg and battery minus.",
+      prompt: "Clip L1 back. Now measure between the LED's short leg and **−**.",
       goal: (lab) => {
         const before = lab.doneAt("break-and-bridge")?.meter?.value ?? 15.7;
         const v = lab.meter?.value;
         return lab.inSeries("M1", "D1") && lab.probed("D1.cathode", "B1.neg", "either") && v !== null && v !== undefined && Math.abs(v - before) <= 0.3;
       },
-      hints: [
-        "Clip L1 back onto battery plus first.",
-        "Unclip L3 (the black lead) from battery minus. Red probe on its free clip, black probe on battery minus.",
-      ],
+      hints: ["Unclip the black lead from battery minus.", "Red probe on its free clip, black on battery minus."],
       highlight: ["L3", "pin:B1.neg"],
-      success: "Same number. The LED doesn't use up current: everything that goes in comes out.",
+      success: "Same number. The LED doesn't use up current.",
     },
     {
       id: "the-classic",
-      prompt: "Now the mistake every beginner makes once. Restore the loop. Keep the meter on mA and touch the probes straight across the battery.",
+      prompt: "Close the loop. Still on mA, probe straight across the battery.",
       goal: (lab) => lab.event("meter-fuse", "M1"),
-      hints: ["Clip L3 back onto battery minus. Then red probe on battery plus, black on battery minus."],
+      hints: ["Clip L3 back. Then red on battery plus, black on minus."],
       highlight: ["pin:B1.pos", "pin:B1.neg"],
-      success: "Pop. Nothing limited the current, it shot past 3 A, and the meter's 200 mA fuse blew to save the meter.",
+      success: "Pop. Over 3 A, and the 200 mA fuse blew to save the meter.",
     },
     {
       id: "fresh-fuse",
-      prompt: "Open the meter's back, fit a fresh fuse from the tray, and measure the LED current again, the right way.",
+      prompt: "Fit a fresh fuse. Measure the LED current the right way.",
       goal: (lab) => lab.meter?.fuse === "ok" && lab.inSeries("M1", "D1") && readsIn(lab, 14, 17.5),
-      hints: ["Lift the probes off the battery first, then press Replace meter fuse.", "In series again: break the loop and let the meter fill the gap."],
-      success: "Back in business. Current meters go in series, never across.",
+      hints: ["Lift the probes off the battery, then Replace meter fuse.", "In series again: break the loop, bridge it with the meter."],
+      success: "Back in business. Ammeters go in series, never across.",
     },
   ],
   solution: [

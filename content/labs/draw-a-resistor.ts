@@ -58,15 +58,11 @@ export default defineLab({
   tasks: [
     {
       id: "first-line",
-      prompt: "Draw a **5 cm** line with one pass. Put a probe on each end and measure it.",
+      prompt: "Draw a **5 cm** line in one pass. Probe both ends.",
       goal: (lab) => card(lab).length === 5 && card(lab).layers === 1 && atEnds(lab) && siIn(lab, 80_000, 125_000),
-      hints: [
-        "Drag across the card to draw. The ruler shows centimetres.",
-        "Probes snap onto the line.",
-        "You can also click the card and pick the line length in the bar at the bottom of the bench.",
-      ],
+      hints: ["Drag along the card to draw. The ruler shows centimetres.", "Probes snap onto the line.", "Or click the card and pick a length."],
       highlight: ["P1"],
-      success: "About 100 kΩ. A pencil line really is a resistor.",
+      success: "About 100 kΩ. A pencil line is a resistor.",
     },
     {
       id: "half-way",
@@ -82,21 +78,21 @@ export default defineLab({
     },
     {
       id: "go-darker",
-      prompt: "Shade over the whole line once more, then measure end to end again.",
+      prompt: "Shade the whole line again. Measure end to end.",
       goal: (lab) => card(lab).layers >= 2 && atEnds(lab) && ohms(lab) < 0.65 * firstReading(lab),
-      hints: ["Drag along the whole line again, from the start to past its end.", "Or click the card and choose 2 layers."],
-      success: "More graphite gives the current more room, so the resistance drops.",
+      hints: ["Drag from the start to past the end.", "Or click the card and choose 2 layers."],
+      success: "More graphite, more room for current: lower resistance.",
     },
     {
       id: "hit-target",
-      prompt: "Your turn to design. Make a line that measures **50 kΩ**, give or take 10%.",
+      prompt: "Design a line that reads **50 kΩ**, within 10%.",
       goal: (lab) => onLine(lab) !== null && siIn(lab, 45_000, 55_000),
-      hints: ["Shorter lines resist less.", "A second layer roughly halves the resistance.", "Try 5 cm with two layers, or 2.5 cm with one."],
-      success: "Right on target. You just designed a resistor.",
+      hints: ["Shorter lines resist less.", "A second layer about halves it.", "Try 5 cm with two layers, or 2.5 cm with one."],
+      success: "On target. You designed a resistor.",
     },
     {
       id: "slide-along",
-      prompt: "Keep one probe at the start and slowly drag the other along the line.",
+      prompt: "One probe at the start. Slowly drag the other along.",
       // Four or more stops along the line, each further out with a higher reading than the last.
       goal: (lab) => {
         const mem = lab.memory as { at?: { k: number; since: number }; seq?: { k: number; v: number }[] };
@@ -115,8 +111,8 @@ export default defineLab({
         }
         return (mem.seq?.length ?? 0) >= 4;
       },
-      hints: ["Leave one probe on the 0 mark. Move the other a centimetre at a time and watch the number."],
-      success: "A resistor with a sliding contact is called a potentiometer. You'll use real ones in the next unit.",
+      hints: ["Move it a centimetre at a time. Watch the number."],
+      success: "A resistor with a sliding contact: a potentiometer. Real ones come next unit.",
       bonus: true,
     },
   ],

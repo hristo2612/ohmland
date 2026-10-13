@@ -46,15 +46,15 @@ export default defineLab({
   tasks: [
     {
       id: "open-voltage",
-      prompt: "With the switch off, read the battery voltage.",
+      prompt: "Switch off. Read the battery.",
       goal: (lab) =>
         !lab.closed("S1") && lab.across("B1") && !!latest(lab, "across:B1", "open") && lab.meter?.mode === "dcv" && readsIn(lab, 9.3, 9.5),
-      hints: ["The probes are already clipped on. Read the meter, and hold still a moment so the notebook logs it."],
-      success: "About 9.4 V with nothing to power. That's the battery's full push.",
+      hints: ["The probes are clipped on. Wait a moment for the notebook."],
+      success: "About 9.4 V with no load: its full push.",
     },
     {
       id: "loaded-voltage",
-      prompt: "Switch on the 15 Ω load and read the battery again straight away.",
+      prompt: "Switch the 15 Ω load on. Read it straight away.",
       goal: (lab) => {
         const mem = lab.memory as { closedAt?: number };
         if (!lab.closed("S1")) {
@@ -65,24 +65,24 @@ export default defineLab({
         const v = lab.meter?.value ?? Number.NaN;
         return lab.t - mem.closedAt <= 2 && lab.across("B1") && readsIn(lab, 8.2, 8.7) && openVolts(lab) - v >= 0.5;
       },
-      hints: ["Flip the switch on its wooden block, then look at the meter at once."],
+      hints: ["Flip the switch on its block. Look at the meter at once."],
       highlight: ["S1"],
-      success: "Down by almost a volt, just from doing work. Some of the push is being spent inside the battery.",
+      success: "Down almost a volt. Some push is spent inside the battery.",
     },
     {
       id: "find-r",
-      prompt: "Work out the internal resistance. Current first: I = loaded voltage ÷ 15 Ω. Then r = (open voltage − loaded voltage) ÷ I.",
+      prompt: "Find the hidden resistance: r = (open − loaded) ÷ I.",
       goal: (lab) => {
         const r = lab.note("r");
         return r !== null && r >= 1 && r <= 3;
       },
       note: { id: "r", label: "Internal resistance", unit: "Ω" },
-      hints: ["8.4 ÷ 15 ≈ 0.56 A.", "(9.40 − 8.40) ÷ 0.56 ≈ 1.8 Ω."],
-      success: "About 1.7 Ω, hiding inside the battery the whole time.",
+      hints: ["Current first: I = loaded volts ÷ 15 Ω ≈ 0.56 A.", "(9.40 − 8.40) ÷ 0.56 ≈ 1.8 Ω."],
+      success: "About 1.7 Ω, hiding inside the whole time.",
     },
     {
       id: "old-battery",
-      prompt: "Swap in the old battery from the shelf. Take both readings again: switch off, then on.",
+      prompt: "Swap in the old battery. Read it off, then on.",
       goal: (lab) => {
         const mem = lab.memory as { open?: boolean; loaded?: boolean };
         if (inLoop(lab, "B2") && lab.across("B2") && lab.meter?.mode === "dcv") {
@@ -91,13 +91,13 @@ export default defineLab({
         }
         return !!mem.open && !!mem.loaded;
       },
-      hints: ["Switch off first. Then drag the old battery right onto the fresh one: they swap places, clips and all.", "Read it at rest, then switch on and read it again straight away."],
+      hints: ["Switch off. Drop the old battery onto the fresh one: they swap, clips and all.", "Read at rest, then switch on and read at once."],
       highlight: ["B2"],
-      success: "8.6 V at rest looks fine. Under load it slumps below 6 V. Old batteries hide their age until you make them work.",
+      success: "8.6 V at rest, under 6 V loaded. Old batteries hide their age.",
     },
     {
       id: "watch-it-sag",
-      prompt: "Fresh battery back in. Leave the load on for 20 seconds and watch the reading, then switch off.",
+      prompt: "Fresh battery back. Load on for 20 seconds, then off.",
       goal: (lab) => {
         const mem = lab.memory as { since?: number; first?: number; low?: number; held?: boolean; done?: boolean };
         if (mem.done) return true;
@@ -118,9 +118,9 @@ export default defineLab({
         }
         return !!mem.done;
       },
-      hints: ["Swap the fresh battery back the same way. Then switch on and wait: count to twenty while you watch the meter."],
+      hints: ["Swap back the same way. Switch on, count to twenty, watch."],
       highlight: ["B1"],
-      success: "It keeps sinking while it works, then recovers a little at rest. The chemistry can only react so fast.",
+      success: "It sinks while working, then recovers a little. Chemistry takes time.",
       bonus: true,
     },
   ],

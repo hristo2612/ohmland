@@ -56,26 +56,23 @@ export default defineLab({
   tasks: [
     {
       id: "survey",
-      prompt: "Drop each battery into the test station with the load off and log its resting voltage.",
+      prompt: "Load off. Test each battery in the tester.",
       goal: (lab) => CELLS.every(([id, lo, hi]) => logged(lab, id, "rest").some((r) => r.si >= lo && r.si <= hi)),
-      hints: [
-        "Drag a battery onto the tester's bay. The one already there hops out.",
-        "Hold each reading steady so the notebook logs it. Do all four.",
-      ],
+      hints: ["Drop a battery on the tester. The last one hops out.", "Hold each reading until the notebook logs it."],
       highlight: ["T1", "B1", "X1", "X2", "X3"],
-      success: "Four chemistries, four voltages. The rechargeable AA sits lower than the alkaline one, by design.",
+      success: "Four chemistries, four voltages. NiMH sits lower, by design.",
     },
     {
       id: "load-test",
-      prompt: "Now switch on the 100 Ω load and log each battery again while it works.",
+      prompt: "Load on. Test all four again.",
       goal: (lab) => CELLS.every(([id]) => logged(lab, id, "load").length > 0),
-      hints: ["Load switch on, then read. Do all four.", "The coin cell's reading keeps creeping down: give it a few seconds to settle."],
+      hints: ["Flip the tester's load switch, then read each one.", "The coin cell keeps creeping down. Give it a few seconds."],
       highlight: ["T1"],
-      success: "The AA cells barely notice. The coin cell sags by about 0.4 V. Its high internal resistance makes it a sipper, not a gulper.",
+      success: "The AAs barely notice. The coin cell sags about 0.4 V: a sipper, not a gulper.",
     },
     {
       id: "run-time",
-      prompt: "An LED circuit drawing 15 mA runs from the 500 mAh 9 V battery. Estimate how many hours it will last, then run the time-lapse.",
+      prompt: "500 mAh at 15 mA: how many hours? Then run the time-lapse.",
       goal: (lab) => {
         const h = lab.note("hours");
         const mem = lab.memory as { lit?: boolean };
@@ -84,10 +81,9 @@ export default defineLab({
         return h !== null && h >= 25 && h <= 40 && !!mem.lit && lab.t > 20 * 3600 && (lab.part("D9")?.glow ?? 1) < 0.05;
       },
       note: { id: "hours", label: "Your estimate", unit: "h" },
-      hints: ["Capacity in mAh divided by current in mA gives hours.", "Then slide the time-lapse speed all the way up and watch the clock and the LED."],
+      hints: ["mAh divided by mA gives hours.", "Slide the time-lapse speed all the way up. Watch the clock."],
       highlight: ["D9", "CK1"],
-      success:
-        "About 33 hours, close to what the time-lapse shows. Real batteries give a little more or less, depending on the load and the temperature.",
+      success: "About 33 hours. The time-lapse agrees, give or take.",
     },
   ],
   solution: [

@@ -26,32 +26,31 @@ export default defineLab({
   tasks: [
     {
       id: "over-the-limit",
-      prompt: "Set DC volts to the **2 V** range and measure the 9 V battery.",
+      prompt: "DC volts, **2 V** range. Measure the 9 V battery.",
       goal: (lab) => lab.meter?.mode === "dcv" && rangeIs(lab, "2V") && lab.across("B1") && showsOL(lab),
-      hints: ["Red on the round terminal, black on the six-sided one.", "Pick DC volts on the dial, then 2 V in the range list."],
+      hints: ["Red on the round terminal, black on the six-sided one.", "DC volts on the dial, then 2 V in the range list."],
       highlight: ["pin:B1.pos", "pin:B1.neg"],
-      success: "OL means over limit. 9 V is too big for a 2 V range. The meter is fine.",
+      success: "OL: over limit. 9 V is too big for 2 V. The meter is fine.",
     },
     {
       id: "climb-a-range",
-      prompt: "Turn up one range at a time. Stop at the first range that shows a real number.",
+      prompt: "Go up one range at a time until you see a number.",
       goal: (lab) => lab.meter?.mode === "dcv" && rangeIs(lab, "20V") && lab.across("B1") && readsIn(lab, 9.0, 9.6),
       hints: ["The next range up from 2 V is 20 V."],
-      success: "20 V is the smallest range above 9 V, so it gives you the most useful digits.",
-      notice: "On 200 V the same battery shows only one decimal place.",
+      success: "20 V: the smallest range above 9 V gives the most digits.",
+      notice: "On 200 V the same battery shows one decimal place.",
     },
     {
       id: "aa-cell",
-      prompt: "Now measure the AA cell. Find the range that shows the most digits without OL.",
+      prompt: "Measure the AA cell. Most digits, no OL.",
       goal: (lab) => lab.meter?.mode === "dcv" && rangeIs(lab, "2V") && lab.across("X1") && readsIn(lab, 1.4, 1.65),
-      hints: ["An AA cell is about 1.5 V.", "The smallest range bigger than 1.5 V wins."],
+      hints: ["An AA cell is about 1.5 V.", "The smallest range above 1.5 V wins."],
       highlight: ["pin:X1.pos", "pin:X1.neg"],
-      success: "About 1.58 V. That's also 1,580 millivolts, if you like big numbers.",
+      success: "About 1.58 V. That's 1,580 millivolts too.",
     },
     {
       id: "kilo-ohms",
-      prompt:
-        "Turn the dial to **Ω, 2k range** and touch the probes to the resistor's two wire ends. The screen is in kilohms. Type the value in plain ohms into your notebook.",
+      prompt: "**Ω, 2k range**. Probe the resistor's ends. Type its value in plain ohms.",
       goal: (lab) => {
         const n = lab.note("ohms");
         return lab.meter?.mode === "ohm" && rangeIs(lab, "2k") && lab.across("R1", "either") && n !== null && n >= 455 && n <= 480;
@@ -59,8 +58,8 @@ export default defineLab({
       note: { id: "ohms", label: "The resistor, in ohms", unit: "Ω" },
       hints: ["k means a thousand.", "0.466 thousand ohms is 466 ohms."],
       highlight: ["pin:R1.a", "pin:R1.b"],
-      success: "466 Ω. Same resistor, two ways to write it: 0.466 kΩ or 466 Ω.",
-      notice: "Resistors don't care which probe is which, so either way round works.",
+      success: "466 Ω. Same as 0.466 kΩ.",
+      notice: "Resistors don't care which probe is which.",
     },
   ],
   solution: [

@@ -54,50 +54,50 @@ export default defineLab({
   tasks: [
     {
       id: "decode-yellow",
-      prompt: "Find the resistor with **yellow, violet, brown** stripes. Use the colour chart to decode it, and type its value in ohms.",
+      prompt: "Decode **yellow, violet, brown** with the chart. Type the ohms.",
       goal: (lab) => {
         const v = lab.note("value");
         return v !== null && Math.abs(v - 470) < 0.5;
       },
       note: { id: "value", label: "Yellow, violet, brown", unit: "Ω" },
-      hints: ["The first two stripes are digits: yellow is 4, violet is 7.", "The third stripe is how many zeros to add. Brown is 1."],
+      hints: ["First two stripes are digits: yellow 4, violet 7.", "The third stripe counts zeros. Brown is 1."],
       highlight: ["R3", "CH1"],
       success: "4, 7 and one zero: 470 Ω.",
     },
     {
       id: "measure-it",
-      prompt: "Now measure it on the 2k range. Is it exactly 470 Ω?",
+      prompt: "Measure it on the 2k range. Exactly 470 Ω?",
       goal: (lab) => lab.meter?.mode === "ohm" && rangeIs(lab, "2k") && lab.across("R3", "either") && readsIn(lab, 0.447, 0.493),
-      hints: ["A probe on each wire end of the yellow, violet, brown resistor."],
+      hints: ["A probe on each wire end."],
       highlight: ["pin:R3.a", "pin:R3.b"],
-      success: "Close, not exact. The gold stripe promises within 5%, and this one is well inside that.",
+      success: "Close, not exact. Gold promises within 5%: this one is.",
     },
     {
       id: "probe-tips",
-      prompt: "Switch to the 200 range and touch the two probe tips together. What does a 'zero' read?",
+      prompt: "200 range. Touch the probe tips together.",
       goal: (lab) => lab.meter?.mode === "ohm" && rangeIs(lab, "200") && lab.connected("red", "black") && readsIn(lab, 0.1, 0.4),
       hints: ["Drag one probe's tip onto the other's."],
-      success: "About 0.2 Ω. That's the meter's own leads. It only matters when you measure tiny resistances.",
-      notice: "The 15 Ω resistor will read about 0.2 Ω high for this reason.",
+      success: "About 0.2 Ω: the meter's own leads.",
+      notice: "So the 15 Ω resistor reads about 0.2 Ω high.",
     },
     {
       id: "sort-the-bag",
-      prompt: "Read and measure the other four, then drag the right value label onto each resistor.",
+      prompt: "Read and measure the other four. Label each one.",
       goal: (lab) => LABELS.every(([l, r]) => labelled(lab, l, r)),
-      hints: ["Read the stripes first, then confirm with the meter.", "Brown, green, red is 1, 5 and two zeros.", "Drop each label right next to its resistor."],
+      hints: ["Stripes first, then confirm with the meter.", "Brown, green, red: 1, 5 and two zeros.", "Drop each label right next to its resistor."],
       highlight: ["L1", "L2", "L3", "L4", "L5"],
       success: "Five for five. Stripes and meter agree.",
     },
     {
       id: "find-the-liar",
-      prompt: "One resistor measures outside its 5% tolerance. Find it and drop it in the reject bin.",
+      prompt: "One is outside its 5% tolerance. Bin it.",
       goal: (lab) => {
         const held = lab.holds("BIN1");
         return held.length === 1 && held[0] === "R5";
       },
       hints: ["Work out 5% above and below each value.", "2.2 kΩ plus 5% is 2.31 kΩ."],
       highlight: ["BIN1"],
-      success: "Caught it. 2.46 kΩ is more than 5% above 2.2 kΩ. That one was probably overheated at some point.",
+      success: "Caught it. 2.46 kΩ is over 5% above 2.2 kΩ. Probably overheated once.",
     },
   ],
   solution: [

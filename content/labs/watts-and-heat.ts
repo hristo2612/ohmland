@@ -58,51 +58,50 @@ export default defineLab({
   tasks: [
     {
       id: "cool-one",
-      prompt:
-        "Clip the 1 kΩ resistor into the holder and measure the voltage across it. Power is voltage times current: P = V × I, where I = V ÷ R. Type the power in milliwatts.",
+      prompt: "Holder: 1 kΩ. Measure its volts. Type P = V × I, in mW.",
       goal: (lab) => {
         const mW = lab.note("mW");
         return inHolder(lab) === "R1" && Number.isFinite(volts(lab, "R1")) && mW !== null && mW >= 80 && mW <= 95;
       },
       note: { id: "mW", label: "Power in the 1 kΩ resistor", unit: "mW" },
-      hints: ["I = 9.4 V ÷ 1,000 Ω ≈ 0.0094 A.", "P = 9.4 × 0.0094 ≈ 0.088 W. How many mW is that?"],
+      hints: ["I = V ÷ R: 9.4 V ÷ 1,000 Ω ≈ 0.0094 A.", "P = 9.4 × 0.0094 ≈ 0.088 W. In mW?"],
       highlight: ["H1"],
-      success: "About 88 mW. Barely warm. A 1/4 W resistor can handle 250 mW.",
+      success: "About 88 mW. Barely warm. A 1/4 W part handles 250 mW.",
     },
     {
       id: "cook-one",
-      prompt: "Swap in a 15 Ω, 1/4 W resistor and watch it closely.",
+      prompt: "Swap in a 15 Ω, 1/4 W resistor. Watch closely.",
       goal: (lab) => lab.died("R2") || lab.died("R3"),
-      hints: ["Drop one of the 15 Ω, 1/4 W resistors onto the holder's clips."],
+      hints: ["Drop a 15 Ω, 1/4 W resistor onto the clips."],
       highlight: ["H1"],
-      success: "Smoke, then a scorched break. That little resistor was taking about 18 times its rating.",
+      success: "Smoke, then a break. About 18 times its rating.",
     },
     {
       id: "power-it",
-      prompt: "Now clip in the big 15 Ω, **5 W** resistor. Measure the voltage across it and type its power in watts.",
+      prompt: "Now the 15 Ω, **5 W** one. Measure. Type its power in W.",
       goal: (lab) => {
         const v = volts(lab, "R5");
         return inHolder(lab) === "R5" && !lab.died("R5") && near(lab.note("W"), (v * v) / 15, 0.1);
       },
       note: { id: "W", label: "Power in the 5 W resistor", unit: "W" },
-      hints: ["P = V² ÷ R works when you know voltage and resistance.", "About 8.3 × 8.3 ÷ 15."],
+      hints: ["P = V² ÷ R.", "About 8.2 × 8.2 ÷ 15."],
       highlight: ["H1"],
-      success: "Around 4.5 W, all of it turning into heat.",
+      success: "Around 4.5 W, all of it heat.",
     },
     {
       id: "survive-ten",
-      prompt: "Leave it there for 10 seconds. Does the 5 W resistor survive?",
+      prompt: "Leave it 10 seconds. Does it survive?",
       goal: (lab) => lab.heldFor(10, inHolder(lab) === "R5" && lab.part("R5")?.health !== "dead"),
       hints: ["Just wait, and watch its temperature."],
-      success: "Hot enough to burn a finger, but alive. 4.5 W is within its 5 W rating, and its big body sheds the heat.",
-      notice: "The battery's voltage has crept down while it works hard. Module 5's last lesson explains why.",
+      success: "Hot, but alive. 4.5 W is within its 5 W rating.",
+      notice: "The battery's voltage crept down as it worked. Lesson 15 explains why.",
     },
     {
       id: "one-watt-too",
-      prompt: "Curious about the 1 W version? Give it a go.",
+      prompt: "Curious? Try the 1 W version.",
       goal: (lab) => lab.event("smoke", "R4"),
-      hints: ["Drop the 15 Ω, 1 W resistor onto the holder and give it a little while."],
-      success: "Better than the 1/4 W one, but still smoking. 4.5 W is too much for a 1 W rating.",
+      hints: ["Drop the 15 Ω, 1 W resistor on. Give it a while."],
+      success: "Better, but still smoking. 4.5 W is too much for 1 W.",
       bonus: true,
     },
   ],

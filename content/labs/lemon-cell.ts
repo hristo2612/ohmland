@@ -57,48 +57,47 @@ export default defineLab({
   tasks: [
     {
       id: "make-a-cell",
-      prompt:
-        "Push a copper coin and a zinc strip into the lemon, close together but not touching. Measure between them: red on the copper, black on the zinc.",
+      prompt: "Push in a copper coin and a zinc strip. Red on copper, black on zinc.",
       goal: (lab) => {
         const p = pair(lab);
         return !!p && !touching(lab) && lab.meter?.mode === "dcv" && lab.probed(`${p.cu}.tip`, `${p.zn}.tip`) && readsIn(lab, 0.8, 1.0);
       },
-      hints: ["One metal in each slot: drag a coin onto one cut in the lemon, a zinc strip onto the other.", "The 2V range shows the most digits for under a volt."],
+      hints: ["Drop one metal on each cut in the lemon.", "Keep them apart. 2V shows the most digits."],
       highlight: ["FC1", "E1", "E3"],
-      success: "About 0.9 V from a lemon. You just made a cell.",
+      success: "About 0.9 V from a lemon. You made a cell.",
     },
     {
       id: "which-is-plus",
-      prompt: "Swap the probes: red on the zinc, black on the copper.",
+      prompt: "Swap the probes: red on zinc, black on copper.",
       goal: (lab) => {
         const p = pair(lab);
         return !!p && !touching(lab) && lab.meter?.mode === "dcv" && lab.probed(`${p.zn}.tip`, `${p.cu}.tip`) && readsIn(lab, -1.0, -0.8);
       },
       hints: ["Same electrodes, other probes."],
-      success: "Negative. So copper is the plus side, and zinc is the minus side.",
+      success: "Negative. Copper is plus, zinc is minus.",
     },
     {
       id: "same-metal",
-      prompt: "Replace the zinc strip with the second copper coin, and measure again.",
+      prompt: "Swap the zinc for the second copper coin. Measure.",
       goal: (lab) => {
         const s = slots(lab);
         return s.length === 2 && s.every((e) => e.metal === "copper") && nearZero(lab);
       },
-      hints: ["Drag the zinc strip out of the lemon, then drop the other coin in its slot."],
+      hints: ["Drag the zinc out, then drop the coin in its slot."],
       highlight: ["E2"],
       success: "Almost nothing. A cell needs two different metals.",
     },
     {
       id: "touching",
-      prompt: "Put the zinc strip back, then push the two metals together so they touch inside the lemon.",
+      prompt: "Zinc back in. Push the metals together. Measure.",
       goal: (lab) => !!pair(lab) && touching(lab) && nearZero(lab),
-      hints: ["Click the lemon and choose Touching in the bar at the bottom of the bench.", "Keep the probes on the two electrodes."],
+      hints: ["Click the lemon, then choose Touching.", "Keep the probes on the two electrodes."],
       highlight: ["FC1"],
-      success: "Zero again. Touching electrodes short the cell out from the inside.",
+      success: "Zero again. Touching metals short the cell inside.",
     },
     {
       id: "one-lemon-led",
-      prompt: "Separate the metals. Can one lemon light the red LED? Long leg to copper, short leg to zinc.",
+      prompt: "Metals apart. Can one lemon light the LED?",
       goal: (lab) => {
         const p = pair(lab);
         const led = lab.bench.parts.find((x) => x.kind === "led")?.id;
@@ -106,8 +105,8 @@ export default defineLab({
           !!p && !!led && !touching(lab) && lab.connected(`${led}.anode`, `${p.cu}.tip`) && lab.connected(`${led}.cathode`, `${p.zn}.tip`) && (lab.part(led)?.glow ?? 0) < 0.02
         );
       },
-      hints: ["Two clip leads: one from the LED's long leg to the copper, one from its short leg to the zinc."],
-      success: "Not a flicker. 0.9 V is less than half of what a red LED needs. You're going to need more lemons.",
+      hints: ["Two clip leads: long leg to copper, short leg to zinc."],
+      success: "Not a flicker. A red LED needs about 2 V. More lemons!",
       bonus: true,
     },
   ],

@@ -75,38 +75,37 @@ export default defineLab({
   tasks: [
     {
       id: "dry-skin",
-      prompt: "Set the dial to Ω, **200k** range. Touch both probes to the dry skin, 2 cm apart.",
+      prompt: "Ω, **200k** range. Probe the dry skin, 2 cm apart.",
       goal: (lab) => lab.meter?.mode === "ohm" && skin(lab).moisture === "dry" && spacing(lab) === 2 && rangeIs(lab, "2M") && readsIn(lab, 0.3, 1.9),
-      hints: ["OL on 200k? The skin is over 200 kΩ. Step up a range.", "The 2M range goes up to just under 2 MΩ."],
+      hints: ["OL on 200k? The skin is over 200 kΩ. Step up a range.", "2M reads up to just under 2 MΩ."],
       highlight: ["pin:P1.m0", "pin:P1.m2"],
-      success: "Hundreds of kilohms. Dry skin is a pretty poor conductor.",
+      success: "Hundreds of kilohms. Dry skin barely conducts.",
     },
     {
       id: "wet-skin",
-      prompt: "Tap **Wet** to moisten the skin and measure again, same spacing.",
+      prompt: "Tap **Wet**. Measure again, same spacing.",
       goal: (lab) => lab.meter?.mode === "ohm" && skin(lab).moisture === "wet" && spacing(lab) === 2 && !showsOL(lab) && siIn(lab, 0, 100_000),
-      hints: ["The tabs along the front of the skin patch set how wet it is.", "Wet skin reads much lower. A smaller range gives more digits."],
+      hints: ["The tabs on the skin patch set how wet it is.", "A smaller range gives more digits."],
       highlight: ["P1"],
-      success: "Tens of kilohms. Water where the probes touch lets current in far more easily.",
+      success: "Tens of kilohms. Water lets current in far more easily.",
     },
     {
       id: "double-spacing",
-      prompt: "Keep the skin wet and the pressure the same. Measure at 2 cm, then at 4 cm. Does the reading double?",
+      prompt: "Wet skin: measure at 2 cm, then at 4 cm. Double?",
       goal: (lab) =>
         ["light", "firm"].some((p) => !!loggedValue(lab, `skin:wet:2cm:${p}`) && !!loggedValue(lab, `skin:wet:4cm:${p}`)),
-      hints: ["Hold each reading steady for a moment so it lands in the notebook.", "Move both probes to the 4 cm marks, or one probe to the far mark."],
+      hints: ["Hold each reading still until the notebook logs it.", "Move one probe to the 4 cm mark."],
       highlight: ["pin:P1.m0", "pin:P1.m4"],
-      success:
-        "It went up, but nowhere near double. Most of the resistance is where the probes touch the skin, and that part didn't change.",
-      notice: "Contact resistance dominates. The distance between the probes is only a small part.",
+      success: "Up, but nowhere near double. Most of it is where the probes touch.",
+      notice: "Contact resistance dominates. Distance adds only a little.",
     },
     {
       id: "three-cups",
-      prompt: "Measure all three cups of water: distilled, tap and salty.",
+      prompt: "Measure all three cups: distilled, tap and salty.",
       goal: (lab) => !!loggedValue(lab, "cup-distilled") && !!loggedValue(lab, "cup-tap") && !!loggedValue(lab, "cup-salty"),
-      hints: ["Dip both probes into a cup. Hold them still until the reading lands in the notebook.", "Distilled water may need the 2M range.", "Salty water reads low. Try 2k."],
+      hints: ["Dip both probes in a cup. Hold still until it logs.", "Distilled water may need 2M.", "Salty water reads low. Try 2k."],
       highlight: ["P2", "P3", "P4"],
-      success: "Pure water barely conducts. It's what's dissolved in it that carries the current.",
+      success: "Pure water barely conducts. What's dissolved in it carries the current.",
     },
     {
       id: "extremes",
@@ -116,10 +115,9 @@ export default defineLab({
         const ruler = latest(lab, "ruler");
         return !!copper && si(copper) < 1 && !!ruler && ruler.range === "2M" && ruler.value === Infinity;
       },
-      hints: ["Copper reads best on the 200 range.", "Plastic needs the biggest range, and even that won't be enough."],
+      hints: ["Copper reads best on the 200 range.", "Plastic: try 2M. Even that won't be enough."],
       highlight: ["P5", "P6"],
-      success:
-        "Copper: next to nothing (most of that is your probe leads). Plastic: OL on every range. A conductor and an insulator.",
+      success: "Copper: almost nothing, mostly your probe leads. Plastic: OL. A conductor and an insulator.",
       bonus: true,
     },
   ],

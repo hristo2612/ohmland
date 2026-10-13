@@ -31,31 +31,31 @@ export default defineLab({
   tasks: [
     {
       id: "reset-meter",
-      prompt: "The meter is still set up for current. Make it ready for volts: red lead into **VΩ**, dial to DC V, **20V** range.",
+      prompt: "Set up for volts: red lead into **VΩ**, DC V, **20V**.",
       goal: (lab) => lab.meter?.red === "vohm" && lab.meter.mode === "dcv" && rangeIs(lab, "20V"),
-      hints: ["Check where the red lead is plugged in right now.", "VΩ socket first, then the V with a straight line."],
+      hints: ["Where is the red lead plugged in now?", "VΩ socket first, then the V with a straight line."],
       highlight: ["socket:ma", "socket:vohm"],
-      success: "Good habit. A meter left on amps is the number one way to blow its fuse.",
+      success: "Good habit. Leftover amps settings blow fuses.",
     },
     {
       id: "battery-volts",
-      prompt: "With the LED lit, measure across the battery: red on plus, black on minus.",
+      prompt: "LED lit. Measure across the battery.",
       goal: (lab) => lab.meter?.mode === "dcv" && lab.across("B1") && readsIn(lab, 9.0, 9.6),
-      hints: ["The probes touch the battery's terminals, right next to the clips. Nothing gets unclipped."],
+      hints: ["Red on plus, black on minus. Nothing gets unclipped."],
       highlight: ["pin:B1.pos", "pin:B1.neg"],
-      success: "About 9.4 V, measured while the battery is working.",
+      success: "About 9.4 V, while the battery works.",
     },
     {
       id: "resistor-volts",
-      prompt: "Now measure across the resistor: a probe on each end, red on the end nearer battery plus.",
+      prompt: "Across the resistor: red on the end nearer plus.",
       goal: (lab) => lab.meter?.mode === "dcv" && lab.across("R1") && readsIn(lab, 6.9, 7.9),
-      hints: ["The end with the red clip lead is nearer battery plus."],
+      hints: ["The end with the red clip lead is nearer plus."],
       highlight: ["pin:R1.a", "pin:R1.b"],
       success: "About 7.4 V. The resistor takes most of the push.",
     },
     {
       id: "led-volts",
-      prompt: "And across the LED: red on the long leg, black on the short leg. Try the 2V range for extra digits.",
+      prompt: "Across the LED: red on the long leg. Try 2V.",
       goal: (lab) => lab.meter?.mode === "dcv" && lab.across("D1") && readsIn(lab, 1.8, 2.1),
       hints: ["The long leg (anode) has the yellow lead on it."],
       highlight: ["pin:D1.anode", "pin:D1.cathode"],
@@ -63,7 +63,7 @@ export default defineLab({
     },
     {
       id: "add-them-up",
-      prompt: "Add your resistor and LED readings and type the total.",
+      prompt: "Add the resistor and LED readings. Type the total.",
       goal: (lab) => {
         const sum = lab.note("sum");
         const r = si(latest(lab, "across:R1"));
@@ -73,7 +73,7 @@ export default defineLab({
       },
       note: { id: "sum", label: "Resistor + LED", unit: "V" },
       hints: ["Your readings are in the notebook.", "About 7.4 plus about 1.9."],
-      success: "The two drops add up to the battery voltage. The push is shared out around the loop.",
+      success: "The drops add up to the battery. The push is shared around the loop.",
     },
   ],
   solution: [

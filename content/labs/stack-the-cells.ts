@@ -54,15 +54,15 @@ export default defineLab({
   tasks: [
     {
       id: "two-in-series",
-      prompt: "Link two cells: clip the zinc of one to the copper of the next. Measure from the free copper to the free zinc.",
+      prompt: "Clip one cell's zinc to the next one's copper. Measure both.",
       goal: (lab) => lab.meter?.mode === "dcv" && pairs.some((p) => stackProbed(lab, p)) && readsIn(lab, 1.7, 1.95),
-      hints: ["Copper is the reddish strip, zinc the grey one.", "Red probe on the free copper, black on the free zinc."],
+      hints: ["Copper is the reddish strip, zinc the grey one.", "Red on the free copper, black on the free zinc."],
       highlight: ["pin:FC1.neg", "pin:FC2.pos"],
       success: "About 1.8 V. In series, cell voltages add up.",
     },
     {
       id: "wrong-way",
-      prompt: "Now link the same two cells copper to copper, and measure across the free ends.",
+      prompt: "Now link them copper to copper. Measure the free ends.",
       goal: (lab) =>
         lab.meter?.mode === "dcv" &&
         pairs.some((p) => {
@@ -70,12 +70,12 @@ export default defineLab({
           return !!c && c.flipped.length === 1 && lab.probed(c.ends[0], c.ends[1], "either");
         }) &&
         readsIn(lab, -0.1, 0.1),
-      hints: ["Move one clip from a zinc to that cell's copper. Then measure across the two strips left free."],
-      success: "Almost nothing. Back to back, the two cells cancel each other out.",
+      hints: ["Move one clip from a zinc to that cell's copper."],
+      success: "Almost nothing. Back to back, they cancel out.",
     },
     {
       id: "four-stack",
-      prompt: "Build a chain of all four, zinc to copper at every link. Measure the whole stack.",
+      prompt: "Chain all four, zinc to copper. Measure the stack.",
       goal: (lab) => lab.meter?.mode === "dcv" && stackProbed(lab, CELLS) && readsIn(lab, 3.4, 3.8),
       hints: ["3.6 V is over the 2V range. Step up to 20V.", "Every link joins a zinc to the next copper."],
       highlight: ["FC1", "FC2", "FC3", "FC4"],
@@ -83,7 +83,7 @@ export default defineLab({
     },
     {
       id: "light-it",
-      prompt: "Connect the LED across the stack: long leg to the free copper, short leg to the free zinc. Dim the room lights if you need to.",
+      prompt: "LED across the stack: long leg to copper. Dim the lights.",
       goal: (lab) => {
         const c = lab.chain(CELLS);
         return (
@@ -101,11 +101,10 @@ export default defineLab({
     },
     {
       id: "why-no-resistor",
-      prompt: "Keep the LED lit and measure across the stack again.",
+      prompt: "LED still lit, measure the stack again.",
       goal: (lab) => lab.meter?.mode === "dcv" && lab.isLit("D1", 0.02) && stackProbed(lab, CELLS) && readsIn(lab, 1.5, 2.0),
-      hints: ["Probes on the free copper and the free zinc, with the LED still connected."],
-      success:
-        "From 3.6 V down to about 1.7 V. The lemons' internal resistance swallows the rest and keeps the current under half a milliamp. That's why no resistor was needed.",
+      hints: ["Probes on the free copper and the free zinc."],
+      success: "Down to about 1.7 V. The lemons' own resistance limits the current: no resistor needed.",
       bonus: true,
     },
   ],

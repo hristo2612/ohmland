@@ -75,28 +75,27 @@ export default defineLab({
   tasks: [
     {
       id: "battery-first",
-      prompt: "Start by measuring the battery on DC volts. The notebook logs it.",
+      prompt: "First, measure the battery on DC volts.",
       goal: (lab) => lab.meter?.mode === "dcv" && lab.across("B1") && Number.isFinite(battery(lab)) && readsIn(lab, 9.0, 9.6),
-      hints: ["Red on the battery's round terminal, black on the six-sided one, on the 20 V range.", "Hold the probes still until the reading lands in the notebook."],
+      hints: ["Red on +, black on −, 20 V range.", "Hold still until the notebook logs it."],
       highlight: ["pin:B1.pos", "pin:B1.neg"],
-      success: "Battery voltage logged. Keep that number in mind.",
+      success: "Battery voltage logged. Remember it.",
     },
     {
       id: "fill-the-table",
-      prompt:
-        "Switch to current (red lead in **mA**, **20mA** range) and put the meter in series: battery plus to red probe, black probe to the holder. Then clip in each resistor in turn: 1 kΩ, 1.5 kΩ, 2.2 kΩ, 3.3 kΩ.",
+      prompt: "Meter on **20mA**, in series. Measure 1, 1.5, 2.2 and 3.3 kΩ.",
       goal: (lab) => ROWS.every(([id]) => Number.isFinite(mA(lab, id))),
       hints: [
-        "One loop: battery plus, meter, holder, back to minus.",
+        "Red lead in mA. Red probe on battery plus, black on the holder.",
         "Reading zero? Check the red lead is in mA.",
-        "Swap resistors by dragging a new one onto the holder. Hold each reading steady so the notebook logs it.",
+        "Drop each resistor onto the holder. Hold each reading steady.",
       ],
       highlight: ["pin:B1.pos", "pin:H1.a", "H1"],
-      success: "Four rows of real data. Now look closely.",
+      success: "Four rows of real data. Look closely.",
     },
     {
       id: "spot-the-pattern",
-      prompt: "For each row, multiply the current in mA by the resistance in kΩ. Type the four answers.",
+      prompt: "Each row: mA × kΩ. Type the four answers.",
       goal: (lab) => products(lab, 0.02),
       note: [
         { id: "p1", label: "1 kΩ row: I × R", unit: "V" },
@@ -104,19 +103,19 @@ export default defineLab({
         { id: "p3", label: "2.2 kΩ row: I × R", unit: "V" },
         { id: "p4", label: "3.3 kΩ row: I × R", unit: "V" },
       ],
-      hints: ["First row: about 9.2 × 1.", "Compare your answers with the battery voltage."],
-      success: "All four land close to your battery voltage. That's not a coincidence. That's a law.",
+      hints: ["First row: about 9.2 × 1.", "Compare them with the battery voltage."],
+      success: "All four land near your battery voltage. That's a law.",
     },
     {
       id: "predict-and-test",
-      prompt: "Here's a 4.7 kΩ resistor. Predict its current first, then clip it in and measure.",
+      prompt: "Predict the current through 4.7 kΩ. Then measure it.",
       goal: (lab) => {
         const p = lab.note("prediction");
         return near(p, battery(lab) / 4.7, 0.1) && near(mA(lab, "R5"), p ?? Number.NaN, 0.05);
       },
       note: { id: "prediction", label: "Your prediction for 4.7 kΩ", unit: "mA" },
-      hints: ["Volts divided by kilohms gives milliamps.", "Then drop the 4.7 kΩ resistor onto the holder and hold the reading steady."],
-      success: "Predicted, then confirmed. That's what a law of physics is for.",
+      hints: ["Volts divided by kilohms gives milliamps.", "Then drop the 4.7 kΩ resistor onto the holder."],
+      success: "Predicted, then confirmed. That's what laws are for.",
     },
   ],
   solution: [
