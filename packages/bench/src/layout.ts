@@ -319,8 +319,14 @@ export function benchBounds(bench: BenchState): [number, number, number, number]
   for (const p of bench.parts) {
     if (isOnBoard(bench, p)) continue;
     // Tall props reach up toward the camera, so give them more room than their footprint.
-    const big = p.kind === "cup" ? 52 : p.kind === "lemon" ? 38 : p.kind === "battery" ? 30 : p.kind === "speaker" ? 24 : 14;
+    const big =
+      p.kind === "cup" ? 52 : p.kind === "lemon" ? 38 : p.kind === "battery" ? 30 : p.kind === "speaker" ? 24 : p.kind === "toggle-switch" && p.params.base ? 26 : 14;
     grow(p.pos[0], p.pos[1], big);
+  }
+  // An empty desk still has a work area to frame (otherwise a lone meter fills the view).
+  if (!bench.board && !bench.parts.length) {
+    grow(-110, -55, 0);
+    grow(110, 55, 0);
   }
   if (bench.meter) {
     const m = bench.meter;
@@ -338,7 +344,7 @@ export function benchBounds(bench: BenchState): [number, number, number, number]
   for (const l of bench.leads) {
     for (const e of [l.a, l.b]) {
       const p = e.to ? anchorPosition(bench, e.to) : null;
-      if (p) grow(p[0], p[2], 18);
+      if (p) grow(p[0], p[2], 30);
     }
   }
   if (!Number.isFinite(x0)) return [-100, -60, 100, 60];
@@ -374,7 +380,8 @@ export function fitCamera(
   const distW = w / 2 / Math.tan(h);
   const distD = (d / 2 / Math.tan(v)) * (top ? 1 : 0.85);
   const dist = Math.max(distW, distD) * 1.02;
-  const shift = top ? 0 : d * 0.04;
+  // Clips, cables and probes rise toward the back of the view; leave them room above the parts.
+  const shift = top ? 0 : -d * 0.07;
   const target: Vec3 = portrait ? [cx - shift - (d * (1 - visibleY)) / 2, 0, cz] : [cx, 0, cz + shift + (d * (1 - visibleY)) / 2];
   const s = dist * Math.sin(polar);
   return { target, position: [target[0] + s * Math.sin(az), dist * Math.cos(polar), target[2] + s * Math.cos(az)] };

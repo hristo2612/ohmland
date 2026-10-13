@@ -1,6 +1,6 @@
 // <Bench />: the interactive 3D workbench.
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { CameraControls } from "@react-three/drei";
@@ -19,7 +19,7 @@ import { JumperWire } from "../models/Leads";
 import { BACKGROUND, Desk, StudioEnvironment, StudioLights } from "./Studio";
 import { useInteraction, handleBenchKey, type InteractionApi } from "./Interaction";
 import { Overlay } from "./Overlay";
-import { ACCENT, LeadView, MeterView, PartView, SELECT_HEX, TargetMarker, WireView, makeFloor } from "./views";
+import { ACCENT, LeadView, MeterView, PartView, SELECT_HEX, TargetMarker, WireView, makeFloor, snapshotKey } from "./views";
 
 export type BenchProps = {
   /** Starting bench (ignored when `store` is given). */
@@ -36,6 +36,8 @@ export type BenchProps = {
   onAction?: (action: BenchAction) => void;
   quality?: Quality;
   readOnly?: boolean;
+  /** Part ids the learner cannot move, rotate or delete (switches still flip and buttons still press). */
+  locked?: string[];
   /** Part ids or anchors ("hole:e12", "pin:R1.a") to point out, for lab hints. */
   highlight?: string[];
   /** Translated UI strings. */
@@ -83,15 +85,22 @@ export function Bench(props: BenchProps) {
     store.setState({ emit });
   }, [store, emit]);
   useEffect(() => {
-    store.setState({ snapshot });
-  }, [store, snapshot]);
-  useEffect(
-    () =>
-      store.subscribe((s, prev) => {
-        if (s.bench !== prev.bench && !s.txBase) onChange.current?.(s.bench);
-      }),
-    [store],
-  );
+    if (props.snapshot !== undefined) store.setState({ snapshot });
+  }, [store, snapshot, props.snapshot]);
+  const lockedKey = (props.locked ?? []).join(",");
+  useEffect(() => {
+    store.setState({ locked: lockedKey ? lockedKey.split(",") : [] });
+  }, [store, lockedKey]);
+  useEffect(() => {
+    // A drag changes the bench while its transaction is open and commits by closing it, so compare against the last
+    // bench reported rather than the previous state.
+    let reported = store.getState().bench;
+    return store.subscribe((s) => {
+      if (s.txBase || s.bench === reported) return;
+      reported = s.bench;
+      onChange.current?.(s.bench);
+    });
+  }, [store]);
 
   // Compact layout for narrow containers (phones). Measured before the first paint so the camera fit knows.
   const [size, setSize] = useState(() => ({ w: typeof window !== "undefined" ? window.innerWidth : 1000, h: typeof window !== "undefined" ? window.innerHeight : 700 }));
@@ -198,6 +207,23 @@ function CameraRig({
   );
 }
 
+const EDGE_HEX = new THREE.Color(SELECT_HEX).getHex();
+
+/**
+ * Outline, bloom and tone mapping, memoised so they never re-render with the scene. (Snapshots arrive about 30 times
+ * a second; only the part models and the meter read them, through their own store subscriptions. Re-rendering the
+ * whole scene per snapshot sent the outline composer into an update loop: "Maximum update depth exceeded".)
+ */
+const PostEffects = memo(function PostEffects() {
+  return (
+    <EffectComposer multisampling={4} enableNormalPass={false} autoClear={false}>
+      <Outline visibleEdgeColor={EDGE_HEX} hiddenEdgeColor={EDGE_HEX} edgeStrength={12} width={1400} blur xRay />
+      <Bloom mipmapBlur luminanceThreshold={1.1} luminanceSmoothing={0.2} intensity={0.75} radius={0.6} />
+      <ToneMapping mode={ToneMappingMode.NEUTRAL} />
+    </EffectComposer>
+  );
+});
+
 function ReadySignal({ onReady }: { onReady?: () => void }) {
   const done = useRef(false);
   const invalidate = useThree((s) => s.invalidate);
@@ -241,10 +267,21 @@ function BenchScene({
   onReady?: () => void;
 }) {
   const bench = useBench((s) => s.bench);
-  const snapshot = useBench((s) => s.snapshot);
   const ui = useBench((s) => s.ui);
   const invalidate = useThree((s) => s.invalidate);
-  useEffect(() => store.subscribe(() => invalidate()), [store, invalidate]);
+  // Draw a frame on any change, except snapshots that change nothing visible (the simulator sends about 30 a second
+  // even when the circuit is steady; rendering each one would keep shadows and post-processing busy for nothing).
+  useEffect(() => {
+    let seen = snapshotKey(store.getState().snapshot);
+    return store.subscribe((s, prev) => {
+      if (s.snapshot !== prev.snapshot && s.bench === prev.bench && s.ui === prev.ui) {
+        const key = snapshotKey(s.snapshot);
+        if (key === seen) return;
+        seen = key;
+      }
+      invalidate();
+    });
+  }, [store, invalidate]);
   useInteraction({ store, element, readOnly, api, emit, viewPad });
 
   const center = useMemo(() => workCenter(bench), [bench.board]);
@@ -294,7 +331,6 @@ function BenchScene({
             key={p.id}
             part={p}
             board={bench.board}
-            state={(snapshot?.parts[p.id] as never) ?? null}
             selected={ui.selection?.type === "part" && ui.selection.id === p.id}
             hinted={hl.has(p.id)}
             pressed={!!ui.pressed[p.id]}
@@ -321,18 +357,11 @@ function BenchScene({
           <MeterView
             meter={bench.meter}
             bench={bench}
-            state={(snapshot?.parts[bench.meter.id] as never) ?? null}
             selected={ui.selection?.type === "meter"}
             floor={floor}
           />
         )}
-        {quality === "high" && (
-          <EffectComposer multisampling={4} enableNormalPass={false} autoClear={false}>
-            <Outline visibleEdgeColor={new THREE.Color(SELECT_HEX).getHex()} hiddenEdgeColor={new THREE.Color(SELECT_HEX).getHex()} edgeStrength={12} width={1400} blur xRay />
-            <Bloom mipmapBlur luminanceThreshold={1.1} luminanceSmoothing={0.2} intensity={0.75} radius={0.6} />
-            <ToneMapping mode={ToneMappingMode.NEUTRAL} />
-          </EffectComposer>
-        )}
+        {quality === "high" && <PostEffects />}
       </Selection>
       {draftFrom && (
         <>

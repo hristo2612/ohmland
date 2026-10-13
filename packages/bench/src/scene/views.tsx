@@ -5,10 +5,12 @@ import * as THREE from "three";
 import type { PartState } from "@ohmland/sim";
 import { Select } from "@react-three/postprocessing";
 import { boardGeometry, boardOrigin, holeWorld } from "../board";
-import { BOARD_TOP, PITCH } from "../dims";
-import { METER, anchorPosition, outwardHeading, partPose, probeTip, socketWorld, meterLocalToWorld } from "../layout";
+import { BOARD_TOP, PITCH, TOGGLE_BASE } from "../dims";
+import { METER, anchorPosition, isOnBoard, outwardHeading, partPose, probeTip, socketWorld, meterLocalToWorld } from "../layout";
+import { parseAnchor } from "../anchors";
 import { partDef, rotateXZ } from "../parts";
-import { PartModel, flyingLeads } from "../models/PartModel";
+import { PartModel, flyingLeads, type PartModelProps } from "../models/PartModel";
+import { useBench, useBenchStore } from "../store";
 import { MultimeterModel } from "../models/Multimeter";
 import { AlligatorClip, BananaPlug, CLIP_LEN, Cable, JumperWire, PLUG_TOP, PROBE_LEN, Probe, StrippedEnd, quatFromY } from "../models/Leads";
 import type { FloorFn } from "../three/geometry";
@@ -86,7 +88,6 @@ function SelectionFrame({ box, color, pulse: wantPulse = false }: { box: THREE.B
 type PartViewProps = {
   part: PlacedPart;
   board: BenchState["board"];
-  state: PartState | null;
   selected: boolean;
   hinted: boolean;
   pressed: boolean;
@@ -101,7 +102,36 @@ const ACTUATOR: Partial<Record<PlacedPart["kind"], "press" | "flip" | "rotor">> 
   trimmer: "rotor",
 };
 
-function PartViewImpl({ part, board, state, selected, hinted, pressed, quality, floor }: PartViewProps) {
+/**
+ * The model of a part, fed its simulator state straight from the store. Only this re-renders on each snapshot (about
+ * 30 a second); the PartView around it, with its picking proxies and outline <Select>, re-renders only when the part
+ * itself changes. (Re-rendering <Select> on every snapshot sent the outline composer into an update loop.)
+ */
+const LivePartModel = memo(function LivePartModel(props: Omit<PartModelProps, "state"> & { id: string }) {
+  const store = useBenchStore();
+  // Re-render only when something visible changed, not on every snapshot.
+  const key = useBench((s) => visualKey(s.snapshot?.parts[props.id]));
+  const state = useMemo(() => (store.getState().snapshot?.parts[props.id] as PartState | undefined) ?? null, [store, props.id, key]);
+  const { id: _id, ...rest } = props;
+  return <PartModel {...rest} state={state} />;
+});
+
+/** What a part's look depends on, as a string: health, glow (in 2% steps), contacts, display, relay armature. */
+export function visualKey(p: PartState | undefined): string {
+  if (!p) return "";
+  const arm = typeof p.extra?.["armature"] === "number" ? Math.round((p.extra["armature"] as number) * 20) : "";
+  return `${p.health}|${Math.round((p.glow ?? 0) * 50)}|${p.closed ? 1 : 0}|${p.display ?? ""}|${p.unit ?? ""}|${arm}`;
+}
+
+/** The visual keys of every part in a snapshot, joined: unchanged means the bench looks the same. */
+export function snapshotKey(s: { parts: Record<string, PartState> } | null): string {
+  if (!s) return "";
+  let out = "";
+  for (const id in s.parts) out += `${id}=${visualKey(s.parts[id])};`;
+  return out;
+}
+
+function PartViewImpl({ part, board, selected, hinted, pressed, quality, floor }: PartViewProps) {
   const pose = useMemo(() => partPose({ v: 1, board, parts: [part], wires: [], leads: [], meter: null }, part), [part, board]);
   const model = useRef<THREE.Group>(null);
   const [box, setBox] = useState<THREE.Box3 | null>(null);
@@ -118,7 +148,7 @@ function PartViewImpl({ part, board, state, selected, hinted, pressed, quality, 
   const outline = quality === "high" && (selected || hinted);
   const body = (
     <group ref={model}>
-      <PartModel kind={part.kind} params={part.params} mount={pose.mount} span={pose.span} state={state} quality={quality} pressed={pressed} />
+      <LivePartModel id={part.id} kind={part.kind} params={part.params} mount={pose.mount} span={pose.span} quality={quality} pressed={pressed} />
     </group>
   );
   return (
@@ -132,13 +162,17 @@ function PartViewImpl({ part, board, state, selected, hinted, pressed, quality, 
               size={[Math.max(box.max.x - box.min.x + 1.5, 6), Math.max(box.max.y - box.min.y + 1, 4), Math.max(box.max.z - box.min.z + 1.5, 6)]}
               position={[(box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, (box.min.z + box.max.z) / 2]}
             />
-            {actuator && (
-              <Proxy
-                pick={{ type: actuator, id: part.id }}
-                size={part.kind === "toggle-switch" ? [7, 12, 7] : [5.2, 3.2, 5.2]}
-                position={[(box.min.x + box.max.x) / 2, part.kind === "toggle-switch" ? box.max.y - 5 : box.max.y - 0.8, (box.min.z + box.max.z) / 2]}
-              />
-            )}
+            {actuator &&
+              (part.kind === "toggle-switch" && part.params.base && pose.mount === "desk" ? (
+                // The lever on its wooden block: a generous target, since it is the one thing to press.
+                <Proxy pick={{ type: actuator, id: part.id }} size={[20, 20, 16]} position={[0, box.max.y - 8, TOGGLE_BASE.switchZ]} />
+              ) : (
+                <Proxy
+                  pick={{ type: actuator, id: part.id }}
+                  size={part.kind === "toggle-switch" ? [7, 12, 7] : [5.2, 3.2, 5.2]}
+                  position={[(box.min.x + box.max.x) / 2, part.kind === "toggle-switch" ? box.max.y - 5 : box.max.y - 0.8, (box.min.z + box.max.z) / 2]}
+                />
+              ))}
             {(selected || hinted) && <SelectionFrame box={box} color={hinted && !selected ? ACCENT : SELECT_HEX} pulse={hinted && !selected} />}
           </>
         )}
@@ -239,6 +273,23 @@ function clipPose(tip: THREE.Vector3, tailDir: THREE.Vector3, lying: boolean): C
   return { tip, tailDir, quat, tail };
 }
 
+/**
+ * For a clip on the lead of a part lying on the desk: the direction from the part's body out through that lead, so
+ * the clip carries on along the lead instead of lying across the part. Null for anything else.
+ */
+function deskLeadHeading(bench: BenchState, anchor: string): [number, number] | null {
+  const a = parseAnchor(anchor);
+  if (a?.type !== "pin") return null;
+  const part = bench.parts.find((p) => p.id === a.part);
+  if (!part || isOnBoard(bench, part)) return null;
+  const pin = anchorPosition(bench, anchor);
+  if (!pin) return null;
+  const dx = pin[0] - part.pos[0];
+  const dz = pin[2] - part.pos[1];
+  const l = Math.hypot(dx, dz);
+  return l < 2 ? null : [dx / l, dz / l];
+}
+
 function leadEndPose(bench: BenchState, lead: TestLead, end: "a" | "b"): ClipPose {
   const me = end === "a" ? lead.a : lead.b;
   const other = end === "a" ? lead.b : lead.a;
@@ -246,6 +297,18 @@ function leadEndPose(bench: BenchState, lead: TestLead, end: "a" | "b"): ClipPos
   const otherXZ = otherPos ? new THREE.Vector3(otherPos[0], 0, otherPos[2]) : new THREE.Vector3(other.pos[0], 0, other.pos[1]);
   if (me.to) {
     const at = anchorPosition(bench, me.to);
+    const own = at ? deskLeadHeading(bench, me.to) : null;
+    if (at && own) {
+      // Along the lead, turned a little toward the viewer so the clip's profile reads.
+      let hx = own[0];
+      let hz = own[1] * 0.8 + 0.3;
+      const hl = Math.hypot(hx, hz) || 1;
+      hx /= hl;
+      hz /= hl;
+      const pitch = 0.32;
+      const tailDir = new THREE.Vector3(hx * Math.cos(pitch), Math.sin(pitch), hz * Math.cos(pitch)).normalize();
+      return clipPose(v3(at).addScaledVector(tailDir, -3.2), tailDir, false);
+    }
     if (at) {
       // Clips come in from the side so their profile reads from the usual camera and the board stays visible.
       const [ox, oz] = outwardHeading(bench, at, [otherXZ.x, 0, otherXZ.z], end === "a" ? 0.15 : -0.15);
@@ -338,21 +401,25 @@ function probePose(bench: BenchState, meter: MeterState, color: ProbeColor): { t
   return { tip: tip.setY(6.4), axis };
 }
 
+/** The meter body with its LCD, reading its own simulator state from the store (so only it re-renders per snapshot). */
+const LiveMultimeter = memo(function LiveMultimeter({ id, mode }: { id: string; mode: MeterState["mode"] }) {
+  const display = useBench((s) => (mode === "off" ? "" : (s.snapshot?.parts[id]?.display ?? "")));
+  const unit = useBench((s) => s.snapshot?.parts[id]?.unit);
+  return <MultimeterModel mode={mode} display={display} unit={unit} />;
+});
+
 export function MeterView({
   meter,
   bench,
-  state,
   selected,
   floor,
 }: {
   meter: MeterState;
   bench: BenchState;
-  state: PartState | null;
   selected: boolean;
   floor: FloorFn;
 }) {
   const rotY = (meter.rot * Math.PI) / 180;
-  const display = meter.mode === "off" ? "" : state?.display ?? "";
   const dialLabelPos = (i: number): [number, number, number] => {
     const a = (i * 45 * Math.PI) / 180;
     return [Math.sin(a) * METER.dial.labels, METER.face + 1, METER.dial.z - Math.cos(a) * METER.dial.labels];
@@ -361,7 +428,7 @@ export function MeterView({
   return (
     <group>
       <group position={[meter.pos[0], 0, meter.pos[1]]} rotation={[0, rotY, 0]}>
-        <MultimeterModel mode={meter.mode} display={display} unit={state?.unit} />
+        <LiveMultimeter id={meter.id} mode={meter.mode} />
         <Proxy pick={{ type: "meter" }} size={[METER.width, METER.height, METER.length]} position={[0, METER.height / 2, 0]} />
         <Proxy pick={{ type: "dial" }} size={[METER.dial.knob * 2, 10, METER.dial.knob * 2]} position={[0, METER.face + 4, METER.dial.z]} shape="cylinder" />
         {modes.map((mode, i) => (

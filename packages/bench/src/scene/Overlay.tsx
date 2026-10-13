@@ -166,7 +166,7 @@ export function Overlay({
       if (selPart.kind === "pushbutton") {
         out.push(<Btn key="press" label={labels.press} icon={<ToolIcon name="press" />} compact={compact && !inMenu} onPointerDown={() => s.press(selPart.id, true)} onPointerUp={() => s.press(selPart.id, false)} />);
       }
-      out.push(<Btn key="rot" label={labels.rotate} icon={<ToolIcon name="rotate" />} compact={compact && !inMenu} onClick={() => { if (fresh()) return; s.rotatePart(selPart.id); close(); }} />);
+      if (!s.locked.includes(selPart.id)) out.push(<Btn key="rot" label={labels.rotate} icon={<ToolIcon name="rotate" />} compact={compact && !inMenu} onClick={() => { if (fresh()) return; s.rotatePart(selPart.id); close(); }} />);
     }
     if (sel?.type === "meter" && bench.meter && !inMenu) {
       out.push(
@@ -179,7 +179,8 @@ export function Overlay({
         </select>,
       );
     }
-    if (selWire) {
+    // On a phone the swatches would wrap into a panel over the bench; there they live in the long-press menu.
+    if (selWire && (!compact || inMenu)) {
       out.push(
         <span key="wc" role="group" aria-label={labels.wireColor} style={{ display: "inline-flex", flexWrap: "wrap" }}>
           {WIRE_COLORS.map((c) => (
@@ -188,7 +189,7 @@ export function Overlay({
         </span>,
       );
     }
-    if (selLead) {
+    if (selLead && (!compact || inMenu)) {
       out.push(
         <span key="lc" role="group" aria-label={labels.leadColor} style={{ display: "inline-flex", flexWrap: "wrap" }}>
           {LEAD_COLORS.map((c) => (
@@ -197,7 +198,7 @@ export function Overlay({
         </span>,
       );
     }
-    if (sel && sel.type !== "meter") {
+    if (sel && sel.type !== "meter" && !(sel.type === "part" && s.locked.includes(sel.id))) {
       out.push(<Btn key="del" label={labels.delete} icon={<ToolIcon name="delete" />} compact={compact && !inMenu} onClick={() => { if (fresh()) return; s.deleteSelected(); close(); }} />);
     }
     return out;
@@ -251,7 +252,8 @@ export function Overlay({
       )}
       <div className="ohb-panel ohb-tools">
         <div className="ohb-row">
-          {!readOnly && (
+          {/* Wiring and x-ray only mean something on a breadboard. */}
+          {!readOnly && bench.board && (
             <>
               <Btn label={labels.select} icon={<ToolIcon name="select" />} pressed={ui.mode === "select"} compact={compact} onClick={() => s.setUi({ mode: "select", wireDraft: null })} />
               <Btn label={labels.wire} icon={<ToolIcon name="wire" />} pressed={ui.mode === "wire"} compact={compact} onClick={() => s.setUi({ mode: "wire", wireDraft: null })} />
@@ -262,10 +264,10 @@ export function Overlay({
               <span className="ohb-sep" />
             </>
           )}
-          <Btn label={labels.xray} icon={<ToolIcon name="xray" />} pressed={ui.xray} compact={compact} onClick={() => s.setUi({ xray: !ui.xray })} />
+          {bench.board && <Btn label={labels.xray} icon={<ToolIcon name="xray" />} pressed={ui.xray} compact={compact} onClick={() => s.setUi({ xray: !ui.xray })} />}
           {!readOnly && (
             <>
-              <span className="ohb-sep" />
+              {bench.board && <span className="ohb-sep" />}
               <Btn label={labels.undo} icon={<ToolIcon name="undo" />} compact onClick={() => s.undo()} disabled={!canUndo} />
               <Btn label={labels.redo} icon={<ToolIcon name="redo" />} compact onClick={() => s.redo()} disabled={!canRedo} />
             </>
