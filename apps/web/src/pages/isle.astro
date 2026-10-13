@@ -1,0 +1,82 @@
+---
+import Page from "../layouts/Page.astro";
+import IslePieces from "../components/IslePieces";
+import { IsleArt } from "../components/IsleArt";
+import { Badge } from "../components/Badge";
+import { Mascot } from "../mascot/Mascot";
+import { getCourse } from "../content/load";
+import { m } from "../i18n";
+
+const course = getCourse();
+---
+
+<Page title={m.isle.title} active="isle">
+  <div class="container">
+    <header class="page-head">
+      <h1>{m.isle.title}</h1>
+      <p class="lead">{m.isle.lead}</p>
+    </header>
+    <div class="isle-page">
+      <figure class="isle-stage" data-isle-slot>
+        <div class="isle-stage__sky" aria-hidden="true"></div>
+        <IsleArt label={m.landing.isleLabel} className="isle-stage__art" />
+        <div class="isle-stage__mascot"><Mascot pose="idle" size={96} /></div>
+        <figcaption class="isle-stage__note">
+          <Badge tone="solid" icon="tools">{m.common.comingSoon}</Badge>
+          <strong>{m.isle.soonTitle}</strong>
+          <span class="small muted">{m.isle.soonBody}</span>
+        </figcaption>
+      </figure>
+      <aside class="card card--raised isle-page__side">
+        <IslePieces client:load outline={course.outline} />
+      </aside>
+    </div>
+  </div>
+</Page>
+
+<style>
+  .isle-page { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--space-8); align-items: start; }
+  .isle-stage {
+    position: relative;
+    margin: 0;
+    display: grid;
+    justify-items: center;
+    padding: var(--space-8) var(--space-6) var(--space-6);
+    border-radius: var(--radius-xl);
+    border: var(--border) solid var(--line);
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .isle-stage__sky {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(60% 50% at 50% 45%, var(--glow-soft), transparent), radial-gradient(var(--dot-grid) 1.2px, transparent 1.4px);
+    background-size: auto, 22px 22px;
+  }
+  .isle-stage :global(.isle-stage__art) { position: relative; width: 100%; max-width: 680px; height: auto; }
+  .isle-stage__mascot { position: absolute; top: var(--space-8); left: 58%; }
+  .isle-stage__note {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: var(--space-2);
+    max-width: 52ch;
+    padding: var(--space-5);
+    border-radius: var(--radius-l);
+    background: var(--surface-2);
+    border: var(--border) solid var(--line);
+    text-align: center;
+  }
+  .isle-page__side :global(.isle-pieces) { display: grid; gap: var(--space-6); }
+  .isle-page__side :global(.isle-pieces__title) { font-family: var(--font-body); font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--ink-2); margin-bottom: var(--space-3); }
+  .isle-page__side :global(.isle-pieces__list) { list-style: none; padding: 0; display: grid; gap: var(--space-3); }
+  .isle-page__side :global(.isle-pieces__list li) { display: flex; gap: var(--space-3); align-items: center; }
+  .isle-page__side :global(.isle-pieces__list li > span:last-child) { display: grid; }
+  .isle-page__side :global(.isle-pieces__icon) { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: var(--radius-m); background: var(--pcb); color: var(--silk); }
+  .isle-page__side :global(.isle-pieces__icon--landmark) { background: var(--primary); color: var(--primary-ink); }
+  @media (max-width: 960px) {
+    .isle-page { grid-template-columns: 1fr; }
+    .isle-stage__mascot { top: var(--space-4); }
+    .isle-stage__mascot :global(svg) { width: 64px; height: 64px; }
+  }
+</style>

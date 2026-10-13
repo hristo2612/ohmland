@@ -1,0 +1,43 @@
+---
+/**
+ * The document shell for every page: meta, fonts, design tokens and the head script that applies the learner's theme
+ * and motion choice before the first paint.
+ */
+import "@fontsource/space-grotesk/500.css";
+import "@fontsource/space-grotesk/700.css";
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/jetbrains-mono/500.css";
+import "../styles/tokens.css";
+import "../styles/base.css";
+import "../styles/components.css";
+import interLatin from "@fontsource/inter/files/inter-latin-400-normal.woff2?url";
+import groteskLatin from "@fontsource/space-grotesk/files/space-grotesk-latin-700-normal.woff2?url";
+import { HEAD_SCRIPT } from "../progress/prefs";
+import { m, lang } from "../i18n";
+
+type Props = { title?: string; description?: string; bodyClass?: string };
+const { title, description = m.meta.description, bodyClass } = Astro.props;
+const fullTitle = title ? `${title} · ${m.meta.titleSuffix}` : `${m.meta.siteName}: ${m.meta.tagline}`;
+---
+
+<!doctype html>
+<html lang={lang} data-motion="full">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href={interLatin} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={groteskLatin} as="font" type="font/woff2" crossorigin />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <script is:inline set:html={HEAD_SCRIPT} />
+  </head>
+  <body class={bodyClass}>
+    <slot />
+  </body>
+</html>

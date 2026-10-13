@@ -1,0 +1,30 @@
+---
+import Page from "../layouts/Page.astro";
+import { Button } from "../components/Button";
+import { PartIcon } from "../parts/PartIcon";
+import { Mascot } from "../mascot/Mascot";
+import { m } from "../i18n";
+---
+
+<Page title={m.notFound.title}>
+  <section class="nf container">
+    <div class="nf__art" aria-hidden="true">
+      <Mascot pose="oops" size={128} />
+      <PartIcon kind="led" size={96} state="burned" />
+    </div>
+    <h1>{m.notFound.title}</h1>
+    <p class="lead">{m.notFound.body}</p>
+    <div class="nf__actions">
+      <Button variant="primary" size="large" href="/learn" iconEnd="arrow-right">{m.notFound.cta}</Button>
+      <Button variant="tertiary" href="/">{m.notFound.home}</Button>
+    </div>
+  </section>
+</Page>
+
+<style>
+  .nf { display: grid; justify-items: center; gap: var(--space-4); padding-top: var(--space-16); text-align: center; }
+  .nf__art { display: flex; align-items: flex-end; gap: var(--space-2); margin-bottom: var(--space-4); }
+  .nf h1 { font-size: var(--text-hero); line-height: var(--leading-hero); }
+  .nf .lead { margin-inline: auto; }
+  .nf__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); margin-top: var(--space-4); }
+</style>

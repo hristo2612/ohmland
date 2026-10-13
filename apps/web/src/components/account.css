@@ -1,0 +1,28 @@
+/* Account page. Tokens only. */
+.account { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
+.account__signin { grid-row: span 2; display: grid; gap: var(--space-5); }
+.account__signin-head { display: flex; gap: var(--space-4); align-items: flex-start; }
+.account__signin-head h2 { font-size: var(--text-heading); margin-bottom: var(--space-1); }
+.account__icon { display: grid; place-items: center; flex: none; width: 52px; height: 52px; border-radius: var(--radius-l); background: var(--info-soft); color: var(--info); }
+.account__providers { display: grid; gap: var(--space-3); }
+.account__title { font-size: var(--text-subheading); margin-bottom: var(--space-4); }
+.account__status { display: flex; gap: var(--space-3); align-items: flex-start; }
+.account__status[data-tone="good"] > svg { color: var(--good); }
+.account__status[data-tone="warn"] > svg { color: var(--bad); }
+.account__status-title { font-weight: var(--weight-semibold); }
+.account__data, .account__settings { display: grid; gap: var(--space-2); }
+.account__settings { gap: var(--space-5); }
+.account__row { display: flex; gap: var(--space-4); align-items: center; justify-content: space-between; padding: var(--space-3) 0; border-top: var(--border) solid var(--line); }
+.account__row:first-of-type { border-top: 0; }
+.account__row-title { font-weight: var(--weight-semibold); }
+.account__row .btn { flex: none; }
+.setting { display: grid; gap: var(--space-2); }
+.setting__label { font-size: var(--text-small); font-weight: var(--weight-semibold); color: var(--ink-2); }
+
+@media (max-width: 860px) {
+  .account { grid-template-columns: 1fr; }
+  .account__signin { grid-row: auto; }
+}
+@media (max-width: 520px) {
+  .account__row { flex-direction: column; align-items: flex-start; }
+}

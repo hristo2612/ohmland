@@ -1,0 +1,13 @@
+---
+/** Focus mode for lessons: no site header or footer, only the player and the toast region. */
+import Base from "./Base.astro";
+import ToastRegion from "../components/ToastRegion";
+
+type Props = { title: string; description?: string };
+const { title, description } = Astro.props;
+---
+
+<Base title={title} description={description} bodyClass="lesson-page">
+  <slot />
+  <ToastRegion client:idle />
+</Base>

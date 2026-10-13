@@ -1,0 +1,98 @@
+/* Lab placeholder panel. Tokens only. */
+
+.lab-loading { display: block; height: 420px; border-radius: var(--radius-xl); }
+
+.lab { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: var(--space-8); align-items: start; }
+
+.lab__bench {
+  position: relative;
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  background: var(--bg-band);
+  border: var(--border) solid var(--line);
+  box-shadow: var(--shadow-inset);
+  overflow: hidden;
+}
+.lab__board {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-l);
+  background: var(--plastic);
+  border: var(--border) solid var(--plastic-lo);
+  box-shadow: var(--shadow-1);
+}
+.lab__rail { height: 14px; border-radius: var(--radius-xs); background-image: radial-gradient(var(--chip-hi) 1.6px, transparent 1.9px); background-size: 14px 14px; background-position: 4px 0; }
+.lab__rail--plus { border-top: var(--border-thick) solid var(--wire-red); padding-top: var(--space-2); height: 26px; }
+.lab__rail--minus { border-bottom: var(--border-thick) solid var(--led-blue); padding-bottom: var(--space-2); height: 26px; }
+.lab__holes {
+  height: 190px;
+  border-radius: var(--radius-xs);
+  background-image: radial-gradient(var(--chip-hi) 1.6px, transparent 1.9px), linear-gradient(var(--plastic-lo), var(--plastic-lo));
+  background-size: 14px 14px, 100% 6px;
+  background-position: 4px 4px, 0 50%;
+  background-repeat: repeat, no-repeat;
+}
+.lab__tray { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.lab__tray-slot {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  border: var(--border) solid var(--line);
+  box-shadow: var(--shadow-1);
+}
+.lab__soon { position: absolute; top: var(--space-4); right: var(--space-4); }
+
+.lab__side { display: grid; gap: var(--space-5); }
+.lab__intro { display: grid; gap: var(--space-2); }
+.lab__title { font-size: var(--text-heading); }
+.lab__tasks-title { font-family: var(--font-body); font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--ink-2); }
+.lab__tasks { list-style: none; padding: 0; margin: calc(-1 * var(--space-2)) 0 0; display: grid; gap: var(--space-3); }
+.lab-task {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+}
+.lab-task[data-done] { border-color: var(--good); background: var(--good-soft); }
+.lab-task__num {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-full);
+  background: var(--surface-sunk);
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+.lab-task[data-done] .lab-task__num { background: var(--good); color: var(--surface); }
+.lab-task__body { display: grid; gap: var(--space-2); }
+.lab-task__success { color: var(--good); font-weight: var(--weight-semibold); }
+.lab-task__hints summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  color: var(--accent-ink);
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  list-style: none;
+}
+.lab-task__hints summary::-webkit-details-marker { display: none; }
+.lab-task__hints ol { margin: var(--space-2) 0 0; padding-left: var(--space-5); color: var(--ink-2); font-size: var(--text-small); display: grid; gap: var(--space-1); }
+.lab-task__dev { justify-self: start; }
+.lab__dev { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-3); border: var(--border) dashed var(--line-strong); border-radius: var(--radius-m); }
+
+@media (max-width: 860px) {
+  .lab { grid-template-columns: 1fr; }
+  .lab__holes { height: 110px; }
+}

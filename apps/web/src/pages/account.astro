@@ -1,0 +1,18 @@
+---
+import Page from "../layouts/Page.astro";
+import AccountPanel from "../components/AccountPanel";
+import { getCourse } from "../content/load";
+import { m } from "../i18n";
+
+const course = getCourse();
+---
+
+<Page title={m.account.title} active="account">
+  <div class="container">
+    <header class="page-head">
+      <h1>{m.account.title}</h1>
+      <p class="lead">{m.account.lead}</p>
+    </header>
+    <AccountPanel client:load outline={course.outline} />
+  </div>
+</Page>
