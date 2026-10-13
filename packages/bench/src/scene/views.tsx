@@ -254,6 +254,15 @@ export const WireView = memo(WireViewImpl);
 // ---------------------------------------------------------------------------------------------------------------
 // Crocodile-clip test leads.
 
+/** How far past the lead the jaws bite (mm). */
+const JAW_BITE = 2.0;
+/** Height of a clip's axis when it lies on its side on the desk. */
+const CLIP_LYING_Y = 3.0;
+/** Test lead cable radius: thin silicone wire, about 1.8 mm across. */
+const LEAD_CABLE_R = 0.9;
+/** Meter probe cable radius. */
+const PROBE_CABLE_R = 1.25;
+
 type ClipPose = { tip: THREE.Vector3; tailDir: THREE.Vector3; quat: THREE.Quaternion; tail: THREE.Vector3 };
 
 /** Orientation for a clip whose jaws are at `tip` and whose body runs toward `tailDir` (unit). */
@@ -309,7 +318,7 @@ function leadEndPose(bench: BenchState, lead: TestLead, end: "a" | "b"): ClipPos
       hz /= hl;
       const pitch = 0.32;
       const tailDir = new THREE.Vector3(hx * Math.cos(pitch), Math.sin(pitch), hz * Math.cos(pitch)).normalize();
-      return clipPose(v3(at).addScaledVector(tailDir, -3.2), tailDir, false);
+      return clipPose(v3(at).addScaledVector(tailDir, -JAW_BITE), tailDir, false);
     }
     if (at) {
       // Clips come in from the side so their profile reads from the usual camera and the board stays visible.
@@ -322,12 +331,12 @@ function leadEndPose(bench: BenchState, lead: TestLead, end: "a" | "b"): ClipPos
       const pitch = 0.32;
       const tailDir = new THREE.Vector3(hx * Math.cos(pitch), Math.sin(pitch), hz * Math.cos(pitch)).normalize();
       // Jaws bite slightly past the lead.
-      const tip = v3(at).addScaledVector(tailDir, -3.2);
+      const tip = v3(at).addScaledVector(tailDir, -JAW_BITE);
       return clipPose(tip, tailDir, false);
     }
   }
-  const here = new THREE.Vector3(me.pos[0], 4.4, me.pos[1]);
-  const toward = otherXZ.clone().setY(4.4).sub(here);
+  const here = new THREE.Vector3(me.pos[0], CLIP_LYING_Y, me.pos[1]);
+  const toward = otherXZ.clone().setY(CLIP_LYING_Y).sub(here);
   const tailDir = toward.lengthSq() > 1 ? toward.normalize() : new THREE.Vector3(1, 0, 0);
   return clipPose(here, tailDir, true);
 }
@@ -358,18 +367,18 @@ export function LeadView({
           <group key={end}>
             <group position={p.tip} quaternion={p.quat}>
               <AlligatorClip color={lead.color} open={open[end]} />
-              <Proxy pick={{ type: "clip", id: lead.id, end }} size={[CLIP_LEN + 4, 12, 12]} position={[-CLIP_LEN / 2 + 1, 0, 0]} />
+              <Proxy pick={{ type: "clip", id: lead.id, end }} size={[CLIP_LEN + 6, 11, 11]} position={[-CLIP_LEN / 2 + 1, 0, 0]} />
             </group>
             {(selected || hinted) && (
               <mesh position={p.tip} renderOrder={20}>
-                <sphereGeometry args={[2.4, 16, 12]} />
+                <sphereGeometry args={[1.8, 16, 12]} />
                 <meshBasicMaterial color={hinted && !selected ? pal.red : pal.blue} transparent opacity={0.3} depthWrite={false} toneMapped={false} />
               </mesh>
             )}
           </group>
         );
       })}
-      <Cable from={pa.tail} fromDir={pa.tailDir} to={pb.tail} toDir={pb.tailDir} length={Math.min(320, pa.tail.distanceTo(pb.tail) * 1.1 + 45)} radius={1.25} color={lead.color} floor={floor} bend={0.28} />
+      <Cable from={pa.tail} fromDir={pa.tailDir} to={pb.tail} toDir={pb.tailDir} length={Math.min(320, pa.tail.distanceTo(pb.tail) * 1.1 + 45)} radius={LEAD_CABLE_R} color={lead.color} floor={floor} bend={0.28} />
     </group>
   );
 }
@@ -475,7 +484,7 @@ export function MeterView({
               <Probe color={color} />
               <Proxy pick={{ type: "probe", color }} size={[12, PROBE_LEN - 10, 12]} position={[0, PROBE_LEN / 2 + 4, 0]} />
             </group>
-            <Cable from={back} fromDir={axis} to={plugTop} toDir={plugDir} length={back.distanceTo(plugTop) * 1.12 + 70} radius={1.6} color={color} floor={floor} bend={0.42} stiff={1} />
+            <Cable from={back} fromDir={axis} to={plugTop} toDir={plugDir} length={back.distanceTo(plugTop) * 1.12 + 70} radius={PROBE_CABLE_R} color={color} floor={floor} bend={0.42} stiff={1} />
           </group>
         );
       })}

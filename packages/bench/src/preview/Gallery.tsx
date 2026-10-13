@@ -151,7 +151,7 @@ function ItemModel({ item, quality }: { item: GalleryItem; quality: Quality }) {
   if (item.kind === "multimeter") return <MultimeterModel mode={item.mode ?? "dcv"} display={item.display} unit={item.unit} />;
   if (item.kind === "test-lead")
     return (
-      <group rotation={[Math.PI / 2, Math.PI / 2, 0]} position={[0, 4.6, -18]}>
+      <group rotation={[Math.PI / 2, Math.PI / 2, 0]} position={[0, 3.1, -13]}>
         <AlligatorClip color={item.color ?? "red"} open={0.5} />
       </group>
     );
