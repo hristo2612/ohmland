@@ -8,6 +8,8 @@
     "dev": "pnpm --filter @ohmland/web dev",
     "build": "pnpm --filter @ohmland/web build",
     "test": "pnpm -r --if-present test",
+    "test:rules": "pnpm --filter @ohmland/web test:rules",
+    "emulators": "pnpm --filter @ohmland/web emulators",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint:copy": "node scripts/check-copy.mjs"
   },

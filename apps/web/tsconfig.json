@@ -9,6 +9,6 @@
       "@ohmland/lab": ["./src/lab/define.ts"]
     }
   },
-  "include": [".astro/types.d.ts", "src", "e2e", "scripts", "*.ts", "*.mjs", "../../content/labs/**/*.ts"],
+  "include": [".astro/types.d.ts", "src", "e2e", "rules", "scripts", "*.ts", "*.mjs", "../../content/labs/**/*.ts"],
   "exclude": ["dist", "node_modules"]
 }
