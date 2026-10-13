@@ -301,9 +301,10 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     ...t.bracketed,
     icon: "fuse",
     xp: 50,
-    // The blueprint also asks for no blown event on F2 in that session. measure-big already requires F2 alive and
-    // carrying over 1 A, so the two tasks are a close stand-in. TODO(lab-event): tighten if the lab emits a trigger.
-    check: ({ state }) => hasTask(state, "fuse-guard", "blow-1a") && hasTask(state, "fuse-guard", "measure-big"),
+    // Unlocks when fuse-guard fires "bracketed" (a lab `triggers` entry): blow-1a and measure-big done with no blown
+    // event on the 3 A fuse in that visit.
+    labEvent: "bracketed",
+    check: () => false,
   },
   { id: "sour-power", ...t["sour-power"], icon: "spark", xp: 50, check: ({ state }) => hasTask(state, "stack-the-cells", "light-it") },
   {

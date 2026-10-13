@@ -27,7 +27,11 @@ export type ReplayResult = {
 
 const FRAME = 1 / 30;
 
-export function replayLab(lab: LabDefinition): ReplayResult {
+/**
+ * Replays a lab's solution. `trace` (optional) gets a line after every step: the step, the meter's display and the
+ * tasks done so far, which is handy while writing a solution.
+ */
+export function replayLab(lab: LabDefinition, trace?: (line: string) => void): ReplayResult {
   const built = buildBench(lab.bench);
   const session = new LabSession(lab, built);
   const sim = createSimulation();
@@ -98,6 +102,12 @@ export function replayLab(lab: LabDefinition): ReplayResult {
       if (session.status[eff.check] !== "done") failedChecks.push(`${eff.check} (at step ${i + 1})`);
     }
     if (eff.wait > 0) advance(eff.wait);
+    if (trace) {
+      const v = session.view();
+      const m = v.meter;
+      const done = lab.tasks.filter((t) => session.status[t.id] === "done").map((t) => t.id);
+      trace(`${i + 1}. ${JSON.stringify(step)} | t=${sim.time.toFixed(2)} | meter ${m ? `${m.mode} ${m.range ?? ""} "${m.display ?? ""}" ${m.unit ?? ""}` : "-"} | done: ${done.join(", ")}`);
+    }
   });
   advance(0.5);
   sim.dispose();
