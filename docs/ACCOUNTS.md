@@ -150,3 +150,19 @@ pattern or a cap stays on the device rather than failing the write. `apps/web/sr
 - **Linking a second provider** happens only in the visit where the "other provider" message appeared.
 - **Account deletion is client-side.** If the Firebase user cannot be deleted after the document was (a network
   failure), the page says so and the learner can try again.
+
+## The web API key
+
+The Firebase web config in `apps/web/src/account/config.ts` includes an API key. It is public by design: every Firebase
+web app ships it to the browser, and access is enforced by the Firestore rules and Auth's authorized domains, not by the
+key. GitHub secret scanning flags it anyway; that alert was reviewed and closed.
+
+The key is still restricted in Google Cloud (APIs and Services, Credentials, "Browser key (auto created by Firebase)"):
+
+- Websites: `https://ohmland.web.app/*`, `https://ohmland.firebaseapp.com/*`, `http://localhost:4321/*`,
+  `http://localhost:4322/*`, `http://localhost:5002/*`, `http://127.0.0.1:4321/*`, plus each preview channel host
+  that needs sign-in (for example `https://ohmland--milestone-1-wgev2cm6.web.app/*`).
+- APIs: Identity Toolkit, Token Service, Cloud Firestore, Firebase Installations, Firebase App Check.
+
+When you deploy a new preview channel or add a custom domain, add its host to the key's website list and to Auth's
+authorized domains, or sign-in will fail there.

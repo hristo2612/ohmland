@@ -3,7 +3,7 @@
  * @ohmland/bench), so it is its own lazy chunk; the panels render before it arrives.
  */
 import { useEffect, useRef } from "react";
-import { Bench, type BenchController, type TrayItem } from "@ohmland/bench";
+import { Bench, prepareBench, type BenchController, type TrayItem } from "@ohmland/bench";
 import { m } from "../i18n";
 import type { Quality } from "./quality";
 import type { LabRuntime } from "./runtime";
@@ -41,6 +41,9 @@ declare global {
     ohmlandLab?: LabHook;
   }
 }
+
+/** Draws the bench's procedural textures ahead of time (prefetch.ts calls it while the browser is idle). */
+export const prepare = prepareBench;
 
 export default function BenchView({ runtime, tray, quality, readOnly, highlight, locked, frame, onReady }: BenchViewProps) {
   const ctrl = useRef<BenchController | null>(null);

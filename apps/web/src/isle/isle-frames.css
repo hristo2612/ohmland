@@ -15,11 +15,35 @@
 }
 .isle-frame[data-live] .isle-frame__live { opacity: 1; }
 
-/* The hero: a poster of this same island sits under the live one, so the swap is seamless. */
+/*
+ * The hero: a poster of this same island sits under the live one, so the swap is seamless. The frame is never empty:
+ * a tiny blurred copy of the poster is inlined in the stylesheet and paints with the page, the sharp poster (preloaded
+ * by the page, 640 or 1200 px wide to suit the screen) lands over it, and the live island fades in last.
+ */
 .isle-frame--hero {
   aspect-ratio: 6 / 5;
   border: var(--border) solid var(--line);
   border-radius: var(--radius-xl);
-  background: var(--isle-poster) center / cover no-repeat, linear-gradient(to bottom, var(--isle-sky-top), var(--isle-sky-bottom));
   box-shadow: var(--shadow-2);
+}
+.isle-frame--hero::before,
+.isle-frame--hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* the same 6:5 shape as the poster, so the sharp one lands exactly over it; its soft edge melts into the sky */
+.isle-frame--hero::before {
+  background: var(--isle-poster-blur) center / cover no-repeat;
+  filter: blur(var(--space-2));
+}
+.isle-frame--hero::after {
+  background: var(--isle-poster-small) center / cover no-repeat;
+  background-image: image-set(var(--isle-poster-small) 1x, var(--isle-poster) 2x);
+}
+.isle-frame--hero .isle-frame__live { z-index: 1; }
+@media (max-width: 767px) {
+  /* the frame is at most 320 px wide here */
+  .isle-frame--hero::after { background-image: image-set(var(--isle-poster-small) 2x, var(--isle-poster) 3x); }
 }

@@ -16,32 +16,57 @@
 
 /* ---- The bench ---------------------------------------------------------------------------------------------- */
 
-.lab__stage { position: relative; min-width: 0; min-height: 0; background: var(--bench-bg); overflow: hidden; }
+.lab__stage { position: relative; min-width: 0; min-height: 0; background: var(--surface-sunk); overflow: hidden; }
 .lab__stage > .ohb-root { position: absolute !important; inset: 0; }
+/* The bench fades in over its skeleton once its first frame is on screen. */
+.lab__stage[data-bench-ready] > .ohb-root { animation: lab-appear var(--dur-1) var(--ease-out); }
+@keyframes lab-appear { from { opacity: 0; } }
 /* A lab's tray holds a few parts: let it shrink to them instead of running down the whole bench. */
 .lab__stage .ohb-ui:not(.ohb-compact) .ohb-tray { bottom: auto; max-height: calc(100% - 20px); }
+
+/* The bench's loading state, in the page's theme: part shapes on a dotted mat, a loading bar, a line of text. */
 .lab__skeleton {
   position: absolute;
   inset: 0;
+  z-index: 1;
   display: grid;
   place-content: center;
   justify-items: center;
-  gap: var(--space-3);
-  color: var(--lead);
-  background: var(--bench-bg);
+  gap: var(--space-4);
+  color: var(--ink-2);
+  background: radial-gradient(var(--dot-grid) 1.2px, transparent 1.4px) 0 0 / 22px 22px, var(--surface-sunk);
   pointer-events: none;
 }
-.lab__skeleton .small { color: var(--char); }
-.lab__spinner {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-full);
-  border: 3px solid var(--plastic-lo);
-  border-top-color: var(--primary);
-  animation: lab-spin var(--dur-slow) linear infinite;
+.lab__skeleton-parts { display: flex; align-items: flex-end; gap: var(--space-3); }
+.lab__skeleton-parts > .skeleton {
+  width: 44px;
+  height: 30px;
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-m);
+  background-image: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%);
+  box-shadow: var(--shadow-1);
 }
-@keyframes lab-spin { to { transform: rotate(360deg); } }
-:root[data-motion="reduce"] .lab__spinner { animation: none; }
+.lab__skeleton-parts > .skeleton:nth-child(2) { width: 84px; height: 54px; }
+.lab__skeleton-parts > .skeleton:nth-child(3) { width: 32px; height: 40px; border-radius: var(--radius-full); }
+.lab__loadbar {
+  position: relative;
+  width: 168px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--line);
+}
+.lab__loadbar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--primary);
+  animation: lab-load var(--dur-slow) var(--ease-in-out) infinite;
+}
+@keyframes lab-load { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+:root[data-motion="reduce"] .lab__loadbar::after { animation: none; transform: translateX(75%); }
 .lab__nobench { position: absolute; inset: auto var(--space-4) var(--space-4); z-index: 2; }
 
 .lab__overlay {

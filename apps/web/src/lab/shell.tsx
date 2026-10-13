@@ -19,10 +19,16 @@ export class BenchBoundary extends Component<{ children: ReactNode; fallback: Re
   }
 }
 
+/** Where the bench will be: a few part shapes on a dotted mat and a loading bar, in the page's theme. */
 export function BenchSkeleton() {
   return (
     <div className="lab__skeleton" role="status" aria-label={m.lab.loadingBench}>
-      <span className="lab__spinner" aria-hidden="true" />
+      <span className="lab__skeleton-parts" aria-hidden="true">
+        <span className="skeleton" />
+        <span className="skeleton" />
+        <span className="skeleton" />
+      </span>
+      <span className="lab__loadbar" aria-hidden="true" />
       <span className="small">{m.lab.loadingBench}</span>
     </div>
   );

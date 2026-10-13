@@ -4,11 +4,14 @@
 //   pnpm shots -- --out=screenshots --curated     the curated set committed under apps/web/screenshots
 //   pnpm shots -- --only=landing,learn --full     a subset, full-page
 //
-// Starts `astro preview` itself unless BASE_URL is set.
-import { spawn } from "node:child_process";
+// Starts `astro preview` itself unless BASE_URL is set. Chromium runs with SwiftShader so the 3D island draws; the
+// island's clock is pinned (day in light shots, night in dark ones) and seeded learners use a fixed date, so the
+// islands look the same in every run. Besides the page names, --only takes landing-live, lesson, lesson2, reveal-module.
+import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "@playwright/test";
+import { MODULE_ONE, WEBGL_ARGS, seedLearner } from "./seed.mjs";
 
 const args = Object.fromEntries(
   process.argv.slice(2).map((a) => {
@@ -25,45 +28,62 @@ const THEMES = (args.themes ?? "light,dark").split(",");
 const SIZES = (args.sizes ?? "desktop,phone").split(",");
 const VIEWPORTS = { desktop: { width: 1440, height: 900 }, phone: { width: 390, height: 844 } };
 
+// [name, path, learner record]: "one" (a lesson done, one in progress), "module" (the first module done) or none
+// (a new visitor). See seed.mjs.
 const PAGES = [
   ["landing", "/"],
-  ["learn", "/learn"],
-  ["isle", "/isle"],
-  ["bench", "/bench"],
-  ["parts", "/parts"],
-  ["achievements", "/achievements"],
-  ["account", "/account"],
+  ["learn", "/learn", "one"],
+  ["learn-module", "/learn", "module"],
+  ["learn-new", "/learn"],
+  ["isle", "/isle", "module"],
+  ["isle-empty", "/isle"],
+  ["bench", "/bench", "one"],
+  ["parts", "/parts", "one"],
+  ["achievements", "/achievements", "one"],
+  ["account", "/account", "one"],
   ["about", "/about"],
   ["404", "/no-such-page"],
 ];
 
-/** The set committed under apps/web/screenshots (names without the step numbers). */
+/**
+ * The set committed under apps/web/screenshots (names without the step numbers). Lab shots (lab-*, lesson-lab-*,
+ * bench-*) come from scripts/lab-shots.mjs, signed-in account shots from the accounts end-to-end run.
+ */
 const CURATED_SET = new Set([
   "landing-desktop-light",
   "landing-desktop-dark",
-  "landing-phone-light",
+  "landing-paint-desktop-dark",
+  "landing-live-desktop-dark",
+  "landing-live-phone-light",
   "learn-desktop-light",
   "learn-phone-dark",
+  "learn-module-phone-light",
   "lesson-hook-desktop-light",
   "lesson-hook-phone-dark",
-  "lesson-lab-desktop-light",
-  "lesson2-explain-widget-desktop-dark",
   "lesson-quiz-right-desktop-light",
-  "lesson2-numeric-prefix-desktop-light",
-  "lesson2-order-phone-light",
+  "lesson-quiz-match-one-phone-dark",
   "lesson-wrap-desktop-light",
+  "lesson-reveal-desktop-light",
+  "lesson-reveal-phone-dark",
   "lesson-finale-desktop-light",
   "lesson-finale-desktop-dark",
   "lesson-finale-phone-light",
+  "lesson2-explain-widget-desktop-dark",
+  "lesson2-numeric-prefix-desktop-light",
   "lesson2-colour-built-desktop-light",
-  "lesson-quiz-match-one-phone-dark",
   "lesson2-hotspot-right-desktop-light",
+  "lesson2-order-phone-light",
+  "reveal-module-desktop-dark",
+  "reveal-module-phone-light",
+  "isle-desktop-light",
+  "isle-phone-dark",
+  "isle-label-desktop-dark",
+  "isle-empty-desktop-light",
+  "isle-empty-phone-dark",
   "parts-desktop-light",
   "parts-drawer-phone-dark",
   "achievements-desktop-light",
   "achievements-phone-dark",
-  "isle-desktop-dark",
-  "bench-desktop-light",
   "account-desktop-light",
   "about-desktop-dark",
   "404-desktop-light",
@@ -95,64 +115,75 @@ async function newPage(browser, size, theme, reducedMotion = "reduce") {
   return { context, page: await context.newPage() };
 }
 
+const wanted = (name) => !CURATED || CURATED_SET.has(cleanName(name));
+
 const shot = async (page, name) => {
-  if (CURATED) {
-    if (!CURATED_SET.has(cleanName(name))) return;
-    name = cleanName(name);
-  }
+  if (!wanted(name)) return;
+  if (CURATED) name = cleanName(name);
   const file = join(OUT, `${name}.png`);
   await page.waitForTimeout(250);
   await page.screenshot({ path: file, fullPage: FULL, animations: "disabled" });
+  if (CURATED) quantise(file);
   console.log(file);
 };
 
-/** Seeds some progress so pages show a returning learner (used for map, parts, achievements). */
-async function seed(page, url) {
-  await page.goto(url);
-  await page.evaluate(async () => {
-    const now = Date.now();
-    const iso = (d) => new Date(now - d * 86400000).toISOString();
-    const state = {
-      v: 1,
-      lessons: {
-        "welcome-to-the-bench": { at: iso(3), version: 1, firstTry: 5, items: 5, tasks: ["close-the-switch", "break-the-loop", "mend-the-loop"] },
-        "meet-the-meter": { at: iso(2), version: 1, firstTry: 4, items: 6, tasks: ["plug-in", "set-dial", "read-battery", "swap-probes"] },
+/** Keeps a committed screenshot small (well under 400 KB): 256 colours. ImageMagick is optional. */
+function quantise(path) {
+  try {
+    execFileSync("magick", [path, "-strip", "-dither", "FloydSteinberg", "-colors", "256", "-define", "png:compression-level=9", `PNG8:${path}`]);
+  } catch {
+    // left as it is
+  }
+}
+
+/** The island follows the clock; screenshots pin it to day in the light theme and night in the dark one. */
+const clock = (theme) => (theme === "dark" ? "22:00" : "12:00");
+const withClock = (path, theme) => `${path}${path.includes("?") ? "&" : "?"}time=${clock(theme)}`;
+
+/** Waits until every 3D island on the page has drawn (or given up), so screenshots never catch one loading. */
+async function islandSettled(page) {
+  await page
+    .waitForFunction(
+      () => {
+        const screen = document.querySelector(".isle-screen");
+        if (screen && screen.getAttribute("data-status") === "loading") return false;
+        const card = document.querySelector(".isle-card__frame");
+        return !card || card.hasAttribute("data-live");
       },
-      inProgress: { "tiny-and-huge-numbers": { step: 2, answers: {}, at: iso(0) } },
-      achievements: { "first-spark": { at: iso(3) }, "clean-sweep": { at: iso(3) }, "first-reading": { at: iso(2) }, "magic-smoke": { at: iso(1) } },
-      fried: [
-        { kind: "led", label: "Red LED, no resistor on 9 V", lessonId: null, at: iso(1) },
-        { kind: "resistor", label: "15 Ω, 1/4 W resistor across 9 V", lessonId: null, at: iso(1) },
-        { kind: "led", label: "Red LED", lessonId: null, at: iso(0) },
-      ],
-      sandbox: { saved: {} },
-      settings: { muted: false, reducedMotion: "system", theme: "system" },
-      updatedAt: iso(0),
-    };
-    await new Promise((resolve, reject) => {
-      const req = indexedDB.open("ohmland");
-      req.onupgradeneeded = () => req.result.createObjectStore("learner");
-      req.onsuccess = () => {
-        const tx = req.result.transaction("learner", "readwrite");
-        tx.objectStore("learner").put(state, "profile:default");
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      };
-      req.onerror = () => reject(req.error);
-    });
-  });
+      null,
+      { timeout: 20000 },
+    )
+    .catch(() => undefined);
+  await page.waitForTimeout(600);
+}
+
+/** Waits for the island reveal to land: its caption is in and Continue is showing. */
+async function revealShown(page) {
+  await page.waitForSelector("[data-reveal]");
+  await page.waitForSelector("[data-reveal-continue]", { state: "visible", timeout: 20000 });
+  await page.waitForFunction(() => document.querySelector("[data-reveal]")?.getAttribute("data-status") !== "loading", null, { timeout: 20000 });
+  await page.waitForTimeout(800);
 }
 
 async function pages(browser, url) {
-  for (const [name, path] of PAGES) {
+  for (const [name, path, record] of PAGES) {
     if (ONLY && !ONLY.has(name)) continue;
     for (const size of SIZES)
       for (const theme of THEMES) {
         const { context, page } = await newPage(browser, size, theme);
-        if (["learn", "parts", "achievements", "isle", "bench", "account"].includes(name)) await seed(page, url);
-        await page.goto(url + path, { waitUntil: "networkidle" });
-        await page.waitForTimeout(300);
+        if (record) await seedLearner(page, url, record);
+        await page.goto(url + withClock(path, theme), { waitUntil: "networkidle" });
+        await islandSettled(page);
+        // the built module's landmark line, mid-screen
+        if (name === "learn-module") await page.locator(".landmark-card").first().evaluate((el) => el.scrollIntoView({ block: "center" }));
         await shot(page, `${name}-${size}-${theme}`);
+        if (name === "isle" && wanted(`isle-label-${size}-${theme}`)) {
+          // tap the module's landmark (where the seeded island puts it) for its label
+          const [x, y] = size === "phone" ? [212, 300] : [760, 150];
+          await page.mouse.click(x, y);
+          await page.waitForTimeout(500);
+          await shot(page, `isle-label-${size}-${theme}`);
+        }
         if (name === "parts") {
           const first = page.locator(".part-tile:not(.part-tile--locked)").first();
           if (await first.count()) {
@@ -166,7 +197,33 @@ async function pages(browser, url) {
   }
 }
 
-/** Plays the first lesson of the course, capturing each step (and quiz feedback). */
+/**
+ * The landing hero at first paint (HTML and CSS only: what shows before any script runs) and once its live island
+ * has faded in over the poster (motion allowed, unlike the other shots).
+ */
+async function landingLive(browser, url) {
+  if (ONLY && !ONLY.has("landing-live")) return;
+  for (const size of SIZES)
+    for (const theme of THEMES) {
+      if (wanted(`landing-paint-${size}-${theme}`)) {
+        const { context, page } = await newPage(browser, size, theme, "no-preference");
+        await page.route(/\.js$/, (r) => r.abort());
+        await page.goto(url, { waitUntil: "load" });
+        await shot(page, `landing-paint-${size}-${theme}`);
+        await context.close();
+      }
+      if (wanted(`landing-live-${size}-${theme}`)) {
+        const { context, page } = await newPage(browser, size, theme, "no-preference");
+        await page.goto(url, { waitUntil: "networkidle" });
+        await page.waitForSelector(".isle-frame--hero [data-live], .isle-frame--hero[data-live]", { timeout: 20000 }).catch(() => undefined);
+        await page.waitForTimeout(1500);
+        await shot(page, `landing-live-${size}-${theme}`);
+        await context.close();
+      }
+    }
+}
+
+/** Plays the first lesson of the course, capturing each step (and quiz feedback), the island reveal and the finale. */
 async function lesson(browser, url) {
   if (ONLY && !ONLY.has("lesson")) return;
   for (const size of SIZES)
@@ -178,14 +235,14 @@ async function lesson(browser, url) {
         await shot(page, `lesson-${String(n).padStart(2, "0")}-${label}-${size}-${theme}`);
       };
       const primary = () => page.locator("[data-primary]").click();
-      await page.goto(`${url}/learn/basics/welcome-to-the-bench`, { waitUntil: "networkidle" });
+      await page.goto(`${url}${withClock(`/learn/basics/${MODULE_ONE[0]}`, theme)}`, { waitUntil: "networkidle" });
       await page.waitForSelector("[data-step-type]");
       await step("hook");
       await page.locator("[data-predict-option]").nth(2).click();
       await step("hook-predicted");
       await primary();
       await page.waitForSelector("[data-step-type=lab]");
-      await page.waitForSelector("[data-lab-ready]");
+      await page.waitForSelector("[data-bench-ready]", { timeout: 60000 }).catch(() => undefined);
       await step("lab");
       await primary();
       await page.waitForSelector("[data-step-type=explain]");
@@ -227,9 +284,29 @@ async function lesson(browser, url) {
       await page.waitForSelector("[data-step-type=wrap]");
       await step("wrap");
       await primary();
+      await revealShown(page);
+      await step("reveal");
+      await page.locator("[data-reveal-continue]").click();
       await page.waitForSelector("[data-finale]");
       await page.waitForTimeout(1600);
       await step("finale");
+      await context.close();
+    }
+}
+
+/** Finishes the first module's last lesson (resumed at its wrap step), which builds the module's landmark. */
+async function moduleReveal(browser, url) {
+  if (ONLY && !ONLY.has("reveal-module")) return;
+  for (const size of SIZES)
+    for (const theme of THEMES) {
+      if (!wanted(`reveal-module-${size}-${theme}`)) continue;
+      const { context, page } = await newPage(browser, size, theme);
+      await seedLearner(page, url, "wrap");
+      await page.goto(`${url}${withClock(`/learn/basics/${MODULE_ONE[2]}`, theme)}`, { waitUntil: "networkidle" });
+      await page.waitForSelector("[data-step-type=wrap]");
+      await page.locator("[data-primary]").click();
+      await revealShown(page);
+      await shot(page, `reveal-module-${size}-${theme}`);
       await context.close();
     }
 }
@@ -316,10 +393,12 @@ async function lesson2(browser, url) {
 
 const server = await startServer();
 mkdirSync(OUT, { recursive: true });
-const browser = await chromium.launch();
+const browser = await chromium.launch({ args: WEBGL_ARGS });
 try {
   await pages(browser, server.url);
+  await landingLive(browser, server.url);
   await lesson(browser, server.url);
+  await moduleReveal(browser, server.url);
   await lesson2(browser, server.url);
 } finally {
   await browser.close();

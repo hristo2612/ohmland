@@ -3,6 +3,8 @@
  * click as the part lands, then a bright arpeggio of soft square blips. A big reveal holds a longer arpeggio and a
  * sparkle on top.
  */
+import { isleAudio } from "../audio";
+
 type Ctx = BaseAudioContext;
 
 function noise(ctx: Ctx, dur: number): AudioBuffer {
@@ -61,14 +63,12 @@ export function revealSound(ctx: Ctx, t: number, big: boolean, out: AudioNode = 
   if (big) [2093, 2637, 3136, 4186].forEach((f, i) => tone(ctx, master, f, land + 0.55 + i * 0.055, 0.22, "sine", 0.05));
 }
 
-let live: AudioContext | null = null;
-
-/** Plays on the page's own context, created on first use (browsers allow it after a tap). */
-export function play(big: boolean, delay = 0): void {
+/** Plays on `ctx`, else on the page's shared isle context (../audio.ts, unlocked by primeAudio() in a tap). */
+export function play(big: boolean, delay = 0, ctx: AudioContext | null = isleAudio()): void {
+  if (!ctx) return;
   try {
-    live ??= new AudioContext();
-    if (live.state === "suspended") void live.resume();
-    revealSound(live, live.currentTime + delay, big);
+    if (ctx.state === "suspended") void ctx.resume().catch(() => undefined);
+    revealSound(ctx, ctx.currentTime + delay, big);
   } catch {
     // no audio: the reveal still plays
   }

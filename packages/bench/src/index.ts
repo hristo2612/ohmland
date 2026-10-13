@@ -21,7 +21,7 @@ export { PartModel, type PartModelProps } from "./models/PartModel";
 export { MultimeterModel } from "./models/Multimeter";
 export { Breadboard } from "./models/Breadboard";
 export { AlligatorClip, BananaPlug, Probe, JumperWire } from "./models/Leads";
-export { StudioEnvironment, StudioLights, Desk } from "./scene/Studio";
+export { StudioEnvironment, StudioLights, Desk, prepareBench } from "./scene/Studio";
 export type { Mount } from "./models/common";
 
 export type {

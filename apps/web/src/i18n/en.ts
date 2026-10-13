@@ -9,6 +9,8 @@ import { MASCOT_NAME } from "../mascot/name";
 
 const plural = (n: number, one: string, many: string) => (new Intl.PluralRules("en").select(n) === "one" ? one : many);
 const count = (n: number, one: string, many: string) => `${n} ${plural(n, one, many)}`;
+/** A name that may start lower case ("the Meter Tower"), capitalised to open a sentence. */
+const opening = (name: string) => name.charAt(0).toLocaleUpperCase("en") + name.slice(1);
 
 export const en = {
   meta: {
@@ -165,7 +167,7 @@ export const en = {
     progress: (done: number, total: number) => `${done} of ${total} ${plural(total, "lesson", "lessons")} done`,
     landmark: "Landmark",
     landmarkBuilds: (name: string) => `Finish this module to build ${name}.`,
-    landmarkBuilt: (name: string) => `${name} is built.`,
+    landmarkBuilt: (name: string) => `${opening(name)} is built.`,
     state: { done: "Done", current: "Up next", open: "Open", locked: "Locked" } as Record<string, string>,
     start: "Start",
     continue: "Continue",
