@@ -359,10 +359,12 @@ export function fitCamera(
   top = false,
   pad: { left?: number; bottom?: number } = {},
   fovDeg = 32,
+  /** A desk rectangle [x0, z0, x1, z1] to frame instead of the whole bench (a lab's working area). */
+  frame?: readonly [number, number, number, number] | null,
 ): { position: Vec3; target: Vec3 } {
   // On a tall, narrow screen frame the board alone (the learner can zoom out to reach the meter).
   const portrait = aspect < 0.85 && !!bench.board;
-  const [x0, z0, x1, z1] = portrait ? benchBounds({ ...bench, parts: [], leads: [], meter: null }) : benchBounds(bench);
+  const [x0, z0, x1, z1] = frame ?? (portrait ? benchBounds({ ...bench, parts: [], leads: [], meter: null }) : benchBounds(bench));
   // `pad` gives the fractions of the view covered by panels; fit into what is left and shift away from them.
   const visible = 1 - Math.min(0.6, Math.max(0, pad.left ?? 0));
   const visibleY = 1 - Math.min(0.5, Math.max(0, pad.bottom ?? 0));

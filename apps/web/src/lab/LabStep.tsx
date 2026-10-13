@@ -147,6 +147,7 @@ function LabRunner({ lab, lessonId, intro, done, onTaskDone }: LabStepProps & { 
               readOnly={!!ui.showing}
               highlight={highlight}
               locked={built.locked}
+              frame={built.frame}
               onReady={() => setBenchReady(true)}
             />
             {!benchReady && <BenchSkeleton />}

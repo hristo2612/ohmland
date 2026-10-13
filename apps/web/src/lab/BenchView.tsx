@@ -15,6 +15,8 @@ export type BenchViewProps = {
   readOnly?: boolean;
   highlight?: string[] | undefined;
   locked?: string[];
+  /** The desk rectangle to frame, from the lab's bench config. */
+  frame?: [number, number, number, number] | null;
   onReady?: () => void;
 };
 
@@ -28,6 +30,10 @@ type LabHook = {
   part(id: string): unknown;
   /** Simulated time and lag (0..1) of the latest snapshot. */
   sim(): { t: number; lag: number } | null;
+  /** Plays a task's part of the solution on the bench ("Show me"), for tests and screenshots. */
+  showMe(taskId: string): Promise<void>;
+  /** A lab panel's state. */
+  panel(id: string): unknown;
 };
 
 declare global {
@@ -36,7 +42,7 @@ declare global {
   }
 }
 
-export default function BenchView({ runtime, tray, quality, readOnly, highlight, locked, onReady }: BenchViewProps) {
+export default function BenchView({ runtime, tray, quality, readOnly, highlight, locked, frame, onReady }: BenchViewProps) {
   const ctrl = useRef<BenchController | null>(null);
   useEffect(() => {
     window.ohmlandLab = {
@@ -50,6 +56,8 @@ export default function BenchView({ runtime, tray, quality, readOnly, highlight,
         const s = runtime.store.getState().snapshot;
         return s ? { t: s.t, lag: s.lag ?? 0 } : null;
       },
+      showMe: (taskId) => runtime.showMe(taskId),
+      panel: (id) => runtime.session.panels[id] ?? null,
     };
     return () => {
       delete window.ohmlandLab;
@@ -63,6 +71,7 @@ export default function BenchView({ runtime, tray, quality, readOnly, highlight,
       readOnly={!!readOnly}
       highlight={highlight}
       locked={locked}
+      frame={frame ?? null}
       labels={m.benchUi}
       onAction={runtime.onAction}
       controllerRef={ctrl}

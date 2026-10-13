@@ -70,6 +70,7 @@ function SandboxBench({ outline, firstHref }: { outline: CourseOutline; firstHre
       inputs: [],
       spareFuses: null,
       warnings: [],
+      frame: null,
     };
     return new LabRuntime(SANDBOX, built, [], {
       onFried: (card) => useLearner.getState().recordFried(card.kind, card.shownLabel, null, { silent: true }),

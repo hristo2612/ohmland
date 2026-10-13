@@ -128,7 +128,7 @@ export type TriggerSpec =
  * A data logger: plots node voltages against time from the moment a run starts (the `start` trigger, or the Start
  * button), with a cursor that reads off time and value. Goals read runs with `lab.loggerRuns()`.
  */
-export type LoggerConfig = { kind: "logger"; traces: ScopeTrace[]; start?: TriggerSpec; seconds?: number; range?: [number, number] };
+export type LoggerConfig = { kind: "logger"; traces: ScopeTrace[]; start?: TriggerSpec | TriggerSpec[]; seconds?: number; range?: [number, number] };
 
 /**
  * A stopwatch that starts and stops by itself (a switch thrown, a relay clicking). Each finished run is kept; `watch`
@@ -148,7 +148,8 @@ export type InstrumentConfig = "meter" | "scope" | MeterConfig | ScopeConfig | L
 // Panels: small worksheets beside the tasks. Auto panels fill themselves from the bench; answer panels hold what the
 // learner submits. Goals read them with `lab.panel(id)`; solutions answer them with `{ do: "panel", id, value }`.
 
-export type PanelConfig =
+export type PanelConfig = PanelShow &
+  (
   /** A continuity table: every pair of a part's legs in each switch position (or released and held), filled in as the meter probes them. */
   | { kind: "continuity"; id: string; part: string; title?: string }
   /** A truth table: the switches' positions and whether the LED is lit, logged for every combination tried. Clears when the wiring changes. */
@@ -171,7 +172,10 @@ export type PanelConfig =
   /** Tap every hole joined to `start` on a little map of the board (columns `cols`), then check. */
   | { kind: "hole-hunt"; id: string; start: string; cols: [number, number]; title?: string }
   /** Build a schematic symbol: two slots and an optional dashed link. `answer` is what counts as right. */
-  | { kind: "symbol"; id: string; answer: { slots: [SymbolKind, SymbolKind]; linked: boolean }; title?: string };
+  | { kind: "symbol"; id: string; answer: { slots: [SymbolKind, SymbolKind]; linked: boolean }; title?: string });
+
+/** Panels show all the time, or only while one of `show`'s tasks is the current one (and after it is done). */
+export type PanelShow = { show?: string[] };
 
 /** A role a leg can have in a pin map, and the legs (as wired inside the part) that truly have it. */
 export type PinRole = { id: string; label: string; legs: string[] };
@@ -217,6 +221,11 @@ export type BenchConfig = {
   board: "none" | "half" | "full" | "breadboard";
   /** A full board whose power rails are broken in the middle (between columns 31 and 33). */
   splitRails?: boolean;
+  /**
+   * What the camera frames at the start (and on "reset view"): the rectangle spanned by these places (holes such as
+   * "tp1" and "bn30", or desk spots), plus a small margin. Default: the whole bench.
+   */
+  frame?: Spot[];
   parts: LabPart[];
   leads?: LeadSpec[];
   wires?: WireSpec[];
@@ -397,6 +406,8 @@ export type LabView = {
   readonly meter: MeterView | null;
   /** Scratch space that survives between checks of the same task. */
   readonly memory: Record<string, unknown>;
+  /** Scratch space shared by every task and trigger of the lab (a value measured in one task, compared in a later one). */
+  readonly shared: Record<string, unknown>;
 
   /** Simulated state of a part. A slide or toggle switch reports `closed` when thrown to b. */
   part(id: string): PartState | undefined;
@@ -404,6 +415,8 @@ export type LabView = {
   benchPart(id: string): PlacedPart | undefined;
   /** A part's or prop's settings (its bench params). */
   prop(id: string): Record<string, unknown> | undefined;
+  /** The leads a part has ("a", "b"; "e", "b", "c"; a relay's eight), or [] when it is not on the bench. */
+  legs(id: string): readonly string[];
 
   /** An LED glows at least `min` (0..1, default 0.1) and is not dead. */
   isLit(id: string, min?: number): boolean;
@@ -449,6 +462,15 @@ export type LabView = {
   /** Relay clicks (within the last `seconds`, if given). */
   relayClicks(id: string, seconds?: number): number;
   relayClicked(id: string): boolean;
+  /**
+   * Seconds between rising crossings of a history source through `level` (default: halfway between its lowest and
+   * highest), over the last `seconds` (default 12): a blinking LED's or a ticking node's periods, oldest first.
+   */
+  periods(source: string, level?: number, seconds?: number): number[];
+  /** Seconds between a relay's pull-ins (COM moving to NO), over the last `seconds` (default 12), oldest first. */
+  relayPeriods(id: string, seconds?: number): number[];
+  /** A two-lead part joins `a` and `b` (either way round, or first lead on `a` with "forward"). */
+  joins(partId: string, a: Attach, b: Attach, dir?: "forward"): boolean;
   /** Minimum, maximum, mean and span (max minus min) of a history source over the last `seconds` (default 2). */
   stats(source: string, seconds?: number): Stats | null;
   /** Seconds a history source spent at or above `level` within the last `seconds` (default 10). */
@@ -504,6 +526,13 @@ export function defineLab(def: LabDefinition): LabDefinition {
     ids.add(p.id);
   }
   for (const s of def.solution) if (s.do === "check" && !tasks.has(s.task)) fail(`solution checks unknown task "${s.task}"`);
+  const panels = new Set<string>();
+  for (const p of def.panels ?? []) {
+    if (panels.has(p.id)) fail(`two panels have the id "${p.id}"`);
+    panels.add(p.id);
+    for (const t of p.show ?? []) if (!tasks.has(t)) fail(`panel "${p.id}" shows with unknown task "${t}"`);
+  }
+  for (const s of def.solution) if (s.do === "panel" && !panels.has(s.id)) fail(`solution answers unknown panel "${s.id}"`);
   return def;
 }
 

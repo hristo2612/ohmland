@@ -81,6 +81,7 @@ export class LabSession {
   private timing: { start: number; watch?: number } | null = null;
   private trig = new Map<string, boolean>();
   private memory = new Map<string, Record<string, unknown>>();
+  private shared: Record<string, unknown> = {};
   private fired = new Set<string>();
   private pendingTriggers: string[] = [];
   private dead = new Set<string>();
@@ -188,6 +189,7 @@ export class LabSession {
       notes: this.notes,
       controls: this.controls,
       memory,
+      shared: this.shared,
       status: this.status,
       nodes: this.built.nodes,
       tone: this.tone,
@@ -332,7 +334,12 @@ export class LabSession {
       }
     }
     const lg = this.built.logger;
-    if (lg?.start && this.edge("logger", lg.start, s)) {
+    const starts = lg?.start ? (Array.isArray(lg.start) ? lg.start : [lg.start]) : [];
+    let begun = false;
+    starts.forEach((st, i) => {
+      if (this.edge(`logger${i}`, st, s)) begun = true;
+    });
+    if (begun) {
       this.loggerT0 = s.t;
       update.panels = true;
     }

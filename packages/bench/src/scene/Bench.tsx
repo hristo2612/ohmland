@@ -38,6 +38,8 @@ export type BenchProps = {
   readOnly?: boolean;
   /** Part ids the learner cannot move, rotate or delete (switches still flip and buttons still press). */
   locked?: string[];
+  /** A desk rectangle [x0, z0, x1, z1] in mm for the camera to frame (and return to on "reset view"). */
+  frame?: [number, number, number, number] | null;
   /** Part ids or anchors ("hole:e12", "pin:R1.a") to point out, for lab hints. */
   highlight?: string[];
   /** Translated UI strings. */
@@ -91,6 +93,10 @@ export function Bench(props: BenchProps) {
   useEffect(() => {
     store.setState({ locked: lockedKey ? lockedKey.split(",") : [] });
   }, [store, lockedKey]);
+  const frameKey = props.frame ? props.frame.join(",") : "";
+  useLayoutEffect(() => {
+    store.setState({ frame: frameKey ? (frameKey.split(",").map(Number) as [number, number, number, number]) : null });
+  }, [store, frameKey]);
   useEffect(() => {
     // A drag changes the bench while its transaction is open and commits by closing it, so compare against the last
     // bench reported rather than the previous state.
@@ -168,6 +174,7 @@ function CameraRig({
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
 }) {
   const set = useRef(false);
+  const frame = useBench((s) => s.frame);
   const size = useThree((s) => s.size);
   return (
     <CameraControls
@@ -184,10 +191,14 @@ function CameraRig({
       ref={(c) => {
         if (!c || set.current) return;
         set.current = true;
-        const fit = fitCamera(bench, size.width / Math.max(1, size.height), false, {
-          left: viewPad.current.left / Math.max(1, size.width),
-          bottom: viewPad.current.bottom / Math.max(1, size.height),
-        });
+        const fit = fitCamera(
+          bench,
+          size.width / Math.max(1, size.height),
+          false,
+          { left: viewPad.current.left / Math.max(1, size.width), bottom: viewPad.current.bottom / Math.max(1, size.height) },
+          32,
+          frame,
+        );
         const pos = initial?.position ?? fit.position;
         const tgt = initial?.target ?? fit.target;
         void c.setLookAt(...pos, ...tgt, false);

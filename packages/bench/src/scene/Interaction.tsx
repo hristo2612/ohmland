@@ -773,14 +773,14 @@ export function useInteraction({
       topView: () => {
         if (!controls) return;
         const r = element.getBoundingClientRect();
-        const f = fitCamera(bench(), r.width / Math.max(1, r.height), true, { left: viewPad.current.left / r.width, bottom: viewPad.current.bottom / r.height });
+        const f = fitCamera(bench(), r.width / Math.max(1, r.height), true, { left: viewPad.current.left / r.width, bottom: viewPad.current.bottom / r.height }, 32, store.getState().frame);
         void controls.setLookAt(...f.position, ...f.target, true);
         invalidate();
       },
       resetView: () => {
         if (!controls) return;
         const r = element.getBoundingClientRect();
-        const f = fitCamera(bench(), r.width / Math.max(1, r.height), false, { left: viewPad.current.left / r.width, bottom: viewPad.current.bottom / r.height });
+        const f = fitCamera(bench(), r.width / Math.max(1, r.height), false, { left: viewPad.current.left / r.width, bottom: viewPad.current.bottom / r.height }, 32, store.getState().frame);
         void controls.setLookAt(...f.position, ...f.target, true);
         invalidate();
       },

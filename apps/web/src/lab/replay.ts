@@ -23,6 +23,8 @@ export type ReplayResult = {
   warnings: string[];
   /** Simulated seconds the replay took. */
   seconds: number;
+  /** The session at the end, for debugging a failing lab. */
+  session: LabSession;
 };
 
 const FRAME = 1 / 30;
@@ -106,5 +108,5 @@ export function replayLab(lab: LabDefinition): ReplayResult {
   sim.dispose();
 
   const missing = lab.tasks.filter((t) => !isOptional(t) && session.status[t.id] !== "done").map((t) => t.id);
-  return { status: { ...session.status }, missing, failedChecks, problems, fried, triggers, warnings: built.warnings, seconds: sim.time };
+  return { status: { ...session.status }, missing, failedChecks, problems, fried, triggers, warnings: built.warnings, seconds: sim.time, session };
 }

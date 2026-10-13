@@ -458,7 +458,12 @@ function SymbolPanel({ runtime, cfg }: { runtime: LabRuntime; cfg: Extract<Panel
 
 /** Every panel the lab declares, in order. */
 export function LabPanels({ runtime }: { runtime: LabRuntime }) {
-  const panels = runtime.lab.panels ?? [];
+  const status = useStore(runtime.ui, (s) => s.status);
+  const tasks = runtime.lab.tasks;
+  // The first required task still to do: panels for it (and for tasks already reached) show.
+  const current = tasks.find((t) => !t.optional && !t.bonus && status[t.id] === "todo")?.id;
+  const reached = (id: string) => status[id] !== "todo" || id === current || !!tasks.find((t) => t.id === id && (t.optional || t.bonus));
+  const panels = (runtime.lab.panels ?? []).filter((p) => !p.show || p.show.some(reached));
   if (!panels.length) return null;
   return (
     <>

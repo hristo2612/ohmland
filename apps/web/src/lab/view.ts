@@ -23,6 +23,8 @@ export type LabViewInput = {
   controls?: Readonly<Record<string, number>>;
   /** Per-task scratch space; the session swaps it before each goal. */
   memory?: Record<string, unknown>;
+  /** Scratch space shared by every task of the lab. */
+  shared?: Record<string, unknown>;
   status?: Readonly<Record<string, TaskStatus>>;
   /** Named nodes from the lab's bench config. */
   nodes?: Readonly<Record<string, string>>;
@@ -311,6 +313,9 @@ export function createLabView(input: LabViewInput): LabView {
     get memory() {
       return (input.memory ??= {});
     },
+    get shared() {
+      return (input.shared ??= {});
+    },
 
     part(id) {
       const s = snapshot?.parts[id];
@@ -322,6 +327,10 @@ export function createLabView(input: LabViewInput): LabView {
     },
     benchPart: (id) => partOf(id),
     prop: (id) => partOf(id)?.params as Record<string, unknown> | undefined,
+    legs: (id) => {
+      const p = partOf(id);
+      return p ? partLegs(p) : [];
+    },
 
     isLit(id, min = 0.1) {
       const p = snapshot?.parts[id];
@@ -421,6 +430,33 @@ export function createLabView(input: LabViewInput): LabView {
     },
     relayClicks: (id, seconds) => view.count("clicked", id, seconds),
     relayClicked: (id) => view.count("clicked", id) > 0,
+    periods(source, level, seconds = 12) {
+      const h = view.history(source, seconds);
+      if (h.length < 4) return [];
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (const [, v] of h) {
+        lo = Math.min(lo, v);
+        hi = Math.max(hi, v);
+      }
+      const mid = level ?? (lo + hi) / 2;
+      if (level === undefined && hi - lo < 1e-6) return [];
+      const rises: number[] = [];
+      for (let i = 1; i < h.length; i++) if (h[i - 1]![1] < mid && h[i]![1] >= mid) rises.push(h[i]![0]);
+      return rises.slice(1).map((x, i) => x - rises[i]!);
+    },
+    relayPeriods(id, seconds = 12) {
+      const pulls = events.filter((e) => e.type === "clicked" && e.partId === id && e.data?.["to"] === "no" && e.t >= t - seconds).map((e) => e.t);
+      return pulls.slice(1).map((x, i) => x - pulls[i]!);
+    },
+    joins(partId, a, b, dir) {
+      const p = partOf(partId);
+      if (!p) return false;
+      const [x, y] = partLegs(p);
+      const fwd = view.connected(`pin:${partId}.${x}`, a) && view.connected(`pin:${partId}.${y}`, b);
+      if (dir === "forward") return fwd;
+      return fwd || (view.connected(`pin:${partId}.${x}`, b) && view.connected(`pin:${partId}.${y}`, a));
+    },
     stats(source, seconds = 2) {
       const h = view.history(source, seconds);
       if (!h.length) return null;

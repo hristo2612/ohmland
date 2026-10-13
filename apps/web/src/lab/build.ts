@@ -51,6 +51,8 @@ export type BuiltBench = {
   inputs: SimInput[];
   /** Spare meter fuses, or null for unlimited. */
   spareFuses: number | null;
+  /** The desk rectangle the camera frames, [x0, z0, x1, z1] in mm, or null for the whole bench. */
+  frame: [number, number, number, number] | null;
   warnings: string[];
 };
 
@@ -88,6 +90,8 @@ const WATER = ["distilled", "tap", "salty"] as const;
 function normalize(p: LabPart, board: boolean): Built {
   const params: Record<string, unknown> = { ...("props" in p && p.props ? p.props : {}), ...("params" in p && p.params ? p.params : {}) };
   const bool = (k: string) => params[k] === true;
+  // The bench form (typed `params`, a bench kind) passes straight through: the cases below translate first drafts.
+  if (!("props" in p && p.props) && partDef(p.kind as BenchPartKind)) return { kind: "part", n: { kind: p.kind as BenchPartKind, params } };
   switch (p.kind) {
     case "switch": {
       // A plain on/off switch: closed means thrown to b; its two pins are com and b.
@@ -202,7 +206,9 @@ export function placePart(bench: BenchState, part: PlacedPart, at: string | unde
       const id = resolveHole(bench.board, h);
       if (id) resolved[leg] = id;
     }
-    return { part: { ...part, holes: resolved, pos: flying ? sideOfBoard(bench) : part.pos } as PlacedPart, desk: false };
+    // A part on flying leads (a speaker, a battery snap) sits at its desk spot, if given, with its leads in the holes.
+    const spot = flying && at ? deskSpot(at) : null;
+    return { part: { ...part, holes: resolved, pos: flying ? spot ?? sideOfBoard(bench) : part.pos } as PlacedPart, desk: false };
   }
   if (at === "rails" && part.kind === "battery" && bench.board) {
     const col = boardGeometry(bench.board).railCols[0]!;
@@ -431,7 +437,24 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
 
   for (const c of config.controls ?? []) for (const id of controlTargets(bench, c)) inputs.push({ id, key: c.key, value: c.value });
 
-  return { bench, locked, tray, meter, scope, logger, stopwatch, tapper, controls: config.controls ?? [], nodes: config.nodes ?? {}, labels, inputs, spareFuses, warnings };
+  const frame = frameOf(bench, config.frame, warnings);
+  return { bench, locked, tray, meter, scope, logger, stopwatch, tapper, controls: config.controls ?? [], nodes: config.nodes ?? {}, labels, inputs, spareFuses, warnings, frame };
+}
+
+/** The rectangle spanned by holes and desk spots, with a little margin. */
+function frameOf(bench: BenchState, spots: string[] | undefined, warnings: string[]): [number, number, number, number] | null {
+  if (!spots?.length) return null;
+  const pts: Vec2[] = [];
+  for (const s of spots) {
+    const desk = deskSpot(s);
+    const hole = !desk && bench.board ? resolveHole(bench.board, s) : null;
+    const p = desk ?? (hole && bench.board ? holeWorld(bench.board, hole) : null);
+    if (p) pts.push(p);
+    else warnings.push(`frame: cannot place "${s}"`);
+  }
+  if (!pts.length) return null;
+  const m = 6;
+  return [Math.min(...pts.map((p) => p[0])) - m, Math.min(...pts.map((p) => p[1])) - m, Math.max(...pts.map((p) => p[0])) + m, Math.max(...pts.map((p) => p[1])) + m];
 }
 
 const CONTROL_KINDS: Record<string, BenchPartKind[]> = { light: ["phototransistor"], ohms: ["touch-pads", "cup"], position: ["trimmer"] };

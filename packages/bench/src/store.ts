@@ -56,6 +56,8 @@ export type BenchStoreState = {
   txBase: BenchState | null;
   /** Part ids the learner cannot move, rotate or remove (set by the `locked` prop). */
   locked: readonly string[];
+  /** The desk rectangle the camera frames at the start and on "reset view" (set by the `frame` prop), or null for all. */
+  frame: readonly [number, number, number, number] | null;
   snapshot: Snapshot | null;
   ui: BenchUi;
   /** Set by <Bench>: receives every BenchAction. */
@@ -129,6 +131,7 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
       future: [],
       txBase: null,
       locked: [],
+      frame: null,
       snapshot: null,
       ui: initialUi(),
       emit: () => {},
