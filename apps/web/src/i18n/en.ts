@@ -173,7 +173,6 @@ export const en = {
     comingSoon: "Coming soon",
     upcomingLead: "Being written now.",
     isleTitle: "Your island",
-    isleBody: "Every lesson places a new piece on your island.",
     isleLink: "Visit your island",
     lessonMeta: (n: number) => `${n} min`,
   },
