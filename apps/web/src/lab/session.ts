@@ -63,6 +63,8 @@ export class LabSession {
   /** False between a bench change and the first snapshot of the new circuit; goals wait for it. */
   synced = true;
   tone: number | null = null;
+  /** When each task was done in this visit, with the meter as it read then (LabView.doneAt). */
+  doneAt: Record<string, { t: number; meter: LabView["meter"] }> = {};
   private memory = new Map<string, Record<string, unknown>>();
   private fired = new Set<string>();
   private pendingTriggers: string[] = [];
@@ -134,6 +136,7 @@ export class LabSession {
       nodes: this.built.nodes,
       tone: this.tone,
       onTrigger: (name) => this.pendingTriggers.push(name),
+      doneAt: this.doneAt,
     });
   }
 
@@ -193,6 +196,7 @@ export class LabSession {
         }
         if (ok) {
           this.status[t.id] = "done";
+          this.doneAt[t.id] = { t: s.t, meter: v.meter };
           update.completed.push(t);
           if (t.trigger) this.pendingTriggers.push(t.trigger);
         }
