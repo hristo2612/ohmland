@@ -475,7 +475,8 @@ export class LabRuntime {
         this.bumpPanels();
       }
       if (e.tapper !== undefined) this.setTapper(e.tapper);
-      await sleep(step.do === "wait" ? step.seconds * 1000 : 850);
+      // At least the step's own simulated time (a long press must end before the next step), and a beat to watch.
+      await sleep(step.do === "wait" ? step.seconds * 1000 : Math.max(850, e.wait * 1000));
     }
     this.ui.setState({ showing: null });
   }
