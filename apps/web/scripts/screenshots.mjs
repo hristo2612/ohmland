@@ -1,7 +1,7 @@
 // Visual review: screenshots of every page and every lesson step, light and dark, desktop and phone.
 //
 //   pnpm build && pnpm shots                      all pages and steps into ./screenshots-review
-//   pnpm shots -- --out=screenshots --curated     the small set committed under apps/web/screenshots
+//   pnpm shots -- --out=screenshots --curated     the curated set committed under apps/web/screenshots
 //   pnpm shots -- --only=landing,learn --full     a subset, full-page
 //
 // Starts `astro preview` itself unless BASE_URL is set.
@@ -37,7 +37,38 @@ const PAGES = [
   ["404", "/no-such-page"],
 ];
 
-const CURATED_PAGES = new Set(["landing", "learn", "parts", "achievements"]);
+/** The set committed under apps/web/screenshots (names without the step numbers). */
+const CURATED_SET = new Set([
+  "landing-desktop-light",
+  "landing-desktop-dark",
+  "landing-phone-light",
+  "learn-desktop-light",
+  "learn-phone-dark",
+  "lesson-hook-desktop-light",
+  "lesson-hook-phone-dark",
+  "lesson-lab-desktop-light",
+  "lesson-explain-widget-desktop-dark",
+  "lesson-quiz-right-desktop-light",
+  "lesson-quiz-numeric-prefix-desktop-light",
+  "lesson-quiz-order-phone-light",
+  "lesson-wrap-desktop-light",
+  "lesson-finale-desktop-light",
+  "lesson-finale-desktop-dark",
+  "lesson-finale-phone-light",
+  "lesson2-colour-built-desktop-light",
+  "lesson2-match-one-phone-dark",
+  "lesson2-hotspot-right-desktop-light",
+  "parts-desktop-light",
+  "parts-drawer-phone-dark",
+  "achievements-desktop-light",
+  "achievements-phone-dark",
+  "isle-desktop-dark",
+  "bench-desktop-light",
+  "account-desktop-light",
+  "about-desktop-dark",
+  "404-desktop-light",
+]);
+const cleanName = (name) => name.replace(/^(lesson2?)-\d\d-/, "$1-");
 
 async function startServer() {
   if (process.env.BASE_URL) return { url: process.env.BASE_URL, stop: () => {} };
@@ -65,6 +96,10 @@ async function newPage(browser, size, theme, reducedMotion = "reduce") {
 }
 
 const shot = async (page, name) => {
+  if (CURATED) {
+    if (!CURATED_SET.has(cleanName(name))) return;
+    name = cleanName(name);
+  }
   const file = join(OUT, `${name}.png`);
   await page.waitForTimeout(250);
   await page.screenshot({ path: file, fullPage: FULL, animations: "disabled" });
@@ -108,7 +143,6 @@ async function seed(page, url) {
 async function pages(browser, url) {
   for (const [name, path] of PAGES) {
     if (ONLY && !ONLY.has(name)) continue;
-    if (CURATED && !CURATED_PAGES.has(name)) continue;
     for (const size of SIZES)
       for (const theme of THEMES) {
         const { context, page } = await newPage(browser, size, theme);
@@ -134,12 +168,10 @@ async function lesson(browser, url) {
   if (ONLY && !ONLY.has("lesson")) return;
   for (const size of SIZES)
     for (const theme of THEMES) {
-      if (CURATED && !(size === "desktop" || theme === "light")) continue;
       const { context, page } = await newPage(browser, size, theme);
       let n = 0;
       const step = async (label) => {
         n++;
-        if (CURATED && !["hook", "quiz-right", "quiz-numeric-prefix", "explain", "finale"].includes(label)) return;
         await shot(page, `lesson-${String(n).padStart(2, "0")}-${label}-${size}-${theme}`);
       };
       await page.goto(`${url}/learn/basics/sample-first-glow`, { waitUntil: "networkidle" });
