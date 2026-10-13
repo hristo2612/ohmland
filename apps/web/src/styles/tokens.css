@@ -93,6 +93,11 @@
   --char-lo: #241C17;
   --ash: #8F857C;
 
+  /* The 3D island's sky, for frames and loading states around it (day in the light theme). */
+  --isle-sky-top: #7CC6EC;
+  --isle-sky-bottom: #E4F3F4;
+  --isle-poster: url("/isle/hero-day.webp");
+
   /* Resistor colour code bands. */
   --band-black: #1E1E1E;
   --band-brown: #7A4523;
@@ -269,6 +274,9 @@
     --shadow-nav: 0 -8px 24px rgb(0 0 0 / 0.35);
     --highlight: rgb(255 255 255 / 0.06);
     --dot-grid: rgb(170 190 220 / 0.07);
+    --isle-sky-top: #0A1130;
+    --isle-sky-bottom: #2A3266;
+    --isle-poster: url("/isle/hero-night.webp");
   }
 }
 
@@ -312,4 +320,7 @@
   --shadow-nav: 0 -8px 24px rgb(0 0 0 / 0.35);
   --highlight: rgb(255 255 255 / 0.06);
   --dot-grid: rgb(170 190 220 / 0.07);
+  --isle-sky-top: #0A1130;
+  --isle-sky-bottom: #2A3266;
+  --isle-poster: url("/isle/hero-night.webp");
 }

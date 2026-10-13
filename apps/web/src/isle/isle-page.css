@@ -1,0 +1,169 @@
+/* The /isle page: a full-screen island under a floating top bar. */
+
+.isle-body { overflow: hidden; overscroll-behavior: none; }
+
+.isle-screen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(to bottom, var(--isle-sky-top), var(--isle-sky-bottom));
+}
+
+/* Top bar: two floating groups, so the island shows between them. */
+.isle-bar {
+  position: absolute;
+  z-index: var(--z-nav);
+  inset: 0 0 auto 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: calc(var(--space-4) + env(safe-area-inset-top)) var(--gutter) 0;
+  pointer-events: none;
+}
+.isle-bar__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  pointer-events: auto;
+}
+.isle-bar__group--title { gap: var(--space-3); padding-right: var(--space-5); min-width: 0; }
+.isle-bar__group--title .icon-btn--outline { border-color: transparent; background: var(--surface-sunk); }
+.isle-bar__title { display: grid; gap: var(--space-1); min-width: 0; }
+.isle-bar__title h1 { font-size: var(--text-subheading); line-height: var(--leading-subheading); }
+.isle-bar__counts { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); color: var(--ink-2); font-size: var(--text-small); line-height: 1; }
+.isle-bar__counts span { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
+.isle-bar__counts svg { color: var(--accent-ink); }
+.isle-bar__sep { width: var(--border); height: 24px; margin-inline: var(--space-1); background: var(--line); }
+
+/* Stage: the canvas fills the screen. */
+.isle-stage { position: absolute; inset: 0; min-height: 0; padding: 0; }
+.isle-stage:focus { outline: none; }
+.isle-stage__canvas { position: absolute; inset: 0; opacity: 0; transition: opacity var(--dur-3) var(--ease-out); }
+.isle-screen[data-status="ready"] .isle-stage__canvas { opacity: 1; }
+
+.isle-stage__loading {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--text-callout);
+  box-shadow: var(--shadow-1);
+  transform: translate(-50%, -50%);
+}
+.isle-spinner {
+  width: 18px;
+  height: 18px;
+  border: var(--border-thick) solid var(--line-strong);
+  border-top-color: var(--primary);
+  border-radius: var(--radius-full);
+  animation: isle-spin var(--dur-slow) linear infinite;
+}
+@keyframes isle-spin { to { transform: rotate(360deg); } }
+
+/* Cards floating over the island: the empty state and the fallback. */
+.isle-card-float {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--space-8) + env(safe-area-inset-bottom));
+  display: grid;
+  gap: var(--space-3);
+  width: min(440px, calc(100% - 2 * var(--gutter)));
+  transform: translateX(-50%);
+  animation: rise var(--dur-2) var(--ease-out) both;
+}
+.isle-card-float .btn { margin-top: var(--space-2); }
+.isle-card-float__title { font-size: var(--text-heading); line-height: var(--leading-heading); }
+.isle-card-float--center { top: 50%; bottom: auto; justify-items: center; text-align: center; transform: translate(-50%, -50%); animation: none; }
+.isle-card-float__art { width: 200px; height: auto; }
+.isle-card-float__list {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  max-height: 40dvh;
+  margin-top: var(--space-2);
+  padding: var(--space-4) 0 0;
+  border-top: var(--border) solid var(--line);
+  overflow: auto;
+  list-style: none;
+  text-align: left;
+}
+.isle-card-float__list li { display: grid; }
+@keyframes rise { from { opacity: 0; translate: 0 12px; } to { opacity: 1; translate: 0 0; } }
+
+/* A hint until the first touch. */
+.isle-hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--space-6) + env(safe-area-inset-bottom));
+  max-width: calc(100% - 2 * var(--gutter));
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  text-align: center;
+  box-shadow: var(--shadow-1);
+  transform: translateX(-50%);
+  pointer-events: none;
+  animation: fade-in var(--dur-3) var(--ease-out) var(--delay-2) both;
+}
+
+/* The tap label: a bubble pointing at what was tapped. */
+.isle-bubble {
+  position: absolute;
+  z-index: var(--z-sticky);
+  left: var(--x);
+  top: var(--y);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: max-content;
+  max-width: min(280px, calc(100% - 2 * var(--gutter)));
+  padding: var(--space-3) var(--space-2) var(--space-3) var(--space-4);
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-2);
+  transform: translate(-50%, calc(-100% - var(--space-4)));
+}
+.isle-bubble::after {
+  content: "";
+  position: absolute;
+  left: calc(50% + var(--arrow));
+  top: 100%;
+  border: var(--space-2) solid transparent;
+  border-top-color: var(--surface);
+  transform: translateX(-50%);
+}
+.isle-bubble[data-below] { transform: translate(-50%, var(--space-4)); }
+.isle-bubble[data-below]::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--surface); }
+.isle-bubble__text { display: grid; gap: var(--space-1); padding-top: var(--space-1); }
+.isle-bubble__title { font-family: var(--font-display); font-weight: var(--weight-display); font-size: var(--text-callout); line-height: var(--leading-callout); }
+.isle-bubble__detail { color: var(--ink-2); font-size: var(--text-small); line-height: var(--leading-small); }
+
+@media (max-width: 640px) {
+  .isle-bar { gap: var(--space-2); }
+  .isle-bar__group--title { padding-right: var(--space-4); }
+  .isle-bar__counts { font-size: var(--text-caption); flex-wrap: nowrap; }
+  /* the tools stand as a column at the right edge, like map controls, so the title keeps the width */
+  .isle-bar__tools { flex-direction: column; border-radius: var(--radius-xl); }
+  .isle-bar__tools > :nth-child(4) { order: 1; }
+  .isle-bar__tools > :nth-child(3) { order: 2; }
+  .isle-bar__tools > :nth-child(2) { order: 3; }
+  .isle-bar__tools > :nth-child(1) { order: 4; }
+  .isle-bar__sep { width: 24px; height: var(--border); margin: var(--space-1) auto; }
+  .isle-hint { display: none; }
+}
