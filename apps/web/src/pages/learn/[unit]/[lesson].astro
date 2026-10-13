@@ -18,7 +18,7 @@ const mod = unit?.modules.find((mm) => mm.id === lesson.module);
 
 // Only the parts this lesson shows or unlocks travel to the client.
 const wanted = new Set<string>(lesson.unlocks.parts);
-for (const s of lesson.steps) if (s.type === "hook" && s.visual?.kind === "part") wanted.add(s.visual.part);
+if (lesson.format !== "bench") for (const s of lesson.steps) if (s.type === "hook" && s.visual?.kind === "part") wanted.add(s.visual.part);
 const parts: Record<string, PartInfo> = {};
 for (const p of course.parts) if (wanted.has(p.id)) parts[p.id] = { id: p.id, name: p.name, icon: p.icon };
 ---
