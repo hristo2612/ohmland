@@ -5,7 +5,7 @@
 // Button S1 (rows 7 and 9) feeds the coil for now; the learner swaps it for a jumper from NC: the relay buzzes.
 //
 // Measured in the simulator: about 83 buzzes a second (166 clicks), both LEDs near 0.7; contacts wear out after about
-// 18 s of buzzing. 1,000 µF across the coil ticks every 0.9 s; with 100 Ω in the feed about 0.9 s; 470 µF about 0.45 s.
+// 18 s of buzzing. 1,000 µF across the coil ticks every 0.61 s; with 100 Ω in the feed 0.65 s; 470 µF 0.31 s.
 import { defineLab, type LabView } from "@ohmland/lab";
 
 /** An electrolytic of this many farads sits across the coil, + on the fed coil pin. */
@@ -84,7 +84,7 @@ export default defineLab({
       goal: (lab) => powered(lab) && capAcross(lab, 1000e-6) && ticking(lab, 3, 0.5, 1.4),
       hints: ["The stripe on the capacitor's sleeve marks its negative leg.", "Long leg in row 11, striped leg bent to the minus rail."],
       highlight: ["pin:K1.coil1"],
-      success: "Tick, tock. The capacitor holds the relay in for nearly a second.",
+      success: "Tick, tock. The capacitor keeps the coil fed after NC opens.",
     },
     {
       id: "soften-the-surge",
