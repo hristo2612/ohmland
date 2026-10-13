@@ -513,7 +513,12 @@ latest events added. Each unit is its own island in an archipelago, linked by ca
 
 Look: a floating circuit board. Matte solder-mask green land, copper trace roads with vias, white silkscreen marks,
 components as buildings (capacitor towers, IC factories, resistor rows, LED street lamps), layered FR4 edges, dangling
-wire roots, clouds. The mascot (a small voxel robot with an LED face) floats over the square.
+wire roots. The mascot (a small voxel robot with an LED face) floats over the square.
+
+- `opts.look: "notebook" | "classic"` (default `"notebook"`): notebook draws the island on grid paper with graphite ink
+  outlines, a pencil shadow and calmer motion, and a "night page" at night; classic is the original sky look.
+- `opts.paper: "grid" | "plain" | "clear"` (notebook only): `"clear"` leaves the canvas transparent so a page that
+  already has grid paper shows through and the grids line up.
 
 ## Routes
 
