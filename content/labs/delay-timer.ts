@@ -69,33 +69,37 @@ export default defineLab({
   tasks: [
     {
       id: "no-click",
-      prompt: "Press reset (S2), then switch on S1. Wait ten seconds. Measure C1's voltage and note it.",
+      prompt: "Press reset (S2), switch on S1, wait ten seconds. Note C1's volts.",
       note: { id: "stuck", label: "C1's voltage", unit: "V" },
       goal: (lab) => {
         const v = lab.volts("C1.pos") ?? 0;
         const x = lab.note("stuck");
         return lab.heldFor(8, lab.closed("S1")) && v >= 2.8 && v <= 3.5 && !lab.events.some((e) => e.type === "clicked" && e.partId === "K1" && e.data?.["to"] === "no") && x !== null && Math.abs(x - v) <= 0.2;
       },
-      hints: ["Meter on DC volts, red probe on C1's + leg, black on its striped leg."],
+      hints: ["DC volts: red on C1's + leg, black on its stripe."],
       highlight: ["C1"],
-      success: "Stuck near 3.2 V. The coil drains current as fast as the 1 kΩ supplies it: together they form a divider, and 3.2 V is far below the 6 V the relay needs.",
+      success: "Stuck near 3.2 V. The coil drains C1 as fast as it fills.",
     },
     {
       id: "add-q1",
       prompt:
-        "Switch off and remove the yellow jumper. Put **Q1** in rows 20 to 22 (flat face toward you): emitter on the coil's row 20, then jump its base (row 21) to C1's + row (row 12) and its collector (row 22) to the + rail. Reset, then switch on.",
+        "Switch off and remove the yellow jumper. Let **Q1** feed the coil.",
       goal: (lab) => !lab.connected("C1.pos", "K1.coil1") && follower(lab) && lab.runs().some((r) => r.seconds >= 0.9 && r.seconds <= 2.2) && lab.isLit("D2"),
-      hints: ["The coil now hangs from the emitter.", "Reset C1 before each run: press S2 while S1 is off."],
+      hints: [
+        "Q1 in rows 20 to 22, flat face toward you.",
+        "Base (row 21) to C1's row 12; collector (row 22) to plus.",
+        "Reset C1 before each run: press S2 while S1 is off.",
+      ],
       highlight: ["hole:c20", "hole:c21", "hole:c22"],
-      success: "Click! The capacitor only has to feed the base, a tiny current. The transistor feeds the coil from the battery.",
-      notice: "The emitter follows the capacitor about 0.7 V below it, and the relay clicks when the emitter reaches pull-in.",
+      success: "Click! C1 only feeds the base; Q1 feeds the coil.",
+      notice: "The emitter follows C1, about 0.7 V below it.",
       mascot: { success: "The transistor carries the coil so the capacitor doesn't have to." },
     },
     {
       id: "five-seconds",
-      prompt: "Turn the trimmer to set a delay of **5 seconds**. Reset between tries: three runs in a row must land within half a second.",
+      prompt: "Trim to **5 s**: three runs in a row, each within 0.5 s.",
       goal: (lab) => follower(lab) && lastRuns(lab, 3, 4.5, 5.5),
-      hints: ["More resistance, longer delay.", "τ = R × C. You need about 3.7 s of τ: with 1,000 µF, that's about 3.7 kΩ in all."],
+      hints: ["More resistance, longer delay.", "With 1,000 µF, aim for about 3.7 kΩ in all."],
       highlight: ["P1"],
       success: "Five seconds, on demand. That's a timer.",
     },
@@ -108,8 +112,8 @@ export default defineLab({
         const prev = runs[runs.length - 2];
         return !!last && !!prev && (last.watch ?? 0) > 1 && last.seconds < 0.7 * prev.seconds;
       },
-      hints: ["Be quick: while the power is off, the coil slowly drains C1 through Q1.", "Off and straight back on, within a quarter of a second."],
-      success: "Much shorter, maybe no wait at all: C1 still had charge left, enough to hold the relay in. Real timers need a way to empty their capacitor, like your reset button.",
+      hints: ["Be quick: while off, the coil slowly drains C1 through Q1.", "Off and straight back on, within a quarter of a second."],
+      success: "Much shorter: C1 still held charge. Real timers empty theirs first.",
     },
   ],
   solution: [

@@ -92,32 +92,32 @@ export default defineLab({
     {
       id: "find-tau",
       prompt:
-        "Start with C1 empty. Slide S1 to charge and let the logger run. Find the moment C1 reaches **5.69 V**, which is 63.2% of 9 V. How many seconds after the slide was that?",
+        "Charge C1 with S1. How many seconds until it reaches **5.69 V**?",
       note: { id: "tau1", label: "Charging τ", unit: "s" },
       goal: (lab) => measured(lab, "tau1", "e1", 0.1, 1000),
-      hints: ["Use the cursor on the plot to find where the curve crosses 5.69 V.", "Each slide of S1 starts a new run, so the plot's time is time since the slide."],
+      hints: ["Drag the logger's cursor to where the curve crosses 5.69 V.", "5.69 V is 63.2% of 9 V. Time counts from the slide."],
       highlight: ["S1"],
-      success: "About one second. And 1 kΩ × 1,000 µF = 1 s. That's no coincidence.",
+      success: "About one second. And 1 kΩ × 1,000 µF = 1 s.",
     },
     {
       id: "discharge-tau",
-      prompt: "Let it fill completely, then slide S1 back to discharge. When does C1 fall to **3.31 V**?",
+      prompt: "Fill it fully, slide S1 back. When does C1 reach **3.31 V**?",
       note: { id: "tau2", label: "Discharging τ", unit: "s" },
       goal: (lab) => measured(lab, "tau2", "e2", 0.1, 1000),
-      hints: ["Wait until the curve flattens out near 9 V before you slide the switch back.", "3.31 V is 36.8% of 9 V: what's left after one τ."],
-      success: "The same τ going down: it drops 63% of the way to zero in one tau.",
+      hints: ["Wait until the curve flattens near 9 V first.", "3.31 V is 36.8% of 9 V: what's left after one τ."],
+      success: "Same τ going down: 63% of the way to zero.",
     },
     {
       id: "ten-times-slower",
-      prompt: "Swap R1 for the **10 kΩ** resistor. Predict τ, then measure it the same way.",
+      prompt: "Swap R1 for **10 kΩ**. Predict τ, then measure it.",
       note: { id: "tau3", label: "τ with 10 kΩ", unit: "s" },
       goal: (lab) => measured(lab, "tau3", "e3", 0.1, 10000),
-      hints: ["Empty C1 first (slide to discharge and wait), so the run starts from 0 V.", "This one takes a while: about ten seconds to reach 5.69 V."],
+      hints: ["Empty C1 first: slide to discharge and wait.", "This one takes a while: about ten seconds to reach 5.69 V."],
       success: "Ten times the resistance, ten times the time.",
     },
     {
       id: "hit-the-target",
-      prompt: "Choose a resistor and a capacitor from the tray so τ is about **2.2 s**. Prove it with the logger.",
+      prompt: "Pick a resistor and capacitor for a τ of about **2.2 s**.",
       note: { id: "tau4", label: "Your τ", unit: "s" },
       goal: (lab) => {
         const t = tau(lab);
@@ -127,8 +127,8 @@ export default defineLab({
         return true;
       },
       hints: ["τ = R × C. Try pairs.", "There are two good answers on this tray."],
-      success: "2.2 kΩ × 1,000 µF, or 4.7 kΩ × 470 µF. Different parts, same timing.",
-      notice: "Measured τ lands close to the marked R × C, not exactly on it: electrolytics can be 20% off their printed value.",
+      success: "2.2 kΩ × 1,000 µF, or 4.7 kΩ × 470 µF. Same timing.",
+      notice: "Measured τ lands near R × C: electrolytics can be 20% off.",
     },
   ],
   solution: [

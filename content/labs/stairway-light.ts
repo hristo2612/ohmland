@@ -58,21 +58,21 @@ export default defineLab({
     {
       id: "series-pair",
       prompt:
-        "Clip one lead from throw **A1** (switch A's left screw) to throw **B1** (switch B's left screw). Try all four switch combinations and watch the table fill.",
+        "Clip a lead from **A1** to **B1**. Try all four switch combinations.",
       goal: (lab) => {
         const t = lab.panel("truth");
         return Object.keys(t.cells).length >= 4 && Object.values(t.cells).filter(Boolean).length === 1;
       },
-      hints: ["Only one path exists, and both switches must line up on it.", "Flip one switch at a time, and wait for each row to fill."],
+      hints: ["Only one path exists, and both switches must line up on it.", "A1 and B1 are the left screws. Flip one at a time."],
       highlight: ["pin:SA.a", "pin:SB.a"],
-      success: "Exactly one combination lights the lamp. That's two switches in series: both must agree on one path.",
+      success: "Only one combination lights it: both switches must agree on one path.",
     },
     {
       id: "two-travelers",
-      prompt: "Add a second lead from **A2** to **B2** (the right screws). Now try all four combinations again.",
+      prompt: "Add a second lead from **A2** to **B2**. Try all four again.",
       goal: (lab) => litRows(lab, ["a,a", "b,b"]),
       hints: [
-        "Each pair of throws gets its own lead. Those two leads are called travelers.",
+        "Each pair of throws gets its own lead: the travelers.",
         "Watch the current's path: it travels along whichever traveler both poles touch.",
       ],
       highlight: ["pin:SA.b", "pin:SB.b"],
@@ -81,11 +81,11 @@ export default defineLab({
     },
     {
       id: "cross-the-travelers",
-      prompt: "Swap the travelers at switch B, so **A1** goes to **B2** and **A2** goes to **B1**. What changes?",
+      prompt: "Cross the travelers at B: **A1** to **B2**, **A2** to **B1**.",
       goal: (lab) => litRows(lab, ["a,b", "b,a"]),
       hints: ["Move only the two clips on switch B. Predict first, then flip."],
-      success: "Still a perfect stairway, but now different means on. Both versions toggle on every flip.",
-      notice: "The stairway computes same or different: the first logic function of the course.",
+      success: "Still a stairway, but now different means on.",
+      notice: "The stairway computes same or different: your first logic function.",
     },
   ],
   solution: [

@@ -71,7 +71,7 @@ export default defineLab({
     {
       id: "active-vs-saturated",
       prompt:
-        "Put **470 kΩ** in the base socket (row 16 to row 21), hold S1, and measure the voltage from collector to emitter. Then swap to **10 kΩ** and measure again.",
+        "Base: **470 kΩ**. Hold S1, measure collector to emitter. Then **10 kΩ**.",
       goal: (lab) => {
         const m = lab.memory as { a?: boolean; b?: boolean };
         if (lab.closed("S1") && meterOnCE(lab)) {
@@ -84,24 +84,24 @@ export default defineLab({
         }
         return !!m.a && !!m.b;
       },
-      hints: ["Black probe on the emitter (row 20), red on the collector (row 22). Then hold S1.", "Bend the resistor's legs from row 16 to row 21."],
+      hints: ["Black on the emitter (row 20), red on the collector (row 22).", "Bend the resistor's legs from row 16 to row 21."],
       highlight: ["pin:Q1.c", "pin:Q1.e"],
-      success: "With plenty of base current, Q1 is fully on, with only about 0.1 V across it. That's saturation.",
+      success: "Plenty of base current: Q1 is fully on, 0.1 V across. Saturation.",
     },
     {
       id: "no-brighter",
-      prompt: "Swap to **4.7 kΩ**: double the base current again. Does the LED get brighter?",
+      prompt: "Swap to **4.7 kΩ**: double the base current. Brighter?",
       goal: (lab) => {
         const was = lab.shared["ic10k"];
         return baseOhms(lab) === 4700 && lab.closed("S1") && typeof was === "number" && Math.abs(lab.amps("Q1") - was) <= was * 0.05;
       },
-      hints: ["Hold S1 and compare the LED with how it looked on 10 kΩ."],
-      success: "No change. In saturation the LED and its resistor set the current, not the transistor.",
+      hints: ["Hold S1; compare with the LED on 10 kΩ."],
+      success: "No change. In saturation, the LED's resistor sets the current.",
     },
     {
       id: "touch-it",
       prompt:
-        "Replace the base resistor and the button with the **touch pads** (rows 14 and 16) and **R5** (row 16 to row 21). Then use the fingertip slider: touch lightly, then firmly.",
+        "Swap in the **touch pads** and **R5**. Touch lightly, then firmly.",
       goal: (lab) => {
         const m = lab.memory as { light?: number; firm?: number };
         if (!padsFeed(lab, "Q1.b") || lab.benchPart("Q2") && lab.connected("Q2.e", "Q1.b")) return false;
@@ -109,14 +109,14 @@ export default defineLab({
         if (lab.heldFor(0.4, finger(lab) <= 1.1e5, "firm")) m.firm = glow(lab);
         return m.light !== undefined && m.firm !== undefined && m.light < 0.5 * m.firm;
       },
-      hints: ["The pads go where the button was; R5 bends from row 16 to the base, row 21.", "The fingertip slider sets how firm and damp your touch is."],
+      hints: ["Pads in rows 14 and 16, where the button was.", "R5 bends from row 16 to the base, row 21.", "The fingertip slider sets how firm and damp your touch is."],
       highlight: ["hole:c14", "hole:c16"],
-      success: "It works, but only with a firm touch. A single transistor's gain isn't quite enough for a light one.",
+      success: "It works, but only firmly. One transistor's gain isn't quite enough.",
     },
     {
       id: "darlington",
       prompt:
-        "Add **Q2** on the far half (rows 17 to 19, flat face toward you): its emitter jumps to Q1's base, its collector to Q1's collector, and R5 now feeds Q2's base. Touch lightly.",
+        "Add **Q2** in far rows 17 to 19, feeding Q1's base.",
       goal: (lab) => {
         const sat = lab.shared["glowSat"];
         return (
@@ -128,8 +128,8 @@ export default defineLab({
           lab.heldFor(0.3, glow(lab) >= 0.85 * sat)
         );
       },
-      hints: ["Q2's emitter goes into the strip with Q1's base: a short jumper across the channel.", "R5 stays in series with the pads; move its far end to Q2's base."],
-      success: "Feather touch, full light. Q2's gain multiplies Q1's: roughly 200 × 200 = 40,000.",
+      hints: ["Q2's emitter jumps across the channel to Q1's base.", "Q2's collector to Q1's collector. R5's far end to Q2's base."],
+      success: "Feather touch, full light. Gains multiply: about 200 × 200.",
     },
   ],
   solution: [

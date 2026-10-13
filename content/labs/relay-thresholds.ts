@@ -52,7 +52,7 @@ export default defineLab({
   tasks: [
     {
       id: "changeover",
-      prompt: "Using only battery **B2**, make the yellow LED light while the relay rests, and the green LED light while you hold **S1**.",
+      prompt: "Using only **B2**: yellow at rest, green while you hold **S1**.",
       goal: (lab) => {
         if (!lab.connected("K1.com1", "B2.pos") || lab.connected("B2.pos", "B1.pos") || lab.connected("B2.neg", "B1.neg")) return false;
         if (!lab.closed("S1") && lab.isLit("D2") && !lab.isLit("D3")) lab.memory["rest"] = true;
@@ -60,22 +60,22 @@ export default defineLab({
         return lab.memory["rest"] === true && lab.memory["held"] === true;
       },
       hints: [
-        "COM gets B2's plus terminal. Each of the other two contacts feeds one LED through its own resistor.",
+        "COM to B2's plus; each contact feeds one LED via its resistor.",
         "Both LEDs return to B2's minus terminal. Long legs toward the resistors.",
       ],
       highlight: ["pin:K1.com1", "pin:K1.nc1", "pin:K1.no1", "B2"],
-      success: "The relay chooses which LED gets B2's power. And B2 never touches B1.",
+      success: "The relay picks which LED gets B2's power. B2 never touches B1.",
       notice: "Two separate batteries, one magnetic link.",
     },
     {
       id: "find-pull-in",
       prompt:
-        "Swap S1 for the knob **P1**, wired as a voltage divider: its outer screws to B1's plus and minus, its middle screw to the coil. Put the meter across the coil. Turn the knob up slowly until the relay clicks. What did the meter read?",
+        "Feed the coil from knob **P1**. Turn up until it clicks.",
       note: { id: "pullin", label: "Pull-in voltage", unit: "V" },
       goal: (lab) => potFeedsCoil(lab) && lab.count("clicked", "K1") > 0 && lab.events.some((e) => e.type === "clicked" && e.partId === "K1" && e.data?.["to"] === "no") && within(lab.note("pullin"), lab.actual("K1", "pullIn"), 0.3),
-      hints: ["Turn in small steps: the click is sudden. The meter across the coil shows its voltage.", "Write down the reading the moment you hear the click."],
+      hints: ["P1's outer screws to B1, its middle screw to the coil.", "Meter across the coil. Turn slowly: the click is sudden.", "Write down the reading the moment you hear the click."],
       highlight: ["P1", "pin:K1.coil1"],
-      success: "That's the pull-in voltage. Below it, the magnet is too weak to move the armature.",
+      success: "That's pull-in. Below it, the magnet can't move the armature.",
     },
     {
       id: "find-drop-out",
@@ -83,8 +83,8 @@ export default defineLab({
       note: { id: "dropout", label: "Drop-out voltage", unit: "V" },
       goal: (lab) => potFeedsCoil(lab) && lab.events.some((e) => e.type === "clicked" && e.partId === "K1" && e.data?.["to"] === "nc") && within(lab.note("dropout"), lab.actual("K1", "dropOut"), 0.3),
       hints: ["It holds on much longer than you'd expect. Keep going."],
-      success: "Pull-in about 6 V, drop-out under 2 V. Starting takes a lot more push than staying.",
-      notice: "The gap between the two is hysteresis. It stops the relay chattering when the voltage wobbles near one threshold.",
+      success: "Pull-in about 6 V, drop-out under 2 V. Starting takes more push.",
+      notice: "That gap is hysteresis: it stops chatter near a threshold.",
     },
   ],
   solution: [

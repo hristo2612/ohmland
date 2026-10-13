@@ -61,35 +61,35 @@ export default defineLab({
   tasks: [
     {
       id: "xray-hunt",
-      prompt: "Turn on **X-ray** (top bar) to see the metal clips. Then, in the hole hunt, tap every hole joined to hole 12a and check.",
+      prompt: "Turn on **X-ray**. Hole hunt: tap every hole joined to 12a.",
       goal: (lab) => lab.panel("hunt").correct,
-      hints: ["Look at the metal clip under row 12 on this side of the channel.", "The channel down the middle is a wall: nothing crosses it."],
+      hints: ["Look at the metal clip under row 12, on this side.", "The channel down the middle is a wall: nothing crosses it."],
       success: "Five holes per clip, and the clip stops at the channel.",
     },
     {
       id: "fix-dark-led",
-      prompt: "The LED at station B (row 13) is dark. Move it so it lights.",
+      prompt: "Station B's LED (row 13) is dark. Move it so it lights.",
       goal: (lab) => lab.isLit("D2") && !lab.connected("D2.anode", "D2.cathode"),
-      hints: ["Both of D2's legs are in row 13. What does that row's clip do to them?", "Turn it sideways: long leg in row 13, short leg in row 14, where the jumper to the minus rail starts."],
+      hints: ["Both of D2's legs are in row 13. What does that do?", "Turn it: long leg in row 13, short leg in row 14."],
       highlight: ["D2"],
-      success: "Both legs in one strip means the strip shorts the LED. Every part needs its legs in different strips.",
+      success: "Both legs in one strip: the strip shorts the LED.",
       mascot: { success: "Same strip, same node. The LED never stood a chance." },
     },
     {
       id: "bus-gap",
-      prompt: "Station C (row 57) is dark too. Use the meter to find out why, then fix it.",
+      prompt: "Station C (row 57) is dark too. Find why, then fix it.",
       goal: (lab) => lab.isLit("D3") && lab.connected("rail+:10", "rail+:50") && lab.connected("rail-:10", "rail-:50"),
       hints: [
-        "Measure the voltage between the plus and minus rails at row 10, then at row 50.",
-        "This board splits each rail halfway: see the gap in the printed stripes? Bridge each rail across it with a jumper (Wire tool).",
+        "Measure across the rails at row 10, then at row 50.",
+        "The rails split halfway. Bridge each gap with a jumper.",
       ],
-      success: "Split rails are a classic trap. A bridge jumper on each rail, and the right half wakes up.",
+      success: "Split rails: a classic trap. One bridge per rail fixes it.",
       mascot: { success: "Bridge the gap and the lower half wakes up." },
     },
     {
       id: "relay-on-board",
       prompt:
-        "Rebuild the relay changeover on the right half, with this one battery: COM to plus, the yellow LED (through 470 Ω) on NC, the green LED (through 470 Ω) on NO, the button feeding the coil, and the diode across the coil.",
+        "Rebuild the relay changeover on the right half, with this battery.",
       goal: (lab) => {
         if (!straddles(lab, "K1") || !lab.joins("D4", "K1.coil1", "K1.coil2")) return false;
         if (!lab.closed("S1") && lab.isLit("D5") && !lab.isLit("D6")) lab.memory["rest"] = true;
@@ -97,12 +97,12 @@ export default defineLab({
         return lab.memory["rest"] === true && lab.memory["held"] === true;
       },
       hints: [
-        "The relay's pins sit on both sides of the channel, so each pin gets its own strip. Its coil pins are the ones at the end with one pin per side.",
-        "Build it one wire at a time: COM strip to the + rail, each contact strip through its resistor to an LED, each LED's short leg to the minus rail.",
+        "Each relay pin gets its own strip. The coil is at one end.",
+        "COM to plus. NC feeds yellow, NO feeds green, each via 470 Ω.", "The button feeds the coil. The diode sits across the coil.",
         "The diode's band goes to the coil end the button feeds.",
       ],
       success: "Your first proper breadboard build. Neat, solid and ready to be modified.",
-      notice: "The length of a path through strips doesn't matter: the strips have almost no resistance.",
+      notice: "Path length through strips doesn't matter: they barely resist.",
     },
   ],
   solution: [

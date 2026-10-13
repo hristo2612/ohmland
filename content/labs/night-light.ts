@@ -63,20 +63,20 @@ export default defineLab({
   tasks: [
     {
       id: "follow-the-light",
-      prompt: "At station A, slide the desk lamp from dark (about 10%) to full bright, and watch the red LED.",
+      prompt: "Station A: slide the lamp from dark to bright. Watch the LED.",
       goal: (lab) => {
         const dark = at(lab, "dark", 0.1, 0.03, "D1");
         const bright = at(lab, "bright", 1, 0.03, "D1");
         return dark !== undefined && bright !== undefined && bright - dark > 0.3;
       },
-      hints: ["The desk lamp slider is with the controls. Pause a moment at each end."],
+      hints: ["The lamp slider is with the controls. Pause at each end."],
       highlight: ["PT1"],
       success: "More light, more current. The phototransistor is a light-operated valve.",
     },
     {
       id: "flip-it",
       prompt:
-        "At station B, Q1's base is fed through the trimmer. Plug **PT2** in rows 30 and 31: its **collector** in the base row (31), its emitter in Q1's emitter row (30). Then make it dark, then bright.",
+        "Plug **PT2** into rows 30 and 31. Then dark, then bright.",
       goal: (lab) => {
         if (!lab.joins("PT2", "Q1.e", "Q1.b", "forward")) return false;
         const dark = at(lab, "dark", 0.03, 0.03, "D2");
@@ -84,24 +84,24 @@ export default defineLab({
         return dark !== undefined && bright !== undefined && dark > 0.6 && bright < 0.05;
       },
       hints: [
-        "On this phototransistor the collector is the leg on the flat side of its rim. Check the part's info card.",
+        "Collector (flat side of the rim) in row 31, the base row.",
         "In the light, PT2 steals Q1's base current.",
       ],
       highlight: ["hole:b30", "hole:b31"],
-      success: "Dark: Q1's base gets its current, and the lamp shines. Light: PT2 drains that current to ground first.",
+      success: "Dark: Q1's base gets current, the lamp shines. Light: PT2 steals it.",
     },
     {
       id: "set-dusk",
-      prompt: "Turn the trimmer so the lamp comes on as the light drops below about **25%**: on at 18%, off at 32%.",
+      prompt: "Trim it so the lamp comes on below about **25%** light.",
       goal: (lab) => {
         const dusk = at(lab, "dusk", 0.18, 0.015, "D2");
         const day = at(lab, "day", 0.32, 0.015, "D2");
         return lab.joins("PT2", "Q1.e", "Q1.b", "forward") && dusk !== undefined && day !== undefined && dusk > 0.5 && day < 0.1;
       },
-      hints: ["Less base resistance feeds Q1 more current, so it takes more light to steal it all.", "Try the lamp at 18% and at 32% after each turn of the trimmer."],
+      hints: ["Less base resistance means more light is needed to steal it.", "After each turn, try the lamp at 18% (on) and 32% (off)."],
       highlight: ["P1"],
       success: "Your lamp now has a sense of when dusk is.",
-      notice: "Near the threshold the lamp glows dimly instead of snapping on. Unit 4 cures that with hysteresis, just like the relay's.",
+      notice: "Near the threshold it glows dimly. Unit 4 cures that.",
     },
   ],
   solution: [

@@ -51,10 +51,10 @@ export default defineLab({
   tasks: [
     {
       id: "find-the-coil",
-      prompt: "Set the meter to ohms, on the 2 kΩ range, and measure between pairs of terminals. One pair reads a few hundred ohms: that's the coil.",
+      prompt: "Ohms, 2 kΩ range. The pair reading a few hundred is the coil.",
       goal: (lab) => lab.meter?.mode === "ohm" && probing(lab, "coil1", "coil2") && lab.meterReads(540, { tol: 0.1, unit: "Ω" }),
       hints: [
-        "Contacts read either almost 0 Ω or OL. The coil is a long, thin wire, so it reads somewhere in between.",
+        "Contacts read 0 Ω or OL. The coil reads in between.",
         "Five terminals make only ten pairs. Sweep them all.",
       ],
       highlight: ["K1"],
@@ -66,23 +66,23 @@ export default defineLab({
       prompt: "Switch to continuity. With the relay resting, which pair beeps?",
       goal: (lab) => lab.meter?.mode === "continuity" && lab.meter.beep && !lab.closed("K1") && probing(lab, "com1", "nc1"),
       hints: ["Leave the coil terminals out of it.", "Only one pair beeps while nothing powers the coil."],
-      success: "One pair is already connected at rest. That's the normally closed contact and the common. Which is which? We need the magnet.",
+      success: "One pair is joined at rest: normally closed and common.",
     },
     {
       id: "energize",
       prompt:
-        "Clip the yellow lead (from the button) and the black lead (from battery minus) to the two coil terminals. Hold the button and probe again. Then fill in the pin map.",
+        "Clip yellow and black to the coil. Hold S1, then fill the pin map.",
       goal: (lab) => lab.event("clicked", "K1") && lab.panel("legs").correct,
-      hints: ["Listen for the click.", "COM is the terminal that beeps with one partner at rest and a different partner while you hold the button."],
+      hints: ["Listen for the click.", "COM beeps with one partner at rest, another while S1 is held."],
       highlight: ["S1"],
-      success: "A double-throw switch inside a box, flipped by electricity. Nothing on the coil side ever touches the contact side.",
-      notice: "The coil and the contacts never beep with each other. That separation is why relays are so useful.",
+      success: "A changeover switch, flipped by electricity. The coil never touches the contacts.",
+      notice: "Coil and contacts never beep together. That makes relays useful.",
     },
     {
       id: "clean-map",
       prompt: "Bonus: get the pin map right on your first try.",
       goal: (lab) => lab.panel("legs").correct && lab.panel("legs").wrong === 0,
-      hints: ["Find all five before you check: the coil pair, then COM and NC at rest, then NO while the button is held."],
+      hints: ["Find all five first: coil, COM and NC at rest, then NO."],
       success: "First try. You read that relay like a datasheet.",
       trigger: "pin-map-perfect",
       bonus: true,

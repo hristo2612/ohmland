@@ -50,15 +50,15 @@ export default defineLab({
   tasks: [
     {
       id: "place-q1",
-      prompt: "Place **Q1** with its flat face toward you: its legs are E, B, C from left to right. Put E in row 20, B in row 21 and C in row 22, the LED's short-leg row.",
+      prompt: "Place **Q1**, flat face toward you, legs in rows 20, 21, 22.",
       goal: (lab) => lab.connected("Q1.c", "D1.cathode") && lab.connected("Q1.e", "B1.neg") && lab.connected("Q1.b", "c21"),
-      hints: ["Hover a leg to see its name.", "Flat face toward you, legs pointing down: the emitter is on the left. Drop it on row 20 near the channel."],
+      hints: ["Hover a leg to see its name.", "Flat face toward you: E, B, C from left to right."],
       highlight: ["hole:c20", "hole:c21", "hole:c22"],
-      success: "Correct way round. A backwards transistor sort of works, badly, which is the worst kind of bug.",
+      success: "Right way round. Backwards it half works: the worst kind of bug.",
     },
     {
       id: "small-steers-big",
-      prompt: "Put the **470 kΩ** resistor in the base socket: from row 16 (the button's strip) to row 21 (the base). Press S1.",
+      prompt: "Put **470 kΩ** from row 16 to the base, row 21. Press S1.",
       goal: (lab) => {
         if (baseOhms(lab) !== 470_000) return false;
         if (lab.closed("S1") && (lab.part("D1")?.glow ?? 0) > 0.15) lab.memory["on"] = true;
@@ -75,7 +75,7 @@ export default defineLab({
     },
     {
       id: "measure-gain",
-      prompt: "Measure the base current, then the collector current, and type their ratio: the gain.",
+      prompt: "Measure base and collector currents. Type their ratio: the gain.",
       note: { id: "beta", label: "Gain (collector ÷ base)", unit: "" },
       goal: (lab) => {
         if (lab.closed("S1") && baseOhms(lab) === 470_000 && lab.part("Q1")?.extra?.["region"] === "active") {
@@ -87,27 +87,27 @@ export default defineLab({
         return typeof beta === "number" && x !== null && Math.abs(x - beta) <= beta * 0.1;
       },
       hints: [
-        "Break the base path: move one end of the resistor to an empty row, then bridge the gap with the meter's probes. Use the 200 µA range and hold S1.",
-        "Then do the same in the collector path, between R1 and the LED, on the 20 mA range.",
+        "Break the base path; bridge it with the meter (200 µA).",
+        "Collector: same trick between R1 and the LED, on 20 mA.",
       ],
-      success: "Your transistor multiplies base current by about β. Every 2N3904 is a little different.",
+      success: "Your transistor multiplies base current by about β. Each one differs.",
     },
     {
       id: "double-it",
-      prompt: "Swap the base resistor for **220 kΩ**. Predict the collector current first, then press S1 and see.",
+      prompt: "Swap in **220 kΩ**. Predict the collector current, then press S1.",
       goal: (lab) => {
         const was = lab.shared["ic470"];
         return baseOhms(lab) === 220_000 && lab.closed("S1") && typeof was === "number" && ic(lab) / was >= 1.7 && ic(lab) / was <= 2.4;
       },
-      hints: ["About twice the base current. What does that do to the collector current?"],
+      hints: ["About twice the base current. So the collector current?"],
       success: "About twice the base current, about twice the collector current.",
     },
     {
       id: "no-resistor",
-      prompt: "Optional experiment: remove the base resistor and put a plain jumper from row 16 to the base. Press S1 once.",
+      prompt: "Optional: replace the base resistor with a plain jumper. Press S1 once.",
       goal: (lab) => lab.died("Q1"),
-      hints: ["A plain jumper from the button's strip to the base strip, with the Wire tool."],
-      success: "The base-emitter junction is like a diode. With no resistor, it took amps from the battery and burned out in a blink.",
+      hints: ["Wire tool: from the button's row 16 to the base, row 21."],
+      success: "Base to emitter is a diode. Unlimited, it gulped amps and burned.",
       bonus: true,
     },
   ],

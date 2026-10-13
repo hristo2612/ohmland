@@ -52,41 +52,41 @@ export default defineLab({
     {
       id: "beep-test",
       prompt:
-        "Turn the dial to continuity (**Beep**) and touch both probe tips to the same terminal: that's the tips touching. Then probe the on/off switch **S1** across its two terminals, in both positions.",
+        "Dial to **Beep**. Touch the tips together, then probe **S1** both ways.",
       goal: (lab) => {
         const m = lab.meter;
         if (m?.mode === "continuity" && m.beep && lab.bench.meter?.probes.red.tip.to && lab.connected("probe:red", "probe:black")) lab.memory["joined"] = true;
         return lab.memory["joined"] === true && filled(lab, "s1");
       },
       hints: [
-        "The continuity setting has a little sound-wave symbol on the dial. It's labelled Beep on the panel.",
-        "Put the red probe on one of S1's screws and the black on the other. Then flip S1 by clicking its lever, and look again.",
+        "Beep is the dial setting with the sound-wave symbol.",
+        "Red on one S1 screw, black on the other. Then flip S1.",
       ],
       highlight: ["S1"],
-      success: "Beep means there's a path with almost no resistance. OL means no path at all.",
+      success: "Beep: a path with almost no resistance. OL: no path at all.",
       notice: "A switch is just a gap you can close.",
     },
     {
       id: "find-the-pole",
-      prompt: "The slide switch **S2** has three terminals. Probe every pair, in both slider positions, until the table is full.",
+      prompt: "Probe every pair of **S2**'s three terminals, in both positions.",
       goal: (lab) => filled(lab, "s2"),
-      hints: ["There are only three pairs: left and middle, middle and right, left and right.", "Which terminal is part of every beep? That one is special."],
+      hints: ["Only three pairs: left-middle, middle-right, left-right.", "Which terminal is part of every beep? That one is special."],
       highlight: ["S2"],
-      success: "The middle terminal is the pole. It always connects to one throw or the other, never both, never neither.",
+      success: "The middle terminal is the pole. It always joins exactly one throw.",
       notice: "SPDT means one pole, two throws.",
       mascot: { success: "The middle leg is usually the boss." },
     },
     {
       id: "press-and-hold",
       prompt:
-        "Buttons **S3** and **S4** look identical. Probe each one released, then while you hold it down. Then label each one in the panel.",
+        "Probe **S3** and **S4** released, then held. Label each in the panel.",
       goal: (lab) => filled(lab, "s3") && filled(lab, "s4") && lab.panel("buttons").correct,
       hints: [
-        "Hold a button by pressing and keeping the pointer down on it (or select it and hold Space).",
-        "Normally means when nobody touches it. Which one beeps when nobody touches it?",
+        "Keep the pointer down on a button, or hold Space.",
+        "Normally means untouched. Which one beeps untouched?",
       ],
       highlight: ["S3", "S4"],
-      success: "S3 connects only while pressed. S4 is connected until you press it. Both spring back when you let go.",
+      success: "S3 joins only while pressed. S4 is joined until pressed.",
       notice: "Momentary switches return by themselves. The toggle stays put.",
       mascot: { hint: "Press, hold, probe. Patience is a tool too." },
     },

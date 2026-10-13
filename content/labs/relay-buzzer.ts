@@ -65,30 +65,30 @@ export default defineLab({
   tasks: [
     {
       id: "move-one-wire",
-      prompt: "Remove button **S1** and feed the coil from the relay's **NC** contact instead (row 16 to row 11). Then slide the power switch on.",
+      prompt: "Remove button **S1**. Feed the coil from **NC** instead. Power on.",
       goal: (lab) => {
         if (!powered(lab) || !lab.connected("K1.nc1", "K1.coil1") || lab.count("clicked", "K1", 1) < 40) return false;
         const y = lab.stats("glow:D2", 0.5);
         const g = lab.stats("glow:D3", 0.5);
         return !!y && !!g && y.mean > 0.15 && y.mean < 0.85 && g.mean > 0.15 && g.mean < 0.85;
       },
-      hints: ["One jumper from the NC strip (row 16) to the coil's strip (row 11) does it.", "If nothing happens, check the coil's other pin still reaches the minus rail."],
+      hints: ["One jumper from NC (row 16) to the coil (row 11).", "Nothing? Check the coil's other pin reaches the minus rail."],
       highlight: ["S1", "pin:K1.nc1", "pin:K1.coil1"],
-      success: "It buzzes! Each time it pulls in, it cuts its own power. Each time it lets go, the power returns.",
-      notice: "Both LEDs look half lit: they swap too fast to see. Turn S2 off soon: the contacts are sparking and wearing.",
+      success: "It buzzes! Pulling in cuts its own power; letting go restores it.",
+      notice: "Both LEDs look half lit. Switch off soon: the contacts are wearing.",
       mascot: { success: "It's alive! And slightly annoying." },
     },
     {
       id: "tame-it",
-      prompt: "Add the **1,000 µF** capacitor across the coil: + leg on the coil's strip (row 11), striped leg to the minus rail. Turn on S2.",
+      prompt: "Add the **1,000 µF** capacitor across the coil. Power on.",
       goal: (lab) => powered(lab) && capAcross(lab, 1000e-6) && ticking(lab, 3, 0.5, 1.4),
-      hints: ["The stripe on the capacitor's sleeve marks its negative leg.", "The longer leg is positive. Bend the legs to reach from row 11 to the minus rail."],
+      hints: ["The stripe on the capacitor's sleeve marks its negative leg.", "Long leg in row 11, striped leg bent to the minus rail."],
       highlight: ["pin:K1.coil1"],
-      success: "Tick, tock. The capacitor keeps the coil powered after the contact opens, so the relay stays in for most of a second.",
+      success: "Tick, tock. The capacitor holds the relay in for nearly a second.",
     },
     {
       id: "soften-the-surge",
-      prompt: "Every time NC closes, the empty capacitor gulps a big surge through the contacts. Put the **100 Ω** resistor between NC and the coil to soften it.",
+      prompt: "Soften NC's surge: put the **100 Ω** between NC and the coil.",
       goal: (lab) =>
         powered(lab) &&
         capAcross(lab, 1000e-6) &&
@@ -97,9 +97,9 @@ export default defineLab({
         ticking(lab, 3, 0.4, 1.3) &&
         lab.periods("glow:D2", 0.3, 4).length >= 2 &&
         lab.timeAbove("glow:D2", 0.3, 3) >= 0.1,
-      hints: ["NC to R4, R4 to the coil's strip. Then remove the direct jumper."],
+      hints: ["NC to R4, R4 to the coil. Remove the direct jumper."],
       highlight: ["pin:K1.nc1", "pin:K1.coil1"],
-      success: "Gentler on the contacts, and now the yellow LED gets a real blink while the capacitor refills.",
+      success: "Gentler on the contacts, and the yellow LED really blinks now.",
     },
     {
       id: "faster-ticks",

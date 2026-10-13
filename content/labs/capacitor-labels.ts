@@ -46,7 +46,7 @@ export default defineLab({
   tasks: [
     {
       id: "ceramic-blocks",
-      prompt: "Plug the **104** ceramic into station A's socket (rows 20 and 22). Watch the meter. Then turn it round and try again.",
+      prompt: "Plug the **104** ceramic into socket A. Then turn it round.",
       goal: (lab) => {
         const m = lab.memory as { fwd?: boolean; rev?: boolean };
         const inA = socketA(lab, "CA");
@@ -54,13 +54,13 @@ export default defineLab({
         if (lab.heldFor(1, inA && current(lab) < 2e-6, fwd ? "f" : "r")) m[fwd ? "fwd" : "rev"] = true;
         return !!m.fwd && !!m.rev;
       },
-      hints: ["The meter may twitch at the start. Watch what it settles to.", "Rotate it (select it, then Rotate) or drag it out and back in the other way round."],
+      hints: ["The meter may twitch at the start. Watch what it settles to.", "Socket A is rows 20 and 22. Rotate it, or replug it."],
       highlight: ["hole:d20", "hole:d22"],
-      success: "A blip, then nothing. Once it's charged, no steady current gets through. And ceramics don't care which way round they go.",
+      success: "A blip, then nothing: charged, it blocks. Ceramics fit either way.",
     },
     {
       id: "electrolytic-right-way",
-      prompt: "Now plug in the **100 µF, 16 V** electrolytic the right way round: stripe toward ground (row 22).",
+      prompt: "Now the **100 µF** electrolytic, stripe toward ground (row 22).",
       goal: (lab) => {
         const m = lab.memory as { at?: number; peak?: number };
         if (!socketA(lab, "CB", "forward")) {
@@ -73,23 +73,23 @@ export default defineLab({
         return m.peak > 0.5e-3 && current(lab) < 20e-6 && lab.t - m.at <= 10;
       },
       hints: ["The stripe of minus signs marks the leg that goes toward ground.", "Take the ceramic out first."],
-      success: "Bigger capacitor, bigger gulp, slower settle. Then it blocks too, apart from a tiny leak.",
+      success: "Bigger gulp, slower settle. Then it blocks, apart from a tiny leak.",
     },
     {
       id: "electrolytic-backwards",
       prompt: "Flip the electrolytic so the stripe faces the positive side (row 20).",
       goal: (lab) => socketA(lab, "CB") && !socketA(lab, "CB", "forward") && lab.event("reversed", "CB") && lab.heldFor(8, socketA(lab, "CB") && current(lab) > 100e-6),
       hints: ["Just watch the meter. Does it settle this time?", "Give it eight seconds."],
-      success: "It never settles. Backwards, the insulating layer breaks down and the capacitor leaks like a sieve.",
-      notice: "Take it out soon: backwards, it is slowly cooking, and left there it fails for good.",
+      success: "It never settles. Backwards, its insulating layer breaks down.",
+      notice: "Take it out soon: backwards, it slowly cooks.",
     },
     {
       id: "blast-box",
-      prompt: "Optional, and it's loud. Put the **6.3 V** capacitor in the blast corner's socket (rows 32 and 34) backwards, and slide S1 on.",
+      prompt: "Optional, loud: plug the **6.3 V** cap in backwards, then slide S1.",
       goal: (lab) => lab.died("CC") && lab.events.some((e) => e.type === "died" && e.partId === "CC" && e.data?.["cause"] === "reverse"),
       hints: ["There's no resistor in the blast corner. That's the point.", "Backwards: the stripe to row 32, the long leg to row 34."],
-      success: "It heated, bulged and vented. That's why polarity and voltage ratings matter. It's in the Hall of Fried Parts now.",
-      notice: "Real ones do this too, sometimes with a bang and a smelly puff.",
+      success: "Heated, bulged, vented. Polarity and voltage ratings matter.",
+      notice: "Real ones do this too, with a bang and a smell.",
       bonus: true,
     },
   ],

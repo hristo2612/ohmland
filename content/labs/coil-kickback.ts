@@ -73,37 +73,37 @@ export default defineLab({
   tasks: [
     {
       id: "watch-the-spike",
-      prompt: "Press **Single shot** on the scope, then press and release S1. Watch the scope at the moment you let go.",
+      prompt: "Press **Single shot**, then press and release S1.",
       goal: (lab) => lab.events.some((e) => e.type === "spark" && e.partId === "S1" && Number(e.data?.["volts"] ?? 0) >= 59),
-      hints: ["The single shot waits for you to let go of the button, then records 2 ms of it.", "The spike lasts only a few microseconds. Look at the far left of the screen."],
+      hints: ["Single shot waits for you to let go, then records 2 ms.", "The spike lasts microseconds: look at the far left."],
       highlight: ["S1"],
-      success: "Hundreds of volts, pointing the wrong way, from a 9 V battery. And a spark jumped across the button's contacts.",
+      success: "Hundreds of volts, backwards, from a 9 V battery. And a spark!",
       notice: "Each spark wears the contacts a little. Real switches age this way.",
     },
     {
       id: "led-catcher",
-      prompt: "Put the red LED across the coil, backwards: its **short leg** (cathode) on the coil's top end, its **long leg** (anode) on the coil's other end. Press and release again.",
+      prompt: "Put the red LED across the coil, backwards. Press and release again.",
       goal: (lab) =>
         cleanRelease(lab, across(lab, "D2") && !lab.died("D2"), (lab.part("D2")?.glow ?? 0) < 0.05, (since) =>
           lab.history("glow:D2", lab.t - since + 0.02).some(([, g]) => g > 0.1),
         ),
-      hints: ["Backwards means the long leg goes to the end that's at minus when the button is pressed.", "Watch the LED at the moment you let go."],
+      hints: ["Short leg on the coil's top end, long leg on the other.", "Watch the LED at the moment you let go."],
       highlight: ["pin:K1.coil1", "pin:K1.coil2"],
-      success: "The LED flashes when you let go, lit by current the coil pushed after the battery left. Your spike is gone.",
+      success: "The LED flashes on release, lit by the coil's push. Spike gone.",
       notice: "Energy stored in the coil's magnetic field lit the LED.",
       mascot: { success: "The LED glowed with leftover magnetism. Spooky, right?" },
     },
     {
       id: "diode-clamp",
-      prompt: "Swap the LED for the 1N4001 diode, its **band** (cathode) toward the coil's top end. Press and release again.",
+      prompt: "Swap the LED for the diode, **band** toward the coil's top end.",
       goal: (lab) => {
         if (lab.part("D3")?.health !== "ok") return false;
         const clicks = lab.events.filter((e) => e.type === "clicked" && e.partId === "K1");
         return cleanRelease(lab, across(lab, "D3") && !across(lab, "D2"), true, (since) => clicks.some((e) => e.data?.["to"] === "no") && clicks.some((e) => e.data?.["to"] === "nc" && e.t >= since - 0.05));
       },
-      hints: ["The band marks the cathode. It goes to the side that's positive while the button is pressed."],
+      hints: ["The band marks the cathode: the side that's plus while pressed."],
       highlight: ["pin:K1.coil1"],
-      success: "Clamped to under a volt. This diode lives across almost every relay coil in the world.",
+      success: "Clamped under a volt. Nearly every relay coil wears this diode.",
       mascot: { success: "Backwards diode, happy coil." },
     },
   ],

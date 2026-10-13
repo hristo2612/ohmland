@@ -83,7 +83,7 @@ export default defineLab({
   tasks: [
     {
       id: "bases-up",
-      prompt: "Add a 68 kΩ resistor from the + rail to each transistor's base (the middle leg). Then slide the power switch on.",
+      prompt: "Feed each base from the + rail through 68 kΩ. Power on.",
       goal: (lab) => {
         if (!lab.closed("S1") || crossed(lab)) return false;
         const a = lab.stats("glow:D1", 1);
@@ -91,8 +91,8 @@ export default defineLab({
         return !!a && !!b && a.min > 0.5 && b.min > 0.5 && a.span < 0.05 && b.span < 0.05;
       },
       hints: [
-        "Q1's base is in row 11 on the near half; Q2's base is in row 11 on the far half. Each needs its own 68 kΩ from the + rail beside it.",
-        "Then slide the switch at the left end of the board toward the board's middle.",
+        "Both bases are in row 11: one near half, one far half.",
+        "The power switch is at the board's left end.",
       ],
       highlight: ["pin:Q1.b", "pin:Q2.b", "S1"],
       success: "Two independent switches, both on. Nothing interesting yet. Let's make them talk.",
@@ -100,31 +100,31 @@ export default defineLab({
     {
       id: "cross-couple",
       prompt:
-        "Add a 10 µF capacitor from Q1's collector to Q2's base, and another from Q2's collector to Q1's base. The **+ leg goes to the collector**, the striped leg to the base.",
+        "Add two 10 µF caps: each collector to the other base.",
       goal: (lab) => lab.closed("S1") && crossed(lab, 10e-6) && takingTurns(lab, 0.6, 1.3),
       hints: [
-        "Each capacitor crosses the channel: a collector on one side, the other transistor's base on the other.",
-        "Stripe (negative) toward the base. Bend the legs to reach: put the + leg in row 12 on one half and the stripe in row 11 on the other half.",
+        "Each cap crosses the channel: + leg on a collector, row 12.",
+        "Stripe on the other transistor's base, row 11, far side.",
       ],
       highlight: ["pin:Q1.c", "pin:Q2.b", "pin:Q2.c", "pin:Q1.b"],
       success: "They take turns! No moving parts, no wear, no clicks.",
-      notice: "Look at the period: just under a second. 1.4 × 68 kΩ × 10 µF says 0.95 s, and real flashers run a little fast.",
+      notice: "Just under a second. 1.4 × 68 kΩ × 10 µF says 0.95 s.",
     },
     {
       id: "look-inside",
-      prompt: "Watch the scope. The yellow trace is Q2's base, the blue one Q1's collector. How low does Q2's base go?",
+      prompt: "Watch the scope: yellow is Q2's base. How low does it go?",
       goal: (lab) => crossed(lab) && (lab.stats("volts:Q2.b", 6)?.min ?? 0) < -4,
-      hints: ["Watch the yellow trace just after the blue one drops. The scope's 0 V line is the - rail."],
-      success: "Q2's base dives far below zero, then climbs back along a familiar curve. When it reaches about 0.7 V, Q2 switches on.",
-      notice: "Below zero is fine: the capacitor still holds its charge while its other plate is yanked down.",
+      hints: ["Watch yellow just after blue drops. 0 V is the minus rail."],
+      success: "Q2's base dives below zero, climbs back, and at 0.7 V, Q2 switches.",
+      notice: "Below zero is fine: the capacitor keeps its charge.",
       mascot: { success: "Below zero volts. Don't worry, it's relative." },
     },
     {
       id: "slow-it-down",
       prompt: "Swap both capacitors for 22 µF. Predict the new period, then check.",
       goal: (lab) => lab.closed("S1") && crossed(lab, 22e-6) && takingTurns(lab, 1.3, 2.9),
-      hints: ["Same places, same way round: the + leg to a collector, the stripe to the other base.", "Give it a few blinks to settle."],
-      success: "About twice the capacitance, about twice the period. Same rule as every RC circuit.",
+      hints: ["Same places, same way round: + to a collector.", "Give it a few blinks to settle."],
+      success: "Twice the capacitance, twice the period. The RC rule again.",
     },
   ],
   solution: [

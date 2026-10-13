@@ -50,7 +50,7 @@ export default defineLab({
   tasks: [
     {
       id: "fill",
-      prompt: "Hold the **fill** button (red) for five seconds. Watch the LED, the meter and the logger.",
+      prompt: "Hold the red **fill** button for five seconds. Watch the LED.",
       goal: (lab) => {
         // From dark, held down until settled: the glow took over half a second to climb from 10% to 90% of its final
         // value, and C1 settled between 5.0 and 5.8 V.
@@ -67,9 +67,9 @@ export default defineLab({
         const t90 = h.find(([, g]) => g >= 0.9 * end)?.[0];
         return t10 !== undefined && t90 !== undefined && t90 - t10 > 0.5;
       },
-      hints: ["Keep holding. It's slower than you think.", "Press and keep the pointer down on the red button, or select it and hold Space."],
+      hints: ["Keep holding. It's slower than you think.", "Keep the pointer down on it, or select it and hold Space."],
       highlight: ["S1"],
-      success: "The light crept up as the capacitor filled. Notice the meter: fast at first, then slower and slower.",
+      success: "The light crept up. The meter rose fast, then slower and slower.",
     },
     {
       id: "fade",
@@ -87,7 +87,7 @@ export default defineLab({
         const dt = lab.t - m.let;
         return glow(lab) < 0.1 && dt >= 1 && dt <= 8;
       },
-      hints: ["Fill it until the LED is bright, then let go and keep watching."],
+      hints: ["Fill until the LED is bright, then let go and watch."],
       success: "The capacitor is powering the LED by itself, and running out gently.",
     },
     {
@@ -113,7 +113,7 @@ export default defineLab({
     {
       id: "lift-a-leg",
       prompt:
-        "Pull out the black jumper that joins the capacitor's striped leg (row 13) to the minus rail: that lifts its minus plate off the circuit. Fill and let go again.",
+        "Pull the black jumper at row 13. Fill, then let go.",
       goal: (lab) => {
         const m = lab.memory as { let?: number };
         if (grounded(lab)) return false;
@@ -125,10 +125,10 @@ export default defineLab({
         if (m.let === undefined) return false;
         return glow(lab) < 0.1 && lab.t - m.let <= 0.2;
       },
-      hints: ["Delete the jumper from row 13 to the minus rail (select it, then Delete).", "Then hold the fill button and let go."],
+      hints: ["It joins the capacitor's stripe to minus. Select it, then Delete.", "Then hold the fill button and let go."],
       highlight: ["W2"],
-      success: "No fade at all. A capacitor with one plate disconnected can't hold anything.",
-      notice: "The charge on one plate needs a matching opposite charge on the other, and that needs a path.",
+      success: "No fade. With one plate cut off, it can't hold anything.",
+      notice: "Charge on one plate needs a matching charge on the other.",
       mascot: { success: "No plate, no party." },
     },
   ],

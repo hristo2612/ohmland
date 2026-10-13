@@ -60,20 +60,20 @@ export default defineLab({
       id: "flicker",
       prompt: "Turn on the **auto-tapper** for S1. Watch D1.",
       goal: (lab) => lab.tapping("S1") && !smoothing(lab) && (lab.stats("glow:D1", 1)?.span ?? 0) > 0.6,
-      hints: ["The tapper is in the instruments: it presses S1 four times a second for you."],
+      hints: ["The tapper, in the instruments, presses S1 four times a second."],
       success: "On, off, on, off. That's what a choppy supply looks like.",
     },
     {
       id: "smooth-it",
-      prompt: "Add the **470 µF** capacitor from R1's output (row 11) to the minus rail, stripe to minus. Keep the tapper going.",
+      prompt: "Add the **470 µF** from row 11 to minus. Keep tapping.",
       goal: (lab) => {
         const s = lab.stats("glow:D1", 2);
         return lab.tapping("S1") && smoothing(lab, 470e-6) && !!s && s.span < 0.25 && s.mean > 0.2;
       },
-      hints: ["The capacitor goes across the supply, not in line with it.", "+ leg in row 11, striped leg bent down to the minus rail."],
+      hints: ["The capacitor goes across the supply, not in line with it.", "Long leg in row 11, stripe bent to the minus rail."],
       highlight: ["pin:R1.b"],
-      success: "Steady light from a stuttering source. The capacitor fills during each tap and feeds the LED in between.",
-      notice: "Try the 47 µF too: a small tank empties fast, so the flicker comes back.",
+      success: "Steady light from a stuttering source: it fills on taps, feeds between.",
+      notice: "Try the 47 µF: a small tank empties fast.",
     },
     {
       id: "one-flash",
@@ -91,11 +91,11 @@ export default defineLab({
       hints: ["Keep holding, and keep watching D2."],
       highlight: ["S2"],
       success: "A flash, then darkness, even though you're still pressing.",
-      notice: "On the scope, both of C2's legs jump up together at the press, then the striped leg sags back to zero.",
+      notice: "On the scope, C2's legs jump up together, then the stripe sags.",
     },
     {
       id: "no-encore",
-      prompt: "Let go and press S2 again. Then press **reset** (S3) and try once more.",
+      prompt: "Press S2 again. Then press **reset** (S3) and try once more.",
       goal: (lab) => {
         const m = lab.memory as { phase?: number; at?: number; peak?: number };
         const press = lab.closed("S2");
@@ -119,7 +119,7 @@ export default defineLab({
       },
       hints: ["What's left in C2 after the first press?", "The reset button empties C2 through R4."],
       highlight: ["S3"],
-      success: "The capacitor only passes a change. Already charged, there's no change left to pass, until you empty it.",
+      success: "A capacitor passes only a change. Charged, it has none left.",
     },
   ],
   solution: [

@@ -106,7 +106,7 @@ export default defineLab({
   tasks: [
     {
       id: "two-voices",
-      prompt: "Hold the siren button. You should see a blink and hear a steady tone.",
+      prompt: "Hold the siren button. A blink, and a steady tone.",
       goal: (lab) => {
         if (!held(lab) || lab.benchPart("R8") || lab.blinkPeriod("D1") === null) return false;
         const f = tones(lab, 2);
@@ -120,22 +120,22 @@ export default defineLab({
     },
     {
       id: "bridge",
-      prompt: "Connect **R8** from Q3's base (row 21, near half) to Q1's collector, and **R9** from Q4's base (row 21, far half) to Q1's collector. Q1's collector comes out at row 16.",
+      prompt: "Bridge them: **R8** and **R9** from the fast bases to Q1's collector.",
       goal: (lab) => {
         if (!held(lab) || !bridged(lab, "Q1.c")) return false;
         const r = range(lab, 3);
         const s = swing(lab, 3);
         return r >= 1.15 && r <= 1.8 && s !== null && s >= 0.6 && s <= 1.4;
       },
-      hints: ["Both resistors meet at Q1's collector strip, row 16.", "Bend R9 across the channel from far row 21 to near row 16."],
+      hints: ["Both resistors meet at Q1's collector strip, row 16.", "Both fast bases are in row 21; Q1's collector is row 16."],
       highlight: ["hole:c21", "hole:h21", "hole:c16"],
-      success: "Nee-naw! When Q1 is off, its high collector pushes extra current into the fast bases: higher pitch. When Q1 is on, it pulls them down: lower pitch.",
-      notice: "The slow LED now glows faintly in its off half: a little current flows into the bridge. Small side effects like this are normal when circuits are joined.",
+      success: "Nee-naw! Q1's collector pushes the pitch up, then pulls it down.",
+      notice: "The slow LED glows faintly when off: the bridge borrows current.",
     },
     {
       id: "wail",
       prompt:
-        "Make it glide: move the joined end of R8 and R9 to the empty row 17, connect row 17 to Q1's collector (row 16) through **R10**, and put **C5** from row 17 to the minus rail, stripe to minus.",
+        "Make it glide: put **R10** and **C5** between Q1 and the bridge.",
       goal: (lab) => {
         if (!held(lab) || !bridged(lab, "R10.a") && !bridged(lab, "R10.b")) return false;
         const j = lab.joins("R10", "Q1.c", "R8.a") || lab.joins("R10", "Q1.c", "R8.b");
@@ -147,23 +147,23 @@ export default defineLab({
         for (let k = 1; k < h.length; k++) if (Math.abs(h[k]![1] - h[k - 1]![1]) > 0.05 * h[k - 1]![1]) return false;
         return true;
       },
-      hints: ["R10 and C5 make an RC filter, like the smoothing in the capacitor module.", "R8 and R9 keep their base ends; only their other ends move to row 17."],
+      hints: ["Move R8 and R9's joined ends to row 17.", "R10 from row 17 to row 16; C5 from row 17 to minus."],
       highlight: ["hole:c17", "hole:d17"],
-      success: "Now it swoops up and down. The capacitor turns sudden steps into slopes.",
+      success: "Now it swoops. The capacitor turns steps into slopes.",
     },
     {
       id: "trill",
-      prompt: "Bonus: swap the slow oscillator's 10 µF capacitors (C1 and C2) for the **1 µF** ceramics, and take C5 out so the fast steps get through.",
+      prompt: "Bonus: swap C1 and C2 for **1 µF** ceramics. Take C5 out.",
       goal: (lab) => {
         if (!held(lab)) return false;
         const s = swing(lab, 2);
         return s !== null && 1 / s >= 6 && 1 / s <= 16 && range(lab, 2) > 1.08;
       },
       hints: [
-        "Same places as C1 and C2: each from a collector (row 12) across the channel to the other base (row 11).",
-        "A filter that smooths a slow swing also smooths away a fast one. Without C5, R10 just passes the steps on.",
+        "Same places: each from a collector (row 12) to the other base.",
+        "C5 smooths fast swings away too. Without it, the steps pass.",
       ],
-      success: "A frantic trill. Every knob you've learned in this unit is now a sound design tool.",
+      success: "A frantic trill. Every part in this unit is now a sound knob.",
       bonus: true,
     },
   ],
