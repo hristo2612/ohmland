@@ -96,6 +96,12 @@ export class Engine implements Ctx {
   private needBreak = true;
   private hNext = H_BREAK;
   hmax = DEFAULT_MAX_STEP;
+  /**
+   * Time-lapse: the scheduler multiplies the largest step by this when running much faster than real time. The
+   * models stay stable at any step (thermal, battery and fuse states are integrated exactly or sub-stepped, relay
+   * timers are breakpoints, reactive parts are error-controlled), so this only trades away detail nobody can see.
+   */
+  stepScale = 1;
   private gshunt = 0;
   /** While true the shunt pulls each node towards xAnchor instead of ground (pseudo-transient continuation). */
   private anchored = false;
@@ -392,7 +398,7 @@ export class Engine implements Ctx {
     const limit = this.nextLimit(tEnd);
     let h = isBreak ? Math.min(this.hNext, Math.max(H_BREAK, this.hRestart)) : this.hNext;
     this.hRestart = 0;
-    h = Math.min(h, this.hmax);
+    h = Math.min(h, this.hmax * this.stepScale);
     const room = limit - this.t;
     if (room <= 0) return;
     if (!(h > 0)) h = H_BREAK;
