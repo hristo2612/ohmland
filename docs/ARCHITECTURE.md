@@ -227,11 +227,13 @@ Derived, never stored:
   `seed = seedFrom(first lesson id, its at)` (a fixed seed before any lesson). Pieces and landmarks pass through as the
   content names them; ids the isle does not know fall back to its planner.
 
-Achievements are a registry in `progress/achievements.ts`: `{ id, title, description, icon, xp, hidden?, check }`,
-where `check({ state, outline, events })` is a pure predicate over the learner record, the course outline and the
-latest lab events (`fried`, `task`, `lesson-complete`). The store evaluates them after a lesson completes and after
-every fried part, and stores only `{ at }` per unlocked id. Fried parts are recorded with
-`recordFried(kind, label, lessonId)`, which the lab runtime calls when the simulator reports a dead part.
+Achievements are a registry in `progress/achievements.ts`: `{ id, title, description, icon, xp, hidden?, labEvent?,
+check }`, where `check({ state, outline, events })` is a pure predicate over the learner record, the course outline and
+the latest lab events (`fried`, `task`, `trigger`, `lesson-complete`). The store evaluates them after a lesson
+completes, after every fried part and on every lab event, and stores only `{ at }` per unlocked id. Fried parts are recorded with
+`recordFried(kind, label, lessonId, { silent? })`, which the lab runtime calls when the simulator reports a dead part.
+Labs also send `labEvent({ type: "task" | "trigger", ... })`: an achievement with `labEvent: "<name>"` unlocks when
+a lab fires that trigger (docs/LABS.md, Achievements).
 
 Merge on sign-in (device + cloud, `progress/merge.ts`, also used by "Import progress"): earliest `at` per lesson,
 union of tasks, max `firstTry`, max `version` and `items`, newest in-progress entry per lesson, union of achievements
@@ -382,39 +384,75 @@ React Three Fiber components and logic for the lab bench:
 
 `BenchState` is plain serialisable data (saved for sandbox builds and lab checkpoints).
 
+`@ohmland/bench/core` exports the pure half (BenchState ops, layout, `benchToNetlist`, the store) without React Three
+Fiber or three.js, for lab runtimes, solution replays and tests. `benchToNetlist` gives each crocodile lead 0.15 Ω
+(`leadOhms`, 0 merges the clips into one node). `<Bench locked>` keeps parts in place; `<Bench store>` without a
+`snapshot` prop leaves the snapshot to whoever owns the store (each part model subscribes to its own state).
+
 ## Labs (`content/labs/*.ts`)
 
+The authoring guide is `docs/LABS.md`; the types are in `apps/web/src/lab/define.ts` (imported by labs as
+`@ohmland/lab`, a Vite alias and a tsconfig path).
+
 ```ts
-import { defineLab } from "@ohmland/lab";   // apps/web/src/lab/define.ts (a Vite alias and a tsconfig path)
+import { defineLab } from "@ohmland/lab";
 
 export default defineLab({
-  id: "meet-the-meter",
-  title: "Meet the meter",
+  id: "first-glow",
+  title: "Your first glow",
   bench: {
-    board: "none" | "breadboard",
-    parts: [{ id: "B1", kind: "battery", at: "rails", props: { emf: 9 }, locked: true }],   // initially placed
-    tray: [{ kind: "resistor", props: { ohms: 470 }, count: 2 }],                            // available parts
-    instruments: ["meter"],
+    board: "none",                      // "none" | "half" | "full" ("breadboard" = "full")
+    parts: [{ id: "B1", kind: "battery", at: "desk:-74,6", params: { emf: 9.4 }, locked: true }],   // bench kinds, typed params
+    leads: ["B1.pos -> S1.com"],        // crocodile leads; wires: ["a9 -> rail-:9"] for jumpers
+    tray: [{ kind: "lead", params: { color: "red" }, count: 1 }, { id: "D2", kind: "led", params: { color: "red" } }],
+    instruments: ["meter", { kind: "scope", traces: [{ label: "C1", volts: "C1.pos" }] }],
+    controls: [], nodes: {},            // sliders bound to sim inputs; named nodes
   },
-  tasks: [
-    { id: "measure-battery", prompt: "markdown", goal: (lab) => ..., hints: ["...", "..."], success: "markdown", optional?: true },
-  ],
-  solution: [{ do: "place", part: "R1", kind: "resistor", at: "a12", props: { ohms: 470 } }, { do: "probe", red: "R1.a", black: "R1.b", mode: "dcv" }],
+  mascot: { start, hint, success, fried, exit },
+  fried: { led: "Red LED, no resistor on 9 V" },                    // Hall labels by part id or kind
+  triggers: { lawmaker: (lab) => ... },                             // achievement triggers, checked every snapshot
+  tasks: [{ id, prompt, goal: (lab) => boolean, hints, success, notice?, bonus?, mascot?, highlight?, note?, trigger? }],
+  solution: [{ do: "lead", from: "B1.pos", to: "R1.a" }, { do: "check", task: "build-loop" }],
 });
 ```
 
-`kind` and `mode` come from the `@ohmland/sim` netlist types. `at` anchors and the `BenchAction` shapes (`place`,
-`move`, `remove`, `wire`, `set`, `probe`, `wait`) are deliberately loose until `packages/bench` owns `BenchState`.
-`defineLab` checks the cheap invariants (kebab-case id, unique task and part ids) when the lab loads.
+Places (`at`) are shorthand: holes (`"e12"`, `"e5-e9"`, `"rail+:12"`), `"rails"` for a snap battery, desk spots
+(`"desk:x,z"` in mm). Attach points are `"R1.a"`, `"e12"`, `"W1.b"`, `"TL1.a"`, `"red"`. `defineLab` checks the
+cheap invariants (kebab-case id, unique task and part ids, checkpoints that name real tasks) when the lab loads. The
+first-draft form of the Unit 1 and 2 stubs (simulator kinds, `props`, `kind: "wire"` leads) still loads.
 
-`goal` receives a read-only `LabView`: bench state, latest snapshot, event log and meter state, plus helpers
-(`lab.part("D1")`, `lab.meterReads(9, { tol: 0.05 })`, `lab.isLit("D1")`, `lab.fried("led")`). `createLabView(...)`
-builds one from raw runtime state, so goals can be tested against canned snapshots. A lab is solvable by design: each
-lab ships a `solution` (bench actions) that a test replays.
+`goal` receives a read-only `LabView` (`createLabView(...)`, pure): the bench, the latest snapshot, the event log and
+recent history, the meter (mode, range, sockets, parsed value), the notebook, and helpers for the blueprint's checks
+(`isLit`, `closed`, `fried`, `died`, `event`, `count`, `volts`, `amps`, `connected`, `seriesLoop`, `loopOpen`,
+`across`, `inSeries`, `meterReads`, `heldFor`, `history`, `blinkPeriod`, `toneHz`, `relayClicks`, `logged`, `note`,
+`control`, `trigger`, per-task `memory`). Required tasks are checked in order, one at a time; bonus tasks all the
+time. Every lab ships a `solution` (bench actions with `check` points); `apps/web/src/lab/solutions.test.ts` replays
+each one headlessly (`replay.ts`: bench ops + the in-thread simulator) and fails when a required task is not done.
 
-The lesson's lab step lazy-loads `apps/web/src/lab/LabStep.tsx` and the lab module itself (`import.meta.glob`, one
-chunk per lab). Until the bench and simulator land, `LabStep` shows a preview panel with the lab's tasks and hints;
-dev builds add "Mark task done" and "Fry an LED" buttons to exercise task XP and the Hall of Fried Parts.
+Runtime (`apps/web/src/lab`):
+
+- `LabStepHost` (lesson player) lazy-loads `LabStep` and the lab module (`import.meta.glob`, one chunk per lab);
+  `LabStep` lazy-loads `BenchView`, the only module that imports three.js. `prefetch.ts` warms all three and spawns
+  the simulator worker on the learner's first tap on the step before the lab (or after 4 s), never during first load.
+- `LabRuntime` (`runtime.ts`) owns the bench store, the worker client and a `LabSession` (`session.ts`, pure: task
+  order, notebook, fried parts, triggers). Each committed bench change rebuilds the netlist and calls `sim.load`
+  (state carries over by part id); bench `input` actions go to `sim.setInput`; snapshots go to the bench store and
+  the session. Goals wait for the first snapshot of a new circuit before they run again.
+- Finished tasks are saved in the lesson answers (`tasks:<lab>`, task XP on completion) and sent to the store as a
+  `task` lab event; dead parts go to `recordFried(kind, label, lessonId, { silent: true })` with an in-lab card and
+  "Replace part" (`replace` input) or "Replace meter fuse" (`replaceFuse`); triggers go to `labEvent`.
+- Instruments panel: the meter readout (mirrors the LCD, dial and range settable), the scope (canvas, two traces of
+  history), sliders, the notebook and a connections panel (every clip and probe as selects: the keyboard path).
+- Sound: short synthesised cues and the speaker stream through an AudioWorklet (ScriptProcessor fallback), created
+  on the learner's first tap, silent when muted.
+- Layout: bench beside the panel on desktops; on phones the bench takes 55% and the panel is a bottom sheet. Quality
+  is automatic (low on phones, small or weak devices and software WebGL) with a toggle remembered in
+  `localStorage` (`ohmland:bench-quality`).
+- `window.ohmlandLab` (`project`, `pickAt`, `bench`, `status`, `part`, `meter`, `sim`) is a test and tutorial hook.
+
+The free-build bench (`/bench`, `Sandbox.tsx`) is the same runtime with no tasks: the tray comes from the parts bin
+(`sandbox-parts.ts`, a battery and three clip leads for everyone), the meter and scope come with their parts, builds
+save to `LearnerState.sandbox` (`saveBench`, `deleteBench`), and fried parts go to the Hall with no lesson.
 
 ## Island (`packages/isle`)
 
