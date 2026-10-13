@@ -1,0 +1,147 @@
+# Blueprint: docs/curriculum/unit-1.md, L8.
+id: led-burnout
+version: 1
+title: One LED, too much current
+summary: Shrink the resistor step by step until the LED gives up, then learn to read a part's limits.
+minutes: 10
+unlocks:
+  parts: []
+  isle: diode
+steps:
+  - type: hook
+    body: |
+      Your LED glows politely. What if you want it brighter? Less resistance should let more current through. But
+      every part has a limit, and LEDs are famously easy to push past theirs. The robot has a tray of smaller resistors
+      and a few spare LEDs. In real life, cooking an LED wastes a part. Here it earns a spot in the Hall of Fried
+      Parts. Go on, find the limit.
+    visual: { kind: part, part: led-red }
+    predict:
+      prompt: You swap the 1.5 kΩ resistor for a 15 Ω one. What happens?
+      options:
+        - Very bright, and it stays that way
+        - A bright flash, then darkness
+        - Nothing changes
+    mascot: Brighter is always better, right? Let's test that.
+
+  - type: lab
+    lab: led-burnout
+
+  - type: explain
+    cards:
+      - title: Current is the flow
+        body: |
+          Current is how much charge flows past a point each second, measured in amperes, or amps (A). LED currents are
+          small, so we use milliamps: 1 mA is a thousandth of an amp. Your LED drew about 5 mA with 1.5 kΩ, about
+          16 mA with 470 Ω, and nearly 50 mA with 150 Ω. Less resistance, more current, more light.
+      - title: What killed it
+        body: |
+          An LED turns some of its power into light and the rest into heat, all inside a speck of crystal about the
+          size of a grain of sand. Push too much current through and that speck overheats in a fraction of a second.
+          With 15 Ω, the current jumped to several hundred milliamps, many times the limit. The LED flashed and died.
+      - title: Reading the limits
+        body: |
+          Every part comes with a datasheet. Its **absolute maximum ratings** are lines you must never cross: for our
+          LED, a current of 50 mA. Its **typical values** describe normal use: 20 mA. Good designs stay well below the
+          maximum, so parts live for years. For a small indicator LED, 5 to 15 mA is plenty bright.
+        # widget (planned): datasheet-viewer. An original, generic LED datasheet; tap a term to see what it means.
+      - title: No healing
+        body: |
+          Damage is permanent. A burned-out LED stays dark even when you give it a safe current again, and a damaged
+          one may glow weakly forever. That's why designers work out the current before they power anything up. In
+          Ohmland, fried parts go to the Hall. In real life, they go in the bin.
+
+  - type: quiz
+    items:
+      - id: predict-47
+        type: choice
+        prompt: A red LED runs from 9 V through 470 Ω. Someone swaps in 47 Ω. What happens?
+        options:
+          - text: A bright flash, then the LED dies or is damaged
+            correct: true
+            why: The current jumps to roughly 150 mA, about three times the LED's 50 mA limit.
+          - text: Slightly brighter, nothing else
+            why: A tenth of the resistance means roughly ten times the current, far too much.
+          - text: It gets dimmer
+            why: Less resistance means more current, not less.
+        explain: Cutting the resistance by ten raises the current about tenfold. That is well past the limit.
+
+      - id: design-current
+        type: choice
+        prompt: "The datasheet says: typical 20 mA, absolute maximum 50 mA. Which current is the best design choice for an indicator light?"
+        options:
+          - text: 15 mA
+            correct: true
+            why: Bright enough, and comfortably below both the typical and maximum values.
+          - text: 45 mA
+            why: Technically allowed, but so close to the limit that the LED runs hot and wears out sooner.
+          - text: 50 mA
+            why: That is the absolute limit itself, with no safety margin at all.
+          - text: 60 mA
+            why: Over the absolute maximum. The LED will be damaged.
+        explain: Design around typical values, well under the absolute maximum.
+
+      - id: a-to-ma
+        type: numeric
+        prompt: 0.015 A is how many milliamps?
+        answer: 15
+        unit: mA
+        tolerance: 0
+        hint: Move the decimal point three places right.
+        explain: "Multiply by 1,000 to go from amps to milliamps: 0.015 A is 15 mA."
+
+      - id: dead-reuse
+        type: choice
+        prompt: An LED burned out on a tiny resistor. You put it back with 1.5 kΩ. What happens?
+        options:
+          - text: It stays dark
+            correct: true
+            why: The damage is permanent. A safe current can't repair it.
+          - text: It glows normally
+            why: Burned-out LEDs don't recover.
+          - text: It glows extra bright
+            why: A dead LED can't glow at all, let alone brighter.
+        explain: Overheating destroys the LED's crystal. Damage doesn't undo itself.
+
+      - id: brightest-survivor
+        type: choice
+        prompt: "On a 9 V battery, which resistor gives the brightest LED that still survives: 1.5 kΩ, 470 Ω, 150 Ω or 15 Ω?"
+        options:
+          - text: 150 Ω
+            correct: true
+            why: About 47 mA, just under the 50 mA limit. It survives, but with almost no margin.
+          - text: 470 Ω
+            why: It survives comfortably, but it's not the brightest. It is the sensible everyday choice.
+          - text: 15 Ω
+            why: That one destroys the LED.
+          - text: 1.5 kΩ
+            why: The safest, and the dimmest.
+        explain: 150 Ω is the brightest survivor, but 470 Ω is the wise choice for a light that should last.
+
+      - id: abs-max
+        type: choice
+        prompt: What does absolute maximum mean on a datasheet?
+        options:
+          - text: A limit the part must never exceed, even briefly
+            correct: true
+            why: Crossing it can damage the part at once or shorten its life.
+          - text: The best value to design for
+            why: Designs aim for typical values, well below the maximum.
+          - text: The value printed on the part
+            why: Parts rarely print their limits. You find them in the datasheet.
+        explain: Absolute maximums are hard limits. Typical values are what you design for.
+
+  - type: wrap
+    rules:
+      - Less resistance means more current.
+      - Every part has an absolute maximum. Never cross it.
+      - Design for typical values, well below the limit.
+      - Burned-out parts don't heal.
+    realWorld:
+      parts:
+        - Red LEDs (have spares)
+        - "Resistors: 1.5 kΩ, 470 Ω, 150 Ω, 15 Ω"
+        - A 9 V battery
+        - Clip leads
+      safety:
+        - "Burning out an LED on a 9 V battery is safe, but the 15 Ω resistor heats up fast: let it cool before touching."
+        - Keep your face back from any part you are overloading.

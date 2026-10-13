@@ -1,0 +1,134 @@
+# Blueprint: docs/curriculum/unit-1.md, L1.
+id: welcome-to-the-bench
+version: 1
+title: Welcome to the bench
+summary: Light your first LED with a switch and learn that current needs a complete loop.
+minutes: 8
+unlocks:
+  parts: [battery-9v, alligator-clips]
+  isle: switch
+steps:
+  - type: hook
+    body: |
+      You step off the cable bridge onto a bare island. It looks like a giant circuit board: flat green land, copper
+      paths, nothing built yet. A small robot rolls up. Its LED face flickers, then fades. It points at a workbench
+      with a battery, a switch, a resistor and a tiny light. Everything here runs on electricity, and right now almost
+      nothing works. Let's change that, one experiment at a time.
+    visual: { kind: none }
+    predict:
+      prompt: The battery, switch, resistor and light are joined in one loop. If you unclip a single wire, far away from the light, what happens to the light?
+      options:
+        - It stays on
+        - It gets dimmer
+        - It goes out
+    mascot: Welcome! My face runs on fumes. Let's get this bench working.
+
+  - type: lab
+    lab: welcome-to-the-bench
+
+  - type: explain
+    cards:
+      - title: Electricity in one minute
+        body: |
+          Everything is made of atoms, and atoms contain tiny charged particles called electrons. In a metal wire, some
+          electrons are free to drift. A battery pushes them around a path. That steady movement of charge is called
+          **current**. The push that drives it is called **voltage**. Anything that makes the flow harder is
+          **resistance**. Current, voltage and resistance: those three words carry this whole unit.
+        # widget (planned): flow-dots. Dots drift around the bench loop at a speed tied to the sim current, and stop
+        # when the loop opens.
+      - title: No loop, no flow
+        body: |
+          Current only flows around a complete loop: out of the battery, through the parts and back into the battery.
+          A loop like that is called a **circuit**. Break it anywhere and the flow stops everywhere at once, not just
+          after the gap. A switch is simply a tidy way to open and close a gap on purpose.
+      - title: Which way does it flow?
+        body: |
+          By an old agreement, we draw current leaving the battery's plus (+) terminal and coming back to its minus (−)
+          terminal. This is called **conventional current**, and every diagram in Ohmland uses it. Inside a metal wire
+          the electrons actually drift the other way. The maths gives the same answers either way. You will meet those
+          electrons again in the battery module.
+      - title: Break things here, not there
+        body: |
+          On this bench you can burn out parts, blow fuses and drain batteries, and nothing real gets hurt. That is the
+          point: breaking things is a fast way to learn their limits. Small batteries, like the 9 V kind, are safe to
+          experiment with at home. Wall sockets are not. Mains electricity can kill, so it stays out of this course.
+
+  - type: quiz
+    items:
+      - id: open-switch
+        type: choice
+        prompt: A loop has a battery, a switch, a resistor and an LED. The switch is open. Which parts carry current?
+        options:
+          - text: None of them
+            correct: true
+            why: An open switch is a gap, and a loop with a gap carries no current anywhere.
+          - text: Only the battery
+            why: A battery with no complete loop has nowhere to push current.
+          - text: The parts between the battery's plus terminal and the switch
+            why: Current does not fill parts up to a gap. With a gap anywhere, the flow stops everywhere.
+        explain: Current needs a complete loop. Open the switch and the whole loop stops at once.
+
+      - id: which-word
+        type: match
+        prompt: Match each word to its meaning.
+        pairs:
+          - { left: current, right: the flow of charge }
+          - { left: voltage, right: the push that drives the flow }
+          - { left: resistance, right: how hard a path is to flow through }
+          - { left: circuit, right: a complete loop current can flow around }
+        explain: These four words come back in every lesson. Voltage pushes, current flows, resistance holds it back, and all of it happens in a circuit.
+
+      - id: label-touch
+        type: choice
+        prompt: Every part of Mia's circuit is connected, except one clip lead is clipped to the battery's plastic wrapper instead of its metal terminal. What does the LED do?
+        options:
+          - text: It stays dark
+            correct: true
+            why: Plastic does not conduct, so the loop is not complete.
+          - text: It lights normally
+            why: Touching the battery is not enough. The lead must touch the metal terminal.
+          - text: It glows dimly
+            why: A loop is either complete or it is not. Plastic leaves a gap.
+        hint: What is a battery's wrapper made of?
+        explain: A connection only counts when metal touches metal. Insulating plastic is a gap.
+
+      - id: direction
+        type: choice
+        prompt: In Ohmland's diagrams, which way do we draw current?
+        options:
+          - text: From the battery's plus terminal, through the circuit, back to minus
+            correct: true
+            why: That is conventional current, the agreed direction for diagrams.
+          - text: From minus to plus
+            why: That is the direction electrons drift in a wire. Diagrams use the conventional direction instead.
+          - text: Both ways at once
+            why: In a battery circuit, current flows one way around the loop.
+        explain: We use conventional current, plus to minus. Electrons drift the opposite way, and the maths works either way.
+
+      - id: safe-to-try
+        type: choice
+        prompt: Which of these is fine to experiment with at home?
+        options:
+          - text: A 9 V battery
+            correct: true
+            why: Its low voltage and modest current make it a safe learning tool.
+          - text: A wall socket
+            why: Mains electricity can kill. Never experiment with it.
+          - text: A car battery
+            why: It is only 12 V, but it can deliver hundreds of amps into a short circuit, enough to melt tools and cause burns.
+        explain: Low voltage alone is not the whole story. A 9 V battery is safe because it is low voltage and can only supply a small current.
+
+  - type: wrap
+    rules:
+      - Current only flows around a complete loop.
+      - Break the loop anywhere and the flow stops everywhere.
+      - Diagrams show current flowing from plus to minus.
+      - Break things in the simulator. Never touch mains.
+    realWorld:
+      parts:
+        - A 9 V alkaline battery
+        - A red LED
+        - A 1.5 kΩ resistor
+        - Four alligator clip leads
+      safety:
+        - Use a 9 V alkaline battery or smaller. Never connect anything to a wall socket.

@@ -1,9 +1,0 @@
-id: sample-first-light
-title: "Sample: First light"
-summary: Two sample lessons that show every kind of step and question.
-landmark:
-  id: sample-lighthouse
-  name: the Little Lighthouse
-lessons:
-  - sample-first-glow
-  - sample-read-a-resistor

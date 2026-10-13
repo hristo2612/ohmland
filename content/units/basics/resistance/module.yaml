@@ -1,0 +1,13 @@
+id: resistance
+title: Resistance
+summary: What resists current, how to measure it on everyday things, and how resistors announce their values.
+landmark:
+  id: resistor-hall
+  name: Resistor Hall
+  # The module schema has no fields for these yet (blueprint section 8):
+  # caption: A long hall striped in every colour of the code. You can read every value on its walls.
+  # mascot: Brown, black, red. That's a thousand ohms of hall.
+lessons:
+  - what-resists
+  - draw-a-resistor
+  - reading-the-stripes

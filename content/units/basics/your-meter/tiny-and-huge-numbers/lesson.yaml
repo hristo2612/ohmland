@@ -1,0 +1,138 @@
+# Blueprint: docs/curriculum/unit-1.md, L3.
+id: tiny-and-huge-numbers
+version: 1
+title: Tiny numbers, huge numbers
+summary: Learn the prefixes k, M, m and µ, choose meter ranges, and find out what OL means.
+minutes: 10
+unlocks:
+  parts: [battery-aa]
+  isle: header-fence
+steps:
+  - type: hook
+    body: |
+      Electronics numbers come in wild sizes. An LED sips a few thousandths of an amp. A resistor can be a million
+      ohms. Writing all those zeros gets old fast, so engineers use short prefixes: k, M, m and µ. Your meter uses them
+      too, and its dial has several ranges for each kind of measurement. Pick the wrong range and the screen just says
+      OL. Time to find out what that means.
+    visual: { kind: part, part: multimeter }
+    predict:
+      prompt: You set the meter to its 2 V range and measure the 9 V battery. What does the screen show?
+      options:
+        - "2.00"
+        - "9.42"
+        - OL
+        - "0.00"
+    mascot: Big numbers, tiny numbers. Let's tame them both.
+
+  - type: lab
+    lab: tiny-and-huge-numbers
+
+  - type: explain
+    cards:
+      - title: Prefixes save zeros
+        body: |
+          A prefix is a shortcut for a power of a thousand. **k** (kilo) means times 1,000. **M** (mega) means times
+          1,000,000. **m** (milli) means divided by 1,000. **µ** (micro) means divided by 1,000,000. So 4,700 Ω is
+          4.7 kΩ, and 0.020 A is 20 mA. Converting is just moving the decimal point three places at a time.
+        # widget (planned): prefix-slider. Type a value, slide between µ, m, base, k and M, and watch the decimal point
+        # hop three places each step.
+      - title: Big M, little m
+        body: |
+          Capital M means mega, a million. Small m means milli, a thousandth. One letter's case changes the value by a
+          factor of a billion: 5 MΩ is a billion times more than 5 mΩ. Printed parts sometimes use the letter as the
+          decimal point to avoid lost dots: 4k7 means 4.7 kΩ, 2M2 means 2.2 MΩ, and 3R3 means 3.3 Ω.
+      - title: Ranges and OL
+        body: |
+          A manual meter makes you choose a range: the biggest value it will show. Too small, and you get **OL**, for
+          over limit (some meters show a lone 1 instead). Too big, and you lose digits. The sweet spot is the smallest
+          range that is still bigger than your reading. When you have no idea, start on the biggest range and step
+          down.
+      - title: Meters that choose for you
+        body: |
+          Auto-ranging meters pick the range by themselves. Handy, but now you must read the small unit letters on the
+          screen. A display of 1.48 could mean 1.48 V or 1.48 mV, which is a thousand times less. Our bench meter is
+          manual on purpose: it makes you think about the size of a value before you measure it.
+
+  - type: quiz
+    items:
+      - id: amps-to-ma
+        type: numeric
+        prompt: 0.047 A is how many milliamps?
+        answer: 47
+        unit: mA
+        tolerance: 0
+        hint: Move the decimal point three places right.
+        explain: "Milli means a thousandth, so multiply amps by 1,000: 0.047 × 1,000 = 47 mA."
+
+      - id: ohms-to-meg
+        type: numeric
+        prompt: Write 3,300,000 Ω in megohms.
+        answer: 3.3
+        unit: MΩ
+        tolerance: 0
+        hint: A megohm is a million ohms.
+        explain: A megohm is a million ohms, so 3,300,000 Ω is 3.3 MΩ.
+
+      - id: mv-reading
+        type: choice
+        prompt: An auto-ranging meter shows 1.48 with a small mV beside it. What is that in volts?
+        options:
+          - text: 0.00148 V
+            correct: true
+            why: mV means millivolts. Divide by 1,000.
+          - text: 1.48 V
+            why: That ignores the m. The value is a thousand times smaller.
+          - text: 1,480 V
+            why: That treats milli as if it meant kilo.
+        explain: Always read the unit on an auto-ranging meter. The m makes a thousandfold difference.
+
+      - id: twelve-volts
+        type: choice
+        prompt: "You expect about 12 V. Ranges: 200 mV, 2 V, 20 V, 200 V. Which do you choose?"
+        options:
+          - text: 20 V
+            correct: true
+            why: The smallest range above 12 V gives the most detail.
+          - text: 2 V
+            why: 12 V is over this limit, so you would see OL.
+          - text: 200 V
+            why: Safe, but it shows fewer digits than 20 V.
+        explain: The smallest range that still fits your value is the best one.
+
+      - id: prefix-match
+        type: match
+        prompt: Match each prefix to what it does.
+        pairs:
+          - { left: "k (kilo)", right: "times 1,000" }
+          - { left: "M (mega)", right: "times 1,000,000" }
+          - { left: "m (milli)", right: "divided by 1,000" }
+          - { left: "µ (micro)", right: "divided by 1,000,000" }
+        explain: Each step is a factor of a thousand. Capitals make things bigger, except k, which is small by tradition.
+
+      - id: big-or-small
+        type: choice
+        prompt: "Which is larger: 5 mΩ or 5 MΩ?"
+        options:
+          - text: 5 MΩ, by a factor of a billion
+            correct: true
+            why: Mega is a million and milli is a thousandth. A million divided by a thousandth is a billion.
+          - text: 5 mΩ, by a factor of a thousand
+            why: Small m is milli, the tiny one.
+          - text: They are the same
+            why: The case of the letter matters a lot here.
+        explain: Capital M is mega, small m is milli. Mixing them up is a billionfold mistake.
+
+  - type: wrap
+    rules:
+      - k is a thousand, M is a million, m is a thousandth, µ is a millionth.
+      - Capital M and small m are a billion times apart.
+      - Choose the smallest range that's bigger than what you expect.
+      - "OL means over limit: go up a range."
+    realWorld:
+      parts:
+        - A multimeter
+        - A 9 V battery
+        - An AA battery
+        - Any resistor
+      safety:
+        - All of these measurements are safe. Measure resistors on their own, never while they are in a powered circuit.

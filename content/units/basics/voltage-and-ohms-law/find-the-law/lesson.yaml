@@ -1,0 +1,138 @@
+# Blueprint: docs/curriculum/unit-1.md, L11.
+id: find-the-law
+version: 1
+title: Find the law yourself
+summary: Measure the current through four resistors and discover V = I × R from your own data.
+minutes: 14
+unlocks:
+  parts: []
+  isle: meter-kiosk
+steps:
+  - type: hook
+    body: |
+      You have a meter, a battery and a handful of resistors. Researchers in the 1820s had far cruder tools than
+      yours, and still found one of the most useful rules in all of electronics. You're going to find it again, from
+      your own measurements. Measure, write it down, look for the pattern. No formula until you've earned it.
+    visual: { kind: none }
+    predict:
+      prompt: Same battery, but you double the resistance in the loop. The current...
+      options:
+        - doubles
+        - halves
+        - stays the same
+    mascot: Measure first, formula later. Let's find a law.
+
+  - type: lab
+    lab: find-the-law
+
+  - type: explain
+    cards:
+      - title: "The pattern: V = I × R"
+        body: |
+          Your products all came out close to the battery voltage. That's **Ohm's law**: the voltage across a
+          resistance equals the current through it times the resistance. **V = I × R**. Georg Ohm published it in 1827
+          after years of patient experiments. It works for resistors and wires at any scale, from a pencil line to a
+          power cable.
+        # Blueprint widget: ohms-law with a "from my data" button that plots the learner's four rows (needs the lab
+        # notebook). The plain ohms-law widget is used until then.
+        widget: { kind: ohms-law, props: { volts: 9, ohms: 1000 } }
+      - title: Three ways to use it
+        body: |
+          The same rule rearranges three ways: V = I × R, I = V ÷ R, and R = V ÷ I. Want the current through 2.2 kΩ
+          on 9 V? I = 9 ÷ 2,200 ≈ 0.0041 A, about 4.1 mA. Need a resistor that passes 15 mA with 7 V across it?
+          R = 7 ÷ 0.015 ≈ 467 Ω. In formulas, current is written I, from the French word for intensity.
+      - title: The milliamp shortcut
+        body: |
+          Mixing units is the classic Ohm's law trap. 9 ÷ 470 is 0.019, but is that amps or milliamps? Stick to one
+          matched set. Volts, amps and ohms work together. So do volts, milliamps and kilohms: 2 mA × 4.7 kΩ = 9.4 V.
+          Mix milliamps with plain ohms and your answer is off by a factor of a thousand.
+      - title: Why not exactly 9.4?
+        body: |
+          Your products weren't perfect, and that's fine. Each resistor is only within 5% of its label. On current
+          ranges the meter adds a little resistance of its own, about 10 Ω on 20 mA. Even the battery has a small
+          resistance inside it, which you'll meet in module 5. Small gaps between theory and measurement are normal.
+          Big ones mean something is wrong.
+
+  - type: quiz
+    items:
+      - id: current-calc
+        type: numeric
+        prompt: 12 V across 2.4 kΩ. What current flows?
+        answer: 5
+        unit: mA
+        tolerance: 1
+        hint: Volts divided by kilohms gives milliamps.
+        explain: "I = V ÷ R = 12 V ÷ 2.4 kΩ = 5 mA (volts divided by kilohms gives milliamps)."
+
+      - id: resistance-calc
+        type: numeric
+        prompt: 5 V pushes 25 mA through a resistor. What is its resistance?
+        answer: 200
+        unit: Ω
+        tolerance: 1
+        hint: Convert 25 mA to amps first.
+        explain: R = V ÷ I = 5 ÷ 0.025 = 200 Ω.
+
+      - id: led-resistor
+        type: numeric
+        prompt: A red LED drops 2.0 V. You want 15 mA from a 9 V battery. What resistance do you need?
+        answer: 467
+        unit: Ω
+        tolerance: 2
+        hint: First work out how much voltage is left for the resistor.
+        explain: The resistor gets 9 − 2 = 7 V, so R = 7 ÷ 0.015 ≈ 467 Ω.
+
+      - id: nearest-value
+        type: choice
+        prompt: Your calculation says 467 Ω. Which resistor do you actually use?
+        options:
+          - text: 470 Ω
+            correct: true
+            why: It's the nearest standard value, and it gives just under 15 mA.
+          - text: 460 Ω
+            why: Not a value you'll find in a typical kit. Use the nearest standard value.
+          - text: 4.7 kΩ
+            why: Ten times too big. The LED would only get about 1.5 mA.
+        explain: Round to the nearest standard value. Slightly higher is the safe direction for an LED.
+
+      - id: double-r
+        type: choice
+        prompt: Same battery. You swap a 1 kΩ resistor for a 2 kΩ one. The current...
+        options:
+          - text: halves
+            correct: true
+            why: I = V ÷ R, so doubling R halves I.
+          - text: doubles
+            why: More resistance means less current, not more.
+          - text: stays the same
+            why: The battery voltage is the same, but the resistance changed.
+        explain: With a fixed voltage, current and resistance move in opposite directions.
+
+      - id: unit-slip
+        type: choice
+        prompt: Max calculates 9 V ÷ 470 Ω and writes 0.019 mA. What went wrong?
+        options:
+          - text: It should be 0.019 A, which is 19 mA
+            correct: true
+            why: Volts divided by ohms gives amps.
+          - text: It should be 4,230 mA
+            why: That multiplies instead of dividing.
+          - text: Nothing, it's right
+            why: 0.019 mA is a thousand times too small.
+        explain: Volts ÷ ohms = amps. Volts ÷ kilohms = milliamps.
+
+  - type: wrap
+    rules:
+      - V = I × R. Also I = V ÷ R and R = V ÷ I.
+      - Use volts, amps and ohms, or volts, milliamps and kilohms. Never mix the sets.
+      - LED resistor = (supply voltage − LED voltage) ÷ current.
+      - Measurements land close to theory, never exactly on it.
+    realWorld:
+      parts:
+        - A multimeter
+        - A 9 V battery
+        - "Resistors: 1 kΩ, 1.5 kΩ, 2.2 kΩ, 3.3 kΩ, 4.7 kΩ"
+        - Clip leads
+        - A notebook
+      safety:
+        - Every current in this experiment is under 10 mA. Completely safe.
