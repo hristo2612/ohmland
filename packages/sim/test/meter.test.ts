@@ -92,6 +92,15 @@ describe("multimeter", () => {
     expect(allEvents(s).some((e) => e.type === "shorted")).toBe(true);
   });
 
+  test("the reading stays on screen when the bench is edited", () => {
+    const sim = createSimulation();
+    const parts = [battery9(), meter("M1", { com: "gnd", vohm: "vcc" }, "dcv")];
+    sim.load({ parts });
+    const before = sim.step(0.3).parts.M1!.display;
+    sim.load({ parts: [...parts, resistor("R9", "vcc", "gnd", 1e6)] });
+    expect(sim.step(0.01).parts.M1!.display).toBe(before);
+  });
+
   test("display formatting follows 1999 counts", () => {
     const r20 = { label: "20V", fs: 20, dec: 2, scale: 1, unit: "V" };
     expect(formatReading(9.123, r20)).toBe("9.12");

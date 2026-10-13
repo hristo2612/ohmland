@@ -484,9 +484,11 @@ export class SourceDevice extends Device {
     return s;
   }
   override save(): Record<string, unknown> {
-    return { soc: this.soc, vp1: this.vp1, vp2: this.vp2, temp: this.thermal.temp };
+    return { soc: this.soc, vp1: this.vp1, vp2: this.vp2, temp: this.thermal.temp, shorted: this.shortedFlag, shortTime: this.shortTime };
   }
   override restore(s: Record<string, unknown>): void {
+    this.shortedFlag = s.shorted === true;
+    this.shortTime = finiteOr(s.shortTime as number, 0);
     this.soc = clamp(finiteOr(s.soc as number, 1), 0, 1);
     this.vp1 = finiteOr(s.vp1 as number, 0);
     this.vp2 = finiteOr(s.vp2 as number, 0);

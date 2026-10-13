@@ -284,12 +284,15 @@ export class MultimeterDevice extends Device {
   override setInput(key: InputKey, value: InputValue, ctx: Ctx): boolean {
     if (key === "mode") {
       if (typeof value !== "string" || !MODES.includes(value as MeterMode)) return false;
+      if (value === this.mode) return true;
       this.mode = value as MeterMode;
       this.applyRange();
       return true;
     }
     if (key === "range") {
-      this.rangeInput = typeof value === "string" ? value : "auto";
+      const next = typeof value === "string" ? value : "auto";
+      if (norm(next) === norm(this.rangeInput)) return true;
+      this.rangeInput = next;
       this.applyRange();
       return true;
     }
@@ -304,12 +307,31 @@ export class MultimeterDevice extends Device {
     return key === "mode" ? this.mode : key === "range" ? this.rangeInput : undefined;
   }
   override save(): Record<string, unknown> {
-    return { fuseBlown: this.fuse.blown, te: this.fuse.te, tb: this.fuse.tb };
+    return {
+      fuseBlown: this.fuse.blown,
+      te: this.fuse.te,
+      tb: this.fuse.tb,
+      mode: this.mode,
+      rangeInput: this.rangeInput,
+      ri: this.ri,
+      display: this.display,
+      unit: this.unit,
+      value: this.value,
+      beep: this.beep,
+    };
   }
   override restore(s: Record<string, unknown>): void {
     this.fuse.blown = s.fuseBlown === true;
     this.fuse.te = typeof s.te === "number" ? s.te : 0;
     this.fuse.tb = typeof s.tb === "number" ? s.tb : 0;
+    // Keep the reading on screen across a rebuild when the dial is where it was.
+    if (s.mode === this.mode && typeof s.rangeInput === "string" && norm(s.rangeInput) === norm(this.rangeInput)) {
+      if (typeof s.ri === "number" && s.ri >= 0 && s.ri < this.ranges.length) this.ri = s.ri;
+      if (typeof s.display === "string") this.display = s.display;
+      if (typeof s.unit === "string") this.unit = s.unit;
+      if (typeof s.value === "number") this.value = s.value;
+      this.beep = s.beep === true;
+    }
   }
   override replace(): void {
     this.fuse.reset();
