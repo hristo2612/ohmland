@@ -5,6 +5,9 @@ import { SwitchDevice, ThrowDevice } from "./contacts";
 import { DiodeDevice, LedDevice, NpnDevice, PhototransistorDevice } from "./semis";
 import { CapacitorDevice, InductorDevice, RelayDevice, SpeakerDevice } from "./reactive";
 import { MultimeterDevice } from "./meter";
+import { LogicDevice, Timer555Device } from "./chips";
+import { SevenSegDevice } from "./display";
+import { RegulatorDevice } from "./regulator";
 
 /**
  * Creates the model for a part, or null for an unknown kind (which is then ignored). `seed` (Netlist.seed) is
@@ -50,6 +53,14 @@ export function createDevice(spec: PartSpec, seed?: string): Device | null {
       return new MultimeterDevice(spec);
     case "inductor":
       return new InductorDevice(spec);
+    case "timer555":
+      return new Timer555Device(spec, seed);
+    case "logic":
+      return new LogicDevice(spec, seed);
+    case "sevenseg":
+      return new SevenSegDevice(spec);
+    case "regulator7805":
+      return new RegulatorDevice(spec, seed);
     default:
       return null;
   }

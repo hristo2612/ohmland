@@ -976,7 +976,7 @@ export class Engine implements Ctx {
   }
 }
 
-export const INPUT_KEYS: InputKey[] = ["pressed", "closed", "position", "light", "mode", "range", "to", "ohms", "bounce"];
+export const INPUT_KEYS: InputKey[] = ["pressed", "closed", "position", "light", "mode", "range", "to", "ohms", "bounce", "proximity"];
 
 /**
  * Greedy minimum-degree ordering of the unknowns (devices couple all of their nodes). Eliminating low-degree nodes

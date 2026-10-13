@@ -86,7 +86,29 @@ export type PartSpec =
   | (Base & { kind: "wire"; pins: { a: NodeId; b: NodeId }; ohms?: number })
   // A coil: inductance in series with its winding resistance (default 1 Ω). watts: what the winding takes
   // continuously (default 1 W); far more cooks it open.
-  | (Base & { kind: "inductor"; pins: { a: NodeId; b: NodeId }; henries: number; ohms?: number; watts?: number });
+  | (Base & { kind: "inductor"; pins: { a: NodeId; b: NodeId }; henries: number; ohms?: number; watts?: number })
+  // NE555 timer, pins in pin-number order 1 to 8. cmos: a 7555-style part (rail-to-rail output, tiny supply
+  // current, weaker output, 2 to 18 V). Unconnected pins may be left out.
+  | (Base & { kind: "timer555"; pins: Pins<Timer555Pin>; cmos?: boolean })
+  // Logic chips (74HC and 4000B families). Pins by datasheet name; LOGIC_PINOUTS[model] lists them in pin-number
+  // order. Unconnected pins may be left out (an unconnected input floats: it reads noise, not 0).
+  | (Base & { kind: "logic"; model: "74HC00" | "74HC02" | "74HC08" | "74HC32" | "74HC86"; pins: Pins<Quad2Pin> })
+  | (Base & { kind: "logic"; model: "74HC04" | "74HC14"; pins: Pins<Hex1Pin> })
+  | (Base & { kind: "logic"; model: "74HC27"; pins: Pins<Triple3Pin> })
+  | (Base & { kind: "logic"; model: "74HC74"; pins: Pins<DualDPin> })
+  | (Base & { kind: "logic"; model: "74HC393"; pins: Pins<Dual393Pin> })
+  | (Base & { kind: "logic"; model: "4026B"; pins: Pins<Counter4026Pin> })
+  // 7-segment LED display: segments a to g and the decimal point, each an LED of the given colour, sharing a
+  // common cathode or anode. com2 is the second common pin of real 10-pin displays (joined inside).
+  | (Base & {
+      kind: "sevenseg";
+      pins: Pins<SevenSegPin>;
+      common: "cathode" | "anode";
+      color?: LedColor; // default red
+      maxmA?: number; // per segment, default 25
+    })
+  // 7805 linear regulator (TO-220: in, gnd, out). heatsink: bolted to a heat sink (default false, free air).
+  | (Base & { kind: "regulator7805"; pins: { in: NodeId; gnd: NodeId; out: NodeId }; heatsink?: boolean });
 
 /**
  * Contact bounce for switches and pushbuttons: true chatters for 1 to 5 ms on every make and break (seeded by
@@ -94,6 +116,27 @@ export type PartSpec =
  * chatter in milliseconds. Off by default.
  */
 export type Bounce = boolean | number;
+
+type Pins<K extends string> = Partial<Record<K, NodeId>>;
+
+export type Timer555Pin = "gnd" | "trig" | "out" | "reset" | "ctrl" | "thresh" | "dis" | "vcc";
+/** Quad 2-input gates (00, 02, 08, 32, 86): gate n has inputs an, bn and output yn. */
+export type Quad2Pin = "a1" | "b1" | "y1" | "a2" | "b2" | "y2" | "a3" | "b3" | "y3" | "a4" | "b4" | "y4" | "vcc" | "gnd";
+/** Hex inverters (04, 14): an in, yn out. */
+export type Hex1Pin = "a1" | "y1" | "a2" | "y2" | "a3" | "y3" | "a4" | "y4" | "a5" | "y5" | "a6" | "y6" | "vcc" | "gnd";
+/** Triple 3-input gates (27). */
+export type Triple3Pin = "a1" | "b1" | "c1" | "y1" | "a2" | "b2" | "c2" | "y2" | "a3" | "b3" | "c3" | "y3" | "vcc" | "gnd";
+/** Dual D flip-flop (74): clear and preset are active low, qn is the inverted output. */
+export type DualDPin = "clr1" | "d1" | "clk1" | "pre1" | "q1" | "qn1" | "clr2" | "d2" | "clk2" | "pre2" | "q2" | "qn2" | "vcc" | "gnd";
+/** Dual 4-bit binary ripple counter (393): falling-edge clocks, active-high level clears, qa is the lowest bit. */
+export type Dual393Pin = "clk1" | "clr1" | "qa1" | "qb1" | "qc1" | "qd1" | "clk2" | "clr2" | "qa2" | "qb2" | "qc2" | "qd2" | "vcc" | "gnd";
+/**
+ * 4026B decade counter with 7-segment outputs: clk (rising edge), inh (clock inhibit, active high), dei and deo
+ * (display enable in and out), co (carry out), segments a to g, ucs (ungated c segment), rst (active high).
+ */
+export type Counter4026Pin = "clk" | "inh" | "dei" | "deo" | "co" | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "ucs" | "rst" | "vdd" | "vss";
+export type SevenSegPin = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "dp" | "com" | "com2";
+export type LogicModel = Extract<PartSpec, { kind: "logic" }>["model"];
 
 export type PartKind = PartSpec["kind"];
 
@@ -154,6 +197,7 @@ export type InputKey =
   | "ohms"
   | "replaceFuse"
   | "replace"
-  | "bounce"; // switches and pushbuttons: Bounce (true, false or the longest chatter in ms)
+  | "bounce" // switches and pushbuttons: Bounce (true, false or the longest chatter in ms)
+  | "proximity"; // timer555, logic: how close a hand is to the chip, 0..1 (floating inputs pick up more hum)
 
 export type InputValue = number | string | boolean;
