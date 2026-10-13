@@ -2,12 +2,13 @@
 //
 //   node scripts/perf.mjs [--lessons 300] [--modules 80] [--units 5] [--throttle 4] [--seconds 6] [--headed]
 //                         [--look notebook,classic] [--time night] [--size 1440x900] [--dpr 2] [--turn 6]
-//                         [--swiftshader]
+//                         [--uncapped] [--swiftshader]
 //
 // Prints the WebGL renderer, then for each look: the frame rate (mean and 95th percentile frame), how many frames
 // a second the isle actually drew, the main-thread time of a drawn frame, and the draw calls and triangles.
-// --turn measures a teaser turning round at that many degrees a second (it draws every frame in both looks), and
-// --swiftshader renders on the CPU (a slow GPU: it shows what each look's drawing costs, not real frame rates).
+// --turn measures a teaser turning round at that many degrees a second (it draws every frame in both looks),
+// --uncapped lifts the 60 fps vsync cap (so a fast GPU shows what a frame costs), and --swiftshader renders on the
+// CPU (a slow GPU: it shows what each look's drawing costs, not real frame rates).
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
@@ -29,7 +30,7 @@ const time = opt("--time", "night");
 const [W, H] = opt("--size", "1440x900").split("x").map(Number);
 const dpr = Number(opt("--dpr", "2"));
 const turn = Number(opt("--turn", "0"));
-const gpuArgs = args.includes("--swiftshader") ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] : ["--use-angle=metal", "--enable-gpu"];
+const gpuArgs = args.includes("--swiftshader") ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] : ["--use-angle=metal", "--enable-gpu", ...(args.includes("--uncapped") ? ["--disable-gpu-vsync", "--disable-frame-rate-limit"] : [])];
 
 const server = await createServer({ root: join(pkg, "playground"), logLevel: "error", server: { port: 0, host: "127.0.0.1" } });
 await server.listen();

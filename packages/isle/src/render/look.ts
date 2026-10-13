@@ -37,10 +37,10 @@ export const NOTEBOOK = {
  */
 const SWAP: Record<string, string> = {
   // solder mask
-  "#2E9A5E": "#4A9A6D",
-  "#2A925A": "#46946A",
-  "#1F7446": "#35704F",
-  "#4FB27A": "#62A680",
+  "#2E9A5E": "#529C73",
+  "#2A925A": "#4E966F",
+  "#1F7446": "#3A7053",
+  "#4FB27A": "#68A884",
   // copper, gold, silkscreen, drill holes
   "#E39A52": "#D99158",
   "#B8743A": "#AE6C40",

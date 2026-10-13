@@ -506,15 +506,13 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
         cx = isl.x + cx / info.cells.size;
         cz = isl.z + cz / info.cells.size;
         const r = Math.sqrt(info.cells.size / Math.PI) + 0.5;
-        const y = isl.y - Math.min(deep, 48) - (0.45 * r + 1.2);
-        compose(cx, y, cz, 0, r * 1.7);
+        const y = isl.y - Math.min(deep, 48) - (0.35 * r + 1);
+        compose(cx, y, cz, 0, r * 1.55);
         pageShadows.setMatrixAt(n++, M);
-        // its core stays in the frame (the soft rim may fall in the margin)
+        // its middle stays in the frame (the soft rim may fall in the margin), so the isle is not framed smaller
         for (const [dx, dz] of [
-          [0.45, 0.45],
-          [-0.45, -0.45],
-          [0.45, -0.45],
-          [-0.45, 0.45],
+          [0.25, 0.25],
+          [-0.25, -0.25],
         ] as const)
           see(cx + dx * r, y, cz + dz * r);
       });
