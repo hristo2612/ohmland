@@ -3,7 +3,7 @@ import type { CourseOutline } from "../content/outline";
 import { m } from "../i18n";
 import { useDerived, useLearner, useLearnerReady } from "../progress/useLearner";
 import type { Settings } from "../progress/types";
-import { Badge } from "./Badge";
+import { AccountCard } from "./AccountCard";
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { Icon } from "./Icon";
@@ -30,14 +30,16 @@ function Segmented<T extends string>({ label, value, options, onChange }: { labe
   );
 }
 
-/** Account placeholder: sign-in (coming soon), where progress lives, export/import/delete, and settings. */
+/** The account page: sign-in or the signed-in account, where progress lives, export, import and delete, and settings. */
 export default function AccountPanel({ outline }: { outline: CourseOutline }) {
   const ready = useLearnerReady(outline);
   const persistence = useLearner((s) => s.persistence);
   const settings = useLearner((s) => s.learner.settings);
   const d = useDerived(outline);
   const [confirm, setConfirm] = useState(false);
+  const [synced, setSynced] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const storage = persistence === "memory" ? "memory" : synced ? "synced" : "local";
 
   const exportFile = () => {
     const blob = new Blob([useLearner.getState().exportJson()], { type: "application/json" });
@@ -66,39 +68,22 @@ export default function AccountPanel({ outline }: { outline: CourseOutline }) {
 
   return (
     <div className="account">
-      <section className="card card--raised account__signin" aria-labelledby="signin-title">
-        <div className="account__signin-head">
-          <span className="account__icon">
-            <Icon name="cloud" size={24} />
-          </span>
-          <div>
-            <h2 id="signin-title">{m.account.signInTitle}</h2>
-            <p className="muted">{m.account.signInBody}</p>
-          </div>
-        </div>
-        <div className="account__providers">
-          <Button variant="secondary" size="large" icon="user" disabled block>
-            {m.account.google}
-          </Button>
-          <Button variant="secondary" size="large" icon="user" disabled block>
-            {m.account.github}
-          </Button>
-        </div>
-        <Badge tone="info" icon="clock">
-          {m.account.signInSoon}
-        </Badge>
-      </section>
+      <AccountCard onSignedIn={setSynced} />
 
       <section className="card account__storage" aria-labelledby="storage-title">
         <h2 id="storage-title" className="account__title">
           {m.account.storageTitle}
         </h2>
         {ready ? (
-          <div className="account__status" data-tone={persistence === "memory" ? "warn" : "good"}>
-            <Icon name={persistence === "memory" ? "alert" : "device"} size={22} />
+          <div className="account__status" data-tone={storage === "memory" ? "warn" : "good"}>
+            <Icon name={storage === "memory" ? "alert" : storage === "synced" ? "cloud-check" : "device"} size={22} />
             <div>
-              <p className="account__status-title">{persistence === "memory" ? m.account.storageMemory : m.account.storageLocal}</p>
-              <p className="small muted">{persistence === "memory" ? m.account.storageMemoryBody : m.account.storageLocalBody}</p>
+              <p className="account__status-title">
+                {storage === "memory" ? m.account.storageMemory : storage === "synced" ? m.account.storageSynced : m.account.storageLocal}
+              </p>
+              <p className="small muted">
+                {storage === "memory" ? m.account.storageMemoryBody : storage === "synced" ? m.account.storageSyncedBody : m.account.storageLocalBody}
+              </p>
               <p className="small muted tabular">{m.account.stats(d.lessonsDone, d.xp.total)}</p>
             </div>
           </div>
@@ -133,7 +118,7 @@ export default function AccountPanel({ outline }: { outline: CourseOutline }) {
         <div className="account__row">
           <div>
             <p className="account__row-title">{m.account.reset}</p>
-            <p className="small muted">{m.account.resetBody}</p>
+            <p className="small muted">{synced ? m.account.resetBodySynced : m.account.resetBody}</p>
           </div>
           <Button variant="danger" icon="trash" onClick={() => setConfirm(true)} disabled={!ready}>
             {m.account.reset}
@@ -180,7 +165,7 @@ export default function AccountPanel({ outline }: { outline: CourseOutline }) {
         open={confirm}
         onClose={() => setConfirm(false)}
         title={m.account.resetTitle}
-        description={m.account.resetConfirmBody}
+        description={synced ? m.account.resetConfirmBodySynced : m.account.resetConfirmBody}
         actions={
           <>
             <Button variant="secondary" onClick={() => setConfirm(false)}>

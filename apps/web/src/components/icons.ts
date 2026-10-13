@@ -56,6 +56,13 @@ export const ICONS = {
   "sound-on": p("M4 9.5h3.5L12 5.5v13l-4.5-4H4v-5z") + p("M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"),
   "sound-off": p("M4 9.5h3.5L12 5.5v13l-4.5-4H4v-5z") + p("M16 9.5l5 5M21 9.5l-5 5"),
   cloud: p("M7 18.5a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 8.6a4.5 4.5 0 0 1-.5 9.9H7z"),
+  "cloud-off": p("M7 18.5a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 1.6-2.7M11 4.6A6 6 0 0 1 18 8.6a4.5 4.5 0 0 1 2.4 7.9") + p("M3.5 3.5l17 17"),
+  "cloud-check": p("M7 18.5a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 8.6a4.5 4.5 0 0 1-.5 9.9H7z") + p("M9.2 13.4l2 2 3.8-3.9"),
+  "sign-out": p("M14 4H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h8") + p("M10 12h10M16.5 8.5 20 12l-3.5 3.5"),
+
+  // Sign-in providers, drawn in the house style (a letter G, and a code branch for the code host).
+  google: p("M18.4 7.2A8 8 0 1 0 20 12h-7.5"),
+  github: c(7, 5.5, 2) + c(7, 18.5, 2) + c(17, 7.5, 2) + p("M7 7.5v9M17 9.5v.5a4 4 0 0 1-4 4h-2a4 4 0 0 0-4 2.5"),
   device: p("M4.5 6a1 1 0 0 1 1-1h13a1 1 0 0 1 1 1v9h-15V6z") + p("M2.5 18.5h19"),
 
   // Achievements and lesson things
