@@ -74,9 +74,10 @@ export class SimulationImpl implements Simulation {
     this.lag = 0;
   }
 
-  step(dt: number): Snapshot {
-    this.engine.stepScale = 1;
-    this.setMuted(false);
+  step(dt: number, opts: { speed?: number } = {}): Snapshot {
+    const speed = Math.min(MAX_SPEED, Math.max(1, opts.speed ?? 1));
+    this.engine.stepScale = Math.max(1, speed / STEP_SCALE_FROM);
+    this.setMuted(speed > AUDIO_MAX_SPEED);
     if (dt > 0 && Number.isFinite(dt)) this.engine.advance(this.engine.t + dt);
     const s = this.snapshot();
     this.audio?.flush();
