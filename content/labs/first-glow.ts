@@ -1,10 +1,20 @@
-// Blueprint: docs/curriculum/unit-1.md, L7. A reference lab for the lab API (docs/LABS.md).
-// The blueprint's bonus "match-symbols" needs the live schematic panel (N7); until it exists the bonus is burning out
-// an LED on purpose, the lesson's planned fried moment.
-import { defineLab, type LabView } from "@ohmland/lab";
+// Blueprint: docs/curriculum/unit-1.md, L7. The reference lab of a bench lesson (docs/LESSONS.md): its tasks are the
+// beats of content/units/basics/current-and-leds/first-glow/lesson.yaml, in the same order.
+// One idea: an LED works one way round (long leg toward plus), and it needs a resistor.
+import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 
-/** Every LED on the bench that is still alive: D1, or the spare D2 after D1 is fried. */
-const leds = (lab: LabView) => lab.bench.parts.filter((p) => p.kind === "led" && !lab.died(p.id)).map((p) => p.id);
+/** Battery, resistor and LED in one loop, in either order. */
+const loop = (lab: LabView) => lab.seriesLoop(["B1", "R1", "D1"]) || lab.seriesLoop(["B1", "D1", "R1"]);
+const lit = (lab: LabView) => lab.isLit("D1") && loop(lab);
+/** In the loop but facing the wrong way: nearly the whole battery sits across it backwards. */
+const backwards = (lab: LabView) => loop(lab) && (lab.part("D1")?.v ?? 0) < -1 && (lab.part("D1")?.glow ?? 1) < 0.01;
+const shorted = (lab: LabView) => lab.count("shorted", undefined, 1) > 0;
+
+/** The fix-it bench: the battery's two clips swapped, so the LED faces the wrong way round the loop. */
+const SWAP_BATTERY: SolutionStep[] = [
+  { do: "clip", lead: "TL1", end: "a", to: "B1.neg" },
+  { do: "clip", lead: "TL3", end: "b", to: "B1.pos" },
+];
 
 export default defineLab({
   id: "first-glow",
@@ -13,66 +23,77 @@ export default defineLab({
     board: "none",
     parts: [
       // Loose and unconnected.
-      { id: "B1", kind: "battery", at: "desk:-74,6", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, label: "9 V battery" },
-      { id: "R1", kind: "resistor", at: "desk:0,-20", params: { ohms: 1500, watts: 0.25 }, label: "1.5 kΩ resistor" },
+      { id: "B1", kind: "battery", at: "desk:-74,6", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
+      { id: "R1", kind: "resistor", at: "desk:0,-20", params: { ohms: 1500, watts: 0.25 }, locked: true, label: "1.5 kΩ resistor" },
       // 5 mm, longer anode lead, flat spot on the cathode side of the rim.
-      { id: "D1", kind: "led", at: "desk:58,12", rot: 180, params: { color: "red", maxmA: 50 }, label: "Red LED" },
+      { id: "D1", kind: "led", at: "desk:58,12", rot: 180, params: { color: "red", maxmA: 50 }, locked: true, label: "Red LED" },
     ],
     tray: [
       { kind: "lead", params: { color: "red" }, count: 1 },
-      { kind: "lead", params: { color: "black" }, count: 1 },
       { kind: "lead", params: { color: "green" }, count: 1 },
-      { kind: "lead", params: { color: "yellow" }, count: 1 },
-      { id: "D2", kind: "led", params: { color: "red", maxmA: 50 }, count: 1, label: "Spare LED" },
+      { kind: "lead", params: { color: "black" }, count: 1 },
     ],
     instruments: [],
   },
   mascot: {
-    start: "My face is an LED. Let's learn how to light one.",
     hint: "Long leg toward plus. Flat side toward minus.",
-    fried: "Oof. No resistor, no mercy. There's a spare in the tray.",
-    success: "It glows! You built that loop from scratch.",
-    exit: "Battery, resistor, LED. You can light anything now.",
+    fried: "Pop. No resistor, no mercy.",
   },
   fried: { led: "Red LED, no resistor on 9 V" },
   tasks: [
     {
       id: "build-loop",
-      prompt:
-        "Use clip leads to make one loop: battery plus, then the resistor, then the LED, then back to battery minus. The LED's **longer leg** faces the plus side.",
-      goal: (lab) => leds(lab).some((id) => lab.isLit(id) && lab.seriesLoop(["B1", "R1", id])),
+      prompt: "Clip a loop: plus, resistor, LED, back to minus.",
+      goal: lit,
       hints: [
-        "Plus, resistor, LED, minus. Drag a clip lead from the tray, then drag each of its clips onto a metal end.",
-        "The resistor's ends are identical. The LED's are not: longer leg toward plus.",
-        "See the flat edge on the LED's rim? That side goes toward minus.",
+        "Drag a clip lead from the tray. Clip each end to bare metal.",
+        "Plus to the resistor, resistor to the LED, LED back to minus.",
+        "The LED's long leg faces plus. Its flat side faces minus.",
       ],
       highlight: ["pin:B1.pos", "pin:R1.a", "pin:R1.b", "pin:D1.anode", "pin:D1.cathode", "pin:B1.neg"],
-      success: "Your loop, your light. Nicely done.",
+      nudges: [
+        { when: backwards, say: "Dark? Turn the LED around. Long leg to plus." },
+        { when: shorted, say: "Whoa. That's plus straight to minus." },
+      ],
+      success: "It glows!",
     },
     {
       id: "flip-led",
-      prompt: "Turn the LED around by swapping its two legs.",
-      goal: (lab) => leds(lab).some((id) => lab.seriesLoop(["B1", "R1", id]) && (lab.part(id)?.v ?? 0) < -1 && (lab.part(id)?.glow ?? 1) < 0.01),
-      hints: ["Unclip both of the LED's legs and clip each lead onto the other leg."],
+      prompt: "Swap the LED's legs.",
+      goal: backwards,
+      hints: ["Move the two clips on the LED to the other legs."],
       highlight: ["pin:D1.anode", "pin:D1.cathode"],
-      success: "Dark, and no harm done. An LED only lets current through in one direction.",
-      notice:
-        "Almost the whole battery voltage now sits across the LED backwards. The resistor keeps the current tiny, so a short reverse test like this is harmless, though datasheets say to stay under about 5 V in reverse.",
+      success: "Dark, and not broken.",
+      notice: "Almost the whole 9 V sits across it backwards. The resistor keeps the current tiny.",
     },
     {
-      id: "swap-order",
-      prompt: "Turn the LED back. Now move the resistor to the other side, between the LED's short leg and battery minus.",
-      goal: (lab) => leds(lab).some((id) => lab.isLit(id) && lab.seriesLoop(["B1", id, "R1"])),
-      hints: ["Battery plus goes straight to the LED's long leg now.", "The resistor closes the loop on the minus side."],
-      success: "Same glow. In a single loop, the order of the parts doesn't matter.",
+      id: "flip-back",
+      prompt: "Make it glow again.",
+      goal: lit,
+      hints: ["Swap the LED's two clips again."],
+      highlight: ["pin:D1.anode", "pin:D1.cathode"],
+      success: "Glowing again.",
+    },
+    {
+      id: "fix-reversed",
+      prompt: "Something's off. Make it glow.",
+      setup: SWAP_BATTERY,
+      // Broken first (the setup), then fixed: a bench that is already lit does not count.
+      goal: (lab) => {
+        if (!lab.isLit("D1")) lab.memory["dark"] = true;
+        return lab.memory["dark"] === true && lit(lab);
+      },
+      hints: ["Follow the loop from plus. Which leg does it reach first?", "The long leg must face plus. Swap the LED's clips."],
+      highlight: ["pin:B1.pos", "pin:D1.anode"],
+      nudges: [{ when: shorted, say: "Whoa. That's plus straight to minus." }],
+      success: "Fixed.",
     },
     {
       id: "no-resistor",
-      prompt: "Curious? Clip an LED straight across the battery, with no resistor in the loop. It is free here.",
+      prompt: "Leave the resistor out.",
       goal: (lab) => lab.fried("led"),
-      hints: ["Battery plus to the long leg, short leg to battery minus. Nothing else."],
-      success: "Flash, then nothing. Far too much current. That LED now has a spot in the Hall of Fried Parts.",
-      notice: "This is why the resistor is there. The spare LED in the tray lets you carry on.",
+      hints: ["Clip the LED straight across the battery, no resistor in the loop."],
+      success: "Far too much current.",
       bonus: true,
     },
   ],
@@ -84,12 +105,16 @@ export default defineLab({
     { do: "clip", lead: "TL2", end: "b", to: "D1.cathode" },
     { do: "clip", lead: "TL3", end: "a", to: "D1.anode" },
     { do: "check", task: "flip-led" },
-    { do: "clip", lead: "TL3", end: "a", to: "R1.b" },
-    { do: "clip", lead: "TL2", end: "a", to: "R1.a" },
-    { do: "clip", lead: "TL1", end: "b", to: "D1.anode" },
-    { do: "check", task: "swap-order" },
-    // The bonus: bridge the resistor so the LED sits straight across the battery.
+    { do: "clip", lead: "TL2", end: "b", to: "D1.anode" },
     { do: "clip", lead: "TL3", end: "a", to: "D1.cathode" },
+    { do: "check", task: "flip-back" },
+    ...SWAP_BATTERY,
+    { do: "clip", lead: "TL2", end: "b", to: "D1.cathode" },
+    { do: "clip", lead: "TL3", end: "a", to: "D1.anode" },
+    { do: "check", task: "fix-reversed" },
+    // The secret: move the clip from the resistor's far end onto its near end, so the LED sits straight across the
+    // battery.
+    { do: "clip", lead: "TL2", end: "a", to: "R1.a" },
     { do: "wait", seconds: 0.3 },
     { do: "check", task: "no-resistor" },
   ],

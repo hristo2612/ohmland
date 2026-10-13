@@ -1,141 +1,60 @@
-# Blueprint: docs/curriculum/unit-1.md, L7.
+# Blueprint: docs/curriculum/unit-1.md, L7. A bench lesson (docs/LESSONS.md), and the reference for the format.
+# One idea: an LED works one way round, and it needs a resistor. Lab: content/labs/first-glow.ts.
+format: bench
 id: first-glow
-version: 1
+version: 2
 title: Your first glow
-summary: Wire a battery, resistor and LED into a loop yourself, and learn which way an LED goes.
-minutes: 11
+summary: Wire a battery, a resistor and an LED into a loop, and find out which way an LED goes.
+minutes: 8
+lab: first-glow
 unlocks:
   parts: [led-red]
   isle: led-lamp
-steps:
-  - type: hook
-    body: |
-      The robot's face is a single LED, and right now it is dark. Time to learn how to light one. An LED, short for
-      light-emitting diode, is choosy: it only works one way round, and it needs a resistor to keep it safe. Today
-      you'll wire one up yourself from a battery, a resistor and a few clip leads. No pre-built loop this time. Your
-      hands, your circuit.
-    visual: { kind: part, part: led-red }
-    predict:
-      prompt: You connect an LED the wrong way round. What do you think happens?
-      options:
-        - It lights anyway
-        - It stays dark
-        - It burns out instantly
-    mascot: My face is an LED. Let's learn how to light one.
 
-  - type: lab
-    lab: first-glow
+start:
+  say: My face is one LED. It's been dark for weeks. Wire me a glow?
+  go: Let's wire it
 
-  - type: explain
-    cards:
-      - title: Anode and cathode
-        body: |
-          An LED's two legs have different jobs. The **anode** is the positive side: the longer leg. The **cathode** is
-          the negative side: the shorter leg, next to a flat spot on the rim. Current flows in through the anode and
-          out through the cathode. Connect it backwards and the LED blocks the flow, so nothing lights. If someone has
-          trimmed the legs, look for the flat spot.
-        # widget (planned): led-anatomy. A 3D LED; tap to label the anode, cathode, flat spot and lens.
-      - title: Why the resistor is there
-        body: |
-          An LED can't limit its own current. Once the voltage across a red LED reaches about 2 V, a tiny bit more
-          voltage lets a lot more current through. Wired straight to a 9 V battery, it would take as much current as
-          the battery could supply, and burn out. The resistor holds the current to a sensible level. Next lesson
-          you'll see what happens when it isn't up to the job.
-      - title: Drawing circuits
-        body: |
-          Engineers draw circuits with symbols. A battery is a pair of lines, with the longer line for plus. A resistor
-          is a zigzag, or a small rectangle in many countries. An LED is a triangle pointing into a bar, with two
-          little arrows for the light coming out. The triangle points the way conventional current flows: from plus
-          toward minus.
-        # widget (planned): schematic-split. The 3D bench beside its schematic; hover a part in one to highlight it in
-        # the other.
-      - title: Order doesn't matter
-        body: |
-          In a single loop, the same current passes through every part, one after another. So it makes no difference
-          whether the resistor comes before or after the LED: it limits the current either way. What matters is that
-          every part is in the loop, and that the LED faces the right way.
+beats:
+  - say: This is an LED. Tap it.
+    meet: D1
+    note: { at: D1, text: LED }
 
-  - type: quiz
-    items:
-      - id: cathode-hotspot
-        type: hotspot
-        figure: led
-        prompt: Tap the LED's cathode, the leg that goes toward minus.
-        answer: cathode
-        hint: Look for the flat edge on the rim.
-        explain: The cathode is the shorter leg, beside the flat spot on the rim.
+  - say: Clip a loop. Plus, resistor, LED, minus.
+    do: build-loop
+    done: It glows! First light on this island in ages.
+    note: { at: R1, text: holds it to about 5 mA }
 
-      - id: reversed-led
-        type: choice
-        prompt: In a working battery, resistor and LED loop, you turn the LED around. What happens?
-        options:
-          - text: It goes dark
-            correct: true
-            why: An LED blocks current in the reverse direction.
-          - text: It glows more dimly
-            why: An LED doesn't half-conduct backwards. It blocks.
-          - text: It burns out
-            why: With the LED blocking, almost no current flows, so nothing is overloaded.
-        explain: LEDs conduct one way only. Backwards, they stay dark.
+  - say: Want me brighter? Try another resistor.
+    popup: { widget: resistor-slider, at: R1, props: { part: R1, led: D1, values: [470, 1000, 1500, 4700, 10000] } }
 
-      - id: current-path
-        type: order
-        prompt: "Current leaves the battery's plus terminal in this loop: plus, resistor, LED, minus. Put the places it passes in order."
-        items:
-          - The battery's plus terminal
-          - The resistor
-          - The LED's anode (long leg)
-          - The LED's cathode (short leg)
-          - The battery's minus terminal
-        explain: Conventional current flows from plus, through each part in turn, into the LED's anode and out of its cathode, then back to minus.
+  - say: Quick one. Tap the long leg.
+    tap: { answer: D1.anode, among: [D1.anode, D1.cathode] }
+    wrong: { D1.cathode: "That's the short leg. Try the other." }
+    note: { at: D1.anode, text: "long leg: anode, toward plus" }
+    rule: "LED: long leg to plus."
 
-      - id: symbol-match
-        type: match
-        prompt: Match each symbol to its part.
-        pairs:
-          - { left: A long and a short parallel line, right: battery }
-          - { left: A zigzag line, right: resistor }
-          - { left: A triangle into a bar with two outward arrows, right: LED }
-          - { left: A plain line, right: wire }
-        explain: Schematics replace pictures with simple symbols, so circuits are quick to draw and read.
+  - say: Swap the LED's legs. Guess first.
+    guess: { options: [It still glows, It goes dark, It burns out], answer: It goes dark }
+    do: flip-led
+    done: Dark. And not broken.
+    note: { at: D1, text: "backwards: blocked" }
+    rule: LEDs work one way only.
 
-      - id: dark-loop
-        type: choice
-        prompt: "Ana's LED stays dark. Her loop runs: battery plus to the LED's short leg, LED's long leg to the resistor, resistor to battery minus. What's wrong?"
-        options:
-          - text: The LED is backwards
-            correct: true
-            why: The short leg (cathode) is facing plus. Swap the LED's legs.
-          - text: The resistor is on the wrong side
-            why: In a single loop the resistor works on either side.
-          - text: She needs a second resistor
-            why: One resistor is enough. The LED is simply reversed.
-        explain: Long leg toward plus. Check the LED first whenever a loop stays dark.
+  - say: Now make it glow again.
+    do: flip-back
 
-      - id: resistor-way-round
-        type: choice
-        prompt: Does it matter which way round a resistor goes?
-        options:
-          - text: "No"
-            correct: true
-            why: Resistors behave the same in both directions.
-          - text: Yes, the gold stripe must face plus
-            why: The gold stripe only shows tolerance.
-          - text: Only on 9 V circuits
-            why: Resistors have no polarity at any voltage.
-        explain: Resistors have no polarity. LEDs do.
+fixit:
+  say: Fix-it time. No glow here. Why?
+  tasks:
+    - task: fix-reversed
 
-  - type: wrap
-    rules:
-      - "LED: long leg (anode) toward plus, flat side (cathode) toward minus."
-      - An LED always needs something to limit its current, usually a resistor.
-      - In a single loop, the order of the parts doesn't matter.
-      - Resistors work either way round. LEDs don't.
-    realWorld:
-      parts:
-        - A 9 V battery (a snap connector helps)
-        - A red 5 mm LED
-        - A 1.5 kΩ resistor
-        - Three alligator clip leads
-      safety:
-        - "Never connect an LED straight across a 9 V battery without a resistor: it will burn out."
+secret:
+  task: no-resistor
+  say: Curious? Leave the resistor out. It's free here.
+  done: Pop. That LED gave its life for science.
+  note: { at: D1, text: about 1 A for a blink }
+  rule: Every LED needs a resistor.
+
+end:
+  say: You built that from scratch. My face approves.
