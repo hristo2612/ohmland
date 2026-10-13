@@ -5,6 +5,7 @@
 // use Norton companions, so no branch-current rows are needed.
 
 import { DenseLU } from "../solver/dense";
+import { SparseLU } from "../solver/sparse";
 import type { InputKey, InputValue, Netlist, PartState, SimEvent, SimEventType } from "../types";
 import { createDevice } from "../devices";
 import { Device, GMIN, type Binder, type Ctx, type Method, type Reactive } from "./device";
@@ -15,14 +16,25 @@ export type EngineOptions = {
   maxStep?: number;
 };
 
-const RELTOL = 1e-4;
+/** Newton convergence: relative and absolute (volts) tolerance on the update (SPICE defaults). */
+const RELTOL = 1e-3;
 const VNTOL = 1e-6;
 const H_BREAK = 1e-6;
 const H_MIN = 1e-12;
-/** Below this step a Newton failure is treated as a fold (a regenerative snap) and solved by homotopy at once. */
+/** Below this step a Newton failure is treated as a fold (a regenerative snap) and solved as a jump at once. */
 const H_REDUCE_MIN = 6e-6;
-const MAX_ITER = 8;
+const MAX_ITER = 6;
 const TRTOL = 4;
+/** Jumps remembered per circuit (an oscillator has two kinds, so this covers several oscillators). */
+const JUMP_MEMORY = 8;
+/** Unknowns that change by more than this in a jump define it (volts). */
+const JUMP_MOVE = 0.3;
+/** A remembered jump applies when each of its moved unknowns is within this of where it started (volts, relative). */
+const JUMP_MATCH_ABS = 0.03;
+const JUMP_MATCH_REL = 0.03;
+/** Pseudo-transient continuation: starting stray conductance (S) and how fast it is relaxed. */
+const PTC_G0 = 1e-2;
+const PTC_RELAX = 8;
 export const AUDIO_RATE = 44100;
 export const DEFAULT_MAX_STEP = 2e-3;
 
@@ -55,7 +67,8 @@ export class Engine implements Ctx {
   private timedDevs: Device[] = [];
   private acceptDevs: Device[] = [];
 
-  private lu!: DenseLU;
+  private lu!: SparseLU;
+  private nlPos!: Int32Array;
   private Alin!: Float64Array;
   private bstep!: Float64Array;
   private bwork!: Float64Array;
@@ -64,6 +77,16 @@ export class Engine implements Ctx {
   private xIter!: Float64Array;
   private xNew!: Float64Array;
   private xBack!: Float64Array;
+  /** Accepted solution before x, for the predictor. */
+  private xPrev!: Float64Array;
+  private hPrev = 0;
+  /** True when x and xPrev lie on the same smooth stretch (no discontinuity between them). */
+  private canPredict = false;
+  /** Set for the current step: start Newton from a linear extrapolation of the last two points. */
+  private predict = false;
+  /** Recent jumps (solution before and after, and which unknowns moved), first guesses for similar jumps. */
+  private readonly jumps: { pre: Float64Array; post: Float64Array; moved: Int32Array; count: number; isMoved: Uint8Array }[] = [];
+  private jumpNext = 0;
 
   private linearDirty = true;
   private linFactored = false;
@@ -73,6 +96,9 @@ export class Engine implements Ctx {
   private hNext = H_BREAK;
   hmax = DEFAULT_MAX_STEP;
   private gshunt = 0;
+  /** While true the shunt pulls each node towards xAnchor instead of ground (pseudo-transient continuation). */
+  private anchored = false;
+  private xAnchor!: Float64Array;
   private lastIters = 0;
   private freshStart = true;
   private cautious = 0;
@@ -88,7 +114,7 @@ export class Engine implements Ctx {
   /** Optional hook called after every accepted step (audio sampling, meters). */
   onAccept: ((e: Engine) => void) | null = null;
 
-  stats = { steps: 0, iterations: 0, factorizations: 0, rejected: 0, failed: 0, rescued: 0 };
+  stats = { steps: 0, iterations: 0, factorizations: 0, rejected: 0, failed: 0, rescued: 0, remembered: 0 };
 
   // -------------------------------------------------------------------------------------------------------------
   // Ctx implementation
@@ -246,7 +272,21 @@ export class Engine implements Ctx {
     }
 
     const n = e.n;
-    e.lu = new DenseLU(n);
+    // Structural pattern: every device couples all of its unknowns.
+    const mask = new Uint8Array(Math.max(1, n * n));
+    for (const nodes of incidence) {
+      for (const u of nodes) for (const v of nodes) mask[finalOf[u]! * n + finalOf[v]!] = 1;
+    }
+    e.lu = new SparseLU(n, mask);
+    // Matrix entries that nonlinear devices (or the diagonal shunt) may touch.
+    const nl = new Set<number>();
+    for (let i = 0; i < n; i++) nl.add(i * n + i);
+    e.devices.forEach((d, k) => {
+      if (!d.nonlinear) return;
+      const nodes = incidence[k]!;
+      for (const u of nodes) for (const v of nodes) nl.add(finalOf[u]! * n + finalOf[v]!);
+    });
+    e.nlPos = Int32Array.from(nl);
     e.Alin = new Float64Array(Math.max(1, n * n));
     e.bstep = new Float64Array(Math.max(1, n));
     e.bwork = new Float64Array(Math.max(1, n));
@@ -254,6 +294,8 @@ export class Engine implements Ctx {
     e.xIter = new Float64Array(Math.max(1, n));
     e.xNew = new Float64Array(Math.max(1, n));
     e.xBack = new Float64Array(Math.max(1, n));
+    e.xPrev = new Float64Array(Math.max(1, n));
+    e.xAnchor = new Float64Array(Math.max(1, n));
     e.hmax = opts.maxStep ?? (e.hasSpeaker ? 1 / AUDIO_RATE : DEFAULT_MAX_STEP);
 
     if (prev) e.inherit(prev);
@@ -355,6 +397,7 @@ export class Engine implements Ctx {
 
     const maxIter = this.freshStart ? 100 : MAX_ITER;
     let failedHere = false;
+    this.predict = !isBreak && this.canPredict;
     for (let attempt = 0; ; attempt++) {
       this.prepare(h, method);
       let ok = this.newton(maxIter, false);
@@ -402,7 +445,7 @@ export class Engine implements Ctx {
       if (failedHere) this.cautious = 3;
       else if (this.cautious > 0) this.cautious--;
       if (this.cautious > 0 || this.lastIters > 8) this.hNext = Math.min(this.hNext, h);
-      this.acceptStep(h, limit);
+      this.acceptStep(h, limit, !isBreak && !jumped && ok);
       return;
     }
   }
@@ -442,7 +485,14 @@ export class Engine implements Ctx {
     const xi = this.xIter;
     const xn = this.xNew;
     const lu = this.lu;
-    if (!fromCurrent) xi.set(this.x);
+    if (!fromCurrent) {
+      if (this.predict && this.hPrev > 0) {
+        const r = this.h / this.hPrev;
+        const x = this.x;
+        const xp = this.xPrev;
+        for (let i = 0; i < n; i++) xi[i] = x[i]! + (x[i]! - xp[i]!) * r;
+      } else xi.set(this.x);
+    }
     if (this.nonlinearDevs.length === 0 && this.gshunt === 0) {
       // Linear circuit: the factors stay valid until the linear matrix changes.
       if (!this.linFactored) {
@@ -461,12 +511,24 @@ export class Engine implements Ctx {
     this.linFactored = false;
     for (const d of this.nonlinearDevs) d.initIter(xi);
     const a = lu.a;
+    const Al = this.Alin;
+    const nlPos = this.nlPos;
+    a.set(Al);
     for (let it = 0; it < maxIter; it++) {
-      a.set(this.Alin);
+      // Only nonlinear devices (and the diagonal shunt) change the matrix between iterations.
+      if (it > 0) for (let q = 0; q < nlPos.length; q++) a[nlPos[q]!] = Al[nlPos[q]!]!;
       this.bwork.set(this.bstep);
       this.noncon = false;
       for (const d of this.nonlinearDevs) d.stampNonlinear(a, this.bwork, n, xi, this);
-      if (this.gshunt > 0) for (let i = 0; i < n; i++) a[i * n + i]! += this.gshunt;
+      if (this.gshunt > 0) {
+        const g = this.gshunt;
+        const anchor = this.anchored ? this.xAnchor : null;
+        const bw = this.bwork;
+        for (let i = 0; i < n; i++) {
+          a[i * n + i]! += g;
+          if (anchor) bw[i]! += g * anchor[i]!;
+        }
+      }
       lu.factor();
       lu.solve(this.bwork, xn);
       this.stats.iterations++;
@@ -504,8 +566,126 @@ export class Engine implements Ctx {
     return ok && this.newton(80, true);
   }
 
-  /** Convergence aids: gmin stepping (coarse, then fine), then source stepping. */
+  /**
+   * Convergence aids, cheapest first: a remembered jump, plain Newton with more room, pseudo-transient continuation,
+   * then gmin and source stepping. Oscillators snap through the same few folds over and over, so the change made by
+   * the last similar jump is an excellent first guess for this one: Newton from there converges in a few iterations.
+   */
   private rescue(): boolean {
+    if (this.jumpFromMemory()) {
+      this.stats.remembered++;
+      return true;
+    }
+    // Near a fold Newton can fail although the circuit can still continue on its branch: try that first.
+    this.predict = false;
+    if (this.newton(12, false)) return true;
+    const ok = this.pseudoTransient() || this.gminAndSourceStepping();
+    if (ok) this.rememberJump();
+    return ok;
+  }
+
+  /**
+   * Tries the change made by the most similar remembered jump as the starting guess. Similar means: on the nodes
+   * that jump moved, the circuit now sits where it sat before that jump. The result is rejected if it moved other
+   * nodes a lot (that would be some other part of the circuit flipping, which needs the careful path).
+   */
+  private jumpFromMemory(): boolean {
+    const n = this.n;
+    const x = this.x;
+    let best = -1;
+    let bestD = Infinity;
+    for (let k = 0; k < this.jumps.length; k++) {
+      const jm = this.jumps[k]!;
+      // Worst mismatch on the moved unknowns, relative to a tolerance that is tight near 0 V (base voltages decide
+      // when a snap happens) and looser on large voltages.
+      let d = 0;
+      for (let q = 0; q < jm.count; q++) {
+        const i = jm.moved[q]!;
+        const p = jm.pre[i]!;
+        const e = Math.abs(x[i]! - p) / (JUMP_MATCH_ABS + JUMP_MATCH_REL * Math.abs(p));
+        if (e > d) d = e;
+      }
+      if (d < bestD) {
+        bestD = d;
+        best = k;
+      }
+    }
+    if (best < 0 || bestD > 1) return false;
+    const jm = this.jumps[best]!;
+    const xi = this.xIter;
+    for (let i = 0; i < n; i++) xi[i] = x[i]! + jm.post[i]! - jm.pre[i]!;
+    if (!this.newton(12, true)) return false;
+    for (let i = 0; i < n; i++) {
+      const moved = Math.abs(xi[i]! - x[i]!);
+      if (moved > JUMP_MOVE && !jm.isMoved[i]) return false;
+    }
+    this.rememberJump(best);
+    return true;
+  }
+
+  /** Stores the jump just solved (from x to xIter), replacing slot k, or the oldest slot. */
+  private rememberJump(k = -1): void {
+    const n = this.n;
+    const x = this.x;
+    const xi = this.xIter;
+    let any = false;
+    for (let i = 0; i < n && !any; i++) any = Math.abs(xi[i]! - x[i]!) > JUMP_MOVE;
+    if (!any) return;
+    if (k < 0) {
+      if (this.jumps.length < JUMP_MEMORY) {
+        k = this.jumps.push({ pre: new Float64Array(n), post: new Float64Array(n), moved: new Int32Array(n), count: 0, isMoved: new Uint8Array(n) }) - 1;
+      } else {
+        k = this.jumpNext;
+        this.jumpNext = (this.jumpNext + 1) % JUMP_MEMORY;
+      }
+    }
+    const jm = this.jumps[k]!;
+    jm.pre.set(x);
+    jm.post.set(xi);
+    jm.count = 0;
+    for (let i = 0; i < n; i++) {
+      const m = Math.abs(xi[i]! - x[i]!) > JUMP_MOVE;
+      jm.isMoved[i] = m ? 1 : 0;
+      if (m) jm.moved[jm.count++] = i;
+    }
+  }
+
+  /**
+   * Pseudo-transient continuation: a small capacitance from every node to ground, integrated in pseudo time from the
+   * last good solution with growing pseudo steps until it no longer matters. That follows the path the real circuit
+   * takes through a snap (stray capacitance sets it), so the circuit lands on the physical branch, where gmin
+   * stepping from scratch can drift to an unrelated (for example a symmetric) solution.
+   */
+  private pseudoTransient(): boolean {
+    const xi = this.xIter;
+    xi.set(this.x);
+    this.xAnchor.set(this.x);
+    let g = PTC_G0;
+    let ok = false;
+    this.anchored = true;
+    for (let k = 0; k < 200; k++) {
+      this.gshunt = g;
+      this.xBack.set(xi);
+      if (this.newton(12, true)) {
+        this.xAnchor.set(xi);
+        if (g <= 1e-12) {
+          ok = true;
+          break;
+        }
+        g /= this.lastIters <= 4 ? PTC_RELAX : 2;
+      } else {
+        xi.set(this.xBack);
+        g *= 4;
+        if (g > 1e3) break;
+      }
+    }
+    this.gshunt = 0;
+    this.anchored = false;
+    return ok && this.newton(40, true);
+  }
+
+  /** The classic aids, as a last resort: gmin stepping (coarse, then fine), then source stepping. */
+  private gminAndSourceStepping(): boolean {
     if (this.gminStepping(1000)) return true;
     if (this.gminStepping(100)) return true;
     if (this.gminStepping(10)) return true;
@@ -566,8 +746,11 @@ export class Engine implements Ctx {
     return Number.isFinite(worst) ? worst : 10;
   }
 
-  private acceptStep(h: number, limit: number): void {
+  private acceptStep(h: number, limit: number, smooth: boolean): void {
     const x = this.xIter;
+    this.xPrev.set(this.x);
+    this.hPrev = h;
+    this.canPredict = smooth;
     for (const r of this.reactives) r.accept(x);
     let tNew = this.t + h;
     if (Math.abs(tNew - limit) < 1e-12) tNew = limit;

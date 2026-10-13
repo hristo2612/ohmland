@@ -85,6 +85,50 @@ export function audioAstable(): Netlist {
   };
 }
 
+/**
+ * The Unit 2 "siren" (lesson `siren`, wail version): a slow LED astable steers a fast audio astable through an RC
+ * glide, and a third transistor drives a speaker. Five transistors, 24 unknowns.
+ */
+export function siren(): Netlist {
+  const r = (id: string, a: string, b: string, ohms: number, watts?: number): PartSpec => ({ ...resistor(id, a, b, ohms, watts), tolerance: 0 } as PartSpec);
+  return {
+    parts: [
+      { id: "B1", kind: "battery", pins: { pos: "vcc", neg: "gnd" }, emf: 9, internalOhms: 1.5 },
+      { id: "S1", kind: "pushbutton", pins: { a: "vcc", b: "vp" }, pressed: true },
+      // slow oscillator
+      r("R1", "vp", "l1", 1000),
+      led("D1", "l1", "c1"),
+      r("R2", "vp", "l2", 1000),
+      led("D2", "l2", "c2"),
+      r("R3", "vp", "b1", 68e3),
+      r("R4", "vp", "b2", 68e3),
+      { id: "C1", kind: "capacitor", pins: { pos: "c1", neg: "b2" }, farads: 10e-6, polarized: true, volts: 16 },
+      { id: "C2", kind: "capacitor", pins: { pos: "c2", neg: "b1" }, farads: 10e-6, polarized: true, volts: 16 },
+      { id: "Q1", kind: "npn", pins: { c: "c1", b: "b1", e: "gnd" } },
+      { id: "Q2", kind: "npn", pins: { c: "c2", b: "b2", e: "gnd" } },
+      // fast oscillator
+      r("R5", "vp", "c3", 1000),
+      r("R6", "vp", "c4", 1000),
+      r("R7", "vp", "b3", 68e3),
+      r("R13", "vp", "b4", 68e3),
+      { id: "C3", kind: "capacitor", pins: { pos: "c3", neg: "b4" }, farads: 10e-9 },
+      { id: "C4", kind: "capacitor", pins: { pos: "c4", neg: "b3" }, farads: 10e-9 },
+      { id: "Q3", kind: "npn", pins: { c: "c3", b: "b3", e: "gnd" } },
+      { id: "Q4", kind: "npn", pins: { c: "c4", b: "b4", e: "gnd" } },
+      // glide: R8 and R9 from the fast bases to a strip fed from Q1's collector through R10, smoothed by C5
+      r("R8", "b3", "m", 100e3),
+      r("R9", "b4", "m", 100e3),
+      r("R10", "m", "c1", 10e3),
+      { id: "C5", kind: "capacitor", pins: { pos: "m", neg: "gnd" }, farads: 22e-6, polarized: true, volts: 16 },
+      // driver
+      r("R11", "c4", "q5b", 4700),
+      { id: "Q5", kind: "npn", pins: { c: "spb", b: "q5b", e: "gnd" } },
+      r("R12", "vp", "spa", 220, 0.5),
+      { id: "SP1", kind: "speaker", pins: { a: "spa", b: "spb" }, ohms: 8 },
+    ],
+  };
+}
+
 export const last = (s: Snapshot[]): Snapshot => s[s.length - 1]!;
 
 export const allEvents = (s: Snapshot[]) => s.flatMap((x) => x.events);
