@@ -1,8 +1,9 @@
 // A 3.5 digit (1999 count) multimeter with four sockets: COM, VΩ, mA (fused at 200 mA) and 10 A (unfused).
 //
-// The sockets are always physically there, whatever the dial says: the mA socket is a few ohms to COM through the
-// internal fuse, the 10 A socket is 0.01 Ω to COM. So a red lead left in the mA socket while measuring volts
-// shorts the source and can blow the fuse, as on a real meter.
+// The sockets are always physically there, whatever the dial says: the mA socket is about an ohm to COM through the
+// internal fuse, the 10 A socket is 0.05 Ω to COM. So a red lead left in the mA socket while measuring volts
+// shorts the source and can blow the fuse, as on a real meter. The 10 A input is unfused and rated for about 10 s:
+// carrying more than an amp for longer makes it run hot (health "hot" and a `warning` event), without damage.
 
 import type { InputKey, InputValue, MeterMode, PartSpec, PartState } from "../types";
 import { Device, G_OPEN, R_OFF, baseState, bool, stampG, stampI, volt, type Binder, type Ctx } from "../engine/device";
@@ -33,7 +34,7 @@ const MA: RangeDef[] = [
   { label: "200uA", fs: 2e-4, dec: 1, scale: 1e6, unit: "µA", shunt: 1000 },
   { label: "2mA", fs: 2e-3, dec: 3, scale: 1e3, unit: "mA", shunt: 100 },
   { label: "20mA", fs: 0.02, dec: 2, scale: 1e3, unit: "mA", shunt: 10 },
-  { label: "200mA", fs: 0.2, dec: 1, scale: 1e3, unit: "mA", shunt: 2 },
+  { label: "200mA", fs: 0.2, dec: 1, scale: 1e3, unit: "mA", shunt: 0.5 },
 ];
 const A10: RangeDef[] = [{ label: "10A", fs: 20, dec: 2, scale: 1, unit: "A" }];
 const CONT: RangeDef[] = [{ label: "200", fs: 200, dec: 1, scale: 1, unit: "Ω", src: 1e3 }];
@@ -58,10 +59,13 @@ export const METER = {
   diodeVoc: 3.0,
   maFuseAmps: 0.2,
   maFuseOhms: 0.5,
-  idleShunt: 2,
-  a10Ohms: 0.01,
-  beepOhms: 50,
+  idleShunt: 0.5,
+  a10Ohms: 0.05,
+  beepOhms: 30,
   update: 0.1,
+  /** The 10 A input runs hot after carrying more than a10HotAmps for a10HotSeconds; it cools after 5 s idle. */
+  a10HotAmps: 1,
+  a10HotSeconds: 10,
 };
 
 const COUNTS = 0.9995; // 1999 counts: anything at or above 1999.5 counts is over range
@@ -95,6 +99,10 @@ export class MultimeterDevice extends Device {
   unit = "";
   beep = false;
   value = 0;
+  /** Seconds the 10 A input has been carrying a large current, and seconds it has been idle since. */
+  a10Loaded = 0;
+  a10Idle = 0;
+  a10Hot = false;
   private acc = { t: 0, v: 0, v2: 0, ima: 0, i10: 0 };
 
   constructor(spec: Spec) {
@@ -179,6 +187,25 @@ export class MultimeterDevice extends Device {
         `The meter's internal 200 mA fuse blew: about ${fmtA(peak)} went through the mA socket. ${hint} Fit a new fuse before using the mA range again.`,
         { amps: peak, rating: METER.maFuseAmps },
       );
+    }
+    if (Math.abs(i10) > METER.a10HotAmps) {
+      this.a10Loaded += h;
+      this.a10Idle = 0;
+      if (!this.a10Hot && this.a10Loaded > METER.a10HotSeconds) {
+        this.a10Hot = true;
+        ctx.emit(
+          this.id,
+          "warning",
+          `The meter's 10 A input is running hot: it has carried about ${fmtA(Math.abs(i10))} for over ${METER.a10HotSeconds} seconds. It is made for short measurements only. Break the circuit and let it cool.`,
+          { amps: Math.abs(i10), seconds: this.a10Loaded, cause: "a10-heat" },
+        );
+      }
+    } else {
+      this.a10Idle += h;
+      if (this.a10Idle > 5) {
+        this.a10Loaded = 0;
+        this.a10Hot = false;
+      }
     }
     const vv = volt(x, this.vohm) - volt(x, this.com);
     const a = this.acc;
@@ -267,7 +294,7 @@ export class MultimeterDevice extends Device {
     const i = socket === "ma" ? ima : socket === "a10" ? i10 : iv;
     const v = socket === "ma" ? vma : socket === "a10" ? v10 : vv;
     const p = Math.max(0, vma * ima) + Math.max(0, v10 * i10) + (this.isSourceMode ? 0 : vv * iv);
-    const s = baseState(i, v, p);
+    const s = baseState(i, v, p, 25, this.a10Hot ? "hot" : "ok");
     s.display = this.display;
     s.unit = this.unit;
     s.extra = {
@@ -278,6 +305,7 @@ export class MultimeterDevice extends Device {
       beep: this.beep,
       value: Number.isFinite(this.value) ? this.value : 1e99,
       socket,
+      a10Hot: this.a10Hot,
     };
     return s;
   }
@@ -318,12 +346,16 @@ export class MultimeterDevice extends Device {
       unit: this.unit,
       value: this.value,
       beep: this.beep,
+      a10Loaded: this.a10Loaded,
+      a10Hot: this.a10Hot,
     };
   }
   override restore(s: Record<string, unknown>): void {
     this.fuse.blown = s.fuseBlown === true;
     this.fuse.te = typeof s.te === "number" ? s.te : 0;
     this.fuse.tb = typeof s.tb === "number" ? s.tb : 0;
+    this.a10Loaded = typeof s.a10Loaded === "number" ? s.a10Loaded : 0;
+    this.a10Hot = s.a10Hot === true;
     // Keep the reading on screen across a rebuild when the dial is where it was.
     if (s.mode === this.mode && typeof s.rangeInput === "string" && norm(s.rangeInput) === norm(this.rangeInput)) {
       if (typeof s.ri === "number" && s.ri >= 0 && s.ri < this.ranges.length) this.ri = s.ri;
@@ -335,5 +367,7 @@ export class MultimeterDevice extends Device {
   }
   override replace(): void {
     this.fuse.reset();
+    this.a10Loaded = 0;
+    this.a10Hot = false;
   }
 }

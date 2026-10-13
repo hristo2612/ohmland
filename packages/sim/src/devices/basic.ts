@@ -16,7 +16,7 @@ import {
   type Binder,
   type Ctx,
 } from "../engine/device";
-import { spread } from "../util/rng";
+import { spread, toleranced } from "../util/rng";
 import { fmtA, fmtS, fmtV, fmtW, fmtX } from "../util/format";
 
 type Spec<K extends PartSpec["kind"]> = Extract<PartSpec, { kind: K }>;
@@ -69,6 +69,10 @@ const RESISTOR_BURN_C = 350;
 
 export class ResistorDevice extends TwoTerminal {
   R: number;
+  /** Value the part was made with (before any live `ohms` input). */
+  readonly actual: number;
+  readonly nominal: number;
+  readonly tolerance: number;
   watts: number;
   thermal: Thermal;
   damage = 0;
@@ -76,10 +80,14 @@ export class ResistorDevice extends TwoTerminal {
   private smoked = false;
   private pLast = 0;
 
-  constructor(spec: Spec<"resistor"> | Spec<"probe-resistance">, private readonly heats = true) {
+  /** Resistors (with tolerance and heat), probe resistances and resistive wires (neither). */
+  constructor(spec: Spec<"resistor"> | Spec<"probe-resistance"> | Spec<"wire">, private readonly heats = true, seed?: string) {
     super(spec);
-    const tol = spec.kind === "resistor" ? clamp(finiteOr(spec.tolerance, 0), 0, 0.5) : 0;
-    this.R = Math.max(1e-4, finiteOr(spec.ohms, 1000)) * (1 + tol * spread(spec.id, "resistor"));
+    this.nominal = Math.max(1e-4, finiteOr(spec.ohms, 1000));
+    this.tolerance = spec.kind === "resistor" ? clamp(finiteOr(spec.tolerance, 0.05), 0, 0.5) : 0;
+    const forced = spec.kind === "resistor" ? finiteOr(spec.actualOhms, 0) : 0;
+    this.actual = forced > 0 ? Math.max(1e-4, forced) : toleranced(this.nominal, this.tolerance, spec.id, "resistor", seed);
+    this.R = this.actual;
     this.watts = spec.kind === "resistor" ? Math.max(0.01, finiteOr(spec.watts, 0.25)) : 0.25;
     // 250 C/W for a quarter watt part; bigger parts run cooler and have more thermal mass.
     this.thermal = new Thermal(62.5 / this.watts, 4 * Math.pow(this.watts / 0.25, 0.6));
@@ -129,7 +137,13 @@ export class ResistorDevice extends TwoTerminal {
     const v = this.vOf(x);
     const i = v * this.g;
     const s = baseState(i, v, v * i, this.thermal.temp, this.health());
+    if (this.kind === "wire") return s;
     s.extra = { ohms: this.R, watts: this.watts };
+    if (this.kind === "resistor") {
+      s.extra.actualOhms = this.R;
+      s.extra.nominalOhms = this.nominal;
+      s.extra.tolerance = this.tolerance;
+    }
     return s;
   }
   override setInput(key: InputKey, value: InputValue): boolean {
@@ -273,6 +287,10 @@ export class PotDevice extends Device {
 // slow) that pull the terminal voltage down under heavy load and recover at rest, plus optional capacity.
 
 const SHORT_FRACTION = 0.35;
+/** Polarisation: fast term (x internalOhms, fading below about POL_FAST_AMPS) and slow term (x internalOhms). */
+const POL_FAST = 2;
+const POL_FAST_AMPS = 0.5;
+const POL_SLOW = 0.35;
 
 export class SourceDevice extends Device {
   p = -1;
@@ -336,10 +354,13 @@ export class SourceDevice extends Device {
     const pint = i * i * this.rEff + i * (this.vp1 + this.vp2);
     this.thermal.update(Math.max(0, pint), h);
     if (this.polarizes) {
-      const t1 = this.r0 * 1.5 * i;
-      const t2 = this.r0 * 0.6 * i;
+      // Fast polarisation only matters at high currents (amps), the slow one builds over seconds and recovers
+      // over tens of seconds.
+      const ai = Math.abs(i);
+      const t1 = POL_FAST * this.r0 * i * (ai / (ai + POL_FAST_AMPS));
+      const t2 = POL_SLOW * this.r0 * i;
       const tau1 = 0.3;
-      const tau2 = Math.abs(t2) > Math.abs(this.vp2) ? 5 : 60;
+      const tau2 = Math.abs(t2) > Math.abs(this.vp2) ? 5 : 20;
       this.vp1 += (t1 - this.vp1) * (1 - Math.exp(-h / tau1));
       this.vp2 += (t2 - this.vp2) * (1 - Math.exp(-h / tau2));
     }
@@ -480,12 +501,12 @@ export class FuseDevice extends TwoTerminal {
   amps: number;
   R: number;
   el: FuseElement;
-  constructor(spec: Spec<"fuse">) {
+  constructor(spec: Spec<"fuse">, seed?: string) {
     super(spec);
     this.amps = Math.max(1e-3, finiteOr(spec.amps, 1));
     // Real fuses are imprecise: each instance melts at a slightly different current, fixed by its id.
-    this.el = new FuseElement(this.amps * (1 + 0.08 * spread(spec.id, "fuse")));
-    this.R = Math.min(3, 0.12 + 0.1 / this.amps);
+    this.el = new FuseElement(this.amps * (1 + 0.1 * spread(spec.id, "fuse", seed)));
+    this.R = Math.min(3, 0.1 / this.amps);
   }
   get g(): number {
     return this.el.blown ? G_OPEN : 1 / this.R;

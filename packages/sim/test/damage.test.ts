@@ -4,7 +4,7 @@ import { allEvents, battery9, last, resistor } from "./circuits";
 
 /** A fuse fed from a stiff source with the load chosen so the current is k times the fuse rating. */
 function fuseAt(k: number, amps = 1, id = "F1"): Netlist {
-  const fuseOhms = 0.12 + 0.1 / amps;
+  const fuseOhms = 0.1 / amps;
   const emf = 2;
   return {
     parts: [
@@ -86,6 +86,7 @@ describe("overheating", () => {
     );
     const types = allEvents(s).map((e) => e.type);
     expect(types).toEqual(["reversed", "damaged", "died"]);
+    expect(allEvents(s).every((e) => e.data?.cause === "reverse")).toBe(true);
     expect(Math.abs(s[2]!.parts.C1!.i)).toBeGreaterThan(1e-4);
   });
 

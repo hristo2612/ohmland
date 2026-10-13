@@ -18,9 +18,9 @@ import {
   type Binder,
   type Ctx,
 } from "../engine/device";
-import { RESISTOR_HOT_C, RESISTOR_SMOKE_C } from "./basic";
+import { RESISTOR_HOT_C } from "./basic";
 import { Contact, ContactDevice } from "./contacts";
-import { spread } from "../util/rng";
+import { spread, toleranced } from "../util/rng";
 import { fmtF, fmtV, fmtW, fmtX } from "../util/format";
 
 type Spec<K extends PartSpec["kind"]> = Extract<PartSpec, { kind: K }>;
@@ -28,8 +28,9 @@ type Spec<K extends PartSpec["kind"]> = Extract<PartSpec, { kind: K }>;
 const o = { i: 0, g: 0 };
 
 // ---------------------------------------------------------------------------------------------------------------
-// Capacitor. Polarised (electrolytic) parts conduct when reversed beyond about 1 V and wear out; any part with a
-// voltage rating wears out above 1.2 x its rating.
+// Capacitor. Each part's actual value is spread within its tolerance. Electrolytics (polarized) have a small ESR and
+// leak a little; reversed beyond about 1 V they conduct, heat and wear out, and any part with a voltage rating
+// wears out above 1.2 x its rating. Wear makes the leakage grow, so a meter in series sees the current creep up.
 
 const REV_KNEE = 1.0;
 const REV_G = 1 / 2000;
@@ -39,119 +40,170 @@ export class CapacitorDevice extends Device {
   a = -1;
   b = -1;
   C: number;
+  readonly nominal: number;
+  readonly tolerance: number;
+  readonly esr: number;
   comp!: CapCompanion;
   readonly polarized: boolean;
   readonly volts: number;
   leakG: number;
   damage = 0;
   dead = false;
+  private cause: "reverse" | "overvoltage" = "reverse";
   private reversedSent = false;
   private damagedSent = false;
   private reverseTime = 0;
   private savedV = 0;
+  /** Damage level the leakage stamp was last built for. */
+  private leakDamage = 0;
 
-  constructor(spec: Spec<"capacitor">) {
+  constructor(spec: Spec<"capacitor">, seed?: string) {
     super(spec);
-    this.C = Math.max(0, finiteOr(spec.farads, 1e-6));
     this.polarized = spec.polarized === true;
+    this.nominal = Math.max(0, finiteOr(spec.farads, 1e-6));
+    this.tolerance = clamp(finiteOr(spec.tolerance, this.polarized ? 0.2 : 0.1), 0, 0.5);
+    const forced = finiteOr(spec.actualFarads, 0);
+    this.C = forced > 0 ? forced : toleranced(this.nominal, this.tolerance, spec.id, "capacitor", seed);
     this.volts = Math.max(0, finiteOr(spec.volts, 0));
-    const leak = finiteOr(spec.leakOhms, this.polarized ? 5e6 : 0);
+    const leak = finiteOr(spec.leakOhms, this.polarized ? 1e6 : 0);
     this.leakG = leak > 0 ? 1 / leak : 0;
+    // Electrolytic ESR: about 0.1 Ω for 1000 µF, 0.3 Ω for 100 µF, 1 Ω for 10 µF (at most 2 Ω).
+    const esrDefault = this.polarized && this.C > 0 ? clamp(0.1 * Math.sqrt(1e-3 / this.C), 0.1, 2) : 0;
+    this.esr = Math.max(0, finiteOr(spec.esrOhms, esrDefault));
     this.nonlinear = this.polarized;
   }
   bind(bd: Binder): void {
     this.a = bd.node(this.pin("pos"));
     this.b = bd.node(this.pin("neg"));
-    this.comp = new CapCompanion(this.a, this.b, this.dead ? 0 : this.C);
+    this.comp = new CapCompanion(this.a, this.b, this.dead ? 0 : this.C, this.esr);
     this.comp.v = this.savedV;
     bd.reactive(this.comp);
   }
+  /** Leakage conductance: grows with damage (a damaged ceramic starts to leak too). */
+  private get leak(): number {
+    const d = this.leakDamage;
+    return this.leakG * (1 + 50 * d) + (this.leakG === 0 ? 1e-6 * d : 0);
+  }
   override stampLinear(A: Float64Array, n: number): void {
-    if (this.leakG > 0 && !this.dead) stampG(A, n, this.a, this.b, this.leakG);
+    const g = this.leak;
+    if (!this.dead && g > 0) stampG(A, n, this.a, this.b, g);
+  }
+  private get revG(): number {
+    return REV_G * (1 + 4 * this.damage);
   }
   override stampNonlinear(A: Float64Array, b: Float64Array, n: number, x: Float64Array): void {
     if (this.dead) return;
     const v = volt(x, this.a) - volt(x, this.b);
-    breakdownIG(v, REV_KNEE, REV_G, REV_VS, o);
+    breakdownIG(v, REV_KNEE, this.revG, REV_VS, o);
     stampBranch(A, b, n, this.a, this.b, o.i, o.g, v);
   }
   private extraCurrent(v: number): number {
     if (this.dead) return 0;
-    let i = v * this.leakG;
+    let i = v * this.leak;
     if (this.polarized) {
-      breakdownIG(v, REV_KNEE, REV_G, REV_VS, o);
+      breakdownIG(v, REV_KNEE, this.revG, REV_VS, o);
       i += o.i;
     }
     return i;
   }
   totalCurrent(x: Float64Array): number {
-    const v = this.comp.stateOf(x);
+    const v = volt(x, this.a) - volt(x, this.b);
     return this.comp.currentFor(x) + this.extraCurrent(v);
   }
   pinCurrents(x: Float64Array): number[] {
     const i = this.totalCurrent(x);
     return [i, -i];
   }
-  override accept(_x: Float64Array, ctx: Ctx): void {
+  override accept(x: Float64Array, ctx: Ctx): void {
     if (this.dead) return;
-    const v = this.comp.v;
+    const v = volt(x, this.a) - volt(x, this.b);
     const h = ctx.h;
     let rate = 0;
-    if (this.polarized && v < -REV_KNEE) {
+    const reversed = this.polarized && v < -REV_KNEE;
+    if (reversed) {
       const irev = -this.extraCurrent(v);
       rate += 0.02 * (-v - REV_KNEE) + 50 * Math.max(0, -v * irev);
+      this.cause = "reverse";
       this.reverseTime += h;
       if (!this.reversedSent && this.reverseTime > 0.02) {
         this.reversedSent = true;
-        ctx.emit(this.id, "reversed", `This electrolytic capacitor is in backwards (${fmtV(-v)} reversed). Current leaks through it and it heats up. Turn it round: the stripe marks the negative lead.`, { volts: -v });
+        ctx.emit(
+          this.id,
+          "reversed",
+          `This electrolytic capacitor is in backwards (${fmtV(-v)} reversed). Current leaks through it and it heats up. Turn it round: the stripe marks the negative lead.`,
+          { volts: -v, cause: "reverse" },
+        );
       }
     } else if (v > 0) this.reverseTime = 0;
     if (this.volts > 0 && Math.abs(v) > 1.2 * this.volts) {
       rate += (Math.abs(v) / this.volts - 1.2) * 2;
+      if (!reversed) this.cause = "overvoltage";
     }
     if (rate <= 0) return;
     this.damage += rate * h;
+    // The leakage follows the damage in small jumps, so the matrix is not rebuilt on every step.
+    if (this.damage - this.leakDamage > 0.02) {
+      this.leakDamage = Math.min(1, this.damage);
+      ctx.markDirty();
+    }
     if (this.damage >= 1) {
       this.dead = true;
       this.comp.C = 0;
       ctx.markDirty();
       ctx.markBreak();
       const why =
-        this.polarized && v < -REV_KNEE
+        this.cause === "reverse"
           ? `It was connected backwards (${fmtV(-v)} reversed). Electrolytics must have their + lead on the more positive side.`
           : `It saw ${fmtV(Math.abs(v))}, ${fmtX(Math.abs(v) / this.volts)} its ${fmtV(this.volts)} rating.`;
-      ctx.emit(this.id, "died", `The ${fmtF(this.C)} capacitor vented and failed. ${why}`, { volts: v });
+      ctx.emit(this.id, "died", `The ${fmtF(this.nominal)} capacitor vented and failed. ${why}`, { volts: v, cause: this.cause });
     } else if (this.damage > 0.1 && !this.damagedSent) {
       this.damagedSent = true;
-      const why = this.polarized && v < -REV_KNEE ? "it is reversed" : `it is over its ${fmtV(this.volts)} rating`;
-      ctx.emit(this.id, "damaged", `The capacitor is bulging and getting damaged because ${why}.`, { volts: v });
+      const why = this.cause === "reverse" ? "it is reversed" : `it is over its ${fmtV(this.volts)} rating`;
+      ctx.emit(this.id, "damaged", `The capacitor is bulging and getting damaged because ${why}. Its leakage current is rising.`, {
+        volts: v,
+        cause: this.cause,
+      });
     }
   }
   state(x: Float64Array): PartState {
-    const v = this.comp.stateOf(x);
-    const i = this.totalCurrent(x);
-    const pLoss = v * this.extraCurrent(v);
+    const v = volt(x, this.a) - volt(x, this.b);
+    const vc = this.comp.stateOf(x);
+    const ic = this.comp.currentFor(x);
+    const i = ic + this.extraCurrent(v);
+    const pLoss = v * this.extraCurrent(v) + this.esr * ic * ic;
     const health: Health = this.dead ? "dead" : this.damage > 0.5 ? "smoking" : this.damage > 0.1 ? "hot" : "ok";
     const s = baseState(i, v, Math.max(0, pLoss), AMBIENT, health);
-    s.extra = { charge: this.C * v, energy: 0.5 * this.C * v * v, damage: this.damage };
+    s.extra = {
+      charge: this.C * vc,
+      energy: 0.5 * this.C * vc * vc,
+      damage: this.damage,
+      actualFarads: this.C,
+      nominalFarads: this.nominal,
+      tolerance: this.tolerance,
+      esr: this.esr,
+    };
     return s;
   }
   override save(): Record<string, unknown> {
-    return { v: this.comp ? this.comp.v : this.savedV, damage: this.damage, dead: this.dead };
+    return { v: this.comp ? this.comp.v : this.savedV, damage: this.damage, dead: this.dead, cause: this.cause };
   }
   override restore(s: Record<string, unknown>): void {
     this.savedV = finiteOr(s.v as number, 0);
     if (this.comp) this.comp.v = this.savedV;
     this.damage = finiteOr(s.damage as number, 0);
+    this.leakDamage = Math.min(1, this.damage);
     this.dead = s.dead === true;
     this.damagedSent = this.damage > 0.1;
+    if (s.cause === "overvoltage") this.cause = "overvoltage";
     if (this.dead && this.comp) this.comp.C = 0;
   }
   override replace(): void {
     this.damage = 0;
+    this.leakDamage = 0;
     this.dead = false;
     this.damagedSent = false;
     this.reversedSent = false;
+    this.cause = "reverse";
     this.comp.C = this.C;
     this.comp.v = 0;
     this.comp.i = 0;
@@ -371,7 +423,13 @@ export class RelayDevice extends ContactDevice {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Speaker: voice coil resistance plus a small inductance, with a voice coil thermal model.
+// Speaker: voice coil resistance plus a small inductance, with a voice coil thermal model. The coil reaches its
+// burn temperature when it dissipates its rated `watts` for a while: more than that, sustained, damages it and then
+// burns it open. Its sound (the audio stream) is the coil voltage through a first-order acoustic high-pass: a small
+// cone in free air loses the bass below about 300 Hz, one in an enclosure goes down to about 100 Hz.
+
+const SPEAKER_BURN_C = 225;
+const SPEAKER_SMOKE_C = 250;
 
 export class SpeakerDevice extends Device {
   a = -1;
@@ -384,8 +442,13 @@ export class SpeakerDevice extends Device {
   thermal: Thermal;
   damage = 0;
   dead = false;
+  /** Acoustic output (volts, high-passed) for the audio stream. */
+  private out = 0;
   private vLast = 0;
+  private readonly tauAcoustic: number;
   private smoked = false;
+  private damagedSent = false;
+  private peakW = 0;
   private savedI = 0;
 
   constructor(spec: Spec<"speaker">) {
@@ -393,7 +456,9 @@ export class SpeakerDevice extends Device {
     this.R = Math.max(0.5, finiteOr(spec.ohms, 8));
     this.L = Math.max(1e-7, finiteOr(spec.henries, 5e-5));
     this.watts = Math.max(0.05, finiteOr(spec.watts, 0.5));
-    this.thermal = new Thermal(62.5 / this.watts, 3);
+    // 200 C/W per rated watt: the rating puts the coil at its 225 C limit.
+    this.thermal = new Thermal(200 / this.watts, 3);
+    this.tauAcoustic = 1 / (2 * Math.PI * (spec.enclosure === true ? 100 : 300));
   }
   bind(b: Binder): void {
     this.a = b.node(this.pin("a"));
@@ -416,35 +481,61 @@ export class SpeakerDevice extends Device {
     return [i, -i];
   }
   override accept(x: Float64Array, ctx: Ctx): void {
-    this.vLast = volt(x, this.a) - volt(x, this.b);
+    const v = volt(x, this.a) - volt(x, this.b);
+    // Acoustic high-pass, exact for a input that changes linearly over the step.
+    const k = Math.exp(-ctx.h / this.tauAcoustic);
+    this.out = this.dead ? 0 : k * this.out + (v - this.vLast) * (this.tauAcoustic / ctx.h) * (1 - k);
+    this.vLast = v;
     const i = this.current(x);
     const p = i * i * this.R;
     this.thermal.update(p, ctx.h);
     if (this.dead) return;
     const T = this.thermal.temp;
-    if (T > RESISTOR_SMOKE_C && !this.smoked) {
+    if (T > SPEAKER_SMOKE_C && !this.smoked) {
       this.smoked = true;
-      ctx.emit(this.id, "smoke", `The speaker's voice coil is overheating: it is taking ${fmtW(p)}, ${fmtX(p / this.watts)} its ${fmtW(this.watts)} rating. Put a resistor (about 100 Ω) in series to limit the current.`, { watts: p });
+      ctx.emit(
+        this.id,
+        "smoke",
+        `The speaker's voice coil is overheating: it is taking ${fmtW(p)}, ${fmtX(p / this.watts)} its ${fmtW(this.watts)} rating. Put a resistor (about 100 Ω) in series to limit the current.`,
+        { watts: p, rating: this.watts, cause: "overpower" },
+      );
     }
-    if (T > 350) {
-      this.damage += ((T - 350) / 300) * ctx.h;
+    if (T > SPEAKER_BURN_C) {
+      this.peakW = Math.max(this.peakW, p);
+      const rate = (T - SPEAKER_BURN_C) / 100;
+      this.damage += rate * ctx.h;
       if (this.damage >= 1) {
         this.dead = true;
+        this.damage = 1;
         ctx.markDirty();
         ctx.markBreak();
-        ctx.emit(this.id, "died", "The speaker's voice coil burned open. Small speakers need a series resistor when driven from a battery.", { watts: p });
+        ctx.emit(
+          this.id,
+          "died",
+          `The speaker's voice coil burned open after taking up to ${fmtW(this.peakW)}; it is rated for ${fmtW(this.watts)}. Small speakers need a series resistor when driven from a battery.`,
+          { watts: this.peakW, rating: this.watts, cause: "overpower" },
+        );
+      } else if (this.damage > 0.1 && !this.damagedSent && rate < 5) {
+        this.damagedSent = true;
+        ctx.emit(this.id, "damaged", `The speaker is being driven past its ${fmtW(this.watts)} rating and its voice coil is cooking. Turn it down with a bigger series resistor.`, {
+          watts: p,
+          rating: this.watts,
+          cause: "overpower",
+        });
       }
     }
   }
   override get audioVolts(): number {
-    return this.vLast;
+    return this.out;
   }
   state(x: Float64Array): PartState {
     const i = this.current(x);
     const v = volt(x, this.a) - volt(x, this.b);
     const T = this.thermal.temp;
-    const health: Health = this.dead ? "dead" : T > RESISTOR_SMOKE_C ? "smoking" : T > RESISTOR_HOT_C ? "hot" : "ok";
-    return baseState(i, v, i * i * this.R, T, health);
+    const health: Health = this.dead ? "dead" : T > SPEAKER_SMOKE_C ? "smoking" : T > RESISTOR_HOT_C ? "hot" : "ok";
+    const s = baseState(i, v, i * i * this.R, T, health);
+    s.extra = { damage: this.damage, watts: this.watts };
+    return s;
   }
   override save(): Record<string, unknown> {
     return { temp: this.thermal.temp, damage: this.damage, dead: this.dead, iL: this.ind ? this.ind.i : this.savedI };
@@ -453,6 +544,7 @@ export class SpeakerDevice extends Device {
     this.thermal.temp = finiteOr(s.temp as number, AMBIENT);
     this.damage = finiteOr(s.damage as number, 0);
     this.dead = s.dead === true;
+    this.damagedSent = this.damage > 0.1;
     this.savedI = finiteOr(s.iL as number, 0);
     if (this.ind) this.ind.i = this.savedI;
   }
@@ -461,5 +553,7 @@ export class SpeakerDevice extends Device {
     this.damage = 0;
     this.dead = false;
     this.smoked = false;
+    this.damagedSent = false;
+    this.peakW = 0;
   }
 }

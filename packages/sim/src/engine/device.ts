@@ -176,21 +176,29 @@ export abstract class Reactive {
   }
 }
 
+/**
+ * Capacitor companion, optionally with a series resistance (ESR) folded in: the branch is C in series with esr, so
+ * no extra node is needed. The state variable is the voltage on C itself.
+ */
 export class CapCompanion extends Reactive {
   readonly absTol = 1e-3;
   /** Capacitor voltage and current (a to b) at the last accepted point. */
   v = 0;
   i = 0;
+  /** Companion of C alone (the branch values geq and ieq include the ESR). */
+  private gc = 0;
   constructor(
     a: number,
     b: number,
     public C: number,
+    public esr = 0,
   ) {
     super(a, b);
   }
   prepare(h: number, method: Method): void {
     if (this.alwaysBE) method = "be";
-    this.geq = this.C <= 0 ? 0 : method === "be" ? this.C / h : (2 * this.C) / h;
+    this.gc = this.C <= 0 ? 0 : method === "be" ? this.C / h : (2 * this.C) / h;
+    this.geq = this.gc / (1 + this.esr * this.gc);
   }
   history(_h: number, method: Method): void {
     if (this.alwaysBE) method = "be";
@@ -198,18 +206,21 @@ export class CapCompanion extends Reactive {
       this.ieq = 0;
       return;
     }
-    this.ieq = method === "be" ? -this.geq * this.v : -this.geq * this.v - this.i;
+    const ic = method === "be" ? -this.gc * this.v : -this.gc * this.v - this.i;
+    this.ieq = ic / (1 + this.esr * this.gc);
+  }
+  /** Branch current (a to b) for a solution. */
+  currentFor(x: Float64Array): number {
+    return this.geq * (volt(x, this.a) - volt(x, this.b)) + this.ieq;
   }
   stateOf(x: Float64Array): number {
-    return volt(x, this.a) - volt(x, this.b);
-  }
-  currentFor(x: Float64Array): number {
-    return this.geq * this.stateOf(x) + this.ieq;
+    const vab = volt(x, this.a) - volt(x, this.b);
+    return this.esr > 0 ? vab - this.esr * (this.geq * vab + this.ieq) : vab;
   }
   accept(x: Float64Array): void {
-    const v = this.stateOf(x);
-    this.i = this.C <= 0 ? 0 : this.geq * v + this.ieq;
-    this.v = v;
+    const vab = volt(x, this.a) - volt(x, this.b);
+    this.i = this.C <= 0 ? 0 : this.geq * vab + this.ieq;
+    this.v = vab - this.esr * this.i;
   }
   get state(): number {
     return this.v;

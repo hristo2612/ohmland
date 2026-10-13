@@ -47,6 +47,34 @@ describe("2N3904", () => {
     expect(beta).toBeLessThan(300);
   });
 
+  test("each transistor has its own gain, fixed by its id", () => {
+    const parts = (id: string) => [
+      battery9(),
+      resistor("RB", "vcc", "b", 680e3),
+      { id, kind: "npn" as const, pins: { c: "c", b: "b", e: "gnd" } },
+      resistor("RC", "vcc", "c", 100),
+    ];
+    const beta = (id: string) => Number(last(simulateFor({ parts: parts(id) }, 0.05)).parts[id]!.extra!.beta);
+    const betas = ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6"].map(beta);
+    expect(Math.min(...betas)).toBeGreaterThan(120);
+    expect(Math.max(...betas)).toBeLessThan(300);
+    expect(Math.max(...betas) - Math.min(...betas)).toBeGreaterThan(15);
+    expect(beta("Q1")).toBe(betas[0]);
+  });
+
+  test("a phototransistor passes about 2 mA in full light, a trickle in the dark, and almost nothing reversed", () => {
+    const circuit = (c: string, e: string, light: number) => ({
+      parts: [battery9(), resistor("R1", "vcc", "p", 1000), { id: "PT", kind: "phototransistor" as const, pins: { c, e }, light }, resistor("R2", "q", "gnd", 100)],
+    });
+    const i = (c: string, e: string, light: number) => last(simulateFor(circuit(c, e, light), 0.1)).parts.R2!.i;
+    expect(i("p", "q", 1)).toBeGreaterThan(1.8e-3);
+    expect(i("p", "q", 1)).toBeLessThan(2.3e-3);
+    expect(i("p", "q", 0)).toBeLessThan(1e-6);
+    const rev = simulateFor(circuit("q", "p", 1), 0.2, { sampleEvery: 0.1 });
+    expect(Math.abs(last(rev).parts.R2!.i)).toBeLessThan(5e-5);
+    expect(rev.flatMap((x) => x.events).some((e) => e.type === "reversed")).toBe(true);
+  });
+
   test("the LED astable blinks with half periods near 0.69 R C", () => {
     const R = 47e3;
     const C = 10e-6;

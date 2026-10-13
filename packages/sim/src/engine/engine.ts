@@ -147,9 +147,10 @@ export class Engine implements Ctx {
   static build(netlist: Netlist, prev: Engine | null, opts: EngineOptions = {}): Engine {
     const e = new Engine();
     const seen = new Set<string>();
+    const seed = typeof netlist?.seed === "string" && netlist.seed !== "" ? netlist.seed : undefined;
     for (const spec of netlist?.parts ?? []) {
       if (!spec || typeof spec.id !== "string" || seen.has(spec.id)) continue;
-      const d = createDevice(spec);
+      const d = createDevice(spec, seed);
       if (!d) continue;
       seen.add(spec.id);
       e.devices.push(d);

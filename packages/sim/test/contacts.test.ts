@@ -72,6 +72,15 @@ describe("switches and contacts", () => {
     expect(diode.events.some((e) => e.type === "clicked" && e.data?.to === "nc")).toBe(true);
   });
 
+  test("an LED backwards across the coil catches the kickback, and the sub-millisecond flash still shows", () => {
+    const { minV, events, peakGlow } = kickback({ id: "D2", kind: "led", pins: { anode: "gnd", cathode: "k1a" }, color: "red" });
+    expect(minV).toBeGreaterThan(-5);
+    expect(events.some((e) => e.type === "spark")).toBe(false);
+    // Seen in the 30 Hz snapshots that follow, although the pulse itself lasts well under a millisecond.
+    expect(peakGlow).toBeGreaterThan(0.1);
+    expect(peakGlow).toBeLessThan(0.4);
+  });
+
   test("a relay that buzzes for about 20 s wears its contacts out; its armature moves over the operate time", () => {
     // Lesson `relay-buzzer`: the coil is fed through the relay's own NC contact, with a protection diode.
     const parts: PartSpec[] = [
