@@ -17,9 +17,24 @@ const path = [
   ...course.upcoming.map((u) => ({ number: u.number, title: u.title, summary: u.summary, open: false })),
 ];
 const binParts = ["resistor", "led", "battery", "capacitor", "multimeter", "transistor"] as const;
+// Matches the hero frame's image-set() in isle/isle-frames.css: 1x and 2x above phone width, 2x and 3x below it.
+const POSTERS = (["day", "night"] as const).flatMap((name) => {
+  const scheme = `(prefers-color-scheme: ${name === "day" ? "light" : "dark"})`;
+  const small = `/isle/hero-${name}-640.webp`;
+  const large = `/isle/hero-${name}.webp`;
+  return [
+    { media: `${scheme} and (min-width: 768px)`, srcset: `${small} 1x, ${large} 2x` },
+    { media: `${scheme} and (max-width: 767px)`, srcset: `${small} 2x, ${large} 3x` },
+  ];
+});
 ---
 
 <Page>
+  {
+    /* The hero's poster for the system theme, at the size the frame's image-set() picks, fetched as the page parses.
+       (A theme chosen in the app over the system's still shows at once: the blurred copy in the stylesheet.) */
+    POSTERS.map((p) => <link rel="preload" as="image" imagesrcset={p.srcset} media={p.media} fetchpriority="high" />)
+  }
   <section class="hero">
     <div class="hero__inner container">
       <div class="hero__copy">

@@ -518,4 +518,5 @@ question, account deletion, a change sent while the tab closes) against an emula
 `apps/web/scripts/screenshots.mjs` takes screenshots of every page and lesson step in both themes at 1440x900 and
 390x844 for visual review; a curated set lives in `apps/web/screenshots/`. Headless Chromium gets WebGL from
 SwiftShader (`--use-angle=swiftshader --enable-unsafe-swiftshader`). `apps/web/scripts/isle-poster.mjs` renders the
-landing hero's day and night stills from the live island.
+landing hero's day and night stills from the live island (1200 and 640 px wide, plus the tiny blurred copies that
+`tokens.css` inlines so the hero frame is never empty).

@@ -102,6 +102,8 @@
   --isle-sky-top: #7CC6EC;
   --isle-sky-bottom: #E4F3F4;
   --isle-poster: url("/isle/hero-day.webp");
+  --isle-poster-small: url("/isle/hero-day-640.webp");
+  --isle-poster-blur: url("data:image/webp;base64,UklGRgYBAABXRUJQVlA4IPoAAADwBQCdASogABsAPtFcok2oJSKiKA1RABoJbACdMoR86dDchXsszVkm0FMDbQ3nHBKaFtXafSIFYAD+wyyJCys8W61c3r+J9CaWYdrTZ0LFKCt8AHsX1rOJQe2Un5sflGFVGz4ScxSXeriwGQzdpxZp1ut21tvWIKIeNK00ksLEIDF3p5rPn2YNSqr3Mc1i0QoPF+Gm40Td6F7gx9JbkdgX0JPbbGmZASgWLLpmyqAc89elU2jNoJZZBXedOpcs3MgKJIe5mBvA2NYA6vZ1SgSqBlP/MSpA/5AM4/sDHtCllGDbp4nBKK7TK4QKiLQRg8ZD3zGBJivJ4wAA");
 
   /* Resistor colour code bands. */
   --band-black: #1E1E1E;
@@ -282,6 +284,8 @@
     --isle-sky-top: #0A1130;
     --isle-sky-bottom: #2A3266;
     --isle-poster: url("/isle/hero-night.webp");
+    --isle-poster-small: url("/isle/hero-night-640.webp");
+    --isle-poster-blur: url("data:image/webp;base64,UklGRqQAAABXRUJQVlA4IJgAAACQBQCdASogABsAPtFOpkuoI6OhsBgMAQAaCWQAuzNVwan8EJkJ/vXXJ7zm9hqHoioFkV3sAAD+9CEgnW8jKMSAJU6CPwDsNGWM0kc23sqZr6EvtlKEUrVCUY8SjbT5NSQ/iavJmmrJHF/wf31LFw/tvmwNWQECOmUBc1fdc8+yGOeproXpd5FBHjm2HAKp1Tu4+ZGmDAAAAA==");
   }
 }
 
@@ -328,4 +332,6 @@
   --isle-sky-top: #0A1130;
   --isle-sky-bottom: #2A3266;
   --isle-poster: url("/isle/hero-night.webp");
+  --isle-poster-small: url("/isle/hero-night-640.webp");
+  --isle-poster-blur: url("data:image/webp;base64,UklGRqQAAABXRUJQVlA4IJgAAACQBQCdASogABsAPtFOpkuoI6OhsBgMAQAaCWQAuzNVwan8EJkJ/vXXJ7zm9hqHoioFkV3sAAD+9CEgnW8jKMSAJU6CPwDsNGWM0kc23sqZr6EvtlKEUrVCUY8SjbT5NSQ/iavJmmrJHF/wf31LFw/tvmwNWQECOmUBc1fdc8+yGOeproXpd5FBHjm2HAKp1Tu4+ZGmDAAAAA==");
 }
