@@ -10,6 +10,7 @@ import { PartIcon } from "../parts/PartIcon";
 import { prefersReducedMotion } from "../progress/prefs";
 import type { Completion } from "../progress/store";
 import { XP } from "../progress/xp";
+import type { IsleRevealResult } from "./isle-hooks";
 import type { PartInfo, PlayerProps } from "./types";
 
 /** Counts from 0 to `to` with an ease-out, or jumps straight there under reduced motion. */
@@ -42,9 +43,11 @@ type FinaleProps = {
   mapHref: string;
   firstTry: number;
   items: number;
+  /** What the island reveal showed, if it ran. */
+  isle: IsleRevealResult;
 };
 
-export function Finale({ completion, lesson, parts, module, next, mapHref, firstTry, items }: FinaleProps) {
+export function Finale({ completion, lesson, parts, module, next, mapHref, firstTry, items, isle }: FinaleProps) {
   const heading = useRef<HTMLHeadingElement>(null);
   const reduced = prefersReducedMotion();
   const { gained, levelBefore, levelAfter } = completion;
@@ -163,8 +166,10 @@ export function Finale({ completion, lesson, parts, module, next, mapHref, first
           <a className="finale-card finale-isle" href="/isle">
             <IsleArt className="finale-isle__art" />
             <div>
-              <p className="finale-card__label">{m.finale.isleTitle}</p>
-              <p className="small muted">{m.finale.isleBodyGeneric}</p>
+              <p className="finale-card__label">{completion.replay ? m.finale.isleTitleReplay : m.finale.isleTitle}</p>
+              <p className="small muted">
+                {completion.replay ? m.finale.isleBodyReplay : isle ? (isle.big ? m.finale.isleLandmark(isle.title) : m.finale.isleBody(isle.title)) : m.finale.isleBodyGeneric}
+              </p>
               <span className="finale-isle__cta">
                 {m.finale.isleCta}
                 <Icon name="arrow-right" size={16} />
