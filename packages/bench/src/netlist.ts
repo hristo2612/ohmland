@@ -67,8 +67,11 @@ export type Connectivity = {
   same(a: Anchor, b: Anchor): boolean;
 };
 
-/** Build the metal-contact connectivity of the bench (no parts conduct here). */
-export function connectivity(bench: BenchState): Connectivity {
+/**
+ * Build the metal-contact connectivity of the bench (no parts conduct here). With `splitLeads`, the two clips of a
+ * test lead stay separate groups (the netlist then joins them with a small resistance).
+ */
+export function connectivity(bench: BenchState, opts: { splitLeads?: boolean } = {}): Connectivity {
   const uf = new UnionFind();
   const known = new Set<Anchor>();
   const warnings: string[] = [];
@@ -137,7 +140,7 @@ export function connectivity(bench: BenchState): Connectivity {
   for (const l of bench.leads) {
     add(leadAnchor(l.id, "a"));
     add(leadAnchor(l.id, "b"));
-    uf.union(leadAnchor(l.id, "a"), leadAnchor(l.id, "b"));
+    if (!opts.splitLeads) uf.union(leadAnchor(l.id, "a"), leadAnchor(l.id, "b"));
   }
   const attach = (from: Anchor, to: Anchor | null) => {
     if (!to) return;
@@ -184,6 +187,12 @@ export type BenchNetlist = {
 export type BenchNetlistOptions = {
   /** Part id for the multimeter in the netlist. Defaults to the meter's id. */
   meterId?: string;
+  /**
+   * Resistance of each crocodile test lead, clip to clip, in ohms (default 0.15). Each lead becomes a simulator
+   * `wire` part with this resistance, so high-current circuits see realistic totals. 0 merges the two clips into one
+   * node (an ideal conductor).
+   */
+  leadOhms?: number;
 };
 
 const railOrder = (strip: string) => {
@@ -197,7 +206,8 @@ const railOrder = (strip: string) => {
  * is the reference node "gnd". Leads that touch nothing get their own floating node.
  */
 export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}): BenchNetlist {
-  const conn = connectivity(bench);
+  const leadOhms = opts.leadOhms ?? 0.15;
+  const conn = connectivity(bench, { splitLeads: leadOhms > 0 });
   const { uf } = conn;
   const warnings = [...conn.warnings];
   const geom = bench.board ? boardGeometry(bench.board) : null;
@@ -250,6 +260,12 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
     const def = partDef(part.kind);
     const node = (leg: string) => nodeOf(pinAnchor(part.id, leg));
     specs.push(...(def.toSpecs as (p: PlacedPart, n: (leg: string) => NodeId) => PartSpec[])(part, node));
+  }
+
+  if (leadOhms > 0) {
+    for (const l of bench.leads) {
+      specs.push({ id: l.id, kind: "wire", pins: { a: nodeOf(leadAnchor(l.id, "a")), b: nodeOf(leadAnchor(l.id, "b")) }, ohms: leadOhms });
+    }
   }
 
   if (bench.meter) {

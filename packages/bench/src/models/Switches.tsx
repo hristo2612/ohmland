@@ -2,8 +2,9 @@
 
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { PITCH, PUSHBUTTON, SLIDE, TOGGLE } from "../dims";
+import { PITCH, PUSHBUTTON, SLIDE, TOGGLE, TOGGLE_BASE } from "../dims";
 import type { PartParamsMap } from "../types";
+import { FONT, canvasTexture } from "../three/canvas";
 import { bentTube, latheY, memoGeo, roundedBox } from "../three/geometry";
 import { mat } from "../three/materials";
 import { useEased } from "../three/anim";
@@ -127,7 +128,65 @@ function threadedBushing(): THREE.BufferGeometry {
   });
 }
 
+/** "ON" and "OFF" printed on the block's top plate, either side of the lever. */
+function onOffTexture(): THREE.CanvasTexture {
+  return canvasTexture("tg-onoff", 512, 128, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#f4efe4";
+    ctx.font = `700 64px ${FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("OFF", w * 0.17, h / 2);
+    ctx.fillText("ON", w * 0.83, h / 2);
+  });
+}
+
+/** A toggle switch panel-mounted in a small stained wooden block, with three brass screw terminals along the front. */
+function BlockToggle({ to }: { to: "a" | "b" }) {
+  const B = TOGGLE_BASE;
+  const T = TOGGLE;
+  const lever = useRef<THREE.Group>(null);
+  // Thrown to "b" the lever leans toward the "ON" side (com joins b, the usual wiring for an on/off switch).
+  useEased(to === "b" ? -0.42 : 0.42, (v) => {
+    if (lever.current) lever.current.rotation.z = v;
+  }, 22);
+  const top = B.h;
+  return (
+    <group>
+      <mesh geometry={memoGeo("tgb-block", () => roundedBox(B.w, B.h, B.d, 2.2, 3))} material={mat.paint("#7a4a2a")} position={[0, B.h / 2, 0]} castShadow receiveShadow />
+      {/* Black top plate with the ON and OFF marks. */}
+      <mesh geometry={memoGeo("tgb-plate", () => roundedBox(B.w - 8, 0.8, 14, 1.2, 2))} material={mat.blackMatte()} position={[0, top + 0.4, B.switchZ]} receiveShadow />
+      <mesh position={[0, top + 0.85, B.switchZ]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[B.w - 12, (B.w - 12) / 4]} />
+        <meshBasicMaterial map={onOffTexture()} transparent depthWrite={false} toneMapped={false} />
+      </mesh>
+      <group position={[0, top + 0.8, B.switchZ]}>
+        <mesh geometry={memoGeo("tg-washer", () => new THREE.CylinderGeometry(4.6, 4.6, 0.45, 32))} material={mat.nickel()} position={[0, 0.25, 0]} />
+        <mesh geometry={hexNut()} material={mat.chrome()} position={[0, 1.5, 0]} castShadow />
+        <mesh geometry={threadedBushing()} material={mat.nickel()} position={[0, 0.4, 0]} castShadow />
+        <group ref={lever} position={[0, T.bushingH - 0.8, 0]}>
+          <mesh geometry={memoGeo("tgb-lever", () => latheY([[1.7, 0], [1.55, 5], [1.25, T.lever + 2], [0.001, T.lever + 2.3]], 20))} material={mat.chrome()} castShadow />
+          <mesh geometry={memoGeo("tgb-tip", () => new THREE.SphereGeometry(1.7, 20, 14))} material={mat.chrome()} position={[0, T.lever + 1.9, 0]} castShadow />
+        </group>
+      </group>
+      {/* Screw terminals: a, com, b. */}
+      {[-B.screwX, 0, B.screwX].map((x) => (
+        <group key={x} position={[x, top, B.screwZ]}>
+          <mesh geometry={memoGeo("tgb-pad", () => new THREE.BoxGeometry(7, 0.5, 6))} material={mat.brass()} position={[0, 0.25, 0]} receiveShadow />
+          <mesh geometry={memoGeo("tgb-screw", () => new THREE.CylinderGeometry(2.1, 2.3, 1.6, 20))} material={mat.brass()} position={[0, 1.2, 0]} castShadow />
+          <mesh geometry={memoGeo("tgb-slot", () => new THREE.BoxGeometry(3.4, 0.4, 0.6))} material={mat.darkInset()} position={[0, 2.05, 0]} />
+        </group>
+      ))}
+    </group>
+  );
+}
+
 export function ToggleSwitchModel({ params, mount }: ModelProps<PartParamsMap["toggle-switch"]>) {
+  if (params.base && mount !== "board") return <BlockToggle to={params.to} />;
+  return <PanelToggle params={params} mount={mount} />;
+}
+
+function PanelToggle({ params, mount }: Pick<ModelProps<PartParamsMap["toggle-switch"]>, "params" | "mount">) {
   const T = TOGGLE;
   const cx = 2 * PITCH;
   const lever = useRef<THREE.Group>(null);

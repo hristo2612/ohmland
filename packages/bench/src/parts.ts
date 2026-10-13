@@ -10,6 +10,7 @@ import {
   LEMON,
   NPN,
   RESISTOR,
+  TOGGLE_BASE,
   electrolyticSize,
   PITCH,
 } from "./dims";
@@ -110,9 +111,19 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     ],
     defaults: { ohms: 470, bands: 4, watts: 0.25, tolerance: 5 },
     deskLegs: () => deskAxial(RESISTOR.len, RESISTOR.dia, RESISTOR.deskLead, "a", "b"),
-    toSpecs: (p, n) => [
-      { id: p.id, kind: "resistor", pins: { a: n("a"), b: n("b") }, ohms: p.params.ohms, watts: p.params.watts ?? 0.25 },
-    ],
+    toSpecs: (p, n) => {
+      // The simulator spreads each part's real value within its tolerance (seeded by id); bands show the nominal.
+      const spec: PartSpec = {
+        id: p.id,
+        kind: "resistor",
+        pins: { a: n("a"), b: n("b") },
+        ohms: p.params.ohms,
+        watts: p.params.watts ?? 0.25,
+        tolerance: (p.params.tolerance ?? 5) / 100,
+      };
+      if (p.params.actualOhms !== undefined) spec.actualOhms = p.params.actualOhms;
+      return [spec];
+    },
   },
   diode: {
     kind: "diode",
@@ -178,7 +189,15 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     defaults: { farads: 100e-9, volts: 50 },
     deskLegs: () => deskRadial(["a", "b"], [CERAMIC.deskLead, CERAMIC.deskLead], CERAMIC.thick / 2, PITCH * 2),
     toSpecs: (p, n) => [
-      { id: p.id, kind: "capacitor", pins: { pos: n("a"), neg: n("b") }, farads: p.params.farads, volts: p.params.volts ?? 50, polarized: false },
+      {
+        id: p.id,
+        kind: "capacitor",
+        pins: { pos: n("a"), neg: n("b") },
+        farads: p.params.farads,
+        volts: p.params.volts ?? 50,
+        polarized: false,
+        ...(p.params.actualFarads !== undefined ? { actualFarads: p.params.actualFarads } : {}),
+      },
     ],
   },
   "electrolytic-cap": {
@@ -198,7 +217,15 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
       return deskRadial(["pos", "neg"], [16, 14], s.d / 2, s.lead);
     },
     toSpecs: (p, n) => [
-      { id: p.id, kind: "capacitor", pins: { pos: n("pos"), neg: n("neg") }, farads: p.params.farads, volts: p.params.volts ?? 16, polarized: true },
+      {
+        id: p.id,
+        kind: "capacitor",
+        pins: { pos: n("pos"), neg: n("neg") },
+        farads: p.params.farads,
+        volts: p.params.volts ?? 16,
+        polarized: true,
+        ...(p.params.actualFarads !== undefined ? { actualFarads: p.params.actualFarads } : {}),
+      },
     ],
   },
   trimmer: {
@@ -225,9 +252,17 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     kind: "toggle-switch",
     prefix: "S",
     legs: ["a", "com", "b"],
-    footprint: () => TOGGLE_FP,
+    // On its wooden block the switch is a desk part with screw terminals; it never goes into the board.
+    footprint: (pp) => (pp.base ? [] : TOGGLE_FP),
     defaults: { to: "a" },
-    deskLegs: () => deskFromFootprint(TOGGLE_FP),
+    deskLegs: (pp) =>
+      pp.base
+        ? {
+            a: [-TOGGLE_BASE.screwX, TOGGLE_BASE.h + 1.2, TOGGLE_BASE.screwZ],
+            com: [0, TOGGLE_BASE.h + 1.2, TOGGLE_BASE.screwZ],
+            b: [TOGGLE_BASE.screwX, TOGGLE_BASE.h + 1.2, TOGGLE_BASE.screwZ],
+          }
+        : deskFromFootprint(TOGGLE_FP),
     toSpecs: (p, n) => [{ id: p.id, kind: "spdt", pins: { com: n("com"), a: n("a"), b: n("b") }, to: p.params.to }],
   },
   pushbutton: {
@@ -241,7 +276,9 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     ],
     defaults: { cap: "black" },
     deskLegs: () => deskFromFootprint(PUSH_FP),
-    toSpecs: (p, n) => [{ id: p.id, kind: "pushbutton", pins: { a: n("a1"), b: n("b1") } }],
+    toSpecs: (p, n) => [
+      { id: p.id, kind: "pushbutton", pins: { a: n("a1"), b: n("b1") }, ...(p.params.normallyClosed ? { normallyClosed: true } : {}) },
+    ],
   },
   relay: {
     kind: "relay",

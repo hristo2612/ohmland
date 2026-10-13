@@ -1,0 +1,72 @@
+/**
+ * The 3D workbench for a lab or the sandbox. This module is the only one in src/lab that imports three.js (through
+ * @ohmland/bench), so it is its own lazy chunk; the panels render before it arrives.
+ */
+import { useEffect, useRef } from "react";
+import { Bench, type BenchController, type TrayItem } from "@ohmland/bench";
+import { m } from "../i18n";
+import type { Quality } from "./quality";
+import type { LabRuntime } from "./runtime";
+
+export type BenchViewProps = {
+  runtime: LabRuntime;
+  tray: TrayItem[];
+  quality: Quality;
+  readOnly?: boolean;
+  highlight?: string[] | undefined;
+  locked?: string[];
+  onReady?: () => void;
+};
+
+/** A test and tutorial hook: where an anchor is on screen, and what the lab state is. */
+type LabHook = {
+  project(anchor: string): { x: number; y: number } | null;
+  pickAt(x: number, y: number): unknown;
+  bench(): unknown;
+  status(): Record<string, string>;
+  meter(): unknown;
+  part(id: string): unknown;
+  /** Simulated time and lag (0..1) of the latest snapshot. */
+  sim(): { t: number; lag: number } | null;
+};
+
+declare global {
+  interface Window {
+    ohmlandLab?: LabHook;
+  }
+}
+
+export default function BenchView({ runtime, tray, quality, readOnly, highlight, locked, onReady }: BenchViewProps) {
+  const ctrl = useRef<BenchController | null>(null);
+  useEffect(() => {
+    window.ohmlandLab = {
+      project: (anchor) => ctrl.current?.project(anchor) ?? null,
+      pickAt: (x, y) => ctrl.current?.pickAt(x, y) ?? null,
+      bench: () => runtime.store.getState().bench,
+      status: () => ({ ...runtime.session.status }),
+      meter: () => runtime.session.view().meter,
+      part: (id) => runtime.store.getState().snapshot?.parts[id] ?? null,
+      sim: () => {
+        const s = runtime.store.getState().snapshot;
+        return s ? { t: s.t, lag: s.lag ?? 0 } : null;
+      },
+    };
+    return () => {
+      delete window.ohmlandLab;
+    };
+  }, [runtime]);
+  return (
+    <Bench
+      store={runtime.store}
+      tray={tray}
+      quality={quality}
+      readOnly={!!readOnly}
+      highlight={highlight}
+      locked={locked}
+      labels={m.benchUi}
+      onAction={runtime.onAction}
+      controllerRef={ctrl}
+      onReady={onReady}
+    />
+  );
+}

@@ -56,6 +56,15 @@
   gap: var(--space-12);
 }
 .step-body--wide { max-width: calc(var(--lesson-max) + 2 * var(--gutter)); }
+/* The lab fills the stage edge to edge, between the lesson bar and the action bar. */
+.step-body.step-body--lab {
+  flex: none;
+  max-width: none;
+  padding: 0;
+  gap: 0;
+  height: calc(100dvh - var(--header-h) - var(--action-bar-h) - env(safe-area-inset-bottom));
+  min-height: 480px;
+}
 
 .step-eyebrow {
   display: inline-flex;

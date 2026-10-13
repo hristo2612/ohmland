@@ -202,13 +202,28 @@ describe("benchToNetlist: parts", () => {
   });
 });
 
+/** Clip leads as ideal conductors, so both clips of a lead share one node. */
+const IDEAL = { leadOhms: 0 };
+
 describe("benchToNetlist: clips", () => {
+  it("gives each clip lead a small resistance by default", () => {
+    const bench = empty(null);
+    bench.parts.push(battery(), resistor("R1", null, null));
+    bench.leads.push(lead("TL1", "pin:B1.pos", "pin:R1.a"), lead("TL2", "pin:R1.b", "pin:B1.neg"));
+    const { netlist, nodeOf } = benchToNetlist(bench);
+    const w = spec(netlist.parts, "TL1", "wire");
+    expect(w.ohms).toBe(0.15);
+    expect(w.pins.a).toBe(nodeOf("pin:B1.pos"));
+    expect(w.pins.b).toBe(nodeOf("pin:R1.a"));
+    expect(nodeOf("pin:R1.a")).not.toBe(nodeOf("pin:B1.pos"));
+  });
+
   it("connects parts with alligator leads, without a board", () => {
     const bench = empty(null);
     bench.parts.push(battery(), resistor("R1", null, null), led("D1", "x", "y"));
     delete bench.parts[2]!.holes;
     bench.leads.push(lead("TL1", "pin:B1.pos", "pin:R1.a"), lead("TL2", "pin:R1.b", "pin:D1.anode"), lead("TL3", "pin:D1.cathode", "pin:B1.neg"));
-    const { netlist, nodeOf } = benchToNetlist(bench);
+    const { netlist, nodeOf } = benchToNetlist(bench, IDEAL);
     const r1 = spec(netlist.parts, "R1", "resistor");
     const d1 = spec(netlist.parts, "D1", "led");
     expect(r1.pins.a).toBe(nodeOf("pin:B1.pos"));
@@ -221,7 +236,7 @@ describe("benchToNetlist: clips", () => {
     bench.parts.push(battery(), resistor("R1", "a10", "a14"));
     bench.wires.push({ id: "W1", a: "c14", b: "c30", color: "yellow" });
     bench.leads.push(lead("TL1", "pin:B1.pos", "hole:e10"), lead("TL2", "wire:W1.b", "pin:B1.neg"));
-    const { nodeOf } = benchToNetlist(bench);
+    const { nodeOf } = benchToNetlist(bench, IDEAL);
     expect(nodeOf("pin:R1.a")).toBe(nodeOf("pin:B1.pos"));
     expect(nodeOf("pin:R1.b")).toBe("gnd");
   });
@@ -230,7 +245,7 @@ describe("benchToNetlist: clips", () => {
     const bench = empty(null);
     bench.parts.push(battery());
     bench.leads.push(lead("TL1", "pin:B1.pos", null), lead("TL2", "pin:R9.a", null));
-    const { nodeOf, warnings } = benchToNetlist(bench);
+    const { nodeOf, warnings } = benchToNetlist(bench, IDEAL);
     expect(nodeOf("lead:TL1.b")).toBe(nodeOf("pin:B1.pos"));
     expect(nodeOf("lead:TL2.a")).not.toBe(nodeOf("pin:B1.pos"));
     expect(warnings.some((w) => w.startsWith("clip-missing: lead:TL2.a"))).toBe(true);
@@ -282,7 +297,7 @@ describe("benchToNetlist: multimeter", () => {
     bench.meter.probes.black.socket = null;
     bench.meter.probes.black.tip.to = "pin:B1.neg";
     bench.leads.push(lead("TL1", "probe:red", "pin:B1.pos"));
-    const { netlist, nodeOf } = benchToNetlist(bench);
+    const { netlist, nodeOf } = benchToNetlist(bench, IDEAL);
     const m = spec(netlist.parts, "M1", "multimeter");
     expect(m.pins.com).not.toBe("gnd");
     expect(m.pins.vohm).toBe(nodeOf("pin:B1.pos"));

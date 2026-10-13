@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { playWelcomeLab } from "./lab";
 
 export const FIRST_LESSON = "welcome-to-the-bench";
 export const FIRST_LESSON_URL = `/learn/basics/${FIRST_LESSON}`;
@@ -20,8 +21,8 @@ export async function playFirstLesson(page: Page, opts: { expectReveal?: boolean
   await page.locator("[data-predict-option]").nth(2).click();
   await primary(page).click();
 
-  // Lab.
-  await expect(page.locator("[data-lab-ready]")).toBeVisible();
+  // Lab: the real bench. Flip the switch, unclip a lead, clip it back (three tasks, 45 XP).
+  await playWelcomeLab(page);
   await primary(page).click();
 
   // Four explain cards.

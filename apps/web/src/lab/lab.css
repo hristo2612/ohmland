@@ -1,98 +1,422 @@
-/* Lab placeholder panel. Tokens only. */
+/* The lab step and the free-build bench: the 3D bench with a side panel (a bottom sheet on phones). Tokens only. */
 
-.lab-loading { display: block; height: 420px; border-radius: var(--radius-xl); }
+.lab-loading { display: block; height: 100%; min-height: 320px; border-radius: 0; }
 
-.lab { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: var(--space-8); align-items: start; }
-
-.lab__bench {
+.lab {
+  --lab-panel-w: 392px;
   position: relative;
+  height: 100%;
+  min-height: 0;
   display: grid;
-  gap: var(--space-5);
-  padding: var(--space-6);
-  border-radius: var(--radius-xl);
-  background: var(--bg-band);
-  border: var(--border) solid var(--line);
-  box-shadow: var(--shadow-inset);
-  overflow: hidden;
+  grid-template-columns: minmax(0, 1fr) var(--lab-panel-w);
+  /* A fixed row: a growing task list scrolls inside the panel, it never resizes the bench. */
+  grid-template-rows: minmax(0, 1fr);
+  background: var(--bg);
 }
-.lab__board {
+
+/* ---- The bench ---------------------------------------------------------------------------------------------- */
+
+.lab__stage { position: relative; min-width: 0; min-height: 0; background: var(--bench-bg); overflow: hidden; }
+.lab__stage > .ohb-root { position: absolute !important; inset: 0; }
+/* A lab's tray holds a few parts: let it shrink to them instead of running down the whole bench. */
+.lab__stage .ohb-ui:not(.ohb-compact) .ohb-tray { bottom: auto; max-height: calc(100% - 20px); }
+.lab__skeleton {
+  position: absolute;
+  inset: 0;
   display: grid;
+  place-content: center;
+  justify-items: center;
   gap: var(--space-3);
-  padding: var(--space-4);
-  border-radius: var(--radius-l);
-  background: var(--plastic);
-  border: var(--border) solid var(--plastic-lo);
-  box-shadow: var(--shadow-1);
+  color: var(--lead);
+  background: var(--bench-bg);
+  pointer-events: none;
 }
-.lab__rail { height: 14px; border-radius: var(--radius-xs); background-image: radial-gradient(var(--chip-hi) 1.6px, transparent 1.9px); background-size: 14px 14px; background-position: 4px 0; }
-.lab__rail--plus { border-top: var(--border-thick) solid var(--wire-red); padding-top: var(--space-2); height: 26px; }
-.lab__rail--minus { border-bottom: var(--border-thick) solid var(--led-blue); padding-bottom: var(--space-2); height: 26px; }
-.lab__holes {
-  height: 190px;
-  border-radius: var(--radius-xs);
-  background-image: radial-gradient(var(--chip-hi) 1.6px, transparent 1.9px), linear-gradient(var(--plastic-lo), var(--plastic-lo));
-  background-size: 14px 14px, 100% 6px;
-  background-position: 4px 4px, 0 50%;
-  background-repeat: repeat, no-repeat;
+.lab__skeleton .small { color: var(--char); }
+.lab__spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  border: 3px solid var(--plastic-lo);
+  border-top-color: var(--primary);
+  animation: lab-spin var(--dur-slow) linear infinite;
 }
-.lab__tray { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-.lab__tray-slot {
+@keyframes lab-spin { to { transform: rotate(360deg); } }
+:root[data-motion="reduce"] .lab__spinner { animation: none; }
+.lab__nobench { position: absolute; inset: auto var(--space-4) var(--space-4); z-index: 2; }
+
+.lab__overlay {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  width: min(440px, calc(100% - 2 * var(--space-4)));
   display: grid;
-  place-items: center;
-  width: 72px;
-  height: 72px;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+.lab__overlay > * { pointer-events: auto; }
+
+.fried-card {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-l);
   background: var(--surface);
   border: var(--border) solid var(--line);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--shadow-2);
+  animation: lab-pop var(--dur-2) var(--ease-spring);
 }
-.lab__soon { position: absolute; top: var(--space-4); right: var(--space-4); }
+.fried-card__say .say__bubble { font-size: var(--text-callout); }
+.fried-card__title, .fried-card__hall { display: block; }
+.fried-card__hall { color: var(--ink-2); font-size: var(--text-small); }
+.fried-card__why { color: var(--ink-2); margin: 0; }
+.fried-card__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+@keyframes lab-pop { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: none; } }
+:root[data-motion="reduce"] .fried-card,
+:root[data-motion="reduce"] .lab-notice { animation: none; }
 
-.lab__side { display: grid; gap: var(--space-5); }
-.lab__intro { display: grid; gap: var(--space-2); }
-.lab__title { font-size: var(--text-heading); }
-.lab__tasks-title { font-family: var(--font-body); font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--ink-2); }
-.lab__tasks { list-style: none; padding: 0; margin: calc(-1 * var(--space-2)) 0 0; display: grid; gap: var(--space-3); }
+.lab-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--bad-soft);
+  color: var(--ink);
+  border: var(--border) solid var(--line);
+  box-shadow: var(--shadow-1);
+  font-size: var(--text-small);
+  animation: lab-pop var(--dur-2) var(--ease-out);
+}
+.lab-notice svg { flex: none; color: var(--bad); margin-top: 1px; }
+.lab-notice--info { background: var(--info-soft); }
+.lab-notice--info svg { color: var(--info); }
+
+/* ---- The panel ---------------------------------------------------------------------------------------------- */
+
+.lab__panel {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: var(--border) solid var(--line);
+}
+.lab__grip { display: none; }
+.lab__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  border-bottom: var(--border) solid var(--line);
+}
+.lab__titles { display: grid; gap: var(--space-1); min-width: 0; }
+.lab__title { font-size: var(--text-subheading); line-height: var(--leading-subheading); }
+.lab__progress { display: flex; align-items: center; gap: var(--space-2); margin: 0; color: var(--ink-2); }
+.lab__meterbar { display: inline-flex; gap: var(--space-1); }
+.lab__meterbar span { width: 18px; height: 6px; border-radius: var(--radius-full); background: var(--line-strong); transition: background-color var(--dur-2) var(--ease-out); }
+.lab__meterbar span[data-done] { background: var(--good); }
+.lab__tools { display: flex; align-items: center; gap: var(--space-1); flex: none; }
+.lab__quality { min-height: 36px; }
+
+.lab__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4) var(--space-5) var(--space-8);
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+}
+.lab__intro { color: var(--ink-2); font-size: var(--text-callout); }
+/* Instruments docked under the tasks, always in view on a desktop. */
+.lab__dock {
+  flex: none;
+  max-height: 56%;
+  overflow: auto;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5) var(--space-4);
+  border-top: var(--border) solid var(--line);
+  background: var(--surface-2);
+}
+.lab__dock .instrument { background: var(--surface); padding: var(--space-3) var(--space-4); }
+.lab__say .say__bubble { font-size: var(--text-callout); }
+.lab__alldone {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-m);
+  background: var(--good-soft);
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+
+/* ---- Tasks -------------------------------------------------------------------------------------------------- */
+
+.lab-tasks { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
 .lab-task {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: var(--space-3);
-  padding: var(--space-4);
-  border: var(--border) solid var(--line);
+  padding: var(--space-3) var(--space-3);
   border-radius: var(--radius-l);
-  background: var(--surface);
+  border: var(--border) solid transparent;
 }
-.lab-task[data-done] { border-color: var(--good); background: var(--good-soft); }
-.lab-task__num {
+.lab-task__badge {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-full);
   background: var(--surface-sunk);
   color: var(--ink-2);
   font-size: var(--text-small);
 }
-.lab-task[data-done] .lab-task__num { background: var(--good); color: var(--surface); }
-.lab-task__body { display: grid; gap: var(--space-2); }
-.lab-task__success { color: var(--good); font-weight: var(--weight-semibold); }
-.lab-task__hints summary {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 32px;
+.lab-task__body { display: grid; gap: var(--space-2); min-width: 0; }
+.lab-task__eyebrow {
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
   color: var(--accent-ink);
-  font-size: var(--text-small);
+}
+.lab-task__prompt { font-size: var(--text-callout); line-height: var(--leading-callout); }
+.lab-task__prompt p { margin: 0; }
+
+.lab-task[data-current] {
+  background: var(--surface);
+  border-color: var(--primary);
+  box-shadow: var(--shadow-glow);
+  padding: var(--space-4);
+}
+.lab-task[data-current] .lab-task__badge { background: var(--primary); color: var(--primary-ink); }
+.lab-task[data-current] .lab-task__prompt { font-size: var(--text-body); line-height: var(--leading-body); color: var(--ink); }
+
+.lab-task[data-upcoming] { opacity: 0.62; }
+.lab-task[data-upcoming] .lab-task__prompt {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lab-task[data-state="done"] { background: var(--good-soft); }
+.lab-task[data-state="done"] .lab-task__badge { background: var(--good); color: var(--surface); }
+.lab-task[data-state="done"] .lab-task__prompt { color: var(--ink-2); }
+.lab-task[data-state="skipped"] { opacity: 0.5; }
+.lab-task[data-optional][data-state="todo"] { border-color: var(--line); border-style: dashed; }
+.lab-task[data-optional] .lab-task__badge { background: var(--primary-soft); color: var(--accent-ink); }
+.lab-task[data-optional][data-state="done"] .lab-task__badge { background: var(--good); color: var(--surface); }
+
+:root[data-motion="full"] .lab-task[data-fresh][data-state="done"] { animation: lab-done var(--dur-3) var(--ease-spring); }
+:root[data-motion="full"] .lab-task[data-fresh][data-state="done"] .lab-task__badge { animation: lab-badge var(--dur-3) var(--ease-spring); }
+@keyframes lab-done { 0% { transform: scale(0.98); box-shadow: var(--shadow-glow); } 60% { transform: scale(1.01); } 100% { transform: none; } }
+@keyframes lab-badge { 0% { transform: scale(0.4); } 70% { transform: scale(1.25); } 100% { transform: none; } }
+
+.lab-task__success { display: grid; gap: var(--space-1); }
+.lab-task__success .prose { color: var(--good); font-weight: var(--weight-semibold); font-size: var(--text-callout); }
+.lab-task__success .prose p { margin: 0; }
+.lab-task__xp {
+  justify-self: start;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--primary-soft);
+  color: var(--accent-ink);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+}
+.lab-task__notice { margin: 0; color: var(--ink-2); }
+
+.lab-task__tools { display: grid; gap: var(--space-3); }
+.lab-task__hints { margin: 0; padding: 0 0 0 var(--space-5); display: grid; gap: var(--space-2); color: var(--ink-2); font-size: var(--text-small); }
+.lab-task__hint p { margin: 0; }
+.lab-task__buttons { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.note-field { display: grid; gap: var(--space-1); }
+.note-field__label { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--ink-2); font-weight: var(--weight-semibold); }
+.note-field__row { display: flex; align-items: center; gap: var(--space-2); }
+.note-field__input { max-width: 160px; }
+.note-field__unit { color: var(--ink-2); font-weight: var(--weight-semibold); }
+.note-field__bad { margin: 0; color: var(--bad); }
+
+/* ---- Instruments -------------------------------------------------------------------------------------------- */
+
+.instrument {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-l);
+  background: var(--surface-2);
+  border: var(--border) solid var(--line);
+}
+.instrument__head { display: flex; align-items: center; gap: var(--space-2); }
+.instrument__title {
+  font-family: var(--font-body);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin: 0;
+}
+.instrument__tag { margin-left: auto; font-size: var(--text-small); font-weight: var(--weight-semibold); color: var(--ink); }
+.instrument__head .btn { margin-left: var(--space-1); }
+
+.lcd {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-m);
+  background: var(--lcd);
+  color: var(--lcd-ink);
+  box-shadow: var(--shadow-inset);
+  position: relative;
+}
+.lcd[data-off] { opacity: 0.55; justify-content: center; align-items: center; }
+.lcd__off { font-size: var(--text-small); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase; opacity: 0.6; }
+.lcd__value { font-size: 40px; line-height: 1; letter-spacing: 0.02em; font-weight: var(--weight-mono); font-variant-numeric: tabular-nums; }
+.lcd__unit { font-size: var(--text-heading); font-weight: var(--weight-semibold); min-width: 2.2ch; }
+.lcd__beep { position: absolute; left: var(--space-3); top: var(--space-2); font-size: var(--text-caption); font-weight: var(--weight-semibold); text-transform: uppercase; }
+.meter-panel__explain { margin: 0; font-size: var(--text-callout); color: var(--ink); }
+.meter-panel__sockets { margin: 0; color: var(--ink-2); }
+.meter-panel__warn { display: flex; gap: var(--space-2); align-items: flex-start; margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-s); background: var(--bad-soft); color: var(--ink); }
+.meter-panel__warn svg { flex: none; color: var(--bad); margin-top: 2px; }
+.meter-panel__hint { margin: 0; color: var(--ink-3); }
+.meter-panel__fuse { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-s); background: var(--bad-soft); }
+.meter-panel__fuse p { margin: 0; flex-basis: 100%; }
+.meter-panel__controls { display: grid; gap: var(--space-2); }
+.meter-panel__range { display: flex; align-items: center; gap: var(--space-2); color: var(--ink-2); font-weight: var(--weight-semibold); }
+.meter-panel__range .select { min-height: 36px; }
+
+.dial { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 2px; }
+.dial__pos {
+  min-height: 36px;
+  padding: 0 2px;
+  border-radius: var(--radius-s);
+  border: var(--border) solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-caption);
   font-weight: var(--weight-semibold);
   cursor: pointer;
-  list-style: none;
 }
-.lab-task__hints summary::-webkit-details-marker { display: none; }
-.lab-task__hints ol { margin: var(--space-2) 0 0; padding-left: var(--space-5); color: var(--ink-2); font-size: var(--text-small); display: grid; gap: var(--space-1); }
-.lab-task__dev { justify-self: start; }
-.lab__dev { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-3); border: var(--border) dashed var(--line-strong); border-radius: var(--radius-m); }
+.dial__pos:hover { border-color: var(--line-strong); color: var(--ink); }
+.dial__pos[aria-checked="true"] { background: var(--meter-face); border-color: var(--meter-face); color: var(--meter-body); }
+.dial__pos:focus-visible { outline: var(--focus-ring) solid var(--focus); outline-offset: 1px; }
+
+.meter-mini { display: inline-flex; align-items: baseline; gap: var(--space-1); padding: var(--space-1) var(--space-2); border-radius: var(--radius-s); background: var(--lcd); color: var(--lcd-ink); }
+.meter-mini__mode { font-size: var(--text-caption); font-weight: var(--weight-semibold); }
+.meter-mini__value { font-size: var(--text-subheading); min-width: 4ch; text-align: right; }
+.meter-mini__unit { font-size: var(--text-small); font-weight: var(--weight-semibold); }
+
+.scope-panel__screen { display: block; width: 100%; height: 150px; border-radius: var(--radius-m); background: var(--scope-bg); box-shadow: var(--shadow-inset); }
+.scope-panel__legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); color: var(--ink-2); }
+.scope-panel__legend li { display: inline-flex; align-items: center; gap: var(--space-2); }
+.scope-panel__legend .mono { color: var(--ink); }
+.scope-panel__swatch { width: 14px; height: 4px; border-radius: var(--radius-full); background: var(--scope-a); }
+.scope-panel__legend li[data-trace="1"] .scope-panel__swatch { background: var(--scope-b); }
+
+.control { display: grid; gap: var(--space-1); }
+.control__label { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--text-small); font-weight: var(--weight-semibold); color: var(--ink-2); }
+.control input[type="range"] { width: 100%; accent-color: var(--primary); min-height: 32px; }
+
+.notebook__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.notebook__row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding: var(--space-1) 0; border-bottom: var(--border) dashed var(--line); }
+
+.connections > summary { cursor: pointer; list-style: none; display: flex; align-items: center; min-height: 32px; }
+.connections > summary::-webkit-details-marker { display: none; }
+.connections > summary::after { content: "+"; margin-left: auto; font-size: var(--text-subheading); color: var(--ink-3); }
+.connections[open] > summary::after { content: "−"; }
+.connections > p { margin: 0; }
+.conn__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.conn { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-1) var(--space-2); align-items: center; }
+.conn__name { grid-column: 1 / -1; font-size: var(--text-small); font-weight: var(--weight-semibold); }
+.conn__end .select { width: 100%; }
+.select--small { min-height: 36px; font-size: var(--text-small); }
+
+/* ---- The free-build bench ----------------------------------------------------------------------------------- */
+
+.sandbox .lab__progress { color: var(--ink-2); }
+.sandbox__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.sandbox__name { flex: 1; min-width: 120px; }
+.sandbox__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.sandbox__build { display: flex; align-items: center; gap: var(--space-2); }
+.sandbox__build-name { flex: 1; min-width: 0; display: grid; font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
+.sandbox__watch { display: flex; align-items: center; gap: var(--space-2); color: var(--ink-2); font-weight: var(--weight-semibold); }
+@media (max-width: 860px) {
+  .sandbox.lab { grid-template-rows: minmax(0, 58%) minmax(0, 42%); }
+  .sandbox .lab__panel { margin-top: 0; }
+}
+
+/* ---- Form controls inside the lab ---------------------------------------------------------------------------- */
+
+.lab .select,
+.lab .input {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-s);
+  border: var(--border) solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-small);
+}
+.lab .input { font-family: var(--font-mono); font-size: var(--text-callout); }
+.lab .sandbox__name { font-family: var(--font-body); }
+.lab .select:focus-visible,
+.lab .input:focus-visible { outline: var(--focus-ring) solid var(--focus); outline-offset: 1px; }
+.lab .input[aria-invalid="true"] { border-color: var(--bad); }
+
+/* ---- Phones: the bench on top, the panel as a bottom sheet -------------------------------------------------- */
 
 @media (max-width: 860px) {
-  .lab { grid-template-columns: 1fr; }
-  .lab__holes { height: 110px; }
+  .lab { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 55%) minmax(0, 45%); }
+  .lab__panel {
+    border-left: 0;
+    border-top: var(--border) solid var(--line);
+    border-radius: var(--radius-l) var(--radius-l) 0 0;
+    box-shadow: var(--shadow-1);
+    margin-top: calc(-1 * var(--space-3));
+    z-index: 4;
+  }
+  .lab[data-sheet="open"] .lab__panel { position: absolute; inset: 12% 0 0 0; box-shadow: var(--shadow-2); }
+  .lab__grip {
+    all: unset;
+    box-sizing: border-box;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: 60px;
+    padding: var(--space-4) var(--space-4) var(--space-2);
+    cursor: pointer;
+    border-bottom: var(--border) solid var(--line);
+  }
+  .lab__grip:focus-visible { outline: var(--focus-ring) solid var(--focus); outline-offset: -3px; }
+  .lab__grip-bar { position: absolute; top: 6px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: var(--radius-full); background: var(--line-strong); }
+  .lab__grip-text { display: grid; min-width: 0; flex: 1; }
+  .lab__grip-title { font-weight: var(--weight-semibold); font-size: var(--text-callout); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lab__grip-meta { color: var(--ink-2); }
+  /* The grip already says what to do and how far along you are; the header shows only once the sheet is open. */
+  .lab[data-sheet="closed"] .lab__head { display: none; }
+  .lab__head { padding: var(--space-3) var(--space-4) var(--space-2); }
+  .lab__title { font-size: var(--text-callout); }
+  /* On a phone the whole sheet scrolls, tasks first, then the instruments. */
+  .lab__panel { overflow: auto; overscroll-behavior: contain; }
+  .lab__scroll { flex: none; overflow: visible; padding: var(--space-3) var(--space-4) var(--space-4); gap: var(--space-3); }
+  .lab__dock { max-height: none; overflow: visible; padding: var(--space-3) var(--space-4) var(--space-6); }
+  .lab__overlay { top: 64px; }
+  .lcd__value { font-size: 36px; }
+  .dial { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-1); }
+  .dial__pos { font-size: var(--text-small); min-height: 40px; }
+  .lcd { min-height: 60px; }
 }

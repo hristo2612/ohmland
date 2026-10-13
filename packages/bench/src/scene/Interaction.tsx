@@ -7,7 +7,7 @@ import { useThree } from "@react-three/fiber";
 import type { CameraControls as CameraControlsImpl } from "@react-three/drei";
 import { BOARD_PRINT, boardGeometry, boardOrigin, nearestHole } from "../board";
 import { BOARD_TOP } from "../dims";
-import { DIAL_MODES, METER, anchorPosition, clipTargets, fitCamera, meterLocalToWorld, nearestSocket, partPose } from "../layout";
+import { DIAL_MODES, METER, anchorPosition, clipTargets, fitCamera, meterLocalToWorld, nearestSocket, partPose, workCenter } from "../layout";
 import * as ops from "../ops";
 import { canMountOnBoard, footprintOf, partDef, rotateXZ } from "../parts";
 import type { BenchStore } from "../store";
@@ -195,11 +195,13 @@ export function useInteraction({
       const p = g.pick;
       if (!p) return null;
       const b = bench();
+      const locked = store.getState().locked;
       switch (p.type) {
         case "part":
         case "press":
         case "flip":
           if (p.type === "press") return { kind: "press", id: p.id };
+          if (locked.includes(p.id)) return null;
           {
             const c = partCenter(p.id);
             const wp = workPoint(cx, cy);
@@ -209,6 +211,7 @@ export function useInteraction({
         case "rotor":
           return { kind: "rotor", id: p.id };
         case "leg":
+          if (locked.includes(p.id)) return null;
           return { kind: "leg", id: p.id, leg: p.leg, flying: p.flying };
         case "wire":
           return null;
@@ -429,7 +432,7 @@ export function useInteraction({
           if (part && (part.kind === "slide-switch" || part.kind === "toggle-switch")) {
             s.setParams<"slide-switch">(p.id, { to: part.params.to === "a" ? "b" : "a" });
           }
-          s.select({ type: "part", id: p.id });
+          // Flipping is the whole action: no selection bar popping up over what the switch just turned on.
           break;
         }
         case "wire":
@@ -653,11 +656,11 @@ export function useInteraction({
       if (item.kind === "lead") {
         const color = item.params?.color ?? s.ui.leadColor;
         // End b lands under the pointer, end a rests on the desk a little to the left.
-        return s.addLead(color, [at.x - 40, at.z - 6]);
+        return s.addLead(color, [at.x - 40, at.z - 6], item.id);
       }
       const kind = item.kind;
       const params = (item.params ?? {}) as never;
-      const id = s.addPart(kind, params, { pos: [at.x, at.z] });
+      const id = s.addPart(kind, params, { pos: [at.x, at.z] }, item.id);
       // Let it snap into the board if it lands there.
       const part = store.getState().bench.parts.find((p) => p.id === id);
       if (part && canMountOnBoard(part)) store.getState().apply((b) => ops.movePart(b, id, [at.x, at.z]));
@@ -715,7 +718,14 @@ export function useInteraction({
                 const l = b.leads.find((x) => x.id === id);
                 if (!l || l.a.to) return b;
                 const at: [number, number, number] | null = l.b.to ? anchorPosition(b, l.b.to) : [l.b.pos[0], 0, l.b.pos[1]];
-                return at ? ops.clipLead(b, id, "a", null, [at[0] - 30, at[2] + 45]) : b;
+                if (!at) return b;
+                // Toward the middle of the work area, so the loose clip stays in view (narrow phone views too).
+                const [cx, cz] = workCenter(b);
+                const dx = cx - at[0];
+                const dz = cz - at[2];
+                const d = Math.hypot(dx, dz);
+                const pos: Vec2 = d > 20 ? [at[0] + (dx / d) * 40, at[2] + (dz / d) * 40 + 18] : [at[0] - 30, at[2] + 45];
+                return ops.clipLead(b, id, "a", null, pos);
               });
             }
             st.commit();
@@ -881,6 +891,7 @@ export function handleBenchKey(e: KeyboardEvent, store: BenchStore, api: Interac
       if (sel?.type !== "part") return false;
       const part = s.bench.parts.find((p) => p.id === sel.id);
       if (!part) return false;
+      if (part.kind !== "trimmer" && s.locked.includes(part.id)) return true;
       if (part.kind === "trimmer") {
         const position = Math.max(0, Math.min(1, Math.round((part.params.position + dx * 0.05 - dz * 0.05) * 100) / 100));
         s.setParams<"trimmer">(part.id, { position });

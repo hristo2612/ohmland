@@ -40,12 +40,13 @@ function Lab({ sim }) {
 |---|---|---|
 | `initial` | `BenchState` | Starting bench (ignored when `store` is given). |
 | `store` | `BenchStore` | Drive the bench from your own store (`createBenchStore`). |
-| `tray` | `TrayItem[]` | Parts the learner can drag in. `count` limits how many may be placed. |
-| `snapshot` | `Snapshot \| null` | Latest simulator snapshot. Reads `glow`, `health`, `closed`, `display`, `unit` per part id. |
+| `tray` | `TrayItem[]` | Parts the learner can drag in. `count` limits how many may be placed; `id` names the placed part when that id is free. |
+| `snapshot` | `Snapshot \| null` | Latest simulator snapshot. Reads `glow`, `health`, `closed`, `display`, `unit` per part id. Leave it out when you own the store and set `snapshot` on it yourself (the lab runtime does, 30 times a second, without re-rendering React above the canvas). |
 | `onChange` | `(bench) => void` | After every committed change (not during a drag, and not for the initial bench). Rebuild the netlist here. |
 | `onAction` | `(action: BenchAction) => void` | Every user action. `type: "input"` actions (pushbutton `pressed`, switch `to`, trimmer `position`, meter `mode`) are meant for `sim.setInput`. |
 | `quality` | `"high" \| "low"` | High: soft shadows, bloom, outline, glass transmission, DPR up to 2. Low: no shadows or post-processing, sprite halos for glow, DPR up to 1.5. |
 | `readOnly` | `boolean` | Camera only; no tray, no edits. |
+| `locked` | `string[]` | Part ids that cannot be moved, rotated or deleted (switches still flip, buttons still press). |
 | `highlight` | `string[]` | Part ids (pulsing amber frame) or anchors such as `"hole:e12"`, `"pin:R1.a"` (pulsing ring) for lab hints. |
 | `labels` | `Partial<BenchLabels>` | Translated UI strings (see `DEFAULT_LABELS`). |
 | `camera` | `{ position, target }` | Initial camera; defaults to a fit of the whole bench. |
@@ -83,6 +84,11 @@ empty socket floats. Leads that touch nothing get their own node. The first batt
 lemon cell's) is `"gnd"`. Other nodes are named after what is in them: a strip (`"14a-e"`), a rail (`"tp"`), or a
 lead (`"R1.a"`).
 
+Each crocodile lead becomes a simulator `wire` part with `leadOhms` (default 0.15 Ω), so high-current circuits see
+realistic totals; its two clips are separate nodes. `benchToNetlist(bench, { leadOhms: 0 })` merges them (an ideal
+conductor), which is what topology checks want. Resistors pass their nominal `ohms`, `tolerance` (percent / 100) and
+`actualOhms`; capacitors `actualFarads`; pushbuttons `normallyClosed`.
+
 `warnings` lists problems the learner may need to hear about: `hole-shared` (two leads in one hole), `hole-missing`,
 `clip-missing`, `no-ground`.
 
@@ -93,6 +99,13 @@ simulator relays, `K1` and `K1:2`, whose coils sit in parallel at twice the coil
 pull-in voltage match one real coil.
 
 `connectivity(bench)` gives the metal-contact groups without building a netlist (used by the x-ray view).
+
+### `@ohmland/bench/core`
+
+The pure half of the package, with no React Three Fiber and no three.js: `benchOps`, `benchToNetlist`,
+`connectivity`, anchors, board geometry, `partDef`, `partPose`, `fitCamera`, `createBenchStore` (React and zustand
+only) and the types. Lab runtimes import it before the 3D view loads, and headless solution replays and tests use it
+in Node.
 
 ### Store
 
@@ -188,6 +201,16 @@ config switches to SwiftShader (`--use-angle=swiftshader --enable-unsafe-swiftsh
 ImageMagick (`magick`) is installed.
 
 ## Notes
+
+- Render on demand also holds while the simulator runs: each part model subscribes to its own simulator state and
+  re-renders only when something visible changes (health, glow in 2% steps, contacts, the meter display), and a
+  snapshot that changes nothing visible draws no frame. `onChange` fires once a drag commits (its transaction closes),
+  not only when the bench object changes.
+- The toggle switch has a desk variant, `params.base: true`: panel-mounted in a small wooden block with three screw
+  terminals (`a`, `com`, `b`) and ON/OFF marks (thrown to `b` is ON). It never goes into the board.
+- On phones (compact layout) the selection bar shows no colour swatches (they would cover the bench); recolour from
+  the long-press menu. Without a board the Wire and X-ray tools are hidden. A lead dropped from the tray leaves its
+  loose clip toward the middle of the work area, so it stays in view.
 
 - Scale is real: 1 scene unit is 1 mm, board pitch 2.54 mm, 9 V battery 48.5 x 26.5 x 17.5 mm, 5 mm LED with a
   5.8 mm rim, 1/4 W resistor 6.3 mm long. Shapes are simplified but proportioned after datasheet packages.

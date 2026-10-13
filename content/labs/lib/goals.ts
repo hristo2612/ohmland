@@ -1,9 +1,9 @@
 /**
- * Interim goal helpers for the Unit 1 labs (docs/curriculum/unit-1.md). They read only what today's LabView offers,
- * so several of them stand in for the blueprint's richer helpers (section 13, N1: meter sockets and range, probe
- * positions, `across`, `inSeries`, the lab notebook, `heldFor`, props). Every task keeps the blueprint's exact
- * condition in a `// GOAL:` comment above its predicate; when the lab runtime grows those features, finish the
- * predicates against it and slim this file down.
+ * Interim goal helpers for the Unit 1 labs (docs/curriculum/unit-1.md). The lab runtime now has the blueprint's
+ * helpers on LabView itself (docs/LABS.md: lab.meter.red, lab.across, lab.inSeries, lab.heldFor, lab.logged,
+ * lab.note, lab.event, lab.seriesLoop ...), and the ones below that had a direct equivalent now call it. Every task
+ * keeps the blueprint's exact condition in a `// GOAL:` comment above its predicate: finish each predicate against
+ * the LabView helpers and slim this file down.
  *
  * Conventions used by the Unit 1 lab files while packages/bench does not own BenchState yet:
  * - Clip leads are `wire` parts whose `at` names the two anchors they join, "B1.pos|S1.a".
@@ -36,17 +36,13 @@ export const meterMode = (lab: LabView) => lab.meter?.mode ?? "off";
 
 export const showsOL = (lab: LabView): boolean => lab.meter?.display === "OL";
 
-/**
- * Stand-ins for `meter.range`, `meter.red` and `meter.black` (N1). They read the meter part's PartState.extra,
- * which the runtime does not fill yet, so checks that use them cannot pass until it does.
- */
-export const meterRange = (lab: LabView) => lab.part("M1")?.extra?.["range"];
-export const redIn = (lab: LabView, socket: "com" | "vohm" | "ma" | "a10"): boolean => lab.part("M1")?.extra?.["red"] === socket;
-export const blackIn = (lab: LabView, socket: "com" | "vohm" | "ma" | "a10"): boolean => lab.part("M1")?.extra?.["black"] === socket;
+/** `meter.range`, `meter.red` and `meter.black` (N1): now plain LabView fields (lab.meter.range, .red, .black). */
+export const meterRange = (lab: LabView) => lab.meter?.range ?? undefined;
+export const redIn = (lab: LabView, socket: "com" | "vohm" | "ma" | "a10"): boolean => lab.meter?.red === socket;
+export const blackIn = (lab: LabView, socket: "com" | "vohm" | "ma" | "a10"): boolean => lab.meter?.black === socket;
 
-/** A simulator event of this type happened during the lab (on this part, if given). Stands in for `event(type, id)`. */
-export const happened = (lab: LabView, type: SimEvent["type"], partId?: string): boolean =>
-  lab.events.some((e) => e.type === type && (partId === undefined || e.partId === partId));
+/** A simulator event of this type happened during the lab (on this part, if given): `lab.event(type, id)`. */
+export const happened = (lab: LabView, type: SimEvent["type"], partId?: string): boolean => lab.event(type, partId);
 
 /** Absolute current through a part in amps (0 when the part is missing). */
 export const amps = (lab: LabView, id: string): number => Math.abs(lab.part(id)?.i ?? 0);
@@ -54,14 +50,5 @@ export const amps = (lab: LabView, id: string): number => Math.abs(lab.part(id)?
 /** An LED's glow, 0..1 (0 when the part is missing). */
 export const glow = (lab: LabView, id: string): number => lab.part(id)?.glow ?? 0;
 
-/**
- * Stand-in for `inSeries(M1, id)`: the meter is on a current range and reads the same current that flows through
- * the part (within 2%). The real check should come from the bench topology.
- */
-export const meterInSeriesWith = (lab: LabView, id: string): boolean => {
-  const mode = meterMode(lab);
-  if (mode !== "dca-ma" && mode !== "dca-10a") return false;
-  const metered = mode === "dca-ma" ? reading(lab) / 1000 : reading(lab);
-  const through = amps(lab, id);
-  return through > 0 && Math.abs(Math.abs(metered) - through) <= through * 0.02;
-};
+/** `inSeries(M1, id)`: the meter is on a current range, in the right socket, carrying the part's current. */
+export const meterInSeriesWith = (lab: LabView, id: string): boolean => lab.meterInSeriesWith(id);

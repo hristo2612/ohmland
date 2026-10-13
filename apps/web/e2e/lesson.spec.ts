@@ -8,10 +8,10 @@ test("a guest finishes the first lesson and sees XP on the finale", async ({ pag
 
   await playFirstLesson(page);
 
-  // Finale: 30 for the lesson + 5 first tries x 10 + "First spark" (20) + "Clean sweep" (25) = 125 XP.
+  // Finale: 30 for the lesson + 5 first tries x 10 + 3 lab tasks x 15 + "First spark" (20) + "Clean sweep" (25) = 170 XP.
   const finale = page.locator("[data-finale]");
   await expect(finale.getByRole("heading", { name: "Lesson complete!" })).toBeVisible();
-  await expect(page.locator(".finale__xp")).toHaveText("+125 XP");
+  await expect(page.locator(".finale__xp")).toHaveText("+170 XP");
 
   // The XP survives a reload: the header chip on the course map shows level 2.
   await page.goto("/learn");

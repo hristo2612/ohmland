@@ -13,7 +13,9 @@ import type { AchievementId, LearnerState } from "./types";
 export type LabEvent =
   | { type: "fried"; kind: string; lessonId: string | null }
   | { type: "task"; lessonId: string; taskId: string }
-  | { type: "lesson-complete"; lessonId: string; firstTry: number; items: number };
+  | { type: "lesson-complete"; lessonId: string; firstTry: number; items: number }
+  /** A named trigger fired by a lab (a task's `trigger`, a lab's `triggers`, or a built-in runtime trigger). */
+  | { type: "trigger"; name: string; lessonId: string | null };
 
 export type AchievementContext = { state: LearnerState; outline: CourseOutline; events: readonly LabEvent[] };
 
@@ -26,8 +28,9 @@ export type Achievement = {
   /** Hidden achievements show as a mystery until unlocked. */
   hidden?: boolean;
   /**
-   * TODO(lab-event): the named trigger a lab emits for this achievement (blueprint N16). The lab runtime cannot emit
-   * triggers yet, so an achievement that sets this cannot unlock until it does and its check is wired to it.
+   * A named trigger that unlocks this achievement when a lab fires it (blueprint N16), in addition to `check`. Labs
+   * fire triggers through a task's `trigger`, the lab's `triggers`, or the runtime's built-in ones (see
+   * apps/web/src/lab/session.ts, BUILT_IN_TRIGGERS).
    */
   labEvent?: string;
   check(ctx: AchievementContext): boolean;
@@ -52,7 +55,7 @@ const BASICS_BONUS_TASKS = [
   "meet-the-meter/tired-battery",
   "what-resists/extremes",
   "draw-a-resistor/slide-along",
-  "first-glow/match-symbols",
+  "first-glow/no-resistor",
   "watts-and-heat/one-watt-too",
   "fuse-guard/battery-check",
   "inside-the-battery/watch-it-sag",
@@ -98,8 +101,8 @@ const UNIT_2: readonly Achievement[] = [
     ...t["first-click"],
     icon: "sound-on",
     xp: 25,
-    // TODO(lab-event): the first `clicked` event from any relay, in any lab or the sandbox. Proxy: meet-the-relay's
-    // `energize` task, whose goal needs a click.
+    // The runtime fires "relay-clicked" on the first `clicked` event from any relay, in any lab or the sandbox
+    // (apps/web/src/lab/session.ts, BUILT_IN_TRIGGERS). The check is a proxy for records from before that.
     labEvent: "relay-clicked",
     check: ({ state }) => didTasks(state, "meet-the-relay", "energize"),
   },
@@ -116,8 +119,8 @@ const UNIT_2: readonly Achievement[] = [
     icon: "smoke",
     xp: 25,
     hidden: true,
-    // TODO(lab-event): a `died` event on a relay with data.cause "worn". Proxy: any fried relay (in Unit 2 the only
-    // planned relay death is worn contacts).
+    // The runtime fires "relay-worn-out" on a `died` event on a relay with data.cause "worn" (BUILT_IN_TRIGGERS).
+    // The check is a proxy for records from before that: any fried relay.
     labEvent: "relay-worn-out",
     check: ({ state }) => friedOf(state, ["relay"]) >= 1,
   },
@@ -127,8 +130,8 @@ const UNIT_2: readonly Achievement[] = [
     icon: "alert",
     xp: 25,
     hidden: true,
-    // TODO(lab-event): a `died` event on a polarized capacitor with data.cause "reverse", in any lab or the sandbox.
-    // Proxy: capacitor-labels' `blast-box` task, whose goal is exactly that.
+    // The runtime fires "capacitor-reversed-died" on a `died` event on a capacitor with data.cause "reverse", in any
+    // lab or the sandbox (BUILT_IN_TRIGGERS). The check is a proxy: capacitor-labels' `blast-box` task.
     labEvent: "capacitor-reversed-died",
     check: ({ state }) => didTasks(state, "capacitor-labels", "blast-box"),
   },
@@ -173,8 +176,8 @@ const UNIT_2: readonly Achievement[] = [
     ...t["tuning-fork"],
     icon: "star",
     xp: 75,
-    // TODO(lab-event): any lab or sandbox circuit holds a speaker tone between 418 and 462 Hz for at least 2 s. Needs
-    // the frequency readout.
+    // The runtime fires "speaker-concert-a" when any lab or sandbox circuit holds a speaker tone between 418 and
+    // 462 Hz for 2 s (BUILT_IN_TRIGGERS, from the audio stream's pitch).
     labEvent: "speaker-concert-a",
     check: () => false,
   },
@@ -277,9 +280,9 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     ...t.lawmaker,
     icon: "book",
     xp: 75,
-    // TODO(lab-event): find-the-law emits "lawmaker" when spot-the-pattern and predict-and-test are done, all four
-    // logged I × R products are within 5% of the logged battery voltage, and the 4.7 kΩ prediction is within 5% of
-    // the measured current. Until then this cannot unlock.
+    // Unlocks when find-the-law fires "lawmaker" (a lab `triggers` entry, docs/LABS.md): spot-the-pattern and
+    // predict-and-test done, all four logged I × R products within 5% of the logged battery voltage, and the 4.7 kΩ
+    // prediction within 5% of the measured current. The lab still has to declare that trigger.
     labEvent: "lawmaker",
     check: () => false,
   },
@@ -309,8 +312,8 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     icon: "retry",
     xp: 25,
     hidden: true,
-    // TODO(lab-event): stack-the-cells emits "upside-down" for four cells in series with exactly one reversed and a
-    // logged reading between 1.6 and 2.0 V. Until then this cannot unlock.
+    // Unlocks when stack-the-cells fires "upside-down" (a lab `triggers` entry, docs/LABS.md): four cells in series
+    // with exactly one reversed and a logged reading between 1.6 and 2.0 V. The lab still has to declare that trigger.
     labEvent: "upside-down",
     check: () => false,
   },
@@ -349,7 +352,12 @@ export const achievementXp = (id: string): number => BY_ID.get(id)?.xp ?? 0;
 
 /** The achievements newly earned in this context: not yet in the record and passing their check. */
 export function newlyEarned(ctx: AchievementContext): Achievement[] {
-  return ACHIEVEMENTS.filter((a) => !ctx.state.achievements[a.id] && a.check(ctx));
+  return ACHIEVEMENTS.filter((a) => !ctx.state.achievements[a.id] && (a.check(ctx) || triggered(ctx, a.labEvent)));
+}
+
+/** Whether a lab fired this achievement's trigger in the events being evaluated. */
+function triggered(ctx: AchievementContext, name: string | undefined): boolean {
+  return !!name && ctx.events.some((e) => e.type === "trigger" && e.name === name);
 }
 
 /** Returns the record with any newly earned achievements added at `now`, and which ones they were. */

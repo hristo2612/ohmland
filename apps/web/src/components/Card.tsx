@@ -21,9 +21,11 @@ export function Card({ as: Tag = "div", raised, flat, interactive, padding = "re
   ]
     .filter(Boolean)
     .join(" ");
+  // Narrowed for JSX: React Three Fiber (pulled in by the lab bench) adds 3D intrinsic elements to ElementType.
+  const El = Tag as "div";
   return (
-    <Tag className={cls} {...rest}>
+    <El className={cls} {...rest}>
       {children}
-    </Tag>
+    </El>
   );
 }
