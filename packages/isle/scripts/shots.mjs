@@ -1,10 +1,12 @@
 // Screenshots of the playground at several isle sizes, day and night, desktop and phone, plus a contact sheet.
 //
-//   node scripts/shots.mjs [--out dir] [--only name] [--small] [--perf]
+//   node scripts/shots.mjs [--out dir] [--only name] [--times day,night] [--views desktop,phone] [--small]
+//                          [--zoom 3] [--query only=switching] [--reveal] [--robot] [--perf]
 //
-// Starts the playground with Vite, drives headless Chromium (WebGL through SwiftShader), saves one PNG per shot and
-// contact-sheet.png in the output folder (default: screenshots/). --small saves reduced copies (for committing),
-// --perf also reports draw calls and triangles for a 300-lesson isle.
+// Starts the playground with Vite and drives headless Chromium (WebGL through SwiftShader). Saves one PNG per shot,
+// contact-sheet.png and a compact contact-sheet.jpg in the output folder (default: screenshots/out, not committed).
+// --small also saves reduced copies, --reveal frames of a lesson and a module reveal, --robot the robot on its own,
+// --perf the draw calls and triangles of a 300-lesson isle (its frame rate needs a GPU: scripts/perf.mjs).
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +20,7 @@ const opt = (k, d) => {
   const i = args.indexOf(k);
   return i >= 0 ? args[i + 1] : d;
 };
-const out = resolve(pkg, opt("--out", "screenshots"));
+const out = resolve(pkg, opt("--out", "screenshots/out"));
 const only = opt("--only", "");
 const small = args.includes("--small");
 const perf = args.includes("--perf");
@@ -202,10 +204,19 @@ if (shots.length > 1) {
       g.font = "11px system-ui, sans-serif";
       g.fillText(x.caption.replace(", ", " "), cx, cy + 15, pw);
     });
-    return c.toDataURL("image/png");
+    // a compact copy too, about 1600 pixels wide
+    const k = Math.min(1, 1600 / W);
+    const j = document.createElement("canvas");
+    j.width = Math.round(W * k);
+    j.height = Math.round(H * k);
+    const jg = j.getContext("2d");
+    jg.imageSmoothingQuality = "high";
+    jg.drawImage(c, 0, 0, j.width, j.height);
+    return { png: c.toDataURL("image/png"), jpg: j.toDataURL("image/jpeg", 0.84) };
   }, items);
-  writeFileSync(join(out, "contact-sheet.png"), Buffer.from(sheet.split(",")[1], "base64"));
-  console.log(`contact sheet: ${join(out, "contact-sheet.png")}`);
+  writeFileSync(join(out, "contact-sheet.png"), Buffer.from(sheet.png.split(",")[1], "base64"));
+  writeFileSync(join(out, "contact-sheet.jpg"), Buffer.from(sheet.jpg.split(",")[1], "base64"));
+  console.log(`contact sheet: ${join(out, "contact-sheet.png")} and .jpg`);
 }
 
 await browser.close();
