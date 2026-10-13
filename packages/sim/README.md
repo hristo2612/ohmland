@@ -52,7 +52,7 @@ const samples = simulateFor(netlist, 2, {
 | `setInput(id, key, value)` | Live input, applied at the current simulated time (a discontinuity). Keys per kind below. |
 | `run({ speed })` | Advances simulated time with wall time x `speed`, snapshots at about 30 Hz. `speed` up to 3600. |
 | `pause()` | Stops the scheduler. |
-| `step(dt)` | Advances exactly `dt` simulated seconds; returns the snapshot and also sends it to listeners. |
+| `step(dt, { speed? })` | Advances exactly `dt` simulated seconds; returns the snapshot and also sends it to listeners. In-thread, `speed` lets the solver take the larger steps a time-lapse at that speed would (headless replays). |
 | `snapshot()` | Current state plus the events since the previous snapshot. |
 | `onSnapshot(cb)`, `onAudio(cb)` | Return an unsubscribe function. |
 | `dispose()` | Stops everything. |
@@ -178,7 +178,10 @@ inputs. Carrying an input over is not a new switching event (no contact wear).
   smaller than 1/1000 of an entry below it, then the order is chosen again (the idea behind KLU's refactor).
   Between Newton iterations only the entries nonlinear devices touch are refilled. Linear circuits reuse their
   factors until something changes.
-- **gmin** (1e-12 S) from every node to ground, so floating islands never make the matrix singular.
+- **gmin** (1e-12 S) from every node to ground, so floating islands never make the matrix singular. Each island
+  that shares no part with the reference (a battery lying alone, a second circuit on the same bench) also gets one
+  firm tie (1 mS, at a source's minus terminal when it has one): a single tie carries no current, it only fixes the
+  island's level, which gmin alone left so loose that long time-lapse runs could stall near a battery's end.
 - **Newton-Raphson** with SPICE style `pnjlim` junction limiting and SPICE's default tolerances (1e-3 relative,
   1 µV absolute), starting from a linear extrapolation of the last two solutions on smooth stretches.
 - **Folds.** Regenerative circuits (astables, latches) run off the end of their solution branch and have to snap to

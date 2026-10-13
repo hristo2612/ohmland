@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { simulateFor, type LedColor } from "../src";
+import { createSimulation, simulateFor, type LedColor } from "../src";
 import { allEvents, battery9, last, led, resistor } from "./circuits";
 
 describe("DC operating points", () => {
@@ -19,6 +19,29 @@ describe("DC operating points", () => {
     expect(s.nodes.mid).toBeCloseTo((9 * 2000) / 3000.5, 2);
     expect(s.parts.R1!.i).toBeCloseTo(9 / 3000.5, 5);
     expect(s.parts.R2!.p).toBeCloseTo(s.nodes.mid! ** 2 / 2000, 6);
+  });
+
+  test("a second circuit on its own (no link to the first battery) drains its battery in a long time-lapse", () => {
+    const sim = createSimulation();
+    sim.load({
+      parts: [
+        // A battery lying alone is the reference; the LED circuit shares nothing with it.
+        { id: "B0", kind: "battery", pins: { pos: "x", neg: "gnd" }, emf: 9.4, internalOhms: 1.7, mAh: 500 },
+        { id: "B1", kind: "battery", pins: { pos: "p", neg: "n" }, emf: 9.4, internalOhms: 1.7, mAh: 500 },
+        { id: "L1", kind: "wire", pins: { a: "p", b: "p1" }, ohms: 0.15 },
+        resistor("R1", "p1", "a", 470),
+        { id: "L2", kind: "wire", pins: { a: "a", b: "a1" }, ohms: 0.15 },
+        led("D1", "a1", "k"),
+        { id: "L3", kind: "wire", pins: { a: "k", b: "n" }, ohms: 0.15 },
+      ],
+    });
+    const glows: number[] = [];
+    for (let h = 0; h < 44; h++) {
+      for (let k = 0; k < 30; k++) sim.step(120, { speed: 3600 });
+      glows.push(sim.snapshot().parts.D1!.glow ?? 0);
+    }
+    expect(glows[20]).toBeGreaterThan(0.8);
+    expect(glows[43]).toBeLessThan(0.05);
   });
 
   test("red LED with 470 Ω on 9 V: about 15 mA at about 1.95 V", () => {
