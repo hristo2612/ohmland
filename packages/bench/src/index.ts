@@ -1,6 +1,6 @@
 // @ohmland/bench: the 3D lab workbench. See README.md.
 
-export { Bench, type BenchProps } from "./scene/Bench";
+export { Bench, type BenchProps, type BenchController } from "./scene/Bench";
 export { PartPreview, type PartPreviewProps, type PreviewKind } from "./preview/PartPreview";
 export { PartGallery, DEFAULT_GALLERY, type GalleryItem, type PartGalleryProps } from "./preview/Gallery";
 

@@ -94,8 +94,8 @@ export function RelayModel({ mount, state, quality = "high" }: ModelProps<PartPa
   const armature = useRef<THREE.Group>(null);
   const blades = useRef<THREE.Group>(null);
   useEased(closed ? 1 : 0, (v) => {
-    if (armature.current) armature.current.rotation.z = -0.11 * v;
-    if (blades.current) blades.current.rotation.z = -0.075 * v;
+    if (armature.current) armature.current.rotation.z = -0.2 * v;
+    if (blades.current) blades.current.rotation.z = -0.13 * v;
   }, 26);
   const legs = useMemo(() => {
     const out: THREE.BufferGeometry[] = [];

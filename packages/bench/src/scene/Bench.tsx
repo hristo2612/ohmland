@@ -46,7 +46,11 @@ export type BenchProps = {
   style?: CSSProperties;
   /** Called once the first frame has rendered. */
   onReady?: () => void;
+  /** Receives camera helpers (top view, reset view, project an anchor to page coordinates). */
+  controllerRef?: React.MutableRefObject<BenchController | null>;
 };
+
+export type BenchController = Pick<InteractionApi, "topView" | "resetView" | "project" | "stats">;
 
 export function Bench(props: BenchProps) {
   const { tray = [], snapshot = null, quality = "high", readOnly = false, highlight, className, style } = props;
@@ -60,6 +64,19 @@ export function Bench(props: BenchProps) {
   onAction.current = props.onAction;
   onChange.current = props.onChange;
   const emit = useCallback((a: BenchAction) => onAction.current?.(a), []);
+  const controllerRef = props.controllerRef;
+  useEffect(() => {
+    if (!controllerRef) return;
+    controllerRef.current = {
+      topView: () => api.current?.topView(),
+      resetView: () => api.current?.resetView(),
+      project: (t) => api.current?.project(t) ?? null,
+      stats: () => api.current?.stats() ?? { calls: 0, triangles: 0, geometries: 0, textures: 0 },
+    };
+    return () => {
+      controllerRef.current = null;
+    };
+  }, [controllerRef]);
 
   useLayoutEffect(() => {
     store.setState({ emit });
@@ -309,7 +326,7 @@ function BenchScene({
         )}
         {quality === "high" && (
           <EffectComposer multisampling={4} enableNormalPass={false} autoClear={false}>
-            <Outline visibleEdgeColor={new THREE.Color(SELECT_HEX).getHex()} hiddenEdgeColor={new THREE.Color(SELECT_HEX).getHex()} edgeStrength={4} blur xRay={false} />
+            <Outline visibleEdgeColor={new THREE.Color(SELECT_HEX).getHex()} hiddenEdgeColor={new THREE.Color(SELECT_HEX).getHex()} edgeStrength={12} width={1400} blur xRay />
             <Bloom mipmapBlur luminanceThreshold={1.1} luminanceSmoothing={0.2} intensity={0.75} radius={0.6} />
             <ToneMapping mode={ToneMappingMode.NEUTRAL} />
           </EffectComposer>

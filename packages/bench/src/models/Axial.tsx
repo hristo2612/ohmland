@@ -68,7 +68,7 @@ function ResistorBody({ ohms, bands, tolerance, burnt }: { ohms: number; bands: 
   }, [ohms, bands, tolerance]);
   const layout = bandLayout(bands);
   const base = bands === 5 ? BODY_HEX.metal : BODY_HEX.carbon;
-  const bodyHex = burnt > 0 ? mix(base, burnt > 0.8 ? "#2a1e16" : "#7a5a3c", Math.min(1, burnt * 1.15)) : base;
+  const bodyHex = burnt > 0 ? mix(base, burnt > 0.8 ? "#2a1e16" : "#6b4a2e", Math.min(1, burnt * 1.35)) : base;
   const body = memoGeo("res-body", () => resistorLathe(-HALF - TAIL, HALF + TAIL, 0, 90));
   return (
     <group rotation={[0, 0, -Math.PI / 2]}>
@@ -199,7 +199,7 @@ export function ResistorModel({ params, mount, span = 4, state }: ModelProps<Par
         <ResistorBody ohms={params.ohms} bands={params.bands ?? 4} tolerance={params.tolerance} burnt={burnt} />
         {(health === "smoking" || health === "dead") && (
           <group position={[0, CAP_R, 0]}>
-            <Smoke active amount={health === "smoking" ? 1 : 0.35} dark={health === "dead"} spread={4} />
+            <Smoke active amount={health === "smoking" ? 1 : 0.25} dark={health === "dead"} spread={4} />
           </group>
         )}
       </group>

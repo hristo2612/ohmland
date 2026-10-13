@@ -108,16 +108,6 @@ function Btn({ label, icon, onClick, pressed, disabled, compact, onPointerDown, 
   );
 }
 
-const MODE_TEXT: Record<MeterMode, string> = {
-  off: "OFF",
-  dcv: "V ⎓",
-  acv: "V ~",
-  ohm: "Ω",
-  continuity: "·)))",
-  diode: "▶|",
-  "dca-10a": "10A ⎓",
-  "dca-ma": "mA ⎓",
-};
 
 export function Overlay({
   tray,
@@ -176,7 +166,7 @@ export function Overlay({
         <select key="dial" className="ohb-select" aria-label={labels.meter} value={bench.meter.mode} onChange={(e) => s.setMeterMode(e.target.value as MeterMode)}>
           {DIAL_MODES.map((m) => (
             <option key={m} value={m}>
-              {MODE_TEXT[m]}
+              {labels.meterModes[m]}
             </option>
           ))}
         </select>,

@@ -34,16 +34,22 @@ function domeGeometry(size: LedSize, grow = 0): THREE.BufferGeometry {
     const d = LED[size];
     const R = d.dome / 2 + grow;
     const top = d.height + grow;
-    const pts: [number, number][] = [
-      [R - 0.05, d.rimH - 0.05],
-      [R, d.rimH + 0.1],
-      [R, top - R],
-    ];
-    for (let i = 1; i <= 14; i++) {
-      const t = (i / 14) * (Math.PI / 2);
-      pts.push([Math.cos(t) * R, top - R + Math.sin(t) * R]);
+    // Points evenly spaced along the profile so texture v follows arc length (cracks map without stretching).
+    const y0 = d.rimH + 0.1;
+    const side = top - R - y0;
+    const arc = (Math.PI / 2) * R;
+    const total = side + arc;
+    const n = 36;
+    const pts: [number, number][] = [[R - 0.05, d.rimH - 0.05]];
+    for (let i = 0; i <= n; i++) {
+      const s = (i / n) * total;
+      if (s <= side) pts.push([R, y0 + s]);
+      else {
+        const t = (s - side) / R;
+        pts.push([Math.max(0.001, Math.cos(t) * R), top - R + Math.sin(t) * R]);
+      }
     }
-    return latheY(pts, 40);
+    return latheY(pts, 48);
   });
 }
 
@@ -74,9 +80,11 @@ function crackTexture(): THREE.CanvasTexture {
         ctx.stroke();
       };
       // Lathe u runs around the dome and v up its height; draw cracks near the top, running down the sides.
-      crack(w * 0.08, h * 0.02, Math.PI / 2 + 0.15, 26, 6, 2);
-      crack(w * 0.14, h * 0.05, Math.PI / 2 - 0.35, 20, 4.5, 1);
-      crack(w * 0.58, h * 0.04, Math.PI / 2 + 0.1, 18, 4, 1);
+      // Lathe u runs round the dome (u = 0 faces +z), v up its height (canvas top is the tip).
+      crack(w * 0.02, h * 0.03, Math.PI / 2 + 0.2, 30, 9, 2);
+      crack(w * 0.96, h * 0.08, Math.PI / 2 - 0.3, 24, 7, 2);
+      crack(w * 0.3, h * 0.05, Math.PI / 2 + 0.1, 26, 7, 1);
+      crack(w * 0.62, h * 0.04, Math.PI / 2 - 0.1, 22, 6, 1);
     },
     { srgb: false },
   );
@@ -118,12 +126,12 @@ function useLensMaterial(color: string, lens: "diffused" | "clear", quality: Qua
         depthWrite: false,
       });
     }
-    const body = dead ? mix(hex.lens, "#3a302c", 0.62) : hex.lens;
+    const body = dead ? mix(hex.lens, "#2e2622", 0.72) : hex.lens;
     return new THREE.MeshPhysicalMaterial({
       color: body,
-      roughness: dead ? 0.55 : 0.3,
+      roughness: dead ? 0.62 : 0.3,
       transparent: true,
-      opacity: dead ? 0.97 : 0.9,
+      opacity: dead ? 0.86 : 0.9,
       clearcoat: 1,
       clearcoatRoughness: dead ? 0.4 : 0.1,
       emissive: hex.emit,
@@ -274,7 +282,7 @@ function LedBody({
   }
   const crack = useMemo(
     () =>
-      new THREE.MeshBasicMaterial({ color: "#efe6dc", alphaMap: crackTexture(), transparent: true, depthWrite: false, opacity: 0.8 }),
+      new THREE.MeshBasicMaterial({ color: "#e6dbd0", alphaMap: crackTexture(), transparent: true, depthWrite: false, opacity: 0.72 }),
     [],
   );
   useLayoutEffect(() => () => crack.dispose(), [crack]);

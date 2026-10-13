@@ -55,6 +55,7 @@ export const DEFAULT_GALLERY: GalleryItem[][] = [
     { kind: "slide-switch", label: "Slide switch" },
     { kind: "toggle-switch", label: "Toggle" },
     { kind: "relay", label: "DPDT relay" },
+    { kind: "relay", label: "Energised", state: { ...ok(), closed: true } },
     { kind: "fuse", params: { amps: 1 }, label: "1 A fuse", pose: "desk" },
     { kind: "fuse", params: { amps: 3 }, label: "Blown fuse", pose: "desk", state: { ...ok(), health: "dead" } },
   ],

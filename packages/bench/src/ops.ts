@@ -222,7 +222,7 @@ export function moveSpanLeg(bench: BenchState, id: string, leg: string, to: Vec2
       best = h.id;
     }
   }
-  if (!best || bestD > PITCH * 3) return bench;
+  if (!best || bestD > PITCH * 12) return bench;
   const holes = { ...part.holes, [leg]: best };
   return replacePart(bench, { ...part, holes } as PlacedPart);
 }

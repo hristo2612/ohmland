@@ -68,7 +68,7 @@ function SelectionFrame({ box, color, pulse = false }: { box: THREE.Box3; color:
       bars.push([sx * (w / 2), sz * (d / 2 - L / 2), t, L]);
     }
   return (
-    <group ref={ref} position={[c.x, box.min.y + 0.12, c.z]}>
+    <group ref={ref} position={[c.x, Math.max(box.min.y, 0) + 0.15, c.z]}>
       {bars.map(([x, z, bw, bd], i) => (
         <mesh key={i} position={[x, 0, z]} rotation={[-Math.PI / 2, 0, 0]} material={mat} renderOrder={20}>
           <planeGeometry args={[bw, bd]} />

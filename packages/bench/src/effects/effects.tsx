@@ -62,7 +62,7 @@ export function Smoke({ active, amount = 1, dark = false, spread = 2 }: { active
     const m = new THREE.ShaderMaterial({
       vertexShader: SMOKE_VERT,
       fragmentShader: SMOKE_FRAG,
-      uniforms: { map: { value: smokeTexture() }, color: { value: new THREE.Color(dark ? "#3b3836" : "#d9d5cf") } },
+      uniforms: { map: { value: smokeTexture() }, color: { value: new THREE.Color(dark ? "#3b3836" : "#b4aea6") } },
       transparent: true,
       depthWrite: false,
     });
@@ -114,9 +114,9 @@ export function Smoke({ active, amount = 1, dark = false, spread = 2 }: { active
         p.z += p.vz * dt;
         p.spin += p.vs * dt;
         off.setXYZ(i, p.x, p.y, p.z);
-        size.setX(i, 3 + k * 16);
+        size.setX(i, 3.5 + k * 18);
         const fadeIn = Math.min(1, k * 6);
-        alpha.setX(i, (dark ? 0.75 : 0.55) * fadeIn * (1 - k) * (0.6 + 0.4 * amount));
+        alpha.setX(i, (dark ? 0.85 : 1.25) * fadeIn * (1 - k) * (0.6 + 0.4 * amount));
         spin.setX(i, p.spin);
         count++;
       } else {

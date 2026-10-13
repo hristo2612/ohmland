@@ -144,14 +144,15 @@ function faceTexture(): THREE.CanvasTexture {
           break;
         }
         case "dca-10a":
+          // Left of the dial: put the DC mark before the text so it clears the tick.
           ctx.font = mid;
-          ctx.fillText("10A", lx - rr(1.1), lz);
-          dcSymbol(ctx, lx + rr(3.8), lz - rr(0.6), rr(2.2));
+          ctx.fillText("10A", lx - rr(1.6), lz);
+          dcSymbol(ctx, lx - rr(1.6), lz - rr(2.9), rr(2.2));
           break;
         case "dca-ma":
           ctx.font = mid;
-          ctx.fillText("mA", lx - rr(1.2), lz);
-          dcSymbol(ctx, lx + rr(3.4), lz - rr(0.6), rr(2.2));
+          ctx.fillText("mA", lx - rr(1.4), lz);
+          dcSymbol(ctx, lx + rr(2.8), lz - rr(1.9), rr(2.0));
           break;
       }
     });

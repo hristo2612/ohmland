@@ -7,7 +7,7 @@ import { useThree } from "@react-three/fiber";
 import type { CameraControls as CameraControlsImpl } from "@react-three/drei";
 import { BOARD_PRINT, boardGeometry, boardOrigin, nearestHole } from "../board";
 import { BOARD_TOP } from "../dims";
-import { DIAL_MODES, METER, clipTargets, fitCamera, meterLocalToWorld, nearestSocket, partPose } from "../layout";
+import { DIAL_MODES, METER, anchorPosition, clipTargets, fitCamera, meterLocalToWorld, nearestSocket, partPose } from "../layout";
 import * as ops from "../ops";
 import { canMountOnBoard, footprintOf, partDef, rotateXZ } from "../parts";
 import type { BenchStore } from "../store";
@@ -21,6 +21,10 @@ export type InteractionApi = {
   placeAt: (item: TrayItem, clientX: number, clientY: number) => boolean;
   topView: () => void;
   resetView: () => void;
+  /** Client (page) coordinates of an anchor or world point, for tests and tutorials. */
+  project: (target: Anchor | [number, number, number]) => { x: number; y: number } | null;
+  /** Renderer statistics of the last frame (draw calls, triangles) for performance checks. */
+  stats: () => { calls: number; triangles: number; geometries: number; textures: number };
 };
 
 type Drag =
@@ -72,6 +76,7 @@ export function useInteraction({
   const controls = useThree((s) => s.controls) as unknown as CameraControlsImpl | null;
   const invalidate = useThree((s) => s.invalidate);
   const scene = useThree((s) => s.scene);
+  const gl = useThree((s) => s.gl);
   const gesture = useRef<Gesture | null>(null);
   const raycaster = useRef(new THREE.Raycaster());
   const hoverFrame = useRef<number | null>(null);
@@ -107,14 +112,40 @@ export function useInteraction({
       }
       return planePoint(cx, cy, 0);
     };
+    // Small handles (leads, buttons, clips, plugs) sit inside bigger body proxies; they win over the body.
+    const PRIORITY: Record<Pick["type"], number> = {
+      press: 3,
+      flip: 3,
+      rotor: 3,
+      leg: 3,
+      wireEnd: 3,
+      clip: 2,
+      plug: 2,
+      probe: 2,
+      dialMode: 3,
+      dial: 2,
+      part: 1,
+      wire: 1,
+      meter: 0,
+    };
     const hit = (cx: number, cy: number): Pick | null => {
       rc.setFromCamera(ndc(cx, cy), camera);
       const hits = rc.intersectObjects(scene.children, true);
+      let best: Pick | null = null;
+      let bestScore = -Infinity;
+      const nearest = hits[0]?.distance ?? 0;
       for (const h of hits) {
         const p = pickOf(h.object);
-        if (p) return p;
+        if (!p) continue;
+        // Prefer handles, but only among things close to the nearest hit (do not reach through a whole part).
+        const score = PRIORITY[p.type] * 100 - (h.distance - nearest);
+        if (h.distance - nearest > 40) break;
+        if (score > bestScore) {
+          bestScore = score;
+          best = p;
+        }
       }
-      return null;
+      return best;
     };
     const holeAt = (cx: number, cy: number): string | null => {
       const b = bench();
@@ -258,7 +289,9 @@ export function useInteraction({
           const m = s.bench.meter;
           const wp = planePoint(cx, cy, m ? METER.face : 0) ?? planePoint(cx, cy, 0);
           if (!m || !wp) return;
-          const sock = nearestSocket(m, wp.x, wp.z, 10);
+          let sock = nearestSocket(m, wp.x, wp.z, 10);
+          // Passing over the other plug's socket must not knock it out.
+          if (sock && m.probes[d.color === "red" ? "black" : "red"].socket === sock) sock = null;
           const desk = planePoint(cx, cy, 0);
           s.apply((b) => ops.plugProbe(b, d.color, sock, desk ? [desk.x, desk.z] : undefined));
           break;
@@ -613,7 +646,8 @@ export function useInteraction({
       const s = store.getState();
       if (item.kind === "lead") {
         const color = item.params?.color ?? s.ui.leadColor;
-        return s.addLead(color, [at.x, at.z + 60]);
+        // End b lands under the pointer, end a rests on the desk a little to the left.
+        return s.addLead(color, [at.x - 40, at.z - 6]);
       }
       const kind = item.kind;
       const params = (item.params ?? {}) as never;
@@ -650,7 +684,7 @@ export function useInteraction({
             setUi({ dragging: true, armed: null });
             lockCamera(true);
           }
-          if (g.drag?.kind === "part") dragMove(g, ev.clientX, ev.clientY);
+          if (g.drag) dragMove(g, ev.clientX, ev.clientY);
         };
         const up = (ev: PointerEvent) => {
           if (ev.pointerId !== g.pointerId) return;
@@ -668,6 +702,16 @@ export function useInteraction({
           const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
           if (!inside || ev.type === "pointercancel") st.cancel();
           else {
+            if (g.drag?.kind === "clip") {
+              // Bring the other clip of a new lead next to the one just placed.
+              const id = g.drag.id;
+              st.apply((b) => {
+                const l = b.leads.find((x) => x.id === id);
+                if (!l || l.a.to) return b;
+                const at: [number, number, number] | null = l.b.to ? anchorPosition(b, l.b.to) : [l.b.pos[0], 0, l.b.pos[1]];
+                return at ? ops.clipLead(b, id, "a", null, [at[0] - 30, at[2] + 45]) : b;
+              });
+            }
             st.commit();
             if (g.drag?.kind === "part") emit({ type: "part:add", partId: g.drag.id, kind: item.kind as never });
             else if (g.drag?.kind === "clip") emit({ type: "lead:add", leadId: g.drag.id });
@@ -697,6 +741,18 @@ export function useInteraction({
         invalidate();
         return true;
       },
+      stats: () => ({
+        calls: gl.info.render.calls,
+        triangles: gl.info.render.triangles,
+        geometries: gl.info.memory.geometries,
+        textures: gl.info.memory.textures,
+      }),
+      project: (target) => {
+        const p = typeof target === "string" ? anchorPosition(bench(), target) : target;
+        if (!p) return null;
+        const sp = toScreen(p);
+        return sp.behind ? null : { x: sp.x, y: sp.y };
+      },
       topView: () => {
         if (!controls) return;
         const r = element.getBoundingClientRect();
@@ -722,7 +778,7 @@ export function useInteraction({
       element.removeEventListener("contextmenu", onContext);
       api.current = null;
     };
-  }, [element, camera, controls, scene, store, readOnly, invalidate, api, emit, viewPad]);
+  }, [element, camera, controls, scene, gl, store, readOnly, invalidate, api, emit, viewPad]);
 }
 
 function selectionFor(p: Pick, b: BenchState) {

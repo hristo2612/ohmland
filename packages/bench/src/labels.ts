@@ -1,7 +1,7 @@
 // User-facing strings. English defaults; the web app passes translated strings through the `labels` prop.
 
 import { createContext, useContext } from "react";
-import type { BenchPartKind, LeadColor, WaterKind, WireColor } from "./types";
+import type { BenchPartKind, LeadColor, MeterMode, WaterKind, WireColor } from "./types";
 
 export type BenchLabels = {
   select: string;
@@ -27,6 +27,8 @@ export type BenchLabels = {
   partName: Record<BenchPartKind, string>;
   colors: Record<WireColor | LeadColor, string>;
   water: Record<WaterKind, string>;
+  /** Names of the meter dial positions (selection bar and screen readers). */
+  meterModes: Record<MeterMode, string>;
   /** Accessible name of the 3D view. */
   canvas: string;
 };
@@ -82,6 +84,16 @@ export const DEFAULT_LABELS: BenchLabels = {
     purple: "Purple",
   },
   water: { distilled: "DISTILLED", tap: "TAP", salty: "SALT" },
+  meterModes: {
+    off: "Off",
+    dcv: "DC volts",
+    acv: "AC volts",
+    ohm: "Ohms",
+    continuity: "Continuity",
+    diode: "Diode test",
+    "dca-10a": "DC amps (10 A)",
+    "dca-ma": "DC milliamps",
+  },
   canvas: "Workbench. Use the arrow keys to move the selected part, R to rotate, Delete to remove.",
 };
 
@@ -93,6 +105,7 @@ export function mergeLabels(over?: Partial<BenchLabels>): BenchLabels {
     partName: { ...DEFAULT_LABELS.partName, ...(over.partName ?? {}) },
     colors: { ...DEFAULT_LABELS.colors, ...(over.colors ?? {}) },
     water: { ...DEFAULT_LABELS.water, ...(over.water ?? {}) },
+    meterModes: { ...DEFAULT_LABELS.meterModes, ...(over.meterModes ?? {}) },
   };
 }
 

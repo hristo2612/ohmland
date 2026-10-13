@@ -1,7 +1,7 @@
-import { StrictMode, useEffect, useMemo, useState } from "react";
+import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Health, PartState, Snapshot } from "@ohmland/sim";
-import { Bench, DEFAULT_GALLERY, PartGallery, PartPreview, benchToNetlist, createBenchStore, emptyBench, type BenchAction, type BenchState, type Quality } from "../src";
+import { Bench, type BenchController, DEFAULT_GALLERY, PartGallery, PartPreview, benchToNetlist, createBenchStore, emptyBench, type BenchAction, type BenchState, type Quality } from "../src";
 import { FULL_TRAY, clipBench, demoBench } from "./scenes";
 
 const q = new URLSearchParams(location.search);
@@ -121,6 +121,11 @@ function MockPanel({ bench, mock, setMock, log }: { bench: BenchState; mock: Moc
 
 function BenchApp() {
   const [store] = useState(() => createBenchStore(initialBench()));
+  const controller = useRef<BenchController | null>(null);
+  // Handles for the Playwright scripts.
+  useEffect(() => {
+    Object.assign(window, { __bench: store, __controller: controller });
+  }, [store]);
   const [bench, setBench] = useState(() => store.getState().bench);
   const [mock, setMock] = useState(initialMock);
   const [log, setLog] = useState<string[]>([]);
@@ -164,6 +169,7 @@ function BenchApp() {
         camera={camera}
         onAction={onAction}
         onReady={markReady}
+        controllerRef={controller}
       />
       {showPanel && <MockPanel bench={bench} mock={mock} setMock={setMock} log={log} />}
       {showPanel && (
