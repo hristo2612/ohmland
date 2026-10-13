@@ -10,8 +10,8 @@
  */
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { createBenchStore, type BenchAction, type BenchState, type BenchStore, type MeterMode } from "@ohmland/bench/core";
-import type { InputKey, InputValue, Netlist, SimClient, SimEvent } from "@ohmland/sim";
-import type { BuiltBench, SimInput } from "./build";
+import type { InputKey, InputValue, Netlist, SimClient, SimEvent, Snapshot } from "@ohmland/sim";
+import { controlTargets, type BuiltBench, type SimInput } from "./build";
 import { isOptional, type LabDefinition, type LabTask, type Reading, type TaskStatus } from "./define";
 import { parseNote } from "./notes";
 import { LabSession, type FriedRecord } from "./session";
@@ -38,7 +38,14 @@ export type RuntimeUi = {
   controls: Record<string, number>;
   /** How far the simulator runs behind real time, 0..1. */
   lag: number;
+  /** Bumped whenever a panel, the stopwatch, the logger or the tapper changes (panels re-render on it). */
+  panels: number;
+  /** The scope's single shot: armed and waiting, capturing, or a finished capture. */
+  capture: Capture | null;
 };
+
+/** A single-shot scope capture: times in seconds from the trigger, one series per trace. */
+export type Capture = { state: "armed" | "running" | "done"; at: number; series: { label: string; points: [number, number][] }[] };
 
 export type RuntimeHooks = {
   onTaskDone?: (task: LabTask) => void;
@@ -52,6 +59,8 @@ export type RuntimeHooks = {
   sound?: (kind: "success" | "bonus" | "fried" | "click") => void;
   /** Audio samples from the speakers. */
   audio?: (samples: Float32Array, rate: number) => void;
+  /** Relay contacts moved `count` times in the last snapshot (toward NO if `pull`): clicks, or a buzz when fast. */
+  relay?: (count: number, pull: boolean) => void;
 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -98,6 +107,8 @@ export class LabRuntime {
       spareFuses: built.spareFuses,
       controls: { ...this.session.controls },
       lag: 0,
+      panels: 0,
+      capture: null,
     }));
     this.startInputs = start ? [...built.inputs, ...start.inputs] : built.inputs;
   }
@@ -152,7 +163,9 @@ export class LabRuntime {
   /** The <Bench onAction> handler: simulator inputs from switches, buttons and the dial. */
   readonly onAction = (a: BenchAction): void => {
     if (a.type === "input") {
-      this.sim?.setInput(a.partId, a.key, a.value);
+      if (this.ui.getState().capture?.state === "armed" && (a.key === "pressed" || a.key === "to") && this.edgeMatches(a.value)) {
+        void this.captureAround({ id: a.partId, key: a.key, value: a.value });
+      } else this.sim?.setInput(a.partId, a.key, a.value);
       if (a.key === "pressed" || a.key === "to") this.hooks.sound?.("click");
     }
   };
@@ -169,6 +182,8 @@ export class LabRuntime {
     }
     this.sim?.load(net.netlist);
     this.syncAudio(bench);
+    // Sliders that drive every part of a kind (the desk lamp) reach parts placed since.
+    for (const c of this.built.controls) if (c.part === "*") for (const id of controlTargets(bench, c)) this.sim?.setInput(id, c.key, this.session.controls[c.id] ?? c.value);
     void this.sim?.snapshot().then(() => {
       if (gen === this.gen) this.session.synced = true;
     });
@@ -180,19 +195,30 @@ export class LabRuntime {
     if (has && !this.audioOff && this.sim) {
       this.audioOff = this.sim.onAudio((samples, rate) => {
         this.session.tone = this.tone.push(samples, rate);
+        this.session.toneQuick = this.tone.quick();
         this.hooks.audio?.(samples, rate);
       });
     } else if (!has && this.audioOff) {
       this.audioOff();
       this.audioOff = null;
       this.session.tone = null;
+      this.session.toneQuick = null;
     }
   }
 
   private tick(s: Parameters<LabSession["ingest"]>[0]): void {
     this.store.setState({ snapshot: s });
     const u = this.session.ingest(s);
+    for (const inp of u.inputs) this.sim?.setInput(inp.id, inp.key, inp.value);
+    if (this.hooks.relay) {
+      for (const e of s.events) {
+        if (e.type !== "clicked" || e.partId.includes(":")) continue;
+        if (this.session.bench.parts.find((p) => p.id === e.partId)?.kind !== "relay") continue;
+        this.hooks.relay(Number(e.data?.["count"] ?? 1), e.data?.["to"] === "no");
+      }
+    }
     const patch: Partial<RuntimeUi> = {};
+    if (u.panels) patch.panels = this.ui.getState().panels + 1;
     if (Math.abs((s.lag ?? 0) - this.ui.getState().lag) > 0.05) patch.lag = s.lag ?? 0;
     if (u.completed.length) {
       patch.status = { ...this.session.status };
@@ -282,8 +308,104 @@ export class LabRuntime {
     const c = this.built.controls.find((x) => x.id === id);
     if (!c) return;
     this.session.setControl(id, value);
-    this.sim?.setInput(c.part, c.key, value);
+    for (const target of controlTargets(this.session.bench, c)) {
+      // A knob's position lives on the bench too, so the 3D knob turns with the slider.
+      if (c.key === "position" && this.store.getState().bench.parts.some((p) => p.id === target)) this.store.getState().setParams(target, { position: value });
+      else this.sim?.setInput(target, c.key, value);
+    }
     this.ui.setState({ controls: { ...this.session.controls } });
+  }
+
+  // ---- Panels and instruments ------------------------------------------------------------------------------
+
+  private bumpPanels(): void {
+    this.ui.setState({ panels: this.ui.getState().panels + 1 });
+  }
+
+  /** The learner submits a panel answer. */
+  answerPanel(id: string, value: unknown): void {
+    this.session.answer(id, value);
+    this.bumpPanels();
+  }
+
+  clearPanel(id: string): void {
+    this.session.clearPanel(id);
+    this.bumpPanels();
+  }
+
+  /** Look inside a mystery part (a clear cover, its terminals named). */
+  peek(partId: string): void {
+    const p = this.store.getState().bench.parts.find((x) => x.id === partId);
+    if (p) this.store.getState().apply((b) => ({ ...b, parts: b.parts.map((x) => (x.id === partId ? ({ ...x, params: { ...x.params, peek: true } } as typeof x) : x)) }));
+  }
+
+  setTapper(on: boolean): void {
+    this.session.setTapper(on);
+    this.bumpPanels();
+  }
+
+  startLogger(): void {
+    this.session.startLogger();
+    this.bumpPanels();
+  }
+
+  /** Whether a switch action is the edge the single shot waits for: "on" is a press or a throw to b, "off" the reverse. */
+  private edgeMatches(value: InputValue): boolean {
+    const edge = this.built.scope?.capture?.edge;
+    if (!edge) return true;
+    const on = value === true || value === "b";
+    return edge === "on" ? on : !on;
+  }
+
+  /** Arms the scope's single shot (or disarms it, or clears a finished capture). */
+  armCapture(on: boolean): void {
+    this.ui.setState({ capture: on ? { state: "armed", at: 0, series: [] } : null });
+  }
+
+  /**
+   * Single shot: pause the live run, apply the learner's switch action, step the simulator finely through the next
+   * few milliseconds (sub-microsecond steps at first, for a coil's kickback), then carry on in real time.
+   */
+  private async captureAround(input: { id: string; key: InputKey; value: InputValue }): Promise<void> {
+    const sim = this.sim;
+    const scope = this.built.scope;
+    if (!sim || !scope?.capture) {
+      this.sim?.setInput(input.id, input.key, input.value);
+      return;
+    }
+    this.ui.setState({ capture: { state: "running", at: 0, series: [] } });
+    sim.pause();
+    const t0 = (await sim.snapshot()).t;
+    sim.setInput(input.id, input.key, input.value);
+    const total = scope.capture.ms / 1000;
+    const steps: number[] = [];
+    for (let i = 0; i < 40; i++) steps.push(total / 4000);
+    for (let i = 0; i < 36; i++) steps.push(total / 400);
+    let done = 40 * (total / 4000) + 36 * (total / 400);
+    while (done < total - 1e-12) {
+      const dt = Math.min(total / 80, total - done);
+      steps.push(dt);
+      done += dt;
+    }
+    const series = scope.traces.slice(0, 2).map((tr) => ({ label: tr.label, points: [] as [number, number][] }));
+    const sample = (snap: Snapshot) => {
+      const view = this.session.view();
+      scope.traces.slice(0, 2).forEach((tr, k) => {
+        let v: number | undefined;
+        if ("volts" in tr) {
+          const a = view.volts(tr.volts, tr.ref);
+          v = a;
+        } else if ("amps" in tr) v = (snap.parts[tr.amps]?.i ?? 0) * 1000;
+        else v = (snap.parts[tr.glow]?.glow ?? 0) * 100;
+        if (v !== undefined) series[k]!.points.push([snap.t - t0, v]);
+      });
+    };
+    for (const dt of steps) {
+      if (this.disposed) return;
+      sample(await sim.step(dt));
+    }
+    this.ui.setState({ capture: { state: "done", at: t0, series } });
+    if (!this.disposed && !document.hidden) sim.run({ speed: this.lab.speed ?? 1 });
   }
 
   sayHint(task: LabTask): void {
@@ -348,6 +470,11 @@ export class LabRuntime {
       }
       if (e.note) this.session.setNote(e.note.id, parseNote(e.note.value, this.noteSpecs.get(e.note.id)?.unit));
       if (e.control) this.setControl(e.control.id, e.control.value);
+      if (e.panel) {
+        this.session.answer(e.panel.id, e.panel.value, true);
+        this.bumpPanels();
+      }
+      if (e.tapper !== undefined) this.setTapper(e.tapper);
       await sleep(step.do === "wait" ? step.seconds * 1000 : 850);
     }
     this.ui.setState({ showing: null });

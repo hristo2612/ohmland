@@ -3,7 +3,7 @@
  * snapshot to a LabSession and reports which tasks got done. The solution test runs it for every lab.
  */
 import { createSimulation, type InputKey, type InputValue } from "@ohmland/sim";
-import { buildBench } from "./build";
+import { buildBench, controlTargets } from "./build";
 import { isOptional, type LabDefinition, type TaskStatus } from "./define";
 import { parseNote } from "./notes";
 import { LabSession, type FriedRecord } from "./session";
@@ -34,6 +34,7 @@ export function replayLab(lab: LabDefinition): ReplayResult {
   const tone = createToneMeter();
   sim.onAudio((samples, rate) => {
     session.tone = tone.push(samples, rate);
+    session.toneQuick = tone.quick();
   });
   const fried: FriedRecord[] = [];
   const triggers: string[] = [];
@@ -60,6 +61,7 @@ export function replayLab(lab: LabDefinition): ReplayResult {
       const u = session.ingest(s);
       fried.push(...u.fried);
       triggers.push(...u.triggers);
+      for (const inp of u.inputs) sim.setInput(inp.id, inp.key, inp.value);
     }
   };
 
@@ -67,7 +69,11 @@ export function replayLab(lab: LabDefinition): ReplayResult {
   lab.solution.forEach((step, i) => {
     const eff = applyStep(session.bench, step);
     if (eff.problem) problems.push(`step ${i + 1} (${step.do}): ${eff.problem}`);
-    if (eff.bench !== session.bench) sim.load(session.setBench(eff.bench).netlist);
+    if (eff.bench !== session.bench) {
+      sim.load(session.setBench(eff.bench).netlist);
+      // Sliders that drive every part of a kind reach parts placed since.
+      for (const c of built.controls) if (c.part === "*") for (const id of controlTargets(session.bench, c)) sim.setInput(id, c.key, session.controls[c.id] ?? c.value);
+    }
     for (const inp of eff.inputs) {
       if (inp.after) delayed.push({ at: sim.time + inp.after, id: inp.id, key: inp.key, value: inp.value });
       else sim.setInput(inp.id, inp.key, inp.value);
@@ -81,8 +87,13 @@ export function replayLab(lab: LabDefinition): ReplayResult {
       if (!c) problems.push(`step ${i + 1}: no control "${eff.control.id}"`);
       else {
         session.setControl(c.id, eff.control.value);
-        sim.setInput(c.part, c.key, eff.control.value);
+        for (const id of controlTargets(session.bench, c)) sim.setInput(id, c.key, eff.control.value);
       }
+    }
+    if (eff.panel && !session.answer(eff.panel.id, eff.panel.value, true)) problems.push(`step ${i + 1}: no panel "${eff.panel.id}"`);
+    if (eff.tapper !== undefined) {
+      if (!session.tapper) problems.push(`step ${i + 1}: no tapper`);
+      session.setTapper(eff.tapper);
     }
     if (eff.check) {
       // Give the goal a moment: a check right after an action waits for the circuit to settle.
