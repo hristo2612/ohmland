@@ -1,8 +1,7 @@
 ---
+/** The free-build bench: the lab runtime with no tasks, the learner's unlocked parts in the tray. */
 import Page from "../layouts/Page.astro";
-import BenchParts from "../components/BenchParts";
-import { Badge } from "../components/Badge";
-import { MascotSay } from "../components/MascotSay";
+import Sandbox from "../lab/Sandbox";
 import { getCourse } from "../content/load";
 import { m } from "../i18n";
 
@@ -10,75 +9,24 @@ const course = getCourse();
 const first = course.lessons[0];
 ---
 
-<Page title={m.bench.title} active="bench">
-  <div class="container">
-    <header class="page-head">
-      <h1>{m.bench.title}</h1>
-      <p class="lead">{m.bench.lead}</p>
-    </header>
-    <div class="bench-page">
-      <section class="bench-mock" aria-labelledby="bench-soon">
-        <div class="bench-mock__board" aria-hidden="true">
-          <div class="bench-mock__rail bench-mock__rail--plus"></div>
-          <div class="bench-mock__holes"></div>
-          <div class="bench-mock__rail bench-mock__rail--minus"></div>
-        </div>
-        <div class="bench-mock__note">
-          <Badge tone="solid" icon="tools">{m.common.comingSoon}</Badge>
-          <h2 id="bench-soon">{m.bench.soonTitle}</h2>
-          <p class="muted">{m.bench.soonBody}</p>
-          <MascotSay pose="thinking">{m.mascot.empty}</MascotSay>
-        </div>
-      </section>
-      <section class="card card--raised" aria-labelledby="bench-parts">
-        <h2 id="bench-parts" class="bench-page__subtitle">{m.bench.partsTitle}</h2>
-        <BenchParts client:load parts={course.parts} outline={course.outline} firstHref={first?.href ?? "/learn"} />
-      </section>
-    </div>
+<Page title={m.bench.title} description={m.bench.lead} active="bench" bodyClass="bench-page">
+  <h1 class="sr-only">{m.bench.title}</h1>
+  <div class="sandbox-host">
+    <Sandbox client:only="react" outline={course.outline} firstHref={first?.href ?? "/learn"}>
+      <div slot="fallback" class="sandbox-loading skeleton" role="status" aria-label={m.lab.loading}></div>
+    </Sandbox>
   </div>
 </Page>
 
 <style>
-  .bench-page { display: grid; gap: var(--space-8); }
-  .bench-mock {
-    display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-    gap: var(--space-8);
-    align-items: center;
-    padding: var(--space-8);
-    border-radius: var(--radius-xl);
-    background: var(--bg-band);
-    border: var(--border) solid var(--line);
+  /* The bench fills the window under the site header (and above the bottom navigation on phones). */
+  .sandbox-host {
+    height: calc(100dvh - var(--header-h));
+    min-height: 520px;
   }
-  .bench-mock__board {
-    display: grid;
-    gap: var(--space-3);
-    padding: var(--space-5);
-    border-radius: var(--radius-l);
-    background: var(--plastic);
-    border: var(--border) solid var(--plastic-lo);
-    box-shadow: var(--shadow-1);
-    transform: rotate(-2deg);
-  }
-  .bench-mock__rail { height: 26px; background-image: radial-gradient(var(--chip-hi) 1.6px, transparent 1.9px); background-size: 14px 14px; background-position: 4px 6px; }
-  .bench-mock__rail--plus { border-top: var(--border-thick) solid var(--wire-red); }
-  .bench-mock__rail--minus { border-bottom: var(--border-thick) solid var(--led-blue); }
-  .bench-mock__holes {
-    height: 200px;
-    background-image: radial-gradient(var(--chip-hi) 1.6px, transparent 1.9px), linear-gradient(var(--plastic-lo), var(--plastic-lo));
-    background-size: 14px 14px, 100% 6px;
-    background-position: 4px 4px, 0 50%;
-    background-repeat: repeat, no-repeat;
-  }
-  .bench-mock__note { display: grid; gap: var(--space-3); justify-items: start; }
-  .bench-mock__note h2 { font-size: var(--text-heading); }
-  .bench-page__subtitle { font-size: var(--text-subheading); margin-bottom: var(--space-4); }
-  .bench-page :global(.bench-parts) { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-4); }
-  .bench-page :global(.bench-parts li) { display: grid; justify-items: center; gap: var(--space-2); width: 96px; text-align: center; }
-  .bench-page :global(.bench-parts__slot) { display: grid; place-items: center; width: 80px; height: 80px; border-radius: var(--radius-l); background: var(--surface-sunk); border: var(--border) solid var(--line); }
-  .bench-page :global(.bench-parts--empty) { display: grid; gap: var(--space-4); justify-items: start; }
+  .sandbox-host :global(.sandbox-loading) { display: block; height: 100%; border-radius: 0; }
   @media (max-width: 860px) {
-    .bench-mock { grid-template-columns: 1fr; padding: var(--space-5); }
-    .bench-mock__holes { height: 120px; }
+    .sandbox-host { height: calc(100dvh - var(--header-h) - var(--bottom-nav-h)); }
   }
+  :global(body.bench-page .site-footer) { display: none; }
 </style>
