@@ -1,7 +1,9 @@
 /**
  * The isle playground: any size of isle, day or night, and the reveal of one more lesson or module.
  * Query parameters (also set by the controls): l, m, u, seed, time (auto | day | dusk | night), q (high | low),
- * rm (1: reduced motion), muted (1), bare (1: no controls, for screenshots).
+ * rm (1: reduced motion), muted (0: sound on), bare (1: no controls, for screenshots), zoom (2: twice as close),
+ * only (a unit id: just that unit's island, l lessons and m modules of it, for looking at its landmarks).
+ * /robot.html shows the robot on its own (?night=1 with its lights on).
  */
 import { LANDMARKS_BY_UNIT, PIECES, madeUp, makeIsle, mountIsle, planHash, type IsleEvent, type IsleView } from "../src/index";
 

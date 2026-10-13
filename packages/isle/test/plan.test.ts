@@ -75,6 +75,14 @@ describe("the isle plan", () => {
     expect(seedFrom("meet-the-meter", "2026-10-01T09:00:00.000Z")).not.toBe(seedFrom("meet-the-meter", "2026-10-02T09:00:00.000Z"));
   });
 
+  it("keeps three.js out of the package entry and the planner (the renderer loads on demand)", () => {
+    for (const file of ["index.ts", "plan.ts", "events.ts", "catalog.ts", "math.ts", "messages.ts"]) {
+      const src = readFileSync(join(import.meta.dirname, "../src", file), "utf8");
+      const eager = [...src.matchAll(/^(?:import|export) (?!type )[^;]*?from "([^"]+)"/gm)].map((m) => m[1]!);
+      expect(eager.filter((m) => m === "three" || m.startsWith("three/") || m.includes("render")), file).toEqual([]);
+    }
+  });
+
   it("keeps the engine's approximated Math out of the planner", () => {
     const approximated = /Math\.(sin|cos|tan|asin|acos|atan2?|sinh|cosh|tanh|exp|expm1|log|log1p|log2|log10|pow|cbrt|hypot)\b|\*\*/;
     for (const file of ["plan.ts", "events.ts", "catalog.ts", "math.ts"]) {
