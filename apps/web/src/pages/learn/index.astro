@@ -1,0 +1,50 @@
+---
+import Page from "../../layouts/Page.astro";
+import CourseMap from "../../components/CourseMap";
+import ProgressCard from "../../components/ProgressCard";
+import { IsleArt } from "../../components/IsleArt";
+import { Icon } from "../../components/Icon";
+import { getCourse } from "../../content/load";
+import { mapOf } from "../../content/map";
+import { m } from "../../i18n";
+
+const course = getCourse();
+const map = mapOf(course);
+---
+
+<Page title={m.map.title} active="learn">
+  <div class="container learn">
+    <header class="page-head learn__head">
+      <h1>{m.map.title}</h1>
+      <p class="lead">{m.map.lead}</p>
+    </header>
+    <div class="learn__grid">
+      <CourseMap client:load units={map.units} upcoming={map.upcoming} outline={course.outline} />
+      <aside class="learn__side">
+        <ProgressCard client:idle outline={course.outline} />
+        <a class="isle-card card card--raised card--interactive" href="/isle">
+          <IsleArt className="isle-card__art" />
+          <span class="eyebrow">{m.map.isleTitle}</span>
+          <span class="muted small">{m.map.isleBody}</span>
+          <span class="isle-card__link">{m.map.isleLink}<Icon name="arrow-right" size={16} /></span>
+        </a>
+      </aside>
+    </div>
+  </div>
+</Page>
+
+<style>
+  .learn__grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--space-10); align-items: start; }
+  .learn__side { position: sticky; top: calc(var(--header-h) + var(--space-6)); display: grid; gap: var(--space-5); }
+  .isle-card { display: grid; gap: var(--space-2); color: var(--ink); text-decoration: none; overflow: hidden; }
+  .isle-card :global(.isle-card__art) { width: 100%; height: auto; margin-bottom: var(--space-2); border-radius: var(--radius-m); background: var(--surface-sunk); }
+  .isle-card__link { display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); color: var(--accent-ink); font-weight: var(--weight-semibold); }
+  @media (max-width: 1020px) {
+    .learn__grid { grid-template-columns: 1fr; }
+    .learn__side { position: static; grid-template-columns: 1fr 1fr; order: -1; }
+  }
+  @media (max-width: 640px) {
+    .learn__side { grid-template-columns: 1fr; order: 1; }
+    .isle-card { display: none; }
+  }
+</style>

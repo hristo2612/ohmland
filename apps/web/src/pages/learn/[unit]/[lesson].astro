@@ -1,0 +1,36 @@
+---
+import LessonLayout from "../../../layouts/LessonLayout.astro";
+import LessonPlayer from "../../../lesson/LessonPlayer";
+import { getCourse, type LessonData } from "../../../content/load";
+import type { PartInfo } from "../../../lesson/types";
+
+export function getStaticPaths() {
+  const course = getCourse();
+  return course.lessons.map((lesson) => ({ params: { unit: lesson.unit, lesson: lesson.id }, props: { lessonId: lesson.id } }));
+}
+
+const { lessonId } = Astro.props as { lessonId: string };
+const course = getCourse();
+const lesson = course.lessons.find((l) => l.id === lessonId) as LessonData;
+const nextLesson = course.lessons[lesson.index + 1];
+const unit = course.units.find((u) => u.id === lesson.unit);
+const mod = unit?.modules.find((mm) => mm.id === lesson.module);
+
+// Only the parts this lesson shows or unlocks travel to the client.
+const wanted = new Set<string>(lesson.unlocks.parts);
+for (const s of lesson.steps) if (s.type === "hook" && s.visual?.kind === "part") wanted.add(s.visual.part);
+const parts: Record<string, PartInfo> = {};
+for (const p of course.parts) if (wanted.has(p.id)) parts[p.id] = { id: p.id, name: p.name, icon: p.icon };
+---
+
+<LessonLayout title={lesson.title} description={lesson.summary}>
+  <LessonPlayer
+    client:load
+    lesson={lesson}
+    outline={course.outline}
+    parts={parts}
+    module={{ id: mod?.id ?? lesson.module, title: mod?.title ?? "", landmark: mod?.landmark ?? { id: "", name: "" } }}
+    next={nextLesson ? { title: nextLesson.title, href: nextLesson.href } : null}
+    mapHref="/learn"
+  />
+</LessonLayout>

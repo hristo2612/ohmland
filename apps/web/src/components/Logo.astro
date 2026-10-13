@@ -1,0 +1,9 @@
+---
+import { Mascot } from "../mascot/Mascot";
+import { m } from "../i18n";
+---
+
+<a class="logo" href="/" aria-label={m.nav.home}>
+  <Mascot pose="idle" size={32} animate={false} />
+  <span class="logo__word" aria-hidden="true">{m.meta.siteName}</span>
+</a>

@@ -1,0 +1,81 @@
+---
+/**
+ * The shell for regular pages: header with the main navigation (a bottom bar on phones), the level chip, theme and
+ * account; the page; the footer; and the toast region.
+ */
+import Base from "./Base.astro";
+import Logo from "../components/Logo.astro";
+import HeaderTools from "../components/HeaderTools";
+import ToastRegion from "../components/ToastRegion";
+import { Icon } from "../components/Icon";
+import { NAV, type NavId } from "../components/nav";
+import { getCourse } from "../content/load";
+import { m } from "../i18n";
+import "../styles/layout.css";
+
+type Props = { title?: string; description?: string; active?: NavId | undefined; bodyClass?: string };
+const { title, description, active, bodyClass } = Astro.props;
+const { outline } = getCourse();
+const mainNav = NAV.filter((n) => n.id !== "account");
+---
+
+<Base title={title} description={description} bodyClass={["has-bottom-nav", bodyClass].filter(Boolean).join(" ")}>
+  <a class="skip-link" href="#main">{m.common.skipToContent}</a>
+  <header class="site-header">
+    <div class="site-header__inner container">
+      <Logo />
+      <nav class="site-nav" aria-label={m.nav.label}>
+        <ul>
+          {
+            mainNav.map((n) => (
+              <li>
+                <a href={n.href} class="site-nav__link" aria-current={active === n.id ? "page" : undefined}>
+                  <Icon name={n.icon} size={18} />
+                  <span>{n.label}</span>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+      <HeaderTools client:idle outline={outline} accountActive={active === "account"} />
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <slot />
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <div class="site-footer__brand">
+        <Logo />
+        <p class="small muted">{m.footer.line}</p>
+      </div>
+      <ul class="site-footer__links small">
+        <li><a href="/about">{m.footer.about}</a></li>
+        <li><span class="muted">{m.footer.licenses}</span></li>
+        <li><span class="muted">{m.footer.madeWith}</span></li>
+      </ul>
+    </div>
+  </footer>
+
+  <nav class="bottom-nav" aria-label={m.nav.label}>
+    <ul>
+      {
+        mainNav.map((n) => (
+          <li>
+            <a href={n.href} class="bottom-nav__link" aria-current={active === n.id ? "page" : undefined}>
+              <span class="bottom-nav__icon">
+                <Icon name={n.icon} size={22} />
+              </span>
+              <span class="bottom-nav__label">{n.short}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+
+  <ToastRegion client:idle />
+</Base>

@@ -1,0 +1,85 @@
+---
+import Page from "../layouts/Page.astro";
+import { Icon } from "../components/Icon";
+import { Mascot } from "../mascot/Mascot";
+import { m } from "../i18n";
+import type { IconName } from "../components/icons";
+
+const sections: { id: string; icon: IconName; title: string; lines: string[] }[] = [
+  { id: "mission", icon: "spark", title: m.about.missionTitle, lines: m.about.mission },
+  { id: "open", icon: "book", title: m.about.openTitle, lines: m.about.open },
+  { id: "privacy", icon: "shield", title: m.about.privacyTitle, lines: m.about.privacy },
+  { id: "credits", icon: "star", title: m.about.creditsTitle, lines: m.about.credits },
+];
+---
+
+<Page title={m.about.title}>
+  <div class="container about">
+    <header class="page-head about__head">
+      <div>
+        <h1>{m.about.title}</h1>
+        <p class="lead">{m.about.lead}</p>
+      </div>
+      <Mascot pose="happy" size={128} />
+    </header>
+    <div class="about__grid">
+      {
+        sections.map((s) => (
+          <section class="about__section" aria-labelledby={`about-${s.id}`}>
+            <span class="about__icon">
+              <Icon name={s.icon} size={22} />
+            </span>
+            <h2 id={`about-${s.id}`}>{s.title}</h2>
+            {s.lines.map((l) => (
+              <p>{l}</p>
+            ))}
+          </section>
+        ))
+      }
+    </div>
+    <section class="about__reading" aria-labelledby="about-reading">
+      <h2 id="about-reading">{m.about.readingTitle}</h2>
+      <p class="muted">{m.about.readingLead}</p>
+      <ul>
+        {
+          m.about.reading.map((b) => (
+            <li class="about__book">
+              <span class="about__spine" aria-hidden="true" />
+              <div>
+                <p class="about__book-title">{b.title}</p>
+                <p class="small muted">{b.by}</p>
+                <p class="small">{b.note}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </div>
+</Page>
+
+<style>
+  .about__head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-8); }
+  .about__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
+  .about__section {
+    display: grid;
+    gap: var(--space-3);
+    align-content: start;
+    padding: var(--space-6);
+    border-radius: var(--radius-xl);
+    background: var(--surface);
+    border: var(--border) solid var(--line);
+    box-shadow: var(--shadow-1);
+  }
+  .about__section p { color: var(--ink-2); max-width: var(--read-max); }
+  .about__icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--radius-m); background: var(--primary-soft); color: var(--accent-ink); }
+  .about__reading { margin-top: var(--space-16); display: grid; gap: var(--space-3); }
+  .about__reading ul { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin-top: var(--space-3); }
+  .about__book { display: flex; gap: var(--space-4); padding: var(--space-5); border-radius: var(--radius-l); background: var(--bg-band); border: var(--border) solid var(--line); }
+  .about__spine { flex: none; width: 10px; border-radius: var(--radius-xs); background: linear-gradient(var(--copper), var(--primary)); }
+  .about__book-title { font-family: var(--font-display); font-weight: var(--weight-display); font-size: var(--text-subheading); line-height: var(--leading-subheading); }
+  @media (max-width: 860px) {
+    .about__grid, .about__reading ul { grid-template-columns: 1fr; }
+    .about__head :global(.mascot) { display: none; }
+  }
+</style>
