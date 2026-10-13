@@ -138,7 +138,8 @@ export function AccountCard({ onSignedIn }: { onSignedIn(on: boolean): void }) {
     };
   }, [apply]);
 
-  const signedInNow = phase.kind === "signed-in" || phase.kind === "stuck";
+  // "stuck" is signed in but not joined yet: nothing syncs, so the rest of the page still speaks of this device only.
+  const signedInNow = phase.kind === "signed-in";
   useEffect(() => onSignedIn(signedInNow), [signedInNow, onSignedIn]);
 
   const run = async (work: (s: Session) => Promise<SignInResult>) => {

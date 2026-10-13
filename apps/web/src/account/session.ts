@@ -289,13 +289,20 @@ export async function deleteAccount(provider: ProviderId): Promise<"deleted" | "
   stopWatching?.();
   stopWatching = null;
   useLearner.getState().detachSync();
-  await fb.deleteLearner(user.uid);
   try {
-    await fb.deleteAuthUser(user);
+    await fb.deleteLearner(user.uid);
+    try {
+      await fb.deleteAuthUser(user);
+    } catch (e) {
+      if (fb.codeOf(e) !== "auth/requires-recent-login") throw e;
+      if ((await confirm()) === "redirect") return "leaving";
+      await fb.deleteAuthUser(user);
+    }
   } catch (e) {
-    if (fb.codeOf(e) !== "auth/requires-recent-login") throw e;
-    if ((await confirm()) === "redirect") return "leaving";
-    await fb.deleteAuthUser(user);
+    // The account is still there (offline, or the confirmation was closed): keep syncing with it.
+    resuming = null;
+    void resume();
+    throw e;
   }
   forgetAccount();
   resuming = null;
