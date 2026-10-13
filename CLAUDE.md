@@ -1,6 +1,7 @@
 # Ohmland: notes for coding agents
 
-Read `docs/ARCHITECTURE.md` (contracts) and `docs/CONTENT.md` (writing and copyright rules) before changing anything.
+Read `docs/DESIGN-PRINCIPLES.md` (how Ohmland should feel), `docs/ARCHITECTURE.md` (contracts) and `docs/CONTENT.md`
+(writing and copyright rules) before changing anything.
 
 - `.private/` holds book-derived research notes. It is git-ignored. Never commit it, never copy text from it into
   the repo. Use it only to understand topics, then write original material.
