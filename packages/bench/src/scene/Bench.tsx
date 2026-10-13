@@ -102,7 +102,7 @@ export function Bench(props: BenchProps) {
     return () => ro.disconnect();
   }, [element]);
   const showTray = !readOnly && tray.length > 0;
-  viewPad.current = { left: showTray && !compact ? 190 : 0, bottom: showTray && compact ? 104 : 0 };
+  viewPad.current = { left: showTray && !compact ? 204 : 0, bottom: showTray && compact ? 104 : 0 };
 
   const onKey = (e: React.KeyboardEvent) => {
     if ((e.target as HTMLElement).closest("select,input,textarea")) return;
@@ -165,8 +165,8 @@ function CameraRig({
       maxDistance={1100}
       minPolarAngle={0}
       maxPolarAngle={1.3}
-      minAzimuthAngle={-1.35}
-      maxAzimuthAngle={1.35}
+      minAzimuthAngle={-1.75}
+      maxAzimuthAngle={1.75}
       dollyToCursor
       smoothTime={0.18}
       draggingSmoothTime={0.08}

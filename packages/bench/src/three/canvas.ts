@@ -32,7 +32,9 @@ export function canvasTexture(
   const hit = cache.get(key) as THREE.CanvasTexture | undefined;
   if (hit) return hit;
   const canvas = makeCanvas(w, h);
-  const ctx = canvas.getContext("2d")!;
+  // A CPU-backed canvas: GPU-accelerated canvases with thousands of small draws were sometimes uploaded half
+  // rasterised. These are drawn once, so the software path costs little.
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   draw(ctx, w, h);
   const tex = new THREE.CanvasTexture(canvas);
   if (opts.srgb !== false) tex.colorSpace = THREE.SRGBColorSpace;

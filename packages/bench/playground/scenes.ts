@@ -27,7 +27,7 @@ export function demoBench(): BenchState {
   b.meter.mode = "dcv";
   b.meter.probes.red.tip = { to: "pin:D1.anode", pos: [40, 60] };
   b.meter.probes.black.tip = { to: "pin:D1.cathode", pos: [60, 70] };
-  b.leads = [{ id: "TL1", color: "green", a: { to: "pin:C1.pos", pos: [0, 0] }, b: { to: null, pos: [60, 92] } }];
+  b.leads = [{ id: "TL1", color: "green", a: { to: "pin:C1.pos", pos: [0, 0] }, b: { to: null, pos: [70, 66] } }];
   return b;
 }
 
@@ -82,3 +82,19 @@ export const FULL_TRAY: TrayItem[] = [
   { kind: "lead", params: { color: "red" } },
   { kind: "lead", params: { color: "black" } },
 ];
+
+/** A resistor far past its power rating, for the smoke and damage visuals. */
+export function smokeBench(): BenchState {
+  const b = emptyBench({ kind: "bb400" });
+  b.parts = [
+    { id: "B1", kind: "battery", params: { snap: true }, pos: [-78, 4], rot: 0, holes: { pos: "bp2", neg: "bn2" } },
+    { id: "R1", kind: "resistor", params: { ohms: 15 }, pos: [0, 0], rot: 0, holes: { a: "a8", b: "a12" } },
+    { id: "D1", kind: "led", params: { color: "red" }, pos: [0, 0], rot: 0, holes: { anode: "c12", cathode: "c13" } },
+    { id: "R2", kind: "resistor", params: { ohms: 150 }, pos: [0, 0], rot: 0, holes: { a: "c18", b: "c22" } },
+  ];
+  b.wires = [
+    { id: "W1", a: "bp8", b: "b8", color: "red" },
+    { id: "W2", a: "a13", b: "bn14", color: "black" },
+  ];
+  return b;
+}

@@ -199,7 +199,7 @@ export function ResistorModel({ params, mount, span = 4, state }: ModelProps<Par
         <ResistorBody ohms={params.ohms} bands={params.bands ?? 4} tolerance={params.tolerance} burnt={burnt} />
         {(health === "smoking" || health === "dead") && (
           <group position={[0, CAP_R, 0]}>
-            <Smoke active amount={health === "smoking" ? 1 : 0.25} dark={health === "dead"} spread={4} />
+            <Smoke active amount={health === "smoking" ? 1 : 0.15} spread={4} />
           </group>
         )}
       </group>

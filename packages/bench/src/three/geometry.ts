@@ -233,3 +233,90 @@ export function cablePoints(
   pts[n] = b.clone();
   return pts;
 }
+
+/**
+ * A hanging cable by position-based relaxation: a chain of fixed total length between two ends, pulled down by
+ * gravity, kept off the floor, and leaving each end along its direction for a short stiff stretch.
+ * Deterministic (no state between calls), so it can be rebuilt whenever an end moves.
+ */
+export function ropePoints(
+  a: THREE.Vector3,
+  aDir: THREE.Vector3,
+  b: THREE.Vector3,
+  bDir: THREE.Vector3,
+  length: number,
+  radius: number,
+  floor: FloorFn,
+  stiff = 2,
+  bend = 0.18,
+): THREE.Vector3[] {
+  const dist = a.distanceTo(b);
+  const L = Math.max(length, dist * 1.01 + 2);
+  const n = Math.max(14, Math.min(56, Math.round(L / 9)));
+  const seg = L / n;
+  const ad = aDir.clone().normalize();
+  const bd = bDir.clone().normalize();
+  // Start from the bezier guess so the relaxation settles quickly.
+  const init = cablePoints(a, ad, b, bd, L, radius, floor, n);
+  const pts = init.map((p) => p.clone());
+  const fixed = new Set<number>();
+  for (let k = 0; k <= stiff; k++) {
+    pts[k] = a.clone().addScaledVector(ad, seg * k);
+    pts[n - k] = b.clone().addScaledVector(bd, seg * k);
+    fixed.add(k);
+    fixed.add(n - k);
+  }
+  const g = Math.max(0.15, seg * 0.08);
+  const tmp = new THREE.Vector3();
+  // Cables are stiffer near their ends (strain reliefs, plugs): less sag and more bending resistance there.
+  const near = (i: number) => {
+    const t = Math.min(1, Math.min(i, n - i) / Math.max(2, n * 0.22));
+    return t * t * (3 - 2 * t);
+  };
+  const weight = Array.from({ length: n + 1 }, (_, i) => near(i));
+  for (let it = 0; it < 160; it++) {
+    for (let i = 0; i <= n; i++) if (!fixed.has(i)) pts[i]!.y -= g * (0.25 + 0.75 * weight[i]!);
+    for (let pass = 0; pass < 3; pass++) {
+      for (let i = 0; i < n; i++) {
+        const p = pts[i]!;
+        const q = pts[i + 1]!;
+        tmp.subVectors(q, p);
+        const d = tmp.length() || 1e-6;
+        const diff = (d - seg) / d;
+        const fp = fixed.has(i);
+        const fq = fixed.has(i + 1);
+        if (fp && fq) continue;
+        if (fp) q.addScaledVector(tmp, -diff);
+        else if (fq) p.addScaledVector(tmp, diff);
+        else {
+          p.addScaledVector(tmp, diff * 0.5);
+          q.addScaledVector(tmp, -diff * 0.5);
+        }
+      }
+      // Near the ends, keep the cable straightening out of its end direction (no kink after a plug or boot).
+      for (let i = 2; i <= n - 2; i++) {
+        if (fixed.has(i)) continue;
+        const k = 0.45 * (1 - weight[i]!);
+        if (k < 0.01) continue;
+        const p = pts[i]!;
+        if (i < n / 2) tmp.copy(pts[i - 1]!).multiplyScalar(2).sub(pts[i - 2]!);
+        else tmp.copy(pts[i + 1]!).multiplyScalar(2).sub(pts[i + 2]!);
+        p.lerp(tmp, k);
+      }
+      // Bending stiffness: pull each point toward the midpoint of its neighbours.
+      for (let i = 1; i < n; i++) {
+        if (fixed.has(i)) continue;
+        const p = pts[i]!;
+        tmp.addVectors(pts[i - 1]!, pts[i + 1]!).multiplyScalar(0.5).sub(p);
+        p.addScaledVector(tmp, Math.min(0.5, bend + (1 - weight[i]!) * 0.3));
+      }
+      for (let i = 0; i <= n; i++) {
+        if (fixed.has(i)) continue;
+        const p = pts[i]!;
+        const f = floor(p.x, p.z) + radius;
+        if (p.y < f) p.y = f;
+      }
+    }
+  }
+  return pts;
+}

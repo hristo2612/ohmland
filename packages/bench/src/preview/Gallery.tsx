@@ -28,19 +28,19 @@ export const DEFAULT_GALLERY: GalleryItem[][] = [
   [
     { kind: "resistor", params: { ohms: 470 }, label: "470 Ω" },
     { kind: "resistor", params: { ohms: 4700, bands: 5, tolerance: 1 }, label: "4.7 kΩ 1%" },
-    { kind: "resistor", params: { ohms: 15 }, label: "15 Ω, smoking", state: { ...ok(), health: "smoking" } },
-    { kind: "resistor", params: { ohms: 150 }, label: "150 Ω, burnt", state: { ...ok(), health: "dead" } },
+    { kind: "resistor", params: { ohms: 15 }, label: "Smoking", state: { ...ok(), health: "smoking" } },
+    { kind: "resistor", params: { ohms: 150 }, label: "Burnt", state: { ...ok(), health: "dead" } },
     { kind: "diode", params: { model: "1N4001" }, label: "1N4001" },
     { kind: "diode", params: { model: "1N4148" }, label: "1N4148" },
     { kind: "npn", label: "2N3904" },
   ],
   [
     { kind: "led", params: { color: "red" }, label: "Red, lit", state: ok(0.85) },
+    { kind: "led", params: { color: "red" }, label: "Dead LED", state: { ...ok(), health: "dead" } },
     { kind: "led", params: { color: "green", lens: "clear" }, label: "Green clear" },
     { kind: "led", params: { color: "yellow", size: 3 }, label: "3 mm yellow", state: ok(0.6) },
     { kind: "led", params: { color: "blue", lens: "clear" }, label: "Blue, lit", state: ok(0.7) },
     { kind: "led", params: { color: "white", lens: "clear", size: 3 }, label: "3 mm white" },
-    { kind: "led", params: { color: "red" }, label: "Dead LED", state: { ...ok(), health: "dead" } },
     { kind: "phototransistor", params: { size: 5 }, label: "Phototransistor" },
   ],
   [
@@ -51,6 +51,8 @@ export const DEFAULT_GALLERY: GalleryItem[][] = [
     { kind: "electrolytic-cap", params: { farads: 1000e-6 }, label: "1000 µF" },
     { kind: "electrolytic-cap", params: { farads: 470e-6 }, label: "Burst", state: { ...ok(), health: "dead" } },
     { kind: "trimmer", label: "Trimmer" },
+  ],
+  [
     { kind: "pushbutton", label: "Pushbutton" },
     { kind: "slide-switch", label: "Slide switch" },
     { kind: "toggle-switch", label: "Toggle" },
@@ -65,12 +67,16 @@ export const DEFAULT_GALLERY: GalleryItem[][] = [
     { kind: "speaker", label: "8 Ω speaker" },
     { kind: "lemon", label: "Lemon cell" },
     { kind: "cup", params: { water: "tap" }, label: "Tap water" },
+  ],
+  [
     { kind: "multimeter", label: "Multimeter", mode: "dcv", display: "9.12", unit: "V" },
     { kind: "test-lead", label: "Test lead", color: "red" },
     { kind: "test-lead", label: "Test lead", color: "black" },
     { kind: "probe", label: "Probe", color: "red" },
   ],
 ];
+
+const FOV = 22;
 
 function cardTexture(text: string): THREE.Texture {
   return canvasTexture(`card:${text}`, 512, 128, (ctx, w, h) => {
@@ -112,7 +118,7 @@ function cellWidth(item: GalleryItem): number {
     case "fuse":
       return 36;
     default:
-      return 19;
+      return 24;
   }
 }
 
@@ -180,7 +186,7 @@ function layout(rows: GalleryItem[][]): { item: GalleryItem; x: number; z: numbe
       out.push({ item, x: x + w / 2, z: z + depth / 2, w });
       x += w + 6;
     });
-    z += depth + 30;
+    z += depth + 40;
   }
   return out.map((r) => ({ ...r, z: r.z - z / 2 }));
 }
@@ -206,8 +212,10 @@ export function PartGallery({ items = DEFAULT_GALLERY, quality = "high", classNa
   const zs = cells.map((c) => c.z);
   const depth = Math.max(...zs) - Math.min(...zs) + Math.max(...cells.map((c) => c.w)) * 0.9 + 30;
   const [aspect] = useState(() => (typeof window === "undefined" ? 1.6 : window.innerWidth / Math.max(1, window.innerHeight)));
-  const fitW = (rowWidth * 0.55) / (Math.tan((15 * Math.PI) / 180) * aspect);
-  const fitD = (depth * 0.62) / Math.tan((15 * Math.PI) / 180);
+  const half = (FOV / 2) * (Math.PI / 180);
+  const fitW = (rowWidth * 0.52) / (Math.tan(half) * aspect);
+  // The camera looks down at about 50 degrees, so depth on the desk is foreshortened.
+  const fitD = (depth * 0.42) / Math.tan(half);
   const reach = Math.max(fitW, fitD) * 1.02;
   const cz = (Math.max(...zs) + Math.min(...zs)) / 2 + 10;
   const [focusBox, setFocusBox] = useState<THREE.Box3 | null>(null);
@@ -217,7 +225,7 @@ export function PartGallery({ items = DEFAULT_GALLERY, quality = "high", classNa
     const size = focusBox.getSize(new THREE.Vector3());
     const c = focusBox.getCenter(new THREE.Vector3());
     const r = Math.max(size.x, size.y * 1.1, size.z) * 0.5 + 3;
-    const d = r / Math.tan((15 * Math.PI) / 180) * 1.05;
+    const d = (r / Math.tan((FOV / 2) * (Math.PI / 180))) * 1.05;
     v = { position: [f.x + c.x + d * 0.22, c.y + d * 0.55, f.z + c.z + d * 0.8], target: [f.x + c.x, c.y, f.z + c.z] };
   }
   return (
@@ -226,7 +234,7 @@ export function PartGallery({ items = DEFAULT_GALLERY, quality = "high", classNa
         frameloop="demand"
         shadows="percentage"
         dpr={[1, 2]}
-        camera={{ fov: 30, position: v.position, near: 1, far: 6000 }}
+        camera={{ fov: FOV, position: v.position, near: 4, far: 8000 }}
         gl={{ antialias: true, toneMapping: THREE.NeutralToneMapping, preserveDrawingBuffer: true }}
         onCreated={({ scene }) => {
           scene.background = new THREE.Color(BACKGROUND);
@@ -248,7 +256,7 @@ export function PartGallery({ items = DEFAULT_GALLERY, quality = "high", classNa
               </AutoLift>
             </group>
             <group position={[x, 0, z + cellDepth(item) / 2 + 7]}>
-              <Card text={item.label} width={Math.max(22, Math.min(w, 46))} />
+              <Card text={item.label} width={item.kind === "multimeter" ? 40 : Math.min(w, 28)} />
             </group>
           </Fragment>
         ))}

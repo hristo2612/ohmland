@@ -275,7 +275,7 @@ export function ElectrolyticModel({ params, mount, state }: ModelProps<PartParam
         )}
         {(health === "smoking" || burst) && (
           <group position={[0, H + 1.5, 0]}>
-            <Smoke active amount={burst ? 0.4 : 0.8} dark={burst} spread={R} />
+            <Smoke active amount={burst ? 0.2 : 0.8} spread={R} />
           </group>
         )}
         {legs.map((g, i) => (

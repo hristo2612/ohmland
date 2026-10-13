@@ -172,7 +172,7 @@ function PartViewImpl({ part, board, state, selected, hinted, pressed, quality, 
           }
           return (
             <group key={leg}>
-              <Cable from={from} fromDir={fromDir} to={to} toDir={toDir} length={f.length} radius={f.radius} color={f.color} floor={floor} />
+              <Cable from={from} fromDir={fromDir} to={to} toDir={toDir} length={Math.min(f.length, from.distanceTo(to) * 1.08 + 30)} radius={f.radius} color={f.color} floor={floor} bend={0.42} stiff={1} />
               <StrippedEnd at={end.inHole ? tip : to.clone().setY(0.6)} dir={stripDir} inHole={end.inHole} />
               <Proxy pick={{ type: "leg", id: part.id, leg, flying: true }} size={[4, 4, 4]} position={end.inHole ? [tip.x, BOARD_TOP + 2, tip.z] : [tip.x, 1.5, tip.z]} />
             </group>
@@ -301,7 +301,7 @@ export function LeadView({
           </group>
         );
       })}
-      <Cable from={pa.tail} fromDir={pa.tailDir} to={pb.tail} toDir={pb.tailDir} length={Math.max(300, pa.tail.distanceTo(pb.tail) + 40)} radius={1.25} color={lead.color} floor={floor} />
+      <Cable from={pa.tail} fromDir={pa.tailDir} to={pb.tail} toDir={pb.tailDir} length={Math.min(320, pa.tail.distanceTo(pb.tail) * 1.1 + 45)} radius={1.25} color={lead.color} floor={floor} bend={0.28} />
     </group>
   );
 }
@@ -328,7 +328,7 @@ function probePose(bench: BenchState, meter: MeterState, color: ProbeColor): { t
     const c = Math.cos(bias);
     const sn = Math.sin(bias);
     [hx, hz] = [hx * c - hz * sn, hx * sn + hz * c];
-    const el = 1.08;
+    const el = 0.88;
     return { tip, axis: new THREE.Vector3(hx * Math.cos(el), Math.sin(el), hz * Math.cos(el)).normalize() };
   }
   const toward = new THREE.Vector3(sock[0] - tip.x, 0, sock[2] - tip.z);
@@ -402,7 +402,7 @@ export function MeterView({
               <Probe color={color} />
               <Proxy pick={{ type: "probe", color }} size={[12, PROBE_LEN - 10, 12]} position={[0, PROBE_LEN / 2 + 4, 0]} />
             </group>
-            <Cable from={back} fromDir={axis} to={plugTop} toDir={plugDir} length={back.distanceTo(plugTop) * 1.12 + 70} radius={1.6} color={color} floor={floor} />
+            <Cable from={back} fromDir={axis} to={plugTop} toDir={plugDir} length={back.distanceTo(plugTop) * 1.12 + 70} radius={1.6} color={color} floor={floor} bend={0.42} stiff={1} />
           </group>
         );
       })}

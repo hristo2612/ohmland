@@ -24,21 +24,21 @@ const CSS = `
 .ohb-sw{all:unset;cursor:pointer;width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.9);box-shadow:0 0 0 1px rgba(0,0,0,.25);margin:9px 3px}
 .ohb-sw[aria-pressed=true]{box-shadow:0 0 0 2px var(--ohb-fg,#2b2620)}
 .ohb-sw:focus-visible{outline:2px solid var(--ohb-focus,#2f7df6);outline-offset:2px}
-.ohb-tray{position:absolute;left:10px;top:10px;bottom:10px;width:172px;display:flex;flex-direction:column;overflow:hidden}
+.ohb-tray{position:absolute;left:10px;top:10px;bottom:10px;width:186px;display:flex;flex-direction:column;overflow:hidden}
 .ohb-tray h2{margin:10px 12px 4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:rgba(43,38,32,.6)}
 .ohb-tray-list{overflow:auto;padding:4px 6px 8px;display:grid;grid-template-columns:1fr 1fr;gap:4px}
-.ohb-item{all:unset;box-sizing:border-box;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:10px;min-height:64px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;font-size:10.5px;line-height:1.12;overflow-wrap:anywhere;hyphens:auto;color:rgba(43,38,32,.86)}
+.ohb-item{all:unset;box-sizing:border-box;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:10px;min-height:64px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;font-size:10.5px;line-height:1.12;overflow-wrap:anywhere;color:rgba(43,38,32,.86)}
 .ohb-item:hover{background:rgba(60,45,30,.07)}
 .ohb-item[aria-pressed=true]{background:var(--ohb-accent-soft,rgba(255,138,31,.2));outline:2px solid var(--ohb-accent,#ff8a1f)}
 .ohb-item:focus-visible{outline:2px solid var(--ohb-focus,#2f7df6)}
 .ohb-item small{opacity:.6}
-.ohb-tools{position:absolute;top:10px;left:192px}
+.ohb-tools{position:absolute;top:10px;left:206px}
 .ohb-view{position:absolute;top:10px;right:10px}
 .ohb-sel{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);max-width:calc(100% - 24px)}
 .ohb-sel .ohb-name{padding:0 10px 0 12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
 .ohb-menu{position:absolute;min-width:180px;padding:4px;display:flex;flex-direction:column}
 .ohb-menu .ohb-btn{justify-content:flex-start}
-.ohb-status{position:absolute;left:192px;bottom:14px;padding:6px 10px;font-size:12px;font-weight:600}
+.ohb-status{position:absolute;left:206px;bottom:14px;padding:6px 10px;font-size:12px;font-weight:600}
 .ohb-hint{position:absolute;top:66px;left:50%;transform:translateX(-50%);padding:7px 12px;font-size:12.5px;white-space:nowrap}
 .ohb-select{all:unset;height:36px;padding:0 10px;border-radius:9px;background:rgba(60,45,30,.06);font-weight:600;cursor:pointer}
 .ohb-compact .ohb-tray{left:8px;right:8px;top:auto;bottom:8px;width:auto;height:92px}

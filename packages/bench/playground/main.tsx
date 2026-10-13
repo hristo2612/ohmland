@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Health, PartState, Snapshot } from "@ohmland/sim";
 import { Bench, type BenchController, DEFAULT_GALLERY, PartGallery, PartPreview, benchToNetlist, createBenchStore, emptyBench, type BenchAction, type BenchState, type Quality } from "../src";
-import { FULL_TRAY, clipBench, demoBench } from "./scenes";
+import { FULL_TRAY, clipBench, demoBench, smokeBench } from "./scenes";
 
 const q = new URLSearchParams(location.search);
 const num3 = (s: string | null) => (s ? (s.split(",").map(Number) as [number, number, number]) : undefined);
@@ -17,6 +17,8 @@ function initialBench(): BenchState {
       return emptyBench({ kind: "bb400" });
     case "clips":
       return clipBench();
+    case "smoke":
+      return smokeBench();
     default:
       return demoBench();
   }
@@ -206,8 +208,10 @@ function App() {
   const mode = q.get("mode");
   if (mode === "gallery") {
     const view = q.get("cam") ? { position: num3(q.get("cam"))!, target: num3(q.get("target")) ?? ([0, 0, 0] as [number, number, number]) } : undefined;
+    // row=2 shows one row; rows=0-3 shows a range.
     const row = q.get("row");
-    const items = row === null ? DEFAULT_GALLERY : [DEFAULT_GALLERY[Number(row)]!];
+    const rows = q.get("rows")?.split("-").map(Number);
+    const items = row !== null ? [DEFAULT_GALLERY[Number(row)]!] : rows ? DEFAULT_GALLERY.slice(rows[0], (rows[1] ?? rows[0]!) + 1) : DEFAULT_GALLERY;
     const focus = q.get("focus");
     return <PartGallery onReady={markReady} view={view} items={items} focus={focus === null ? undefined : Number(focus)} quality={quality} />;
   }

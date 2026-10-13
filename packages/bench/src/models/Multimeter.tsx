@@ -35,9 +35,11 @@ function dcSymbol(ctx: CanvasRenderingContext2D, x: number, y: number, w: number
 }
 
 function faceTexture(): THREE.CanvasTexture {
-  const w = FACE_W * PPM;
-  const h = FACE_L * PPM;
+  // Power-of-two canvas (some GPUs build broken mipmaps for odd sizes); drawing is in face millimetres.
+  const w = 1024;
+  const h = 2048;
   return canvasTexture("meter-face", w, h, (ctx) => {
+    ctx.scale(w / (FACE_W * PPM), h / (FACE_L * PPM));
     const X = (x: number) => (x + FACE_W / 2) * PPM;
     const Z = (z: number) => (z + FACE_L / 2) * PPM;
     const g = ctx.createLinearGradient(0, 0, 0, h);
@@ -186,7 +188,7 @@ function faceTexture(): THREE.CanvasTexture {
     ctx.lineTo(X(xs.vohm), Z(sz - 5.0));
     ctx.lineTo(X(xs.vohm), Z(sz - 5.6));
     ctx.stroke();
-  });
+  }, { mipmaps: false });
 }
 
 function holsterGeometry(): THREE.BufferGeometry {
@@ -296,14 +298,14 @@ export function MultimeterModel({ mode, display, unit }: { mode: MeterMode; disp
   return (
     <group>
       <mesh geometry={holsterGeometry()} material={mat.rubber("#f0a43c")} castShadow receiveShadow />
-      <mesh geometry={memoGeo("meter-body", () => roundedSlab(FACE_W + 0.6, FACE_L + 0.6, faceY, 7.5, 0.6))} material={mat.greyPlastic()} />
+      <mesh geometry={memoGeo("meter-body", () => roundedSlab(FACE_W + 0.6, FACE_L + 0.6, faceY - 0.35, 7.5, 0.6))} material={mat.greyPlastic()} />
       <mesh geometry={memoGeo("meter-face", () => roundedRectPlane(FACE_W, FACE_L, 7.2))} material={face} position={[0, faceY + 0.01, 0]} receiveShadow />
       {/* LCD: bezel, panel, glass. */}
       <mesh geometry={memoGeo("meter-bezel", () => roundedSlab(lcdW + 3.2, lcdD + 3.2, 0.7, 1.8, 0.3))} material={mat.blackMatte()} position={[0, faceY, (L.z0 + L.z1) / 2]} />
-      <mesh material={lcd.material} position={[0, faceY + 0.72, (L.z0 + L.z1) / 2]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh material={lcd.material} position={[0, faceY + 0.8, (L.z0 + L.z1) / 2]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[lcdW, lcdD]} />
       </mesh>
-      <mesh material={glass} position={[0, faceY + 0.95, (L.z0 + L.z1) / 2]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
+      <mesh material={glass} position={[0, faceY + 1.05, (L.z0 + L.z1) / 2]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
         <planeGeometry args={[lcdW + 2.4, lcdD + 2.4]} />
       </mesh>
       {/* Buttons. */}

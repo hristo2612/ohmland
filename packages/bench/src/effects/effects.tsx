@@ -62,7 +62,7 @@ export function Smoke({ active, amount = 1, dark = false, spread = 2 }: { active
     const m = new THREE.ShaderMaterial({
       vertexShader: SMOKE_VERT,
       fragmentShader: SMOKE_FRAG,
-      uniforms: { map: { value: smokeTexture() }, color: { value: new THREE.Color(dark ? "#3b3836" : "#b4aea6") } },
+      uniforms: { map: { value: smokeTexture() }, color: { value: new THREE.Color(dark ? "#4a4643" : "#aaa9a6") } },
       transparent: true,
       depthWrite: false,
     });
@@ -82,7 +82,7 @@ export function Smoke({ active, amount = 1, dark = false, spread = 2 }: { active
   useFrame((state, dtRaw) => {
     const dt = Math.min(dtRaw, 0.05);
     if (!active && alive.current === 0) return;
-    const rate = reduced ? 3 : 10 + 14 * amount;
+    const rate = reduced ? 3 : 8 + 16 * amount;
     if (active) emitAcc.current += dt * rate;
     const off = geometry.attributes.offset as THREE.InstancedBufferAttribute;
     const size = geometry.attributes.size as THREE.InstancedBufferAttribute;
@@ -98,14 +98,14 @@ export function Smoke({ active, amount = 1, dark = false, spread = 2 }: { active
         p.y = 0;
         p.z = (Math.random() - 0.5) * spread;
         p.vx = (Math.random() - 0.5) * 3;
-        p.vy = 7 + Math.random() * 6;
+        p.vy = 9 + Math.random() * 6;
         p.vz = (Math.random() - 0.5) * 3;
         p.age = 0;
         p.life = 2.2 + Math.random() * 1.6;
       }
       if (p.age < p.life) {
         p.age += dt;
-        const k = p.age / p.life;
+        const k = Math.min(1, p.age / p.life);
         // Gentle curl: sideways drift that grows with height.
         p.vx += Math.sin(t * 1.3 + i) * dt * 2.2;
         p.vz += Math.cos(t * 1.1 + i * 0.7) * dt * 2.2;
@@ -114,9 +114,9 @@ export function Smoke({ active, amount = 1, dark = false, spread = 2 }: { active
         p.z += p.vz * dt;
         p.spin += p.vs * dt;
         off.setXYZ(i, p.x, p.y, p.z);
-        size.setX(i, 3.5 + k * 18);
+        size.setX(i, 2.4 + k * 15);
         const fadeIn = Math.min(1, k * 6);
-        alpha.setX(i, (dark ? 0.85 : 1.25) * fadeIn * (1 - k) * (0.6 + 0.4 * amount));
+        alpha.setX(i, Math.max(0, (dark ? 1.0 : 1.5) * fadeIn * Math.pow(1 - k, 1.4) * (0.6 + 0.4 * amount)));
         spin.setX(i, p.spin);
         count++;
       } else {
@@ -193,7 +193,7 @@ function scorchTexture(): THREE.CanvasTexture {
       const y = h / 2 + Math.sin(a) * d * 0.7;
       const rad = w * (0.05 + r() * 0.16);
       const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
-      g.addColorStop(0, `rgba(30,18,10,${0.16 + r() * 0.16})`);
+      g.addColorStop(0, `rgba(30,18,10,${0.3 + r() * 0.25})`);
       g.addColorStop(1, "rgba(30,18,10,0)");
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);

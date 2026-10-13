@@ -3,7 +3,7 @@
 import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { BOARD_TOP, PITCH } from "../dims";
-import { bentTube, cablePoints, latheY, memoGeo, smoothTube, type FloorFn } from "../three/geometry";
+import { bentTube, latheY, memoGeo, ropePoints, smoothTube, type FloorFn } from "../three/geometry";
 import { WIRE_HEX, mat } from "../three/materials";
 import { IN_HOLE } from "./common";
 
@@ -203,6 +203,8 @@ export function Cable({
   radius,
   color,
   floor,
+  bend = 0.18,
+  stiff = 2,
 }: {
   from: THREE.Vector3;
   fromDir: THREE.Vector3;
@@ -212,12 +214,16 @@ export function Cable({
   radius: number;
   color: string;
   floor: FloorFn;
+  /** Bending stiffness 0..0.5. */
+  bend?: number;
+  /** How many segments at each end keep the end direction. */
+  stiff?: number;
 }) {
   const key = `${from.toArray().map((v) => v.toFixed(2))}|${to.toArray().map((v) => v.toFixed(2))}|${fromDir.toArray().map((v) => v.toFixed(2))}|${toDir
     .toArray()
     .map((v) => v.toFixed(2))}|${length}|${radius}`;
   const geometry = useMemo(() => {
-    const pts = cablePoints(from, fromDir, to, toDir, length, radius, floor);
+    const pts = ropePoints(from, fromDir, to, toDir, length, radius, floor, stiff, bend);
     return smoothTube(pts, radius, 10, 0.6);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);

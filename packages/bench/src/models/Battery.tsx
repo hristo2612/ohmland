@@ -21,8 +21,8 @@ export const BATTERY_TERM_X = BATTERY.termSpacing / 2;
 
 /** Where the snap connector's leads leave its top, in battery-local coordinates. */
 export const SNAP_EXITS = {
-  pos: { pos: [-1.4, TOP + 7.6, 0] as [number, number, number], dir: [0, 1, 0] as [number, number, number] },
-  neg: { pos: [1.4, TOP + 7.6, 0] as [number, number, number], dir: [0, 1, 0] as [number, number, number] },
+  pos: { pos: [-1.4, TOP + 7.6, 0] as [number, number, number], dir: [0.15, 1, 0.35] as [number, number, number] },
+  neg: { pos: [1.4, TOP + 7.6, 0] as [number, number, number], dir: [0.3, 1, 0.3] as [number, number, number] },
 };
 
 function labelTexture(): THREE.CanvasTexture {

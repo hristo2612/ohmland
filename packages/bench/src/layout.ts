@@ -333,10 +333,11 @@ export function benchBounds(bench: BenchState): [number, number, number, number]
       grow(m.pos[0] + rx, m.pos[1] + rz, 0);
     }
   }
+  // Attached clips matter for framing; loose ends lying on the desk do not.
   for (const l of bench.leads) {
     for (const e of [l.a, l.b]) {
       const p = e.to ? anchorPosition(bench, e.to) : null;
-      grow(p ? p[0] : e.pos[0], p ? p[2] : e.pos[1], 18);
+      if (p) grow(p[0], p[2], 18);
     }
   }
   if (!Number.isFinite(x0)) return [-100, -60, 100, 60];
@@ -357,19 +358,25 @@ export function fitCamera(
   // `pad` gives the fractions of the view covered by panels; fit into what is left and shift away from them.
   const visible = 1 - Math.min(0.6, Math.max(0, pad.left ?? 0));
   const visibleY = 1 - Math.min(0.5, Math.max(0, pad.bottom ?? 0));
-  const margin = portrait ? 12 : 40;
-  const w = (x1 - x0 + margin) / visible;
-  const d = (z1 - z0 + margin) / visibleY;
-  const cx = (x0 + x1) / 2 - (w * (1 - visible)) / 2;
+  const margin = portrait ? 12 : 24;
+  const bw = (x1 - x0 + margin) / visible;
+  const bd = (z1 - z0 + margin) / visibleY;
+  // Portrait screens look along the board from its left end, so its long side runs up the screen.
+  const w = portrait ? (z1 - z0 + margin) / visible : bw;
+  const d = portrait ? (x1 - x0 + margin) / visibleY : bd;
+  const cx = (x0 + x1) / 2 - (portrait ? 0 : (w * (1 - visible)) / 2);
   const cz = (z0 + z1) / 2;
   const v = (fovDeg * Math.PI) / 360;
   const h = Math.atan(Math.tan(v) * aspect);
-  const polar = top ? 0.001 : portrait ? 0.5 : 0.68;
+  const polar = top ? 0.001 : portrait ? 0.42 : 0.68;
+  const az = portrait ? -Math.PI / 2 : 0;
   const distW = w / 2 / Math.tan(h);
-  const distD = (d / 2 / Math.tan(v)) * (top ? 1 : 0.8);
+  const distD = (d / 2 / Math.tan(v)) * (top ? 1 : 0.85);
   const dist = Math.max(distW, distD) * 1.02;
-  const target: Vec3 = [cx, 0, cz + (top ? 0 : d * 0.04) + (d * (1 - visibleY)) / 2];
-  return { target, position: [cx, dist * Math.cos(polar), target[2] + dist * Math.sin(polar)] };
+  const shift = top ? 0 : d * 0.04;
+  const target: Vec3 = portrait ? [cx - shift - (d * (1 - visibleY)) / 2, 0, cz] : [cx, 0, cz + shift + (d * (1 - visibleY)) / 2];
+  const s = dist * Math.sin(polar);
+  return { target, position: [target[0] + s * Math.sin(az), dist * Math.cos(polar), target[2] + s * Math.cos(az)] };
 }
 
 /** Bounds of the electrolytic can for layout code that needs it. */

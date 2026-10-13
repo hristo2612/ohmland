@@ -44,7 +44,16 @@ export function Breadboard({ spec, xray = false, litStrips, litHoles, ringColor 
     const socket = new THREE.MeshStandardMaterial({ color: "#f4f2ec", roughness: 0.75, vertexColors: true });
     const strip = new THREE.MeshStandardMaterial({ color: "#ffffff", metalness: 0.75, roughness: 0.35 });
     const lit = new THREE.MeshStandardMaterial({ color: XRAY_HEX, metalness: 0.3, roughness: 0.4, emissive: XRAY_HEX, emissiveIntensity: 0.9 });
-    const ring = new THREE.MeshBasicMaterial({ color: ringColor, toneMapped: false, transparent: true, opacity: 0.95, depthWrite: false });
+    const ring = new THREE.MeshBasicMaterial({
+      color: ringColor,
+      toneMapped: false,
+      transparent: true,
+      opacity: 0.95,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
+    });
     return { top, shell, channel, socket, strip, lit, ring };
   }, [map, bump, ringColor]);
   useLayoutEffect(

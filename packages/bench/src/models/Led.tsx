@@ -131,7 +131,7 @@ function useLensMaterial(color: string, lens: "diffused" | "clear", quality: Qua
       color: body,
       roughness: dead ? 0.62 : 0.3,
       transparent: true,
-      opacity: dead ? 0.86 : 0.9,
+      opacity: dead ? 0.95 : 0.9,
       clearcoat: 1,
       clearcoatRoughness: dead ? 0.4 : 0.1,
       emissive: hex.emit,
