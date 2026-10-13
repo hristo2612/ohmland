@@ -91,7 +91,7 @@
   justify-content: space-between;
   gap: var(--space-3);
   max-width: calc(var(--lesson-max) + 2 * var(--gutter));
-  min-height: 80px;
+  min-height: var(--action-bar-h);
   margin-inline: auto;
   padding: var(--space-3) var(--gutter);
 }
@@ -192,6 +192,21 @@
 
 /* Explain */
 .explain__head, .quiz__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.explain-deck { position: relative; isolation: isolate; margin-bottom: var(--space-5); }
+.explain-deck::before, .explain-deck::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: var(--space-6);
+  right: var(--space-6);
+  bottom: calc(-1 * var(--space-3));
+  height: var(--space-12);
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+  border: var(--border) solid var(--line);
+}
+.explain-deck::after { left: var(--space-12); right: var(--space-12); bottom: calc(-1 * var(--space-6)); z-index: -2; }
+.explain-deck[data-remaining="0"]::before, .explain-deck[data-remaining="0"]::after, .explain-deck[data-remaining="1"]::after { display: none; }
 .explain-card {
   display: flex;
   flex-direction: column;
@@ -307,7 +322,6 @@
 .finale-isle:hover { border-color: var(--line-strong); transform: translateY(-2px); }
 .finale-isle__art { width: 120px; height: auto; }
 .finale-isle__cta { display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); color: var(--accent-ink); font-weight: var(--weight-semibold); }
-.finale__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); }
 
 /* Sparks: a calm, one-time burst behind the mascot. */
 .sparks { position: absolute; left: 50%; top: 64px; width: 0; height: 0; pointer-events: none; }
@@ -348,8 +362,7 @@
   .finale__title { font-size: var(--text-title); }
   .finale-isle { grid-template-columns: 88px 1fr; }
   .finale-isle__art { width: 88px; }
-  .finale__actions { flex-direction: column-reverse; }
-  .finale__actions .btn { width: 100%; }
+  .step-actions--finale .step-actions__start { display: none; }
   .hook__say .say__bubble { max-width: none; }
   .hook__say .mascot { display: none; }
 }

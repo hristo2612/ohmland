@@ -43,7 +43,8 @@ export function ExplainStep({ step, index, answers, setAnswer, onNext, onBack, a
             ))}
           </ol>
         </div>
-        <article className="explain-card" key={card} aria-roledescription="card">
+        <div className="explain-deck" data-remaining={Math.min(2, n - card - 1)}>
+        <article className="explain-card" key={card} aria-roledescription={m.lesson.cardRole}>
           <h1 className="step-title" ref={titleRef} tabIndex={-1} data-step-heading>
             {c.title}
           </h1>
@@ -55,6 +56,7 @@ export function ExplainStep({ step, index, answers, setAnswer, onNext, onBack, a
             </MascotSay>
           )}
         </article>
+        </div>
       </div>
       <StepActions
         onBack={card > 0 ? () => go(card - 1) : onBack}

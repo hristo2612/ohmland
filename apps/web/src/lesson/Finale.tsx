@@ -175,7 +175,7 @@ export function Finale({ completion, lesson, parts, module, next, mapHref, first
       </div>
 
     </section>
-      <div className="step-actions">
+      <div className="step-actions step-actions--finale">
         <div className="step-actions__inner">
           <div className="step-actions__start">
             {next && (

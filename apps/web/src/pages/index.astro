@@ -334,10 +334,16 @@ const binParts = ["resistor", "led", "battery", "capacitor", "multimeter", "tran
     .path__unit { grid-template-columns: auto 1fr auto; align-items: center; }
   }
   @media (max-width: 767px) {
-    .hero__isle { max-width: 380px; }
+    .hero__inner { padding-block: var(--space-4) var(--space-8); gap: var(--space-4); }
+    .hero__copy { gap: var(--space-4); }
+    .hero__isle { max-width: 300px; }
+    .hero__isle figcaption { display: none; }
     .hero__mascot :global(svg) { width: 64px; height: 64px; }
     .how { padding-top: var(--space-10); }
-    .how__steps { grid-template-columns: 1fr; }
+    .how__steps { grid-template-columns: 1fr; gap: var(--space-5); }
+    .how__step { grid-template-columns: 52px 1fr; column-gap: var(--space-4); row-gap: var(--space-1); }
+    .how__num { display: none; }
+    .how__icon { grid-row: span 2; }
     .features, .path, .open { padding-top: var(--space-12); }
     .open__card { flex-direction: column; padding: var(--space-6); }
     .path__unit { grid-template-columns: auto 1fr; }

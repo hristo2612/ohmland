@@ -180,6 +180,7 @@
   --read-max: 66ch;
   --header-h: 64px;
   --bottom-nav-h: 64px;
+  --action-bar-h: 80px;
 
   /* Shapes. */
   --radius-xs: 6px;

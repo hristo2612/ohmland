@@ -1,5 +1,6 @@
 /**
- * Figures for hotspot items: a static drawing plus one hit shape per named region (regions.ts). The hotspot item
+ * Figures for hotspot items: a static drawing plus one hit shape per named region (regions.ts). Text inside a figure
+ * is a marking printed on the device itself (COM, 10A, OFF), not interface copy. The hotspot item
  * wraps each hit shape in a focusable radio, so every region works by tap, click and keyboard.
  */
 import type { ReactNode } from "react";

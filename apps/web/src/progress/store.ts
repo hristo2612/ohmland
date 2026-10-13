@@ -207,7 +207,7 @@ export const useLearner = create<LearnerStoreState>((set, get) => {
       const events: LabEvent[] = [{ type: "fried", kind, lessonId }];
       const evaluated = evaluateAchievements({ state: { ...learner, fried }, outline, events }, at);
       commit(evaluated.state);
-      toast({ title: m.fried.toastTitle(label), body: m.mascot.fried(label), tone: "fried", mascot: "oops" });
+      toast({ title: m.fried.toastTitle(label), body: m.fried.toastBody, tone: "fried", mascot: "oops" });
       for (const a of evaluated.earned) toast({ title: m.achievements.toast(a.title), body: a.description, tone: "good", icon: a.icon });
       return { earned: evaluated.earned };
     },

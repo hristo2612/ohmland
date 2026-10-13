@@ -246,6 +246,8 @@ body:has(dialog[open]) { overflow: hidden; }
 @media (max-width: 767px) {
   .has-bottom-nav .toasts { bottom: calc(var(--bottom-nav-h) + var(--space-3) + env(safe-area-inset-bottom)); }
 }
+/* In a lesson, toasts sit above the step's action bar. */
+.lesson-page .toasts { bottom: calc(var(--action-bar-h) + var(--space-3) + env(safe-area-inset-bottom)); }
 .toast {
   pointer-events: auto;
   display: flex;
