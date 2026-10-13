@@ -12,9 +12,9 @@ export default defineLab({
   title: "What's inside a switch",
   bench: {
     board: "none",
+    // The bench meter (M1, pins { com: p1, vohm: p2, ma: m_ma, a10: m_a10 }) starts in continuity mode with its probe
+    // tips parked. BenchConfig cannot set an instrument's starting mode yet.
     parts: [
-      // The bench meter. pins { com: p1, vohm: p2, ma: m_ma, a10: m_a10 }. Probe tips start parked.
-      { id: "M1", kind: "multimeter", at: "mat:meter", props: { mode: "continuity" }, locked: true },
       // SPST toggle. pins { a: s1a, b: s1b }
       { id: "S1", kind: "switch", at: "mat:1", props: { closed: false }, locked: true },
       // SPDT slide switch. pins { com: s2c, a: s2a, b: s2b }

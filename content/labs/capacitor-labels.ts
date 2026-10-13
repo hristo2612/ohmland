@@ -37,7 +37,8 @@ export default defineLab({
       // CC: electrolytic, 100 µF, 6.3 V
       { kind: "capacitor", props: { farads: 1e-4, volts: 6.3, polarized: true }, count: 1 },
     ],
-    instruments: ["meter"],
+    // The only meter is M1, wired into station A above.
+    instruments: [],
   },
   tasks: [
     {

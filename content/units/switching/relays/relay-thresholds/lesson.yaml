@@ -47,8 +47,8 @@ steps:
           **Coil voltage**: what it's designed for, say 9 V. **Coil resistance and current**: 540 Ω draws about
           16.7 mA at 9 V, about 150 mW.
 
-          **Must-operate voltage**: the most it can need to pull in, often 75% of the rated voltage. **Must-release
-          voltage**: below this it's guaranteed to let go, often 10%.
+          **Must-operate voltage**: the most it can need to pull in, often 75% of the rated voltage.
+          **Must-release voltage**: below this it's guaranteed to let go, often 10%.
       - title: Contact ratings
         body: |
           The contacts have their own limit, such as 2 A at 30 V DC. That number usually assumes a plain resistive

@@ -57,8 +57,8 @@ steps:
           and the slightly quicker transistor wins.
 
           One honest footnote: the 2N3904's base is only rated for 6 V backwards, and this circuit dips a little past
-          that. Small flashers get away with it at these tiny currents. This circuit is called an **astable
-          multivibrator**: it never settles, and its output jumps between two states.
+          that. Small flashers get away with it at these tiny currents. This circuit is called an
+          **astable multivibrator**: it never settles, and its output jumps between two states.
         mascot: No clicks, no wear. These lamps will outlive me.
 
   - type: quiz
