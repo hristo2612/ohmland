@@ -269,8 +269,9 @@ some) is asked whether to add it; a guest signing in to a new account is not ask
 `[A-Za-z0-9_-]{1,64}` to sync.
 
 The lesson player reports to the island through `IsleHooks` (`lesson/isle-hooks.ts`): `prefetch()` once the learner
-moves past the quiz (never on a lesson's first load), `prime()` inside the tap on "Finish lesson" (audio), and
-`reveal({ before, after, outline, muted, signal, onShow })` after a first finish is saved. The reveal is a modal
+moves past the quiz (never on a lesson's first load), `prime()` inside the tap on "Finish lesson" (the isle's
+`primeAudio()`), and `reveal({ before, after, outline, muted, signal, onShow })` after a first finish is saved. The
+reveal frames the island above its caption card (`inset`). The reveal is a modal
 dialog (`isle/reveal.tsx`, loaded on demand) that resolves with what it showed once the learner closes it. Through
 `revealWithin()` the finale waits for it to get on screen for at most `REVEAL_TIMEOUT_MS`; a reveal that fails or is
 late is aborted and never blocks the finale. Every island view loads the isle and three.js through `isle/load.ts`
@@ -460,6 +461,15 @@ save to `LearnerState.sandbox` (`saveBench`, `deleteBench`), and fried parts go 
 planner, Pitko's fdlibm approach). `mountIsle(el, plan, opts)` renders with vanilla three.js, instanced meshes,
 orthographic isometric camera, flat-shaded vertex colours, voxel style. `view.reveal(from, to)` animates what the
 latest events added. Each unit is its own island in an archipelago, linked by cable bridges.
+
+- `preloadIsle()` fetches the renderer and three.js without drawing, so a mount that follows starts at once.
+- `primeAudio()` (also `@ohmland/isle/audio`, which has no three.js in it) creates and resumes the page's shared isle
+  audio context; call it inside a tap so the reveal's sound plays in Safari. `opts.audio` passes a context of your own.
+- `opts.inset: { bottom }` is screen space (CSS px) covered by, say, a caption card: the isle and its reveals frame
+  above it. `view.setInset()` changes it.
+- `opts.autoRotate` (degrees a second) turns a teaser slowly round instead of swaying, refitting the frame as it turns;
+  at its start angle it frames exactly as a still view does, so a poster drawn still matches it.
+- `view.clearPick()` forgets the tapped thing, so a label the learner closed is not sent again as the camera moves.
 
 Look: a floating circuit board. Matte solder-mask green land, copper trace roads with vias, white silkscreen marks,
 components as buildings (capacitor towers, IC factories, resistor rows, LED street lamps), layered FR4 edges, dangling
