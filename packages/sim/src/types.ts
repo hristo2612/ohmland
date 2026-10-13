@@ -10,14 +10,27 @@ export type MeterMode = "off" | "dcv" | "acv" | "dca-ma" | "dca-10a" | "ohm" | "
 type Base = { id: string };
 
 export type PartSpec =
-  | (Base & { kind: "resistor"; pins: { a: NodeId; b: NodeId }; ohms: number; watts?: number })
+  | (Base & {
+      kind: "resistor";
+      pins: { a: NodeId; b: NodeId };
+      ohms: number;
+      watts?: number;
+      tolerance?: number; // fraction such as 0.05; actual value = ohms x (1 + spread seeded by id). Default 0
+    })
   | (Base & { kind: "battery"; pins: { pos: NodeId; neg: NodeId }; emf: number; internalOhms: number; mAh?: number })
   | (Base & { kind: "led"; pins: { anode: NodeId; cathode: NodeId }; color: LedColor; maxmA?: number })
   | (Base & { kind: "switch"; pins: { a: NodeId; b: NodeId }; closed: boolean })
-  | (Base & { kind: "pushbutton"; pins: { a: NodeId; b: NodeId } })
+  | (Base & { kind: "pushbutton"; pins: { a: NodeId; b: NodeId }; pressed?: boolean })
   | (Base & { kind: "spdt"; pins: { com: NodeId; a: NodeId; b: NodeId }; to: "a" | "b" })
   | (Base & { kind: "fuse"; pins: { a: NodeId; b: NodeId }; amps: number })
-  | (Base & { kind: "capacitor"; pins: { pos: NodeId; neg: NodeId }; farads: number; volts?: number; polarized?: boolean })
+  | (Base & {
+      kind: "capacitor";
+      pins: { pos: NodeId; neg: NodeId };
+      farads: number;
+      volts?: number;
+      polarized?: boolean;
+      leakOhms?: number; // parallel leakage resistance; default none (polarized: 5 MΩ)
+    })
   | (Base & { kind: "pot"; pins: { a: NodeId; wiper: NodeId; b: NodeId }; ohms: number; position: number })
   | (Base & {
       kind: "relay";
@@ -25,11 +38,14 @@ export type PartSpec =
       coilOhms: number;
       pullIn: number;
       dropOut: number;
+      coilHenries?: number; // default 0.1
+      operateMs?: number; // default 5
+      releaseMs?: number; // default 3
     })
   | (Base & { kind: "npn"; pins: { c: NodeId; b: NodeId; e: NodeId }; model?: "2N3904" })
-  | (Base & { kind: "phototransistor"; pins: { c: NodeId; e: NodeId } })
+  | (Base & { kind: "phototransistor"; pins: { c: NodeId; e: NodeId }; light?: number })
   | (Base & { kind: "diode"; pins: { anode: NodeId; cathode: NodeId }; model?: "1N4001" | "1N4148" })
-  | (Base & { kind: "speaker"; pins: { a: NodeId; b: NodeId }; ohms: number })
+  | (Base & { kind: "speaker"; pins: { a: NodeId; b: NodeId }; ohms: number; henries?: number; watts?: number })
   | (Base & {
       kind: "multimeter";
       pins: { com: NodeId; vohm: NodeId; ma: NodeId; a10: NodeId };
@@ -71,4 +87,18 @@ export type Snapshot = {
   lag?: number; // 0..1, how far the sim is behind real time
 };
 
-export type InputKey = "pressed" | "closed" | "position" | "light" | "mode" | "range" | "to" | "ohms";
+// "replaceFuse" (multimeter): fit a new internal mA fuse. "replace" (any part): swap in a fresh part with the same
+// id, clearing damage, heat, charge history and blown state.
+export type InputKey =
+  | "pressed"
+  | "closed"
+  | "position"
+  | "light"
+  | "mode"
+  | "range"
+  | "to"
+  | "ohms"
+  | "replaceFuse"
+  | "replace";
+
+export type InputValue = number | string | boolean;
