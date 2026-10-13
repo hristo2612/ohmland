@@ -47,39 +47,6 @@ parts:
       - By convention black is the common (negative) lead and red the positive one.
       - Alligator clips hold on by themselves, so your hands stay free.
 
-  - id: breadboard
-    name: Breadboard
-    icon: breadboard
-    blurb: Build circuits without soldering by pushing leads into holes.
-    facts:
-      - Each short row of five holes is joined inside by a metal strip.
-      - The long rails along the edges carry power, usually marked red for plus and blue for minus.
-      - The gap down the middle lets a chip straddle it, each pin on its own strip.
-
-  - id: jumper-wire
-    name: Jumper wires
-    icon: jumper-wire
-    blurb: Short wires with stiff ends, made for breadboards.
-    facts:
-      - Their resistance is tiny, a small fraction of an ohm.
-      - Colours mean nothing electrically, but red for plus and black for minus keeps you sane.
-
-  - id: pushbutton
-    name: Pushbutton
-    icon: pushbutton
-    blurb: A switch that is on only while you press it.
-    facts:
-      - It is momentary. A spring pushes it back when you let go.
-      - Most small tactile buttons have four legs, joined inside in two pairs.
-
-  - id: slide-switch
-    name: Slide switch
-    icon: switch
-    blurb: Stays where you put it, on or off.
-    facts:
-      - SPDT means single pole, double throw. One input connects to one of two outputs.
-      - Small slide switches are usually rated for half an amp or less.
-
   - id: fuse
     name: Fuse
     icon: fuse
@@ -89,66 +56,6 @@ parts:
       - A blown fuse must be replaced, always with the same rating.
       - Fast-blow fuses react in milliseconds. Slow-blow fuses ride out short surges.
 
-  - id: capacitor
-    name: Capacitor
-    icon: capacitor
-    blurb: Stores charge, then lets it go.
-    facts:
-      - Capacitance is measured in farads. Everyday values are in µF, nF and pF.
-      - Electrolytic capacitors have polarity. The stripe marks the negative leg.
-      - Never exceed a capacitor's voltage rating.
-
-  - id: potentiometer
-    name: Potentiometer
-    icon: pot
-    blurb: A resistor with a knob.
-    facts:
-      - Three legs. The outer two are the ends of a track, the middle one is a wiper that slides along it.
-      - Turning the knob changes the resistance between the wiper and each end.
-
-  - id: relay
-    name: Relay
-    icon: relay
-    blurb: A switch flipped by an electromagnet.
-    facts:
-      - A small current through the coil can switch a much bigger current.
-      - You can hear it click when it switches.
-      - A diode across the coil soaks up the voltage spike when it turns off.
-
-  - id: npn-transistor
-    name: NPN transistor
-    icon: transistor
-    blurb: A small current at the base controls a bigger one.
-    facts:
-      - The 2N3904 has three legs. Collector, base and emitter.
-      - A small base current lets a current about 100 times bigger flow from collector to emitter.
-      - The 2N3904 handles up to 200 mA of collector current.
-
-  - id: phototransistor
-    name: Phototransistor
-    icon: phototransistor
-    blurb: A transistor switched by light.
-    facts:
-      - More light lets more current flow.
-      - Light falling on it does the job of a base current.
-
-  - id: diode
-    name: Diode
-    icon: diode
-    blurb: A one-way valve for current.
-    facts:
-      - The stripe marks the cathode.
-      - A silicon diode drops about 0.7 V while it conducts.
-      - The 1N4001 handles up to 1 A.
-
-  - id: speaker
-    name: Speaker
-    icon: speaker
-    blurb: Turns a changing current into sound.
-    facts:
-      - Small speakers are often 8 Ω.
-      - A steady current makes no sound. The current has to change to move the cone.
-
   - id: fruit-cell
     name: Fruit cell
     icon: cell
@@ -156,3 +63,193 @@ parts:
     facts:
       - A zinc and copper pair in a lemon gives about 0.9 V.
       - It supplies only a tiny current, too little to light most LEDs on its own.
+
+  # ------------------------------------------------------------------------------------------------------------------
+  # Unit 2: Switching (content/units/switching). Unit 2 owns these ids; keep Unit 1 parts above this line.
+  # ------------------------------------------------------------------------------------------------------------------
+
+  - id: toggle-switch
+    name: Toggle switch (SPST)
+    icon: switch
+    blurb: A lever that stays where you flick it. One pole, one throw, so simply on or off.
+    facts:
+      - "SPST means single pole, single throw: two legs and one gap that the lever opens or closes."
+      - It stays where you leave it until you flick it again.
+      - Its contacts have a current rating. Motors gulp several times their running current as they start, so leave plenty of margin.
+      - "Symbol: a short lever hinged at one terminal, angled away from the other."
+      - "Safety: switch battery circuits only. Mains switches are a job for electricians."
+
+  - id: slide-switch
+    name: Slide switch (SPDT)
+    icon: switch
+    blurb: A little slider that joins its middle leg to one side or the other. A chooser, not just an on-off.
+    facts:
+      - "SPDT means single pole, double throw: three legs."
+      - The middle leg is usually the pole. The two outer legs never connect to each other.
+      - Breadboard-friendly ones have legs 2.54 mm (0.1 in) apart.
+      - Small slide switches are usually rated for half an amp or less.
+      - "Symbol: a lever hinged at the pole, resting near one of two throws."
+
+  - id: pushbutton
+    name: Pushbutton
+    icon: pushbutton
+    blurb: A springy button that stays pressed only while you hold it.
+    facts:
+      - It is momentary. A spring pushes it back when you let go.
+      - Normally open (NO) buttons connect while pressed. Normally closed (NC) buttons disconnect while pressed.
+      - Small tactile buttons often have four legs, joined inside in two pairs.
+      - They are rated for small currents, often around 50 mA. Put a resistor in the way before a button empties a capacitor.
+      - "Symbol: a bar held just above two contacts (NO) or resting on them (NC), with a small plunger."
+
+  - id: relay
+    name: Relay (9 V coil)
+    icon: relay
+    blurb: A switch moved by an electromagnet. A small coil current flips contacts on a separate circuit.
+    facts:
+      - Our coil measures about 540 Ω, so at 9 V it draws about 16.7 mA and uses about 150 mW.
+      - It pulls in at about 6 V and lets go below about 2 V. The gap between the two is hysteresis.
+      - COM touches NC at rest and NO while the coil is powered.
+      - The coil side and the contact side are electrically separate (isolated).
+      - Always fit a diode across the coil, band toward positive, to catch the switch-off spike.
+      - "Safety: in this course relay contacts never switch mains. Turn off a buzzing relay quickly: it wears out."
+
+  - id: potentiometer
+    name: Potentiometer (1 kΩ knob)
+    icon: pot
+    blurb: A resistor with a sliding contact on a knob. Turn it to tap any voltage between its ends.
+    facts:
+      - "Three legs: the two ends of a resistive track, and a wiper that slides along it."
+      - End to end it always measures its full value.
+      - Ends across the supply and the wiper as the output make an adjustable voltage divider.
+      - "Symbol: a resistor with an arrow pointing at its middle."
+      - Never put the supply straight between the wiper and one end. Turned close to that end, the short piece of track overheats.
+
+  - id: diode-1n4001
+    name: Diode (1N4001)
+    icon: diode
+    blurb: A one-way valve for current, and the bodyguard every relay coil needs.
+    facts:
+      - Current flows from anode to cathode. The band marks the cathode.
+      - It drops about 0.7 V at small currents, up to about 1 V at 1 A.
+      - Rated for 1 A average forward current and 50 V in reverse.
+      - Across a coil, band toward positive, it clamps the switch-off spike to under a volt.
+      - "Symbol: a triangle pointing at a bar, with no light arrows."
+      - "Safety: wired forwards straight across a supply, it is a short circuit."
+
+  - id: scope
+    name: Oscilloscope (bench tool)
+    icon: multimeter
+    blurb: A voltmeter that draws voltage against time, fast enough to catch spikes and tones.
+    facts:
+      - Voltage goes up the screen, time goes across.
+      - A trigger freezes a repeating wave or catches a one-off event.
+      - It reads out frequency and period for you.
+      - Slow motion on the bench lets you watch events that last microseconds.
+      - Real scopes belong on low-voltage circuits unless you know exactly what you are doing.
+
+  - id: breadboard
+    name: Solderless breadboard
+    icon: breadboard
+    blurb: A plastic block with hidden spring clips. Push legs in and they connect, with no solder.
+    facts:
+      - "830 holes: 63 rows of two 5-hole strips, plus four long power rails."
+      - The channel down the middle separates the two sides, so a chip or relay can straddle it.
+      - Holes are 2.54 mm (0.1 in) apart.
+      - Some boards split their rails halfway. Check before you trust the bottom half.
+      - Keep wire clippings off the board. They cause shorts.
+
+  - id: jumper-wires
+    name: Jumper wires
+    icon: jumper-wire
+    blurb: Short lengths of solid wire, cut to size and laid flat, that join strips and rails.
+    facts:
+      - Solid 22 AWG wire (about 0.6 mm thick) suits breadboard clips best.
+      - Red for plus, blue or black for minus, other colours for signals.
+      - Their resistance is a tiny fraction of an ohm.
+      - Cut them to length and lay them flat, so you can see every connection.
+      - Strip insulation with wire strippers, never your teeth.
+
+  - id: electrolytic-capacitor
+    name: Electrolytic capacitor
+    icon: capacitor
+    blurb: A little can that stores a lot of charge for its size. It has a right way round.
+    facts:
+      - Values run from about 1 µF to thousands of µF. Tolerance is often ±20%.
+      - The stripe of minus signs and the shorter leg mark the negative side.
+      - Reversed, or pushed past its voltage rating, it leaks, heats up and can vent.
+      - "Symbol: two plates, one curved or hollow for the negative side, often with a + by the straight one."
+      - "Safety: big ones in old equipment can stay charged long after unplugging. Never open them."
+
+  - id: ceramic-capacitor
+    name: Ceramic capacitor
+    icon: capacitor
+    blurb: A small bead or disc for small values. Either way round works.
+    facts:
+      - Usually 10 pF to about 1 µF.
+      - "A three-digit code in picofarads: two digits, then the number of zeros. 104 is 100 nF."
+      - "A letter after the code gives the tolerance: J ±5%, K ±10%, M ±20%."
+      - Through-hole types are usually rated 25 V or more.
+      - "Symbol: two straight, parallel plates."
+
+  - id: logger
+    name: Data logger (bench tool)
+    icon: multimeter
+    blurb: Records a reading many times a second and plots it, so slow curves become visible.
+    facts:
+      - It takes 20 samples per second.
+      - A cursor reads the time and the value at any point on the plot.
+      - Made for RC curves and other slow changes.
+
+  - id: npn-transistor
+    name: NPN transistor (2N3904)
+    icon: transistor
+    blurb: Three legs, no moving parts. A small base current controls a much larger collector current.
+    facts:
+      - "Flat face toward you, legs down: emitter, base, collector (E, B, C)."
+      - Its gain (β) is typically 100 to 300 at 10 mA, and it falls at high currents.
+      - The base turns on at about 0.65 to 0.7 V above the emitter.
+      - "Limits: 200 mA collector current, 40 V from collector to emitter, 625 mW."
+      - Fully on (saturated), only about 0.1 V sits between collector and emitter.
+      - Always limit the base current with a resistor.
+
+  - id: touch-pads
+    name: Touch pads
+    icon: test-leads
+    blurb: Two bare contacts close together. A fingertip across them acts as a high-value resistor.
+    facts:
+      - Skin between the pads measures roughly 100 kΩ (firm, damp) to a few MΩ (light, dry).
+      - A series resistor protects the transistor's base if the pads ever get shorted.
+      - A Darlington pair makes them work with the lightest touch.
+      - "Safety: one fingertip, 9 V only, never across two hands or on broken skin."
+
+  - id: trimmer
+    name: Trimmer potentiometer
+    icon: pot
+    blurb: A tiny adjustable resistor you set with a screwdriver and then leave alone.
+    facts:
+      - Our bin has 10 kΩ, 50 kΩ and 100 kΩ trimmers.
+      - The wiper and one end make a variable resistor. The two ends alone always give the full value.
+      - Keep a fixed resistor in series, so the total can never reach zero.
+      - "Symbol: a resistor with a short T-shaped adjuster or an arrow."
+      - Don't force the screw past its end stops.
+
+  - id: phototransistor
+    name: Phototransistor
+    icon: phototransistor
+    blurb: A transistor with a window. Light lets current through.
+    facts:
+      - Usually two legs, collector and emitter. Light does the base's job.
+      - Its current rises with light, up to a few mA in bright light.
+      - Check the datasheet for which leg is which. Backwards, it barely conducts.
+      - "Symbol: a transistor with two arrows pointing in, often with no base lead."
+      - Many only tolerate about 5 V in reverse, so keep them in low-voltage circuits.
+
+  - id: speaker
+    name: Speaker (8 Ω)
+    icon: speaker
+    blurb: A coil, a magnet and a paper cone. Changing current moves the cone, and the cone pushes air.
+    facts:
+      - Small speakers like ours measure about 8 Ω.
+      - Only a changing current makes sound. A steady current just heats the coil.
+      - Always drive it through a series resistor or a proper amplifier, never straight across a battery.
+      - It sounds louder in a box, because the box stops the waves from the front and back of the cone cancelling out.
