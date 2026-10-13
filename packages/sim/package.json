@@ -5,9 +5,16 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./types": "./src/types.ts"
+    "./types": "./src/types.ts",
+    "./client": "./src/client.ts",
+    "./worker": "./src/worker.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "5.0.4"
   }
 }
