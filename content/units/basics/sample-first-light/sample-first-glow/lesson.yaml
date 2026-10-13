@@ -6,7 +6,7 @@ summary: Light an LED, burn one out on purpose, then find out why it needs a res
 minutes: 8
 unlocks:
   parts: [battery-9v, resistor, led]
-  isle: sample-street-lamp
+  isle: led-lamp
 steps:
   - type: hook
     body: |

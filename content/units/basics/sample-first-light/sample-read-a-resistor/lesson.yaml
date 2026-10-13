@@ -6,7 +6,7 @@ summary: Decode the colour bands, then find your way around the meter's sockets.
 minutes: 6
 unlocks:
   parts: [multimeter, test-leads]
-  isle: sample-meter-kiosk
+  isle: meter-kiosk
 steps:
   - type: hook
     body: |
