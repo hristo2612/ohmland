@@ -49,7 +49,7 @@ function Lab({ sim }) {
 | `highlight` | `string[]` | Part ids (pulsing amber frame) or anchors such as `"hole:e12"`, `"pin:R1.a"` (pulsing ring) for lab hints. |
 | `labels` | `Partial<BenchLabels>` | Translated UI strings (see `DEFAULT_LABELS`). |
 | `camera` | `{ position, target }` | Initial camera; defaults to a fit of the whole bench. |
-| `controllerRef` | `Ref<BenchController>` | `topView()`, `resetView()`, `project(anchor)` (page coordinates), `stats()` (draw calls). |
+| `controllerRef` | `Ref<BenchController>` | `topView()`, `resetView()`, `project(anchor)` (page coordinates), `pickAt(x, y)` (what is under a point), `stats()` (draw calls). |
 | `onReady` | `() => void` | After the first frames have rendered. |
 
 Interaction: drag parts from the tray (or tap a tray item, then tap the bench). Drag a part to move it; its leads snap
@@ -167,8 +167,8 @@ pnpm --filter @ohmland/bench dev     # vite playground, http://localhost:5199
 - `/` the demo bench (LED + 470 Ω + 9 V battery on the board, meter across the LED, a test lead) with the full tray
   and a mock snapshot panel: LED glow sliders, health per part, meter display text and unit, relay closed. The panel
   also lists the live netlist and the action log.
-- `?scene=clips` a section-one bench with no board, everything joined by crocodile leads; `?scene=empty`,
-  `?scene=half` (400-point board).
+- `?scene=clips` a section-one bench with no board, everything joined by crocodile leads; `?scene=smoke` a small
+  board with an overloaded resistor; `?scene=empty`, `?scene=half` (400-point board).
 - `?mode=gallery` every part in rows (`&rows=0-3`, `&row=2`, `&focus=4` for a close-up).
 - `?mode=preview` a few `<PartPreview>` turntables.
 - Screenshot helpers: `q=low`, `panel=0`, `tray=0`, `glow=0.8`, `health=R1:smoking,D1:dead`, `display=OL`,

@@ -115,6 +115,12 @@ test.describe("screenshots", () => {
     expect(await shot(page, "gallery")).toBeLessThan(400_000);
   });
 
+  test("clip leads without a board", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await open(page, "scene=clips&panel=0&glow=0.75&display=1.08&unit=k%CE%A9");
+    expect(await shot(page, "clip-leads")).toBeLessThan(400_000);
+  });
+
   test("props gallery", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await open(page, "mode=gallery&rows=4-5");
