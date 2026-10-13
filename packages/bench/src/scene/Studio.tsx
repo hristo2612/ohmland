@@ -122,6 +122,14 @@ function woodTexture(): THREE.CanvasTexture {
   );
 }
 
+/**
+ * Draws the bench's biggest procedural texture (the 2048 px desk) ahead of time, for a page to call while the browser
+ * is idle before a bench appears. The texture is cached, so the bench then only uploads it.
+ */
+export function prepareBench(): void {
+  woodTexture();
+}
+
 /** Warm wooden desk top with a soft varnish. */
 export function Desk({ quality }: { quality: Quality }) {
   const material = useMemo(
