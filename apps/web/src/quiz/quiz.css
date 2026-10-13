@@ -183,9 +183,9 @@
 }
 .match__chip[data-state="paired"] .match__badge,
 .match__chip[data-state="right"] .match__badge,
-.match__chip[data-state="wrong"] .match__badge { border: 0; background: var(--copper); color: var(--surface); }
-.match__chip[data-state="right"] .match__badge { background: var(--good); }
-.match__chip[data-state="wrong"] .match__badge { background: var(--bad); }
+.match__chip[data-state="wrong"] .match__badge { border: 0; background: var(--primary); color: var(--primary-ink); }
+.match__chip[data-state="right"] .match__badge { background: var(--good); color: var(--surface); }
+.match__chip[data-state="wrong"] .match__badge { background: var(--bad); color: var(--surface); }
 
 /* Colour code */
 .colour-code { display: grid; gap: var(--space-4); }

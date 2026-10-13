@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { CourseOutline } from "../content/outline";
 import { m } from "../i18n";
 import { useDerived, useLearner, useLearnerReady } from "../progress/useLearner";
@@ -12,12 +12,13 @@ import { toast } from "./toast-store";
 import "./account.css";
 
 function Segmented<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { id: T; label: string; icon?: IconName }[]; onChange(v: T): void }) {
+  const id = useId();
   return (
     <div className="setting">
-      <span className="setting__label" id={`seg-${label}`}>
+      <span className="setting__label" id={id}>
         {label}
       </span>
-      <div className="tabs__list" role="group" aria-labelledby={`seg-${label}`}>
+      <div className="tabs__list" role="group" aria-labelledby={id}>
         {options.map((o) => (
           <button key={o.id} type="button" aria-pressed={value === o.id} className="tabs__tab" onClick={() => onChange(o.id)}>
             {o.icon && <Icon name={o.icon} size={16} />}
