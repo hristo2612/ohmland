@@ -13,7 +13,11 @@
     "check": "astro check",
     "typecheck": "astro check",
     "test": "vitest run",
+    "test:rules": "node scripts/emulators.mjs firestore -- vitest run --config vitest.rules.config.ts",
     "e2e": "playwright test",
+    "e2e:accounts": "node scripts/emulators.mjs auth,firestore -- playwright test --config playwright.accounts.config.ts",
+    "emulators": "firebase emulators:start --only auth,firestore,hosting --project ohmland",
+    "deploy:rules": "firebase deploy --only firestore:rules --project ohmland",
     "lint:colors": "node scripts/check-colors.mjs",
     "shots": "node scripts/screenshots.mjs"
   },
@@ -25,6 +29,7 @@
     "@ohmland/isle": "workspace:*",
     "@ohmland/sim": "workspace:*",
     "astro": "7.3.8",
+    "firebase": "12.19.0",
     "idb-keyval": "6.3.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -35,11 +40,13 @@
   },
   "devDependencies": {
     "@astrojs/check": "0.9.10",
+    "@firebase/rules-unit-testing": "5.0.2",
     "@playwright/test": "1.64.0",
     "@types/node": "22.20.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/three": "0.186.0",
+    "firebase-tools": "15.31.0",
     "typescript": "5.9.3",
     "vitest": "5.0.4"
   }

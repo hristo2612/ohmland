@@ -39,5 +39,10 @@ const fullTitle = title ? `${title} · ${m.meta.titleSuffix}` : `${m.meta.siteNa
   </head>
   <body class={bodyClass}>
     <slot />
+    <script>
+      // Signed-in learners sync from every page; for a guest this is one localStorage read (src/account/boot.ts).
+      import { boot } from "../account/boot";
+      boot();
+    </script>
   </body>
 </html>

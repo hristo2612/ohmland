@@ -21,6 +21,7 @@ Requires Node 22.12 or newer (Node 24 recommended) and pnpm 10.
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Writing and content rules](docs/CONTENT.md)
+- [Accounts, cloud sync and the Firebase emulators](docs/ACCOUNTS.md)
 
 ## License
 

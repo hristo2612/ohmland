@@ -58,8 +58,16 @@ export type LearnerStoreState = {
   setSettings(patch: Partial<Settings>): void;
   exportJson(): string;
   importJson(text: string): Promise<boolean>;
+  /** Deletes all progress on this device (and, while syncing, the cloud copy too). Keeps the settings. */
   reset(): Promise<void>;
+  /** Starts syncing: pulls the cloud copy, merges, keeps the result, pushes it, then pushes after every change. */
   attachSync(sync: ProgressSync): Promise<void>;
+  /** Stops syncing (signing out, deleting the account). The device keeps its progress. */
+  detachSync(): void;
+  /** Sends what waits for the cloud now. Resolves at once when nothing syncs. */
+  flushSync(): Promise<void>;
+  /** Takes `next` as this device's record as it is, without merging (the learner chose to start from their account). */
+  replaceLearner(next: LearnerState): void;
 };
 
 const nowIso = () => new Date().toISOString();
@@ -69,21 +77,16 @@ let initPromise: Promise<void> | null = null;
 let saving: Promise<unknown> = Promise.resolve();
 let channel: BroadcastChannel | null = null;
 let activeSync: ProgressSync | null = null;
+let syncStops: (() => void)[] = [];
 const TAB_ID = Math.random().toString(36).slice(2);
 
-function persist(state: LearnerState) {
+/** Saves on the device, tells other tabs, and (unless `push` is false) hands the record to the cloud sync. */
+function persist(state: LearnerState, push = true) {
   const s = storage;
   if (!s) return;
   saving = saving.then(() => s.save(state)).catch(() => undefined);
   void saving.then(() => channel?.postMessage({ from: TAB_ID, type: "changed" }));
-  if (activeSync) {
-    const sync = activeSync;
-    useLearner.setState({ sync: { status: "syncing", label: sync.label } });
-    void sync
-      .push(state)
-      .then(() => useLearner.setState({ sync: { status: "synced", label: sync.label } }))
-      .catch(() => useLearner.setState({ sync: { status: "error", label: sync.label } }));
-  }
+  if (push) activeSync?.push(state);
 }
 
 function mergeOutline(a: CourseOutline, b: CourseOutline): CourseOutline {
@@ -99,6 +102,21 @@ export const useLearner = create<LearnerStoreState>((set, get) => {
     set({ learner: stamped });
     persist(stamped);
     return stamped;
+  };
+
+  /** Keeps a record that came from the cloud (already merged): saved on the device as it is, never pushed back. */
+  const adopt = (next: LearnerState) => {
+    const before = get().learner;
+    if (JSON.stringify(next) === JSON.stringify(before)) return;
+    set({ learner: next });
+    if (JSON.stringify(next.settings) !== JSON.stringify(before.settings)) {
+      try {
+        applyPrefs(next.settings);
+      } catch {
+        // No document (tests).
+      }
+    }
+    persist(next, false);
   };
 
   return {
@@ -243,24 +261,58 @@ export const useLearner = create<LearnerStoreState>((set, get) => {
       const fresh = emptyLearner(nowIso());
       fresh.settings = { ...get().learner.settings };
       await storage?.clear().catch(() => undefined);
-      commit(fresh);
+      set({ learner: fresh });
+      persist(fresh, false);
+      // A merge would bring everything back from the cloud copy, so it is replaced instead.
+      await activeSync?.replace(fresh).catch(() => undefined);
     },
 
     async attachSync(sync) {
+      if (activeSync === sync) return;
+      get().detachSync();
+      await get().init();
       activeSync = sync;
       set({ sync: { status: "syncing", label: sync.label } });
+      syncStops = [
+        sync.onStatus((status) => {
+          if (activeSync === sync) set({ sync: { status, label: sync.label } });
+        }),
+        sync.subscribe?.((remote) => {
+          if (activeSync === sync) adopt(mergeLearners(get().learner, remote));
+        }) ?? (() => undefined),
+      ];
+      let remote: LearnerState | null = null;
       try {
-        const remote = await sync.pull();
-        const merged = remote ? mergeLearners(get().learner, remote) : get().learner;
-        commit(merged);
-        sync.subscribe?.((incoming) => {
-          const next = mergeLearners(get().learner, incoming);
-          set({ learner: next });
-          void storage?.save(next);
-        });
+        remote = await sync.pull();
       } catch {
-        set({ sync: { status: "error", label: sync.label } });
+        // Offline or unreachable: the push below merges with the cloud copy once it can be reached.
       }
+      if (activeSync !== sync) return;
+      const merged = remote ? mergeLearners(get().learner, remote) : get().learner;
+      adopt(merged);
+      sync.push(merged);
+      await sync.flush();
+    },
+
+    detachSync() {
+      for (const stop of syncStops) stop();
+      syncStops = [];
+      activeSync?.disconnect();
+      activeSync = null;
+      set({ sync: { status: "local", label: null } });
+    },
+
+    flushSync: () => activeSync?.flush() ?? Promise.resolve(),
+
+    replaceLearner(next) {
+      const stamped = { ...next, updatedAt: nowIso() };
+      set({ learner: stamped });
+      try {
+        applyPrefs(stamped.settings);
+      } catch {
+        // No document (tests).
+      }
+      persist(stamped, false);
     },
   };
 });
