@@ -1,6 +1,6 @@
 // Every part side by side on the desk, with name cards. Used by the playground and handy for the parts bin.
 
-import { Fragment, useMemo, useState, type CSSProperties } from "react";
+import { Fragment, useEffect, useMemo, useState, type CSSProperties } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { CameraControls } from "@react-three/drei";
@@ -9,12 +9,14 @@ import { PartModel } from "../models/PartModel";
 import { MultimeterModel } from "../models/Multimeter";
 import { AlligatorClip, BananaPlug, Probe } from "../models/Leads";
 import { defaultParams } from "../parts";
-import { BACKGROUND, Desk, StudioEnvironment, StudioLights } from "../scene/Studio";
-import { FONT, canvasTexture } from "../three/canvas";
+import { Desk, StudioEnvironment, StudioLights } from "../scene/Studio";
+import { PaletteContext, useReadPalette } from "../scene/palette";
+import { PaperRenderer, PaperUpkeep, SoftShadows } from "../scene/Render";
+import { canvasTexture } from "../three/canvas";
+import { installPaperTone, type PaperPalette } from "../three/paper";
+import { Spotlight } from "../three/post";
 import { AutoLift } from "./PartPreview";
 import type { BenchPartKind, MeterMode, Quality } from "../types";
-import { Bloom, EffectComposer, ToneMapping } from "@react-three/postprocessing";
-import { ToneMappingMode } from "postprocessing";
 
 export type GalleryItem =
   | { kind: BenchPartKind; params?: Record<string, unknown>; label: string; state?: PartState | null; pose?: "stand" | "desk" }
@@ -78,24 +80,27 @@ export const DEFAULT_GALLERY: GalleryItem[][] = [
 
 const FOV = 22;
 
-function cardTexture(text: string): THREE.Texture {
-  return canvasTexture(`card:${text}`, 512, 128, (ctx, w, h) => {
-    ctx.fillStyle = "#efe8da";
-    ctx.beginPath();
-    ctx.roundRect(4, 4, w - 8, h - 8, 26);
-    ctx.fill();
-    ctx.fillStyle = "#2c2620";
-    ctx.font = `700 ${text.length > 14 ? 46 : 56}px ${FONT}`;
+const SERIF = `"Literata", Georgia, "Times New Roman", serif`;
+
+/** A name written on the page under the part, in pencil. */
+function cardTexture(text: string, p: PaperPalette): THREE.Texture {
+  return canvasTexture(`card:${text}:${p.ink}`, 512, 128, (ctx, w, h) => {
+    ctx.fillStyle = p.ink;
+    ctx.font = `500 ${text.length > 14 ? 46 : 54}px ${SERIF}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(text, w / 2, h / 2 + 3);
   });
 }
 
-function Card({ text, width }: { text: string; width: number }) {
-  const material = useMemo(() => new THREE.MeshStandardMaterial({ map: cardTexture(text), transparent: true, roughness: 0.8 }), [text]);
+function Card({ text, width, palette }: { text: string; width: number; palette: PaperPalette }) {
+  const material = useMemo(() => {
+    const m = new THREE.MeshBasicMaterial({ map: cardTexture(text, palette), transparent: true, depthWrite: false, toneMapped: false, opacity: 0.86 });
+    m.userData.keepColor = true;
+    return m;
+  }, [text, palette]);
   return (
-    <mesh material={material} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.15, 0]} receiveShadow>
+    <mesh material={material} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.15, 0]}>
       <planeGeometry args={[width, width / 4]} />
     </mesh>
   );
@@ -228,45 +233,53 @@ export function PartGallery({ items = DEFAULT_GALLERY, quality = "high", classNa
     const d = (r / Math.tan((FOV / 2) * (Math.PI / 180))) * 1.05;
     v = { position: [f.x + c.x + d * 0.22, c.y + d * 0.55, f.z + c.z + d * 0.8], target: [f.x + c.x, c.y, f.z + c.z] };
   }
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
+  const palette = useReadPalette(el);
+  const spot = useMemo(() => new Spotlight({ amount: 0, color: new THREE.Color(palette.paper) }), []);
+  useEffect(() => () => spot.dispose(), [spot]);
+  installPaperTone();
+  const span = Math.max(260, rowWidth * 0.62);
   return (
-    <div className={className} style={{ position: "relative", width: "100%", height: "100%", ...style }}>
+    <div ref={setEl} className={className} style={{ position: "relative", width: "100%", height: "100%", background: palette.paper, ...style }}>
       <Canvas
         frameloop="demand"
-        shadows="percentage"
+        shadows={quality === "high" ? "percentage" : false}
         dpr={[1, 2]}
         camera={{ fov: FOV, position: v.position, near: 4, far: 8000 }}
-        gl={{ antialias: true, toneMapping: THREE.NeutralToneMapping, preserveDrawingBuffer: true }}
+        gl={{ antialias: quality === "low", alpha: false, toneMapping: THREE.CustomToneMapping, preserveDrawingBuffer: true }}
         onCreated={({ scene }) => {
-          scene.background = new THREE.Color(BACKGROUND);
-          scene.fog = new THREE.Fog(BACKGROUND, 1400, 3200);
+          scene.background = new THREE.Color(palette.paper);
           if (!ready) {
             setReady(true);
             onReady?.();
           }
         }}
       >
-        <StudioEnvironment />
-        <StudioLights quality={quality} shadowSpan={Math.max(260, rowWidth * 0.62)} />
-        <Desk quality={quality} />
-        {cells.map(({ item, x, z, w }, i) => (
-          <Fragment key={i}>
-            <group position={[x, 0, z]}>
-              <AutoLift deps={i} onSize={i === focus ? (b) => setFocusBox((p) => (p && p.equals(b) ? p : b)) : undefined}>
-                <ItemModel item={item} quality={quality} />
-              </AutoLift>
-            </group>
-            <group position={[x, 0, z + cellDepth(item) / 2 + 7]}>
-              <Card text={item.label} width={item.kind === "multimeter" ? 40 : Math.min(w, 28)} />
-            </group>
-          </Fragment>
-        ))}
-        <CameraControls key={v.position.join(",")} makeDefault ref={(c) => void c?.setLookAt(...v.position, ...v.target, false)} />
-        {quality === "high" && (
-          <EffectComposer multisampling={4}>
-            <Bloom mipmapBlur luminanceThreshold={1.1} luminanceSmoothing={0.2} intensity={0.7} radius={0.6} />
-            <ToneMapping mode={ToneMappingMode.NEUTRAL} />
-          </EffectComposer>
-        )}
+        <PaletteContext.Provider value={palette}>
+          <StudioEnvironment intensity={palette.dark ? 0.14 : 0.22} />
+          <StudioLights quality={quality} shadowSpan={span} palette={palette} />
+          <Desk quality={quality} palette={palette} />
+          <SoftShadows
+            areas={[{ key: "desk", center: [0, cz - 10], size: [Math.min(1400, rowWidth + 120), Math.min(1000, depth + 120)], y: 0, far: 34, opacity: palette.dark ? 0.8 : 0.5, blur: 2.2, resolution: 1024 }]}
+            version={cells}
+            palette={palette}
+          />
+          <PaperUpkeep version={cells} dark={palette.dark} shadows={quality === "high"} />
+          {cells.map(({ item, x, z, w }, i) => (
+            <Fragment key={i}>
+              <group position={[x, 0, z]}>
+                <AutoLift deps={i} onSize={i === focus ? (b) => setFocusBox((p) => (p && p.equals(b) ? p : b)) : undefined}>
+                  <ItemModel item={item} quality={quality} />
+                </AutoLift>
+              </group>
+              <group position={[x, 0, z + cellDepth(item) / 2 + 7]}>
+                <Card text={item.label} width={item.kind === "multimeter" ? 40 : Math.min(w, 28)} palette={palette} />
+              </group>
+            </Fragment>
+          ))}
+          <CameraControls key={v.position.join(",")} makeDefault ref={(c) => void c?.setLookAt(...v.position, ...v.target, false)} />
+          <PaperRenderer quality={quality} palette={palette} spot={spot} bloom={1.0} />
+        </PaletteContext.Provider>
       </Canvas>
     </div>
   );

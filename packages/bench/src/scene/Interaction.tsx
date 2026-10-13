@@ -65,6 +65,7 @@ export function useInteraction({
   api,
   emit,
   viewPad,
+  view,
 }: {
   store: BenchStore;
   element: HTMLElement | null;
@@ -73,6 +74,8 @@ export function useInteraction({
   emit: (a: BenchAction) => void;
   /** Pixels covered by overlay panels, so camera fits avoid them. */
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
+  /** Camera framing from the view rig (home view, focus on targets). */
+  view?: React.MutableRefObject<{ home(top: boolean, smooth?: boolean): void; focus(targets: string[]): void } | null>;
 }) {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as unknown as CameraControlsImpl | null;
@@ -391,9 +394,26 @@ export function useInteraction({
       }
     };
 
+    // A second tap (or click) on the same part soon after the first frames it; on empty desk, the whole bench.
+    let lastTap: { t: number; x: number; y: number; part: string | null } | null = null;
+    const doubleTap = (g: Gesture, cx: number, cy: number): boolean => {
+      const now = performance.now();
+      const p = g.pick;
+      const part = p && (p.type === "part" || p.type === "leg" || p.type === "rotor") ? p.id : p?.type === "meter" ? (store.getState().bench.meter?.id ?? null) : p ? "" : null;
+      const prev = lastTap;
+      lastTap = { t: now, x: cx, y: cy, part };
+      if (!prev || now - prev.t > 360 || Math.hypot(prev.x - cx, prev.y - cy) > (g.touch ? 24 : 8) || prev.part !== part || part === "") return false;
+      lastTap = null;
+      if (!view?.current) return false;
+      if (part) view.current.focus([`part:${part}`]);
+      else view.current.home(false);
+      return true;
+    };
+
     const click = (g: Gesture, cx: number, cy: number) => {
       const s = store.getState();
       const p = g.pick;
+      if (!s.ui.armed && s.ui.mode !== "wire" && doubleTap(g, cx, cy)) return;
       if (s.ui.menu) setUi({ menu: null });
       // Placing an armed tray item.
       if (s.ui.armed && !readOnly) {
@@ -771,6 +791,7 @@ export function useInteraction({
         return sp.behind ? null : { x: sp.x, y: sp.y };
       },
       topView: () => {
+        if (view?.current) return view.current.home(true);
         if (!controls) return;
         const r = element.getBoundingClientRect();
         const f = fitCamera(bench(), r.width / Math.max(1, r.height), true, { left: viewPad.current.left / r.width, bottom: viewPad.current.bottom / r.height });
@@ -778,6 +799,7 @@ export function useInteraction({
         invalidate();
       },
       resetView: () => {
+        if (view?.current) return view.current.home(false);
         if (!controls) return;
         const r = element.getBoundingClientRect();
         const f = fitCamera(bench(), r.width / Math.max(1, r.height), false, { left: viewPad.current.left / r.width, bottom: viewPad.current.bottom / r.height });
@@ -795,7 +817,7 @@ export function useInteraction({
       element.removeEventListener("contextmenu", onContext);
       api.current = null;
     };
-  }, [element, camera, controls, scene, gl, store, readOnly, invalidate, api, emit, viewPad]);
+  }, [element, camera, controls, scene, gl, store, readOnly, invalidate, api, emit, viewPad, view]);
 }
 
 function selectionFor(p: Pick, b: BenchState) {
