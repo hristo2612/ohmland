@@ -16,15 +16,23 @@ import { Emitter, Points, pointScale } from "./fx";
 import { Shape, type Built } from "./kit";
 import { buildLandmark } from "./landmarks";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { bridge, cloud, designators, landAt, landMesh, paintBoard, turn, type Board, type LandInfo } from "./land";
+import { InkPass } from "./ink";
+import { bridge, cloud, designators, landAt, landMesh, landPalette, paintBoard, turn, type Board, type LandInfo } from "./land";
+import { NOTEBOOK, gradeFor, type Look, type Paper } from "./look";
 import { SMALL, buildPiece } from "./pieces";
 import { makeRobot } from "./robot";
+
+export type { Look, Paper } from "./look";
 
 export type IsleLabel = { title: string; detail: string; kind: string; x: number; y: number };
 export type RevealInfo = { title: string; lines: string[]; big: boolean };
 export type IsleStats = {
   fps: number;
   frameMs: number;
+  /** Mean main-thread time of a drawn frame (the update and the render calls), in ms. */
+  workMs: number;
+  /** Frames drawn since the isle was mounted (a still or slowly moving isle is not drawn on every frame). */
+  drawn: number;
   frames: number;
   calls: number;
   triangles: number;
@@ -56,6 +64,16 @@ export type MountOptions = {
   autoRotate?: number;
   /** Screen space covered at the edge, in CSS pixels (say a caption card at the bottom): the isle and reveals frame above it. */
   inset?: IsleInset;
+  /**
+   * "notebook" (the default) sets the isle on the Classic notebook page: paper instead of sky, graphite ink round the
+   * voxels, muted inks, soft pencil shadows, a night page, and calmer motion. "classic" is the original sky look.
+   */
+  look?: Look;
+  /**
+   * Notebook only: what lies under the isle. "grid" (the default) is grid paper, "plain" paper without the grid, and
+   * "clear" a transparent canvas, so the page's own paper shows through (the isle still casts its pencil shadow on it).
+   */
+  paper?: Paper;
 };
 export type IsleInset = { bottom?: number };
 export type IsleView = {
@@ -83,6 +101,8 @@ export type IsleView = {
 const deg = (d: number) => (d * Math.PI) / 180;
 const ease = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 const spring = (k: number, big: boolean) => (big ? 1 - Math.exp(-4.2 * k) * Math.cos(8.5 * k) : 1 - Math.exp(-6 * k) * Math.cos(11 * k));
+/** The notebook's spring: it presses in like a stamp, one small overshoot (4 %, 7 % for a landmark) and settled. */
+const press = (k: number, big: boolean) => (big ? 1 - Math.exp(-5.5 * k) * Math.cos(6.5 * k) : 1 - Math.exp(-8 * k) * Math.cos(8 * k));
 const smooth = (x: number) => ease(Math.max(0, Math.min(1, x)));
 
 /** 0 by day, 1 at night, by local time: dusk from 18:30 to 20:30, dawn from 5:30 to 7:30. */
@@ -103,11 +123,61 @@ const SKY = {
   nightBottom: new THREE.Color("#2A3266"),
 };
 
+/**
+ * How each look moves. The notebook's motion is calmer: the robot hovers in place with a slow, small bob, a teaser
+ * sways less, nothing smokes or drifts, and a reveal is shorter, with springs that press in instead of bouncing.
+ * Times in seconds, angles in degrees.
+ */
+const MOTION = {
+  classic: {
+    /** When the new things land after a reveal starts, and the camera's flight to them (start, length). */
+    land: 1.1,
+    fly: [0.25, 0.85],
+    /** Pauses between land rising, the lesson's piece, and each of a module's landmarks. */
+    gaps: [0.45, 0.6, 0.4],
+    /** How long the last thing takes to settle (lesson, module), and how long the camera lingers after. */
+    settle: [0.9, 1.5],
+    linger: 2.6,
+    /** How far a new island chunk rises from. */
+    rise: 5,
+    sway: 10,
+    swayRate: 0.12,
+    bob: 0.12,
+    bobRate: 2.1,
+    tilt: 0.05,
+    wander: 0.9,
+    /** Sparks, wobble, smoke and drifting clouds. */
+    lively: true,
+  },
+  notebook: {
+    land: 0.6,
+    fly: [0.05, 0.55],
+    gaps: [0.3, 0.4, 0.3],
+    settle: [0.6, 1.0],
+    linger: 1.8,
+    rise: 3,
+    sway: 4,
+    swayRate: 0.08,
+    bob: 0.07,
+    bobRate: 1.4,
+    tilt: 0,
+    wander: 0,
+    lively: false,
+  },
+} as const;
+
 export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOptions): IsleView {
   let plan = initial;
   const msg = opts.messages ?? EN;
   let muted = opts.muted;
   const reduced = opts.reducedMotion;
+  const look: Look = opts.look ?? "notebook";
+  const notebook = look === "notebook";
+  const paper: Paper = opts.paper ?? "grid";
+  const mo = MOTION[look];
+  const grade = gradeFor(look);
+  const landPal = landPalette(grade);
+  const amberC = new THREE.Color(NOTEBOOK.amber);
   /** A teaser that turns round (unless motion is reduced), framed as it stands at each angle. */
   const turning = !opts.interactive && !!opts.autoRotate && !reduced;
   /** Degrees turned so far, and where the frame was last fitted. */
@@ -122,16 +192,23 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   canvas.style.cssText = `display:block;width:100%;height:100%;outline:none;touch-action:${opts.interactive ? "none" : "auto"}`;
   canvas.setAttribute("aria-hidden", "true");
   el.append(canvas);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+  // the notebook draws into its own multisampled target (for the ink), so the canvas needs no antialiasing of its own
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !notebook, alpha: notebook && paper === "clear", powerPreference: "high-performance" });
   const dpr = Math.min(window.devicePixelRatio || 1, opts.quality === "low" ? 1.5 : 2);
   renderer.setPixelRatio(dpr);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false;
   renderer.info.autoReset = false;
+  // multisampled only where pixels are big enough for jagged edges to show (a 1x screen at high quality); on a phone or
+  // a retina screen the ink lines and small pixels hide them, and the depth resolve is the costly part of the pass
+  const ink = notebook ? new InkPass(paper, opts.quality === "high" && dpr < 1.5 ? 4 : 0) : null;
+  if (ink) renderer.setClearColor(0x000000, 0);
   const scene = new THREE.Scene();
   /** Set whenever something changed, so a still isle is not drawn again. */
   let dirty = true;
+  /** Set by slow idle motion only (the notebook draws it on every other frame). */
+  let alive = false;
 
   // Camera: orthographic and isometric; the frame follows the isle as it grows.
   const cam = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 8000);
@@ -167,8 +244,14 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   sun.shadow.bias = -0.0008;
   sun.shadow.normalBias = 0.06;
   sun.shadow.radius = 3;
+  if (notebook) {
+    // pencil shadows: wider and lighter, so a shaded face reads as soft graphite, not a hole
+    sun.shadow.radius = 5;
+    sun.shadow.intensity = 0.62;
+  }
   scene.add(hemi, sun, sun.target);
   // The sky is a screen-space gradient (an orthographic camera would see a sky sphere as one flat colour).
+  // The notebook has no sky and no stars: the ink pass lays the isle on paper.
   const skyU = { uTop: { value: SKY.dayTop.clone() }, uBottom: { value: SKY.dayBottom.clone() } };
   const skyMat = new THREE.ShaderMaterial({
     uniforms: skyU,
@@ -181,7 +264,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   const sky = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), skyMat);
   sky.renderOrder = -10;
   sky.frustumCulled = false;
-  scene.add(sky);
+  if (!notebook) scene.add(sky);
 
   // Stars: fixed points on the screen's upper part, shown at night.
   const starU = { uFade: { value: 0 }, uPx: { value: 1 } };
@@ -215,7 +298,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   const stars = new THREE.Points(starGeo, starMat);
   stars.frustumCulled = false;
   stars.renderOrder = -9;
-  scene.add(stars);
+  if (!notebook) scene.add(stars);
 
   // Materials.
   const bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -256,7 +339,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     const k = geoKey(it, tier);
     let g = geos.get(k);
     if (!g) {
-      const s = new Shape();
+      const s = new Shape({ grade });
       const built = it.landmark ? buildLandmark(s, it.kind, Math.min(tier, tiersOf(it.kind) - 1)) : buildPiece(s, it.kind, it.v % variantsOf(it.kind));
       g = { ...s.geometries(), built };
       geos.set(k, g);
@@ -380,7 +463,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       const fresh = newLand.get(i);
       const keep = fresh ? new Set([...info.cells.keys()].filter((c) => !fresh.has(c))) : null;
       // the board's top takes shadows; its sides and keel only cast them (self-shadowed steps look streaky)
-      const geo = landMesh(info, board, keep);
+      const geo = landMesh(info, board, keep, landPal);
       const mesh = new THREE.Mesh(geo.top, landMat);
       mesh.position.set(isl.x, isl.y, isl.z);
       mesh.receiveShadow = true;
@@ -406,6 +489,37 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       }
       return board;
     });
+    // the pencil shadow each island casts on the page, far enough below its keel that it floats
+    if (pageShadows) {
+      let n = 0;
+      plan.islands.forEach((isl, i) => {
+        const info = landInfo[i];
+        if (!info || n >= pageShadows.instanceMatrix.count) return;
+        let cx = 0;
+        let cz = 0;
+        let deep = 0;
+        for (const c of info.cells.values()) {
+          cx += c.x;
+          cz += c.z;
+          deep = Math.max(deep, c.depth);
+        }
+        cx = isl.x + cx / info.cells.size;
+        cz = isl.z + cz / info.cells.size;
+        const r = Math.sqrt(info.cells.size / Math.PI) + 0.5;
+        const y = isl.y - Math.min(deep, 48) - (0.35 * r + 1);
+        compose(cx, y, cz, 0, r * 1.55);
+        pageShadows.setMatrixAt(n++, M);
+        // its middle stays in the frame (the soft rim may fall in the margin), so the isle is not framed smaller
+        for (const [dx, dz] of [
+          [0.25, 0.25],
+          [-0.25, -0.25],
+        ] as const)
+          see(cx + dx * r, y, cz + dz * r);
+      });
+      pageShadows.count = n;
+      pageShadows.instanceMatrix.needsUpdate = true;
+      pageShadows.computeBoundingSphere();
+    }
     // a ribbon cable bridge from the main island to each other one
     plan.islands.forEach((isl, i) => {
       const info = landInfo[i];
@@ -423,7 +537,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       const az = m0.z + sn * (a - 0.75);
       const bx = isl.x - c * (b - 0.75);
       const bz = isl.z - sn * (b - 0.75);
-      const s = new Shape();
+      const s = new Shape({ grade });
       bridge(s, bx - ax, isl.y - m0.y, bz - az);
       const g = s.geometries().body!;
       const mesh = new THREE.Mesh(g, bodyMat);
@@ -482,6 +596,8 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     scene.remove(halos.obj);
     halos.dispose();
     halos = new Points(Math.max(1, lights.length), "soft", { additive: true, order: 3 });
+    // on the night page every lamp glows towards the notebook's amber (a coloured LED keeps a little of its colour)
+    if (notebook) for (const l of lights) l.c.lerp(amberC, 0.45);
     lights.forEach((l, i) => halos.set(i, l.x, l.y, l.z, l.s, 0.85, l.c));
     halos.draw(lights.length);
     halos.flush();
@@ -527,31 +643,69 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   // The robot floats over the main plaza, with a soft shadow under it.
   // the robot's shell keeps a little light of its own, so it reads warm white in any light
   const robotMat = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x6b645a, emissiveIntensity: 0.45 });
-  const robot = makeRobot(robotMat, glowMat);
+  const robot = makeRobot(robotMat, glowMat, look);
   scene.add(robot.group);
-  const shadowTex = (() => {
+  /**
+   * A soft round shadow as an alpha map (which reads the green channel): grey levels on black, `stops` are
+   * [offset, level] from the middle out. The classic look keeps its original map, white with a fading alpha.
+   */
+  const roundTex = (stops: [number, number][], grey: boolean) => {
     const c = document.createElement("canvas");
     c.width = c.height = 64;
     const g = c.getContext("2d")!;
     const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    r.addColorStop(0, "rgba(255,255,255,1)");
-    r.addColorStop(0.5, "rgba(255,255,255,0.6)");
-    r.addColorStop(1, "rgba(255,255,255,0)");
+    for (const [o, a] of stops) r.addColorStop(o, grey ? `rgb(${Math.round(a * 255)},${Math.round(a * 255)},${Math.round(a * 255)})` : `rgba(255,255,255,${a})`);
+    if (grey) {
+      g.fillStyle = "#000";
+      g.fillRect(0, 0, 64, 64);
+    }
     g.fillStyle = r;
     g.fillRect(0, 0, 64, 64);
     return new THREE.CanvasTexture(c);
-  })();
+  };
+  const shadowTex = roundTex(
+    [
+      [0, 1],
+      [0.5, 0.6],
+      [1, 0],
+    ],
+    notebook,
+  );
   const robotShadow = new THREE.Mesh(
     new THREE.PlaneGeometry(1.3, 1.3),
-    new THREE.MeshBasicMaterial({ color: 0x0b2a1a, alphaMap: shadowTex, transparent: true, opacity: 0.22, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ color: notebook ? NOTEBOOK.ink : 0x0b2a1a, alphaMap: shadowTex, transparent: true, opacity: 0.22, depthWrite: false }),
   );
+  // the notebook's islands each cast a flat pencil shadow on the page (one draw call for them all)
+  const pageTex = notebook
+    ? roundTex(
+        [
+          [0, 1],
+          [0.5, 0.94],
+          [0.78, 0.6],
+          [1, 0],
+        ],
+        true,
+      )
+    : null;
+  const pageShadows = pageTex
+    ? new THREE.InstancedMesh(
+        new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({ color: NOTEBOOK.shade, alphaMap: pageTex, transparent: true, opacity: 0.6, depthWrite: false }),
+        8,
+      )
+    : null;
+  if (pageShadows) {
+    pageShadows.count = 0;
+    pageShadows.renderOrder = -1;
+    scene.add(pageShadows);
+  }
   robotShadow.rotation.x = -Math.PI / 2;
   robotShadow.renderOrder = 1;
   scene.add(robotShadow);
   const robotAt = new THREE.Vector3(0, 3.4, 0);
   const robotWant = new THREE.Vector3();
 
-  // Clouds drift past.
+  // Clouds drift past (not on the notebook's page).
   const cloudShape = new Shape();
   cloud(cloudShape, 1);
   const cloudGeo = cloudShape.geometries().body!;
@@ -559,7 +713,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   const cloudMat = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0xdfe8f2, emissiveIntensity: 0.35, transparent: true });
   const clouds = new THREE.InstancedMesh(cloudGeo, cloudMat, CLOUDS);
   clouds.frustumCulled = false;
-  scene.add(clouds);
+  if (mo.lively) scene.add(clouds);
   /** Clouds sit in the screen's margins round the isle (beside it on a wide screen, above and below on a tall one), behind it, drifting a little. */
   const SLOTS: ["l" | "r" | "t" | "b", number][] = [
     ["l", 0.45],
@@ -601,14 +755,29 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   };
 
   // Effects.
+  // the notebook has no sparks or smoke, and its reveal dust is drawn only while there is some
   const sparks = new Emitter(240, "spark", { additive: false });
   const dust = new Emitter(120, "soft", {});
   const smoke = new Emitter(160, "soft", {});
-  scene.add(sparks.pts.obj, dust.pts.obj, smoke.pts.obj);
+  if (mo.lively) scene.add(sparks.pts.obj, dust.pts.obj, smoke.pts.obj);
+  else {
+    scene.add(dust.pts.obj);
+    dust.pts.obj.visible = false;
+  }
   const dustC = new THREE.Color("#E6E1D2");
   const smokeC = new THREE.Color("#F2F2F2");
   const sparkC = ["#FFF4C2", "#FFD27A", "#FF9F45", "#FFFFFF", "#8FE3FF", "#E39A52"].map((c) => new THREE.Color(c));
+  const paperC = new THREE.Color(NOTEBOOK.paper);
   const burst = (x: number, y: number, z: number, foot: number, big: boolean) => {
+    if (!mo.lively) {
+      // the notebook: no sparks, just a small ring of paper dust where the thing pressed in
+      const n = big ? 14 : 10;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        dust.emit(x + Math.cos(a) * foot * 0.8, y + 0.15, z + Math.sin(a) * foot * 0.8, Math.cos(a) * 1.1, 0.35, Math.sin(a) * 1.1, 0.6, 0.55, 1.3, 0.5, paperC);
+      }
+      return;
+    }
     for (let i = 0; i < (big ? 64 : 34); i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 1.5 + Math.random() * (big ? 4 : 2.5);
@@ -623,9 +792,54 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   // Day and night.
   let clock = opts.time ?? null;
   let night = nightOf(clock ?? new Date());
+  const PAGE = {
+    paper: new THREE.Color(NOTEBOOK.paper),
+    paperNight: new THREE.Color(NOTEBOOK.paperNight),
+    grid: new THREE.Color(NOTEBOOK.grid),
+    gridNight: new THREE.Color(NOTEBOOK.gridNight),
+    ink: new THREE.Color(NOTEBOOK.ink),
+    inkNight: new THREE.Color(NOTEBOOK.inkNight),
+    shade: new THREE.Color(NOTEBOOK.shade),
+    shadeNight: new THREE.Color(NOTEBOOK.shadeNight),
+  };
+  const levels = { ink: new THREE.Color(), contour: 0.85, line: 0.8, crease: 0.4, paper: new THREE.Color(), grid: new THREE.Color() };
+  /** The notebook by day, at dusk and at night: a page in daylight, then the night page under a warm desk lamp. */
+  const applyPage = (n: number, w: number) => {
+    // the night page is lit like a desk at night: a dim room and a warm lamp, so the isle still reads as a drawing
+    hemi.intensity = 2.15 - 0.85 * n;
+    hemi.color.set("#FFF8EC").lerp(new THREE.Color("#8F8A93"), n);
+    hemi.groundColor.set("#B5A68C").lerp(new THREE.Color("#2A2621"), n);
+    sun.intensity = 1.35 - 0.7 * n;
+    sun.color.set("#FFF3E0").lerp(new THREE.Color("#F0C890"), n).lerp(new THREE.Color("#FFC08A"), w * 0.5);
+    robotMat.emissiveIntensity = 0.4 + 0.5 * n;
+    glowU.uNight.value = n;
+    halos.fade.value = n;
+    levels.ink.copy(PAGE.ink).lerp(PAGE.inkNight, n);
+    // by night the lines are light graphite on the dark page: the contour clear, the lines inside it faint
+    levels.contour = 0.85 - 0.25 * n;
+    levels.line = 0.78 - 0.43 * n;
+    levels.crease = 0.36 * (1 - n);
+    levels.paper.copy(PAGE.paper).lerp(PAGE.paperNight, n);
+    levels.grid.copy(PAGE.grid).lerp(PAGE.gridNight, n);
+    ink!.setLevels(levels);
+    if (pageShadows) {
+      const m = pageShadows.material as THREE.MeshBasicMaterial;
+      // on its own paper the shadow is the paper's shade; over the page's paper (clear) a thin warm graphite, which
+      // darkens a light page and a night page alike
+      if (paper === "clear") {
+        m.color.set("#2A2118");
+        m.opacity = 0.16 + 0.14 * n;
+      } else m.color.copy(PAGE.shade).lerp(PAGE.shadeNight, n);
+    }
+    dirty = true;
+  };
   const applyTime = () => {
     const n = night;
     const w = Math.max(0, 1 - Math.abs(n * 2 - 1) * 1.6);
+    if (ink) {
+      applyPage(n, w);
+      return;
+    }
     skyU.uTop.value.copy(SKY.dayTop).lerp(SKY.nightTop, n).lerp(SKY.duskTop, w * 0.6);
     skyU.uBottom.value.copy(SKY.dayBottom).lerp(SKY.nightBottom, n).lerp(SKY.duskBottom, w * 0.7);
     hemi.intensity = 2.0 - 1.1 * n;
@@ -769,7 +983,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     to = Math.max(from, Math.min(to, plan.events.length - 1));
     const info = describe(from, to);
     finishReveal();
-    if (!muted) play(info.big, reduced ? 0 : 0.7, opts.audio);
+    if (!muted) play(info.big, reduced ? 0 : mo.land - 0.4, opts.audio);
     if (reduced || to === from) {
       show(to);
       return Promise.resolve(info);
@@ -784,7 +998,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     });
     const hold = new Set(changed.map((c) => c.id));
     show(to, hold, newLand);
-    const t0 = t + 1.1;
+    const t0 = t + mo.land;
     let delay = 0;
     // new land first, then the piece, then what the module built or raised
     for (const [i, cells] of newLand) {
@@ -792,7 +1006,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       const board = boards[i];
       const isl = plan.islands[i]!;
       if (!info2) continue;
-      const parts = landMesh(info2, board ?? null, cells);
+      const parts = landMesh(info2, board ?? null, cells, landPal);
       const g = mergeGeometries([parts.top, parts.sides], false);
       parts.top.dispose();
       parts.sides.dispose();
@@ -812,7 +1026,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       world.add(m);
       actors.push({ mesh: m, glow: null, t0: t0 + delay, big: true, x: isl.x + cx, y: isl.y, z: isl.z + cz, ry: 0, foot: Math.sqrt(cells.size) / 2, kind: "chunk" });
     }
-    if (newLand.size && info.big) delay += 0.45;
+    if (newLand.size && info.big) delay += mo.gaps[0];
     const put = (it: IsleItem, tier: number, at: number, out = false) => {
       const g = geoOf(it, tier);
       if (!g.body) return;
@@ -843,14 +1057,14 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     const lessonItems = changed.filter((it) => !it.landmark);
     const moduleItems = changed.filter((it) => it.landmark);
     for (const it of lessonItems) put(it, tierAt(it, to), t0 + delay);
-    if (lessonItems.length) delay += moduleItems.length ? 0.6 : 0;
+    if (lessonItems.length) delay += moduleItems.length ? mo.gaps[1] : 0;
     // the landmark built by this module leads; one that only rose follows
     moduleItems.sort((a, b) => Number(b.tiers[0]! > from) - Number(a.tiers[0]! > from));
     for (const it of moduleItems) {
       const before = tierAt(it, from);
       if (before >= 0) put(it, before, t0 + delay - 0.3, true);
       put(it, tierAt(it, to), t0 + delay);
-      delay += 0.4;
+      delay += mo.gaps[2];
     }
     const lead = info.big ? moduleItems[0] ?? lessonItems[0] : lessonItems[lessonItems.length - 1] ?? moduleItems[0];
     const fw = lead ? worldOf(lead) : actors[0] ? { x: actors[0].x, y: actors[0].y, z: actors[0].z } : { x: 0, y: 0, z: 0 };
@@ -861,7 +1075,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
         t0: t,
         focus: focusV,
         zoom: Math.max(1.2, Math.min(info.big ? 2.0 : 3.0, halfGoal / (info.big ? 7 : 5))),
-        end: t0 + delay + (info.big ? 1.5 : 0.9),
+        end: t0 + delay + mo.settle[info.big ? 1 : 0],
         resolve: () => resolve(info),
         robot: new THREE.Vector3(fw.x - 1.4 - (lead?.foot ?? 1) * 0.5, fw.y + leadTop + 0.8, fw.z + 1.2 + (lead?.foot ?? 1) * 0.5),
         ground: fw.y,
@@ -872,7 +1086,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   const markMesh = (b: Board, land: LandInfo, own: Set<number>): THREE.BufferGeometry | null => {
     const sub: LandInfo = { cells: new Map([...land.cells].filter(([k]) => own.has(k)).map(([k, c]) => [k, { ...c, depth: 0.001 }])), radius: land.radius };
     if (!sub.cells.size) return null;
-    const parts = landMesh(sub, b, null);
+    const parts = landMesh(sub, b, null, landPal);
     parts.sides.dispose();
     const g = parts.top;
     // keep only the marks: drop the cell tops and sides the land mesh already has
@@ -913,6 +1127,10 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     const h = el.clientHeight;
     if (!w || !h) return;
     renderer.setSize(w, h, false);
+    if (ink) {
+      renderer.getDrawingBufferSize(size);
+      ink.setSize(size.x, size.y, dpr);
+    }
     aspect = w / h;
     heightPx = h;
     halfGoal = frameFor(extent);
@@ -936,6 +1154,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     // a turning teaser turns, and refits its frame to the isle as it stands now every half degree (eased below)
     if (turning) {
       spin = (spin + dt * opts.autoRotate!) % 360;
+      dirty = true;
       turnTo(AZ + spin);
       if (Math.abs(spin - fittedAt) > 0.5) {
         fittedAt = spin;
@@ -949,13 +1168,13 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     let flying = false;
     if (rv) {
       const k2 = t - rv.t0;
-      const f = ease((k2 - 0.25) / 0.85);
+      const f = ease((k2 - mo.fly[0]) / mo.fly[1]);
       hg = halfGoal / (1 + (rv.zoom - 1) * f);
       lift.setFromMatrixColumn(cam.matrixWorld, 1).multiplyScalar(hg * 0.22 * f);
       focusGoal.lerp(rv.focus, f).add(lift);
       flying = true;
       if (t >= rv.end) {
-        linger = { until: t + 2.6, focus: rv.focus.clone(), zoom: rv.zoom };
+        linger = { until: t + mo.linger, focus: rv.focus.clone(), zoom: rv.zoom };
         finishReveal();
       }
     } else if (linger) {
@@ -978,7 +1197,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       cam.position.copy(focus).add(off);
     } else {
       // a teaser sways gently, or turns round slowly when asked to
-      const az = turning ? AZ + spin : AZ + (reduced ? 0 : Math.sin(t * 0.12) * 10);
+      const az = turning ? AZ + spin : AZ + (reduced ? 0 : Math.sin(t * mo.swayRate) * mo.sway);
       cam.position.setFromSphericalCoords(900, deg(POLAR), deg(az)).add(focus);
       cam.lookAt(focus);
     }
@@ -996,9 +1215,9 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       if (k2 < 0) s = a.out ? 1 : 0;
       else if (a.out) s = Math.max(0, 1 - k2 / 0.25);
       else {
-        const sp = spring(k2, a.big);
+        const sp = (notebook ? press : spring)(k2, a.big);
         s = sp;
-        if (a.kind === "chunk") yo = -5 * (1 - sp);
+        if (a.kind === "chunk") yo = -mo.rise * (1 - sp);
         if (!a.done) {
           a.done = true;
           if (a.foot > 0 && !reduced) burst(a.x, a.y, a.z, Math.min(5, a.foot), a.big && a.kind === "part");
@@ -1010,7 +1229,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
         compose(a.x, a.y + yo, a.z, a.ry, cs, cs);
       } else if (a.kind === "marks") compose(a.x, a.y, a.z, a.ry, Math.max(0, Math.min(1.05, s)), 1);
       else {
-        const wob = k2 > 0 && !a.out ? 0.08 * Math.sin(k2 * 16) * Math.exp(-5 * k2) : 0;
+        const wob = mo.lively && k2 > 0 && !a.out ? 0.08 * Math.sin(k2 * 16) * Math.exp(-5 * k2) : 0;
         compose(a.x, a.y, a.z, a.ry, s, s * (1 + wob));
       }
       a.mesh.matrixAutoUpdate = false;
@@ -1040,13 +1259,13 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     const m0 = plan.islands[0]!;
     const rs = Math.max(1.5, Math.min(2.8, extent.r * 0.085));
     if (rv) robotWant.copy(rv.robot);
-    else robotWant.set(m0.x + Math.cos(t * 0.21) * 0.9, m0.y + 2.6 + rs * 0.6, m0.z + Math.sin(t * 0.21) * 0.9);
+    else robotWant.set(m0.x + Math.cos(t * 0.21) * mo.wander, m0.y + 2.6 + rs * 0.6, m0.z + Math.sin(t * 0.21) * mo.wander);
     robotAt.lerp(robotWant, reduced ? 1 : Math.min(1, dt * (rv ? 2.4 : 1.2)));
-    const bob = reduced ? 0 : Math.sin(t * 2.1) * 0.12;
+    const bob = reduced ? 0 : Math.sin(t * mo.bobRate) * mo.bob;
     robot.group.position.set(robotAt.x, robotAt.y + bob, robotAt.z);
     robot.group.scale.setScalar(rs);
     robot.group.rotation.y = Math.atan2(cam.position.x - robotAt.x, cam.position.z - robotAt.z);
-    robot.group.rotation.z = reduced ? 0 : Math.sin(t * 1.3) * 0.05;
+    robot.group.rotation.z = reduced ? 0 : Math.sin(t * 1.3) * mo.tilt;
     robotShadow.position.set(robotAt.x, (rv ? rv.ground : m0.y) + 0.07, robotAt.z);
     const hgt = Math.max(0.5, robotAt.y - robotShadow.position.y);
     robotShadow.scale.setScalar(rs * Math.max(0.5, 1.3 - hgt * 0.08));
@@ -1057,15 +1276,25 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
         nextBlink = t + 2.8 + ((t * 7.31) % 2.4);
       }
       robot.blink(t < blinkUntil);
-      // effects and clouds
-      if (smokeAt.length)
-        for (const c of smokeAt)
-          if (Math.random() < dt * 2.2) smoke.emit(c.x, c.y, c.z, 0.1, 0.7, 0, 3.2, 0.45, 1.6, 0.6 - night * 0.3, smokeC);
-      smoke.update(dt, 0.2);
-      sparks.update(dt);
-      dust.update(dt);
-      placeClouds();
-      dirty = true;
+      if (mo.lively) {
+        // effects and clouds
+        if (smokeAt.length)
+          for (const c of smokeAt)
+            if (Math.random() < dt * 2.2) smoke.emit(c.x, c.y, c.z, 0.1, 0.7, 0, 3.2, 0.45, 1.6, 0.6 - night * 0.3, smokeC);
+        smoke.update(dt, 0.2);
+        sparks.update(dt);
+        dust.update(dt);
+        placeClouds();
+        dirty = true;
+      } else {
+        // the notebook: only the robot's bob and blink, and a reveal's dust while it lasts
+        if (rv || dust.live) {
+          dust.update(dt);
+          dust.pts.obj.visible = dust.live > 0;
+          dirty = true;
+        }
+        alive = true;
+      }
     }
     controls?.update();
   };
@@ -1079,25 +1308,38 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   let offscreen = false;
   let lastCalls = 0;
   let lastTris = 0;
+  let tick = 0;
+  let drawn = 0;
+  /** Time spent drawing (update and render calls, in ms), over the last N drawn frames. */
+  const work = { ms: new Float32Array(N), i: 0, n: 0 };
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame);
     const ms = now - last;
     last = now;
     const dt = Math.min(0.05, ms / 1000);
     t += dt;
+    const w0 = performance.now();
     update(dt);
-    if (!dirty) return;
+    // the notebook's slow idle motion (a bob, a sway) is drawn on every other frame; anything else on every frame
+    const draw = dirty || (alive && (tick++ & 1) === 0);
+    alive = false;
+    if (!draw) return;
     dirty = false;
     pointScale.value = (renderer.getDrawingBufferSize(size).y * cam.zoom) / (cam.top - cam.bottom);
     starU.uPx.value = renderer.getPixelRatio();
     renderer.info.reset();
-    renderer.render(scene, cam);
+    if (ink) ink.render(renderer, scene, cam);
+    else renderer.render(scene, cam);
     lastCalls = renderer.info.render.calls;
     lastTris = renderer.info.render.triangles;
     placeLabel();
     rec.dt[rec.i] = ms;
     rec.i = (rec.i + 1) % N;
     rec.n = Math.min(N, rec.n + 1);
+    work.ms[work.i] = performance.now() - w0;
+    work.i = (work.i + 1) % N;
+    work.n = Math.min(N, work.n + 1);
+    drawn++;
   };
   const start = () => {
     if (raf || paused || offscreen) return;
@@ -1119,7 +1361,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   show(Math.min(opts.at ?? plan.events.length - 1, plan.events.length - 1));
   half = halfGoal;
   frameCentre(focus);
-  placeClouds();
+  if (mo.lively) placeClouds();
   start();
 
   return {
@@ -1146,6 +1388,8 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       return {
         fps: frameMs ? 1000 / frameMs : 0,
         frameMs,
+        workMs: work.n ? work.ms.reduce((s, x, i) => (i < work.n ? s + x : s), 0) / work.n : 0,
+        drawn,
         frames: n,
         calls: lastCalls,
         triangles: lastTris,
@@ -1209,6 +1453,13 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       sky.geometry.dispose();
       robotShadow.geometry.dispose();
       shadowTex.dispose();
+      pageTex?.dispose();
+      if (pageShadows) {
+        pageShadows.geometry.dispose();
+        (pageShadows.material as THREE.Material).dispose();
+        pageShadows.dispose();
+      }
+      ink?.dispose();
       for (const m of [bodyMat, landMat, glowMat, skyMat, cloudMat, robotMat, robotShadow.material as THREE.Material]) m.dispose();
       renderer.dispose();
       renderer.forceContextLoss();

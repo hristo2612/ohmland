@@ -1,16 +1,19 @@
 /**
  * The robot on its own, large, from the front and from the isle's camera angle, for checking its design (and as the
- * reference for the app's 2D pixel version). ?night=1 shows it with its lights on.
+ * reference for the app's 2D pixel version). ?night=1 shows it with its lights on, ?look=classic the sky look's robot.
  */
 import * as THREE from "three";
+import { NOTEBOOK } from "../src/render/look";
 import { makeRobot } from "../src/render/robot";
 
 const canvas = document.getElementById("c") as HTMLCanvasElement;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(2, devicePixelRatio));
-const night = new URLSearchParams(location.search).get("night") === "1";
+const params = new URLSearchParams(location.search);
+const night = params.get("night") === "1";
+const look = params.get("look") === "classic" ? "classic" : "notebook";
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(night ? "#1b2346" : "#e4f3f4");
+scene.background = new THREE.Color(look === "notebook" ? (night ? NOTEBOOK.paperNight : NOTEBOOK.paper) : night ? "#1b2346" : "#e4f3f4");
 scene.add(new THREE.HemisphereLight("#eaf4ff", "#8a7a62", night ? 0.7 : 2.0));
 const sun = new THREE.DirectionalLight("#fff6e6", night ? 0.45 : 1.6);
 sun.position.set(-2, 5, 4);
@@ -23,8 +26,8 @@ const glowMat = new THREE.ShaderMaterial({
     "attribute vec3 dayColor; uniform float uNight; varying vec3 vC; void main(){ vC = mix(dayColor, color * 1.08, uNight); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
   fragmentShader: "varying vec3 vC; void main(){ gl_FragColor = vec4(vC, 1.0);\n#include <colorspace_fragment>\n}",
 });
-const front = makeRobot(bodyMat, glowMat);
-const iso = makeRobot(bodyMat, glowMat);
+const front = makeRobot(bodyMat, glowMat, look);
+const iso = makeRobot(bodyMat, glowMat, look);
 front.group.position.set(-1.4, 0, 0);
 iso.group.position.set(1.4, 0, 0);
 iso.group.rotation.y = -Math.PI / 4;

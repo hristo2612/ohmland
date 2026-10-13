@@ -7,6 +7,7 @@
  */
 import * as THREE from "three";
 import { Q, Shape } from "./kit";
+import { NOTEBOOK, gradeFor, type Look } from "./look";
 
 export type Robot = {
   group: THREE.Group;
@@ -26,8 +27,14 @@ export const ROBOT_COLORS = {
   thruster: "#FFC25A",
 } as const;
 
-export function makeRobot(bodyMat: THREE.Material, glowMat: THREE.Material): Robot {
-  const s = new Shape({ bottoms: true });
+/**
+ * In the notebook look the robot matches its ink drawing: a red pencil tip on the antenna and no thruster glow, so
+ * amber is left to its eyes alone.
+ */
+export function makeRobot(bodyMat: THREE.Material, glowMat: THREE.Material, look: Look = "classic"): Robot {
+  const notebook = look === "notebook";
+  const grade = gradeFor(look);
+  const s = new Shape({ bottoms: true, grade });
   const { shell, shellShade, visor, copper } = ROBOT_COLORS;
   // head: 12 x 10 x 10 voxels, a rounded square seen from the front, its front and back edges bevelled
   const hy = 1.25;
@@ -60,12 +67,16 @@ export function makeRobot(bodyMat: THREE.Material, glowMat: THREE.Material): Rob
   }
   // the thruster nozzle
   s.box(0.5, 0.25, 0.5, "#4A4F59", 0, by - 0.25, 0);
-  const eyesShape = new Shape();
-  for (const sx of [-1, 1]) eyesShape.box(0.25, 0.25, Q, "amber", sx * 0.25, hy + 0.4375, 0.6875, { glow: true, day: "#FFB43A" });
-  const tipShape = new Shape();
-  tipShape.box(0.25, 0.25, 0.25, "amber", 0.25, hy + 1.625, 0, { glow: true, day: "#FFB43A" });
-  tipShape.box(0.375, Q, 0.375, "#FFC25A", 0, by - 0.375, 0, { glow: true, day: "#FFD27A" });
-  tipShape.box(0.25, Q, 0.25, "#FFE6A8", 0, by - 0.5, 0, { glow: true, day: "#FFE6A8" });
+  const eyesShape = new Shape({ grade });
+  const eye = notebook ? NOTEBOOK.amber : "amber";
+  for (const sx of [-1, 1]) eyesShape.box(0.25, 0.25, Q, eye, sx * 0.25, hy + 0.4375, 0.6875, { glow: true, day: "#FFB43A" });
+  const tipShape = new Shape({ grade });
+  if (notebook) tipShape.box(0.25, 0.25, 0.25, "#E0573A", 0.25, hy + 1.625, 0, { glow: true, day: NOTEBOOK.red });
+  else {
+    tipShape.box(0.25, 0.25, 0.25, "amber", 0.25, hy + 1.625, 0, { glow: true, day: "#FFB43A" });
+    tipShape.box(0.375, Q, 0.375, "#FFC25A", 0, by - 0.375, 0, { glow: true, day: "#FFD27A" });
+    tipShape.box(0.25, Q, 0.25, "#FFE6A8", 0, by - 0.5, 0, { glow: true, day: "#FFE6A8" });
+  }
 
   const group = new THREE.Group();
   const inner = new THREE.Group();
@@ -78,8 +89,8 @@ export function makeRobot(bodyMat: THREE.Material, glowMat: THREE.Material): Rob
   const tips = new THREE.Mesh(tipShape.geometries().glow!, glowMat);
   inner.add(bodyMesh, eyes, tips);
   // shut eyes: a thin amber line
-  const shutShape = new Shape();
-  for (const sx of [-1, 1]) shutShape.box(0.25, Q / 2, Q, "amber", sx * 0.25, hy + 0.5, 0.6875, { glow: true, day: "#FFB43A" });
+  const shutShape = new Shape({ grade });
+  for (const sx of [-1, 1]) shutShape.box(0.25, Q / 2, Q, eye, sx * 0.25, hy + 0.5, 0.6875, { glow: true, day: "#FFB43A" });
   const shut = new THREE.Mesh(shutShape.geometries().glow!, glowMat);
   shut.visible = false;
   inner.add(shut);
