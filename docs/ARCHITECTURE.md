@@ -35,7 +35,8 @@ same commit.
 | State | zustand 5 for UI state, idb-keyval 6 for persistence |
 | Schemas | zod 4 |
 | Accounts | Firebase JS SDK 12.19.0: Auth (Google, GitHub), `firebase/firestore/lite` |
-| Hosting | Firebase Hosting, project id `ohmland` |
+| Hosting | Firebase Hosting, project id `ohmland` (`firebase.json`: `apps/web/dist`, clean URLs, immutable `/_astro/**`) |
+| Firebase tooling | firebase-tools 15.31.0 and @firebase/rules-unit-testing 5.0.2 (dev dependencies of `apps/web`) |
 | Tests | Vitest 5 (pure logic), Playwright 1.64 (a few end-to-end paths) |
 
 Exact versions: pin exact versions (no `^`) in every `package.json`.
@@ -59,8 +60,10 @@ packages/bench/           3D workbench: procedural part models, breadboard, mete
                           bench state -> netlist (React Three Fiber components)
 packages/isle/            the progress island: pure planner + three.js renderer (vanilla three, lazy)
 content/                  the course: units, modules, lessons (YAML), labs (TS), quiz items
-docs/                     ARCHITECTURE.md (this), CONTENT.md (writing + copyright rules), CURRICULUM.md
+docs/                     ARCHITECTURE.md (this), CONTENT.md (writing + copyright rules), CURRICULUM.md,
+                          ACCOUNTS.md (Firebase setup, emulators, the synced document)
 scripts/                  repo checks (copy lint, content check)
+firebase.json, .firebaserc, firestore.rules    Firebase Hosting, the project, the Firestore security rules
 ```
 
 Packages are consumed from source (`"exports": { ".": "./src/index.ts" }`), no separate build step.
@@ -178,7 +181,7 @@ retries are always allowed, and after two wrong tries the learner may reveal the
 ## Learner progress (`apps/web/src/progress`)
 
 Stored in IndexedDB (`idb-keyval`, database `ohmland`, store `learner`, key `profile:default`), one record per
-profile, mirrored to Firestore for signed-in learners. When the browser refuses storage, the store falls back to memory
+profile, mirrored to Firestore (`learners/{uid}`) for signed-in learners. When the browser refuses storage, the store falls back to memory
 and the header shows a notice that progress will not be kept.
 
 ```ts
@@ -228,9 +231,33 @@ union of tasks, max `firstTry`, max `version` and `items`, newest in-progress en
 (earliest `at`), union of fried parts by `(kind, at)` (oldest first, capped), newest saved benches, newest settings.
 Merge is commutative and idempotent.
 
-Cloud sync plugs in through `ProgressSync` (`progress/sync.ts`): `pull()`, `push(state)`, optional
-`subscribe(onRemote)`, `disconnect()`. The store's `attachSync(sync)` pulls, merges, pushes, and then pushes after
-every change. Firebase (`src/account`, lazy) will provide the implementation.
+Cloud sync plugs in through `ProgressSync` (`progress/sync.ts`): `pull()`, `push(state)` (fire and forget),
+`flush()`, `replace(state)` (no merge, for "Delete all progress"), `onStatus(cb)`, optional `subscribe(onRemote)`, and
+`disconnect()` (stops syncing, does not sign out). The store's `attachSync(sync)` pulls, merges, keeps the result
+without stamping it, pushes it, and then hands every change to `push`; `detachSync()` stops. The store's
+`sync.status` is `local | syncing | synced | offline | error` (the header dot and the account page read it).
+
+Accounts (`src/account`, details and setup in `docs/ACCOUNTS.md`): Firebase Auth (Google, GitHub; popup, redirect when
+popups are blocked or in an iOS home-screen app) and Firestore Lite, loaded only on `/account` and on pages of a device
+whose `ohmland:signed-in` localStorage key is set (`account/boot.ts`, from `layouts/Base.astro`, after the page is
+idle). One document per learner, `learners/{uid}`, holds everything but `inProgress`, each entry packed into a short
+string so `firestore.rules` can check every byte (`account/remote.ts`):
+
+```
+v: 1
+lessons:      { <lessonId>: "<at>|<version>|<firstTry>|<items>|<task>,<task>" }   <= 2000, <= 256,000 chars
+achievements: { <achievementId>: "<at>" }                                        <= 500
+fried:        [ "<at>|<kind>|<lessonId or empty>|<label>" ]                      <= 500, label <= 80
+sandbox:      { <saveId>: "<JSON { name, at, bench }>" }                          <= 50, <= 256,000 chars
+settings:     { muted, reducedMotion, theme }
+updatedAt:    "<at>"
+```
+
+Writes are debounced (about 2 s), read and merge the cloud copy in a transaction before writing, wait while offline and
+retry, flush when the page is hidden and go as a keepalive REST write when it closes. A learner signing in on a device
+whose progress may not be theirs (last joined to another account, or guest progress while the account already has
+some) is asked whether to add it; a guest signing in to a new account is not asked. Ids of saved benches must match
+`[A-Za-z0-9_-]{1,64}` to sync.
 
 The lesson player reports to the island through `IsleHooks` (`lesson/isle-hooks.ts`): `prefetch()` when the quiz
 starts, `prime()` inside the tap on "Finish lesson", and `reveal({ before, after, muted })` after the lesson is
@@ -389,10 +416,15 @@ wire roots, clouds. The mascot (a small voxel robot with an LED face) floats ove
 ## Testing (lean)
 
 Vitest for pure logic that is easy to get wrong: simulator golden circuits, netlist building, XP/levels, progress
-merge, island determinism, SI parsing and the resistor colour code. Playwright for a few critical paths: finish a
-lesson as a guest, complete a lab, island reveal, sign-in smoke test. Plus `pnpm lint:copy` (no em dashes), the
-content check (the web build fails on invalid content) and `pnpm --filter @ohmland/web lint:colors` (no raw colours
-or durations outside `tokens.css`).
+merge, island determinism, SI parsing, the resistor colour code, the cloud document packing and the sync write queue.
+Playwright for a few critical paths: finish a lesson as a guest, a guest's pages load no Firebase, complete a lab,
+island reveal. Plus `pnpm lint:copy` (no em dashes), the content check (the web build fails on invalid content) and
+`pnpm --filter @ohmland/web lint:colors` (no raw colours or durations outside `tokens.css`).
+
+With the Firebase emulators (Java 21+, `docs/ACCOUNTS.md`): `pnpm test:rules` runs `apps/web/rules` (Vitest and
+`@firebase/rules-unit-testing` on the Firestore emulator) and `pnpm e2e:accounts` runs `apps/web/e2e/accounts`
+(sign in with the Auth emulator's fake Google user, sync, offline, a second device, the "progress from before"
+question, account deletion, a change sent while the tab closes) against an emulator build.
 
 `apps/web/scripts/screenshots.mjs` takes screenshots of every page and lesson step in both themes at 1440x900 and
 390x844 for visual review; a curated set lives in `apps/web/screenshots/`.
