@@ -1,11 +1,12 @@
 // 9 V alkaline battery standing upright: small round positive stud, larger hexagonal negative socket,
 // an original wrap-around label, and an optional snap connector (its leads are drawn by the bench).
 
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
-import { BATTERY } from "../dims";
+import { AA, BATTERY, COIN } from "../dims";
+import { useLabels } from "../labels";
 import type { PartParamsMap } from "../types";
-import { FONT, canvasTexture } from "../three/canvas";
+import { FONT, canvasTexture, rng } from "../three/canvas";
 import { latheY, memoGeo, roundedBox, roundedRectNearFace, roundedRectOutline, roundedSlab, wallsAround } from "../three/geometry";
 import { mat } from "../three/materials";
 import { Smoke } from "../effects/effects";
@@ -151,8 +152,50 @@ function SnapCap() {
   );
 }
 
-export function BatteryModel({ params, state }: ModelProps<PartParamsMap["battery"]>) {
-  const label = useMemo(() => new THREE.MeshPhysicalMaterial({ map: labelTexture(), roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.25 }), []);
+/** Scuffs and a hand-written "USED" over a 9 V battery's label. */
+function wornTexture(used: string): THREE.CanvasTexture {
+  const base = labelTexture();
+  const src = base.image as HTMLCanvasElement;
+  return canvasTexture(`battery-label-worn:${used}`, src.width, src.height, (ctx, w, h) => {
+    ctx.drawImage(src, 0, 0);
+    ctx.fillStyle = "rgba(120,110,95,0.28)";
+    ctx.fillRect(0, 0, w, h);
+    const r = rng(77);
+    ctx.strokeStyle = "rgba(235,228,214,0.55)";
+    for (let i = 0; i < 160; i++) {
+      ctx.lineWidth = 1 + r() * 3;
+      const x = r() * w;
+      const y = r() * h;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + (r() - 0.5) * 120, y + (r() - 0.5) * 30);
+      ctx.stroke();
+    }
+    ctx.save();
+    ctx.translate(w * 0.25, h * 0.86);
+    ctx.rotate(-0.08);
+    ctx.fillStyle = "rgba(250,250,245,0.92)";
+    ctx.font = `italic 800 ${h * 0.12}px ${FONT}`;
+    ctx.textAlign = "center";
+    ctx.fillText(used, 0, 0);
+    ctx.restore();
+  });
+}
+
+export function BatteryModel(props: ModelProps<PartParamsMap["battery"]>) {
+  const size = props.params.size ?? "9v";
+  if (size === "aa") return <AaCellModel {...props} />;
+  if (size === "coin") return <CoinCellModel />;
+  return <NineVoltModel {...props} />;
+}
+
+function NineVoltModel({ params, state }: ModelProps<PartParamsMap["battery"]>) {
+  const labels = useLabels();
+  const label = useMemo(
+    () => new THREE.MeshPhysicalMaterial({ map: params.worn ? wornTexture(labels.print.used) : labelTexture(), roughness: params.worn ? 0.7 : 0.35, clearcoat: params.worn ? 0.1 : 0.6, clearcoatRoughness: 0.25 }),
+    [params.worn, labels],
+  );
+  useLayoutEffect(() => () => label.dispose(), [label]);
   const jacket = memoGeo("bat-jacket", () => wallsAround(roundedRectOutline(W, D, R, 8), JACKET0, JACKET1));
   const bottom = memoGeo("bat-bottom", () => roundedSlab(W - 0.2, D - 0.2, JACKET0 + 0.2, R, 0.5));
   const top = memoGeo("bat-top", () => {
@@ -173,6 +216,118 @@ export function BatteryModel({ params, state }: ModelProps<PartParamsMap["batter
           <Smoke active={health === "smoking"} amount={0.5} spread={10} />
         </group>
       )}
+    </group>
+  );
+}
+
+// AA and coin cells ------------------------------------------------------------------------------------------------
+
+const CHEM: Record<string, { wrap: string; band: string; text: string; volts: string }> = {
+  alkaline: { wrap: "#2a5d86", band: "#f2a83a", text: "ALKALINE", volts: "1.5V" },
+  nimh: { wrap: "#2f8a52", band: "#d7f0dc", text: "NiMH RECHARGEABLE", volts: "1.2V" },
+  lithium: { wrap: "#5a5f69", band: "#c0c6cf", text: "LITHIUM", volts: "1.5V" },
+};
+
+function aaWrapTexture(chem: string): THREE.CanvasTexture {
+  const c = CHEM[chem] ?? CHEM.alkaline!;
+  // u runs round the cell (0 faces the viewer, 0.75 faces up once it lies along x), v along it (top = the + end).
+  return canvasTexture(`aa-wrap:${chem}`, 512, 512, (ctx, w, h) => {
+    ctx.fillStyle = c.wrap;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = c.band;
+    ctx.fillRect(0, 0, w, h * 0.14);
+    const label = (u: number) => {
+      ctx.save();
+      ctx.translate(u * w, h * 0.56);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `800 64px ${FONT}`;
+      ctx.fillText(`AA ${c.volts}`, 0, -22);
+      ctx.font = `700 ${c.text.length > 10 ? 26 : 34}px ${FONT}`;
+      ctx.fillText(c.text, 0, 34);
+      ctx.restore();
+    };
+    label(0.75);
+    label(0.06);
+    label(1.06);
+  });
+}
+
+/** An AA cell lying in a small two-saddle cradle, plus end cap toward +x. */
+function AaCellModel({ params }: ModelProps<PartParamsMap["battery"]>) {
+  const chem = params.chem ?? "alkaline";
+  const wrap = useMemo(() => new THREE.MeshPhysicalMaterial({ map: aaWrapTexture(chem), roughness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.2 }), [chem]);
+  useLayoutEffect(() => () => wrap.dispose(), [wrap]);
+  const R = AA.dia / 2;
+  const L = AA.len;
+  const body = memoGeo("aa-body", () => {
+    const g = new THREE.CylinderGeometry(R, R, L - 1.6, 40, 1, true);
+    g.rotateZ(-Math.PI / 2);
+    return g;
+  });
+  const capMinus = memoGeo("aa-minus", () => {
+    const g = latheY([[0.001, 0], [R - 0.8, 0], [R - 0.2, 0.4], [R, 0.8]], 32);
+    g.rotateZ(Math.PI / 2);
+    return g;
+  });
+  const capPlus = memoGeo("aa-plus", () => {
+    const g = latheY([[R, 0], [R - 0.3, 0.5], [R - 1.2, 0.8], [2.9, 0.8], [2.8, 1.8], [2.4, 2.2], [0.001, 2.2]], 32);
+    g.rotateZ(-Math.PI / 2);
+    return g;
+  });
+  const y = AA.lift + R;
+  return (
+    <group>
+      {[-15, 15].map((x) => (
+        <mesh key={x} geometry={memoGeo("aa-saddle", () => roundedSlab(6, 15, AA.lift + 3.4, 1.2, 0.4))} material={mat.plastic("#3b3f46", 0.6)} position={[x, 0, 0]} castShadow receiveShadow />
+      ))}
+      <group position={[0, y, 0]}>
+        <mesh geometry={body} material={wrap} castShadow receiveShadow />
+        <mesh geometry={capMinus} material={mat.steel()} position={[-L / 2 + 0.8, 0, 0]} castShadow />
+        <mesh geometry={capPlus} material={mat.nickel()} position={[L / 2 - 0.8, 0, 0]} castShadow />
+      </group>
+    </group>
+  );
+}
+
+function coinTexture(): THREE.CanvasTexture {
+  return canvasTexture("coin-cell", 512, 512, (ctx, w, h) => {
+    const g = ctx.createRadialGradient(w * 0.4, h * 0.35, 20, w / 2, h / 2, w / 2);
+    g.addColorStop(0, "#f4f6f8");
+    g.addColorStop(1, "#b9bfc6");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#3b4048";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `800 120px ${FONT}`;
+    ctx.fillText("+", w / 2, h * 0.26);
+    ctx.font = `800 92px ${FONT}`;
+    ctx.fillText("2032", w / 2, h * 0.52);
+    ctx.font = `700 64px ${FONT}`;
+    ctx.fillText("3V LITHIUM", w / 2, h * 0.72);
+  });
+}
+
+/** A 20 mm coin cell in a small black holder with a solder tab out of each side (plus to +x). */
+function CoinCellModel() {
+  const face = useMemo(() => new THREE.MeshStandardMaterial({ map: coinTexture(), metalness: 0.75, roughness: 0.28 }), []);
+  useLayoutEffect(() => () => face.dispose(), [face]);
+  const R = COIN.dia / 2;
+  return (
+    <group>
+      <mesh geometry={memoGeo("coin-holder", () => roundedSlab(COIN.holder, COIN.holder - 2, 2.8, 3, 0.4))} material={mat.blackMatte()} castShadow receiveShadow />
+      <mesh geometry={memoGeo("coin-cell-body", () => new THREE.CylinderGeometry(R, R, COIN.thick, 40))} material={mat.steel()} position={[0, 2.8 + COIN.thick / 2, 0]} castShadow />
+      <mesh material={face} position={[0, 2.8 + COIN.thick + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[R - 0.3, 40]} />
+      </mesh>
+      {/* Retaining spring over the cell (the plus contact) and its tab. */}
+      <mesh geometry={memoGeo("coin-spring", () => roundedBox(14, 0.4, 5, 0.15, 1))} material={mat.nickel()} position={[6, 2.8 + COIN.thick + 0.3, 0]} />
+      {[-1, 1].map((s) => (
+        <mesh key={s} geometry={memoGeo("coin-tab", () => roundedBox(7, 0.5, 4.5, 0.2, 1))} material={mat.nickel()} position={[s * (COIN.tab - 1.5), 2.4, 0]} castShadow />
+      ))}
     </group>
   );
 }

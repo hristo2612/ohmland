@@ -50,6 +50,7 @@ function Lab({ sim }) {
 | `highlight` | `string[]` | Part ids (pulsing amber frame) or anchors such as `"hole:e12"`, `"pin:R1.a"` (pulsing ring) for lab hints. |
 | `labels` | `Partial<BenchLabels>` | Translated UI strings (see `DEFAULT_LABELS`). |
 | `camera` | `{ position, target }` | Initial camera; defaults to a fit of the whole bench. |
+| `frame` | `[x0, z0, x1, z1] \| null` | Desk rectangle (mm) that the first camera and reset view frame, instead of the whole bench. |
 | `controllerRef` | `Ref<BenchController>` | `topView()`, `resetView()`, `project(anchor)` (page coordinates), `pickAt(x, y)` (what is under a point), `stats()` (draw calls). |
 | `onReady` | `() => void` | After the first frames have rendered. |
 
@@ -86,8 +87,10 @@ lead (`"R1.a"`).
 
 Each crocodile lead becomes a simulator `wire` part with `leadOhms` (default 0.15 Ω), so high-current circuits see
 realistic totals; its two clips are separate nodes. `benchToNetlist(bench, { leadOhms: 0 })` merges them (an ideal
-conductor), which is what topology checks want. Resistors pass their nominal `ohms`, `tolerance` (percent / 100) and
-`actualOhms`; capacitors `actualFarads`; pushbuttons `normallyClosed`.
+conductor), which is what topology checks want. Each plugged-in meter probe lead is a `wire` of `probeOhms` (default
+0.1 Ω, 0 when `leadOhms` is 0) named `M1:red` / `M1:black`, so touching the tips together reads about 0.2 Ω.
+Resistors pass their nominal `ohms`, `tolerance` (percent / 100) and `actualOhms`; capacitors `actualFarads`;
+pushbuttons `normallyClosed`.
 
 `warnings` lists problems the learner may need to hear about: `hole-shared` (two leads in one hole), `hole-missing`,
 `clip-missing`, `no-ground`.
@@ -95,8 +98,50 @@ conductor), which is what topology checks want. Resistors pass their nominal `oh
 Part mapping: resistor, led, diode, npn, phototransistor and fuse map one to one; slide and toggle switches are `spdt`;
 ceramic and electrolytic capacitors are `capacitor` (`polarized` set); the trimmer is `pot`; the cup of water is
 `probe-resistance` (distilled 600 kΩ, tap 30 kΩ, salty 1.2 kΩ); the lemon is a `cell`. The DPDT relay becomes two
-simulator relays, `K1` and `K1:2`, whose coils sit in parallel at twice the coil resistance each, so coil current and
-pull-in voltage match one real coil.
+simulator relays, `K1` and `K1:2`, whose coils sit in parallel at twice the coil resistance (and inductance) each,
+so coil current and pull-in voltage match one real coil; a `poles: 1` relay is one simulator relay. The DPDT switch is a
+simulator `dpdt` (two poles on one slider). Touch pads are a `probe-resistance` (a fingertip, 100 kOhm to 2 MOhm, set with the
+`ohms` input). A mystery part (`mystery: "31402"`) is wired through its permutation: terminal i is the leg the
+permutation names, so the netlist sees the real wiring while the model shows only numbers.
+
+### Lab props (Unit 1)
+
+Desk-only kinds built for the Unit 1 labs, in the same procedural style (`models/LabProps.tsx`):
+
+| Kind | Model | Leads | Simulator |
+|---|---|---|---|
+| `holder` | Block with two brass spring clips and two screw terminals | `a b` | none: the seated resistor's leads join `a` and `b` |
+| `station` | Battery tester: bay, red + and black − posts, a LOAD rocker, the 100 Ω load on show | `a b` | `T1:load` resistor (`loadOhms`) when `load` is on; the seated battery joins `pos`→`a`, `neg`→`b` |
+| `fruit` | Lemon half with two slots | none | a `cell` between the two seated electrodes: copper and zinc apart 0.92 V (±0.03, by id) with copper plus, 1.2 kΩ; same metal about 0 V; `touching` 0 V, 1 Ω |
+| `electrode` | Copper-plated coin or galvanised strip (`metal`); lies flat, stands upright in a slot | `tip` | none |
+| `skin` | Skin pad on a wooden base, scale 0 to 4 cm, moisture tabs (clickable) | `m0` to `m4` | ladder: a contact per mark (dry 400/250 kΩ light/firm, damp 80/50, wet 18/12, salty 4/3) and bulk per cm between marks (20, 10, 5, 2 kΩ) |
+| `sample` | Bare copper wire or plastic ruler (`material`) | `a b` | `probe-resistance` 0.02 Ω or 10 TΩ |
+| `card` | White card with a ruler, a pencil beside it; drag along the strip to draw | `p0` to `p20` (every 0.5 cm) | ladder over the drawn line: 1 kΩ contact per point, 20 kΩ per cm ÷ layers ÷ 2 if wide; points past the line touch bare card |
+| `tag` | Paper value label (`text`) | none | none |
+| `bin` | Red reject tray with five seats | none | none |
+| `chart` | Colour code card on a stand | none | none |
+| `clock` | Desk clock showing simulated hours and minutes | none | none |
+| `showcase` | Glass case: a phone Li-ion pack and a model car battery, safety placards | none | none |
+
+`skinOhms(moisture, pressure, cm)` and `pencilOhms(cm, layers, wide)` give the expected values.
+
+**Seats.** A `PartDef` may declare `seats(params)`: named spots that accept kinds, place the held part (`place(held)`
+returns its local position and turn) and optionally `joins` its leads to the holder's. Who sits where is
+`params.held` (`{ r: "R2" }`), so the bench stays plain JSON. `movePart` seats a part dropped within 16 mm of a seat
+(the previous occupant pops out in front), takes it out when dragged away, and keeps seated parts with a moving
+holder; `seatPart`, `unseat`, `syncHeld`, `holderOf` and `seatNear` script it. `swapParts(a, b)` and
+`dropOnto(id, target, from)` swap two parts' places, seats and attachments; the bench does this when a part is
+dropped right on one of its kind.
+
+**Settings, actions, hotspots.** `PartDef.settings` (`{ key, values, also? }`) show on the selection bar as chips or a
+select (labels in `BenchLabels.settings`, by `kind.key`); `PartDef.actions` are one-shot buttons (the card's erase);
+`PartDef.hotspots(params)` are clickable setting spots or the card's drawing strip (pick types `setting`, `draw`).
+`penStroke(base, reach)` is the drawing rule: a first stroke draws from the 0 mark, a stroke over the whole line adds
+a layer (up to four) and may extend it.
+
+**Room lights and readouts.** The store's `ambient` (1 to 0.1) dims the lights and background and lifts LED halos;
+`inspect: [{ show: "stress" | "heat", parts: [...] }]` floats a stress bar (LED current as a share of `maxmA`) or a
+temperature tag with a touch-feel word over every matching part.
 
 `connectivity(bench)` gives the metal-contact groups without building a netlist (used by the x-ray view).
 
@@ -127,7 +172,12 @@ The same operations exist as pure functions in `benchOps` (`movePart`, `fitOnBoa
   `JumperWire`, `StudioEnvironment`, `StudioLights`, `Desk`.
 
 Helpers: `resistorBands(ohms, 4 | 5)`, `bandsToOhms`, `formatOhms`, `formatFarads`, `ceramicCode`, `boardGeometry`,
-`parseHole`, `holeWorld`, `partPose`, `anchorPosition`, `clipTargets`, `PART_KINDS`, `partDef`.
+`parseHole`, `holeWorld`, `partPose`, `anchorPosition`, `clipTargets`, `PART_KINDS`, `partDef`, `partLegs(part)` (the
+leads a placed part actually has: a single-pole relay has five, a one-throw toggle two), `isThrowSwitch(kind)`.
+
+Mystery parts: `shuffleFor(seed, n)` gives a permutation (never the identity) from any string, `physicalLeg(part,
+leg)` is the terminal wired as `leg`, `wiredAs(part, terminal)` the reverse, and `terminalNumber(part, leg)` the
+number printed beside a terminal.
 
 ## BenchState
 
@@ -163,13 +213,19 @@ type LeadEnd = { to: Anchor | null; pos: [x, z] };
 Lead names per part: resistor `a b`; diode and LED `anode cathode`; phototransistor `e c`; npn `e b c` (flat face
 toward you, left to right); ceramic `a b`; electrolytic `pos neg`; trimmer `a wiper b`; slide and toggle switches
 `a com b`; pushbutton `a1 a2 b1 b2` (a1 and a2 face each other across the channel and are always joined); relay
-`coil1 coil2 com1 nc1 no1 com2 nc2 no2` (DIP-16 positions 1, 4, 6, 8 per side); fuse, speaker and cup `a b`;
-battery and lemon `pos neg`.
+`coil1 coil2 com1 nc1 no1 com2 nc2 no2` (DIP-16 positions 1, 4, 6, 8 per side; `poles: 1` keeps the first five);
+DPDT switch `a1 com1 b1 a2 com2 b2`; fuse, speaker, cup and touch pads `a b`; battery and lemon `pos neg`; lab props
+as in the table above.
 
 Footprints (board pitch 2.54 mm): LED and phototransistor 2 adjacent holes; small electrolytics 2 adjacent holes,
 8 mm cans and up 2 holes apart; ceramic discs 2 holes apart; transistor, trimmer and slide switch 3 adjacent holes;
 toggle switch 3 lugs 2 holes apart; pushbutton 4 legs straddling the channel; relay 8 pins straddling the channel;
-fuse clips 4 holes apart; resistor and diode 3 to 8 holes.
+fuse clips 4 holes apart; resistor and diode 3 to 8 holes; capacitors bend their legs to `span` holes (1 to 7); touch
+pads 2 holes apart.
+
+Desk modules: `base: true` on a pushbutton, slide or toggle switch, trimmer or relay (and every DPDT switch) puts the
+part on a wooden block with brass screw terminals for clip leads (`tag` prints a name on its front). Base parts stay on
+the desk. A mystery relay or DPDT switch has an opaque cover and numbered terminals; `peek: true` shows the inside.
 
 ## Playground
 
@@ -181,7 +237,8 @@ pnpm --filter @ohmland/bench dev     # vite playground, http://localhost:5199
   and a mock snapshot panel: LED glow sliders, health per part, meter display text and unit, relay closed. The panel
   also lists the live netlist and the action log.
 - `?scene=clips` a section-one bench with no board, everything joined by crocodile leads; `?scene=smoke` a small
-  board with an overloaded resistor; `?scene=empty`, `?scene=half` (400-point board).
+  board with an overloaded resistor; `?scene=empty`, `?scene=half` (400-point board); `?scene=props` every lab
+  prop on one desk.
 - `?mode=gallery` every part in rows (`&rows=0-3`, `&row=2`, `&focus=4` for a close-up).
 - `?mode=preview` a few `<PartPreview>` turntables.
 - Screenshot helpers: `q=low`, `panel=0`, `tray=0`, `glow=0.8`, `health=R1:smoking,D1:dead`, `display=OL`,

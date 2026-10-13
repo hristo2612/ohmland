@@ -123,6 +123,7 @@ uniform float cell;
 uniform float line;
 uniform float marginX;
 uniform float marginOn;
+uniform float light;
 varying vec2 vXZ;
 
 // Coverage of a rule through every multiple of the cell, antialiased: about one pixel wide from any distance (like a
@@ -143,7 +144,7 @@ void main() {
   float mw = max( 0.6, fw * 1.2 );
   float m = 1.0 - smoothstep( mw * 0.5 - fw * 0.5, mw * 0.5 + fw * 0.5, abs( vXZ.x - marginX ) );
   col = mix( col, margin, m * marginOn * min( 1.0, 0.6 / mw ) );
-  gl_FragColor = vec4( col, 1.0 );
+  gl_FragColor = vec4( col * light, 1.0 );
   #include <colorspace_fragment>
 }`;
 
@@ -158,6 +159,7 @@ export function paperMaterial(p: PaperPalette): THREE.ShaderMaterial {
       line: { value: 0.07 },
       marginX: { value: -1e5 },
       marginOn: { value: 0 },
+      light: { value: 1 },
     },
     vertexShader: PAPER_VERT,
     fragmentShader: PAPER_FRAG,

@@ -58,6 +58,34 @@ export function PartIcon({ kind, color }: { kind: BenchPartKind | "lead" | "mete
       return box([<path key="g" d="M8 6h16l-2 22H10z" fill="#eaf4fb" />, <path key="w" d="M9 13h14" stroke="#6aa9d8" />]);
     case "lemon":
       return box([<path key="l" d="M4 16a12 12 0 0 0 24 0z" fill="#f3d23a" />, <path key="c" d="M11 16V6M21 16V6" stroke="#c87533" strokeWidth="2" />]);
+    case "dpdt-switch":
+      return box([<rect key="b" x="3" y="16" width="26" height="10" rx="1.5" fill="#7a4a2a" />, <rect key="p" x="7" y="11" width="18" height="5" rx="1" fill="#bbb" />, <rect key="k" x="10" y="6" width="5" height="6" rx="1" fill="#222" />, <path key="s" d="M6 22h0M11 22h0M16 22h0M21 22h0M26 22h0" strokeWidth="2.6" stroke="#d6ad55" />]);
+    case "touch-pads":
+      return box([<rect key="b" x="6" y="5" width="20" height="17" rx="2" fill="#1f6b3f" />, <path key="f" d="M10 8v11M14 8v8M18 8v11M22 8v8" stroke="#e3b34c" strokeWidth="2" />, <path key="l" d="M12 22v7M20 22v7" />]);
+    case "holder":
+      return box([<rect key="b" x="3" y="19" width="26" height="6" rx="1.5" fill="#33373d" />, <path key="c" d="M10 19v-6M22 19v-6" stroke="#c9a14a" strokeWidth="2" />, <path key="r" d="M6 13h20" />]);
+    case "station":
+      return box([<rect key="b" x="3" y="16" width="26" height="10" rx="2" fill="#d9dee5" stroke="currentColor" />, <rect key="c" x="11" y="6" width="10" height="10" rx="1" fill="#22335f" />, <path key="p" d="M6 16V9M26 16V9" stroke="#c9a14a" strokeWidth="2" />]);
+    case "fruit":
+      return box([<path key="l" d="M4 18a12 12 0 0 0 24 0z" fill="#f3d23a" />, <path key="s" d="M11 18v-3M21 18v-3" stroke="#a88c1c" strokeWidth="2" />]);
+    case "electrode":
+      return box([<circle key="c" cx="11" cy="16" r="7" fill="#e9a07a" />, <rect key="z" x="20" y="5" width="6" height="22" rx="1" fill="#bfc6cc" />]);
+    case "skin":
+      return box([<rect key="b" x="3" y="12" width="26" height="12" rx="5" fill="#ecb896" stroke="currentColor" />, <path key="m" d="M9 18h0M14 18h0M19 18h0M24 18h0" strokeWidth="2.6" />]);
+    case "sample":
+      return box([<path key="w" d="M3 13c6-3 10 3 16 0s8-2 10 0" stroke="#d9875a" strokeWidth="2.2" />, <rect key="r" x="3" y="19" width="26" height="7" rx="1" fill="#cfe6f5" />]);
+    case "card":
+      return box([<rect key="c" x="3" y="7" width="26" height="18" rx="1.5" fill="#fbfaf6" />, <path key="l" d="M7 15h14" stroke="#555" strokeWidth="2.4" />]);
+    case "tag":
+      return box([<path key="t" d="M8 9h19v14H8l-5-7z" fill="#fffdf6" />, <circle key="h" cx="8" cy="16" r="1.4" />]);
+    case "bin":
+      return box([<path key="b" d="M4 12h24l-2 14H6z" fill="#c8453a" />, <path key="r" d="M9 17h14" stroke="#fff" />]);
+    case "chart":
+      return box([<rect key="c" x="5" y="4" width="22" height="24" rx="1.5" fill="#fffdf7" />, <path key="r1" d="M8 10h6" stroke="#6e3b1c" strokeWidth="2.4" />, <path key="r2" d="M8 15h6" stroke="#d3282b" strokeWidth="2.4" />, <path key="r3" d="M8 20h6" stroke="#ef7b1a" strokeWidth="2.4" />]);
+    case "clock":
+      return box([<rect key="c" x="4" y="9" width="24" height="16" rx="3" fill="#e9e4da" />, <rect key="l" x="8" y="13" width="16" height="8" fill="#b9c7a6" />]);
+    case "showcase":
+      return box([<rect key="g" x="4" y="6" width="24" height="18" rx="1" fill="#eef6fb" />, <rect key="b" x="3" y="24" width="26" height="4" fill="#a97a48" />]);
     case "lead":
       return box([<path key="c" d="M4 26c6-10 10 2 16-8" stroke={c} strokeWidth="2.4" />, <path key="j" d="M20 18l7-8M22 21l7-6" />]);
     case "meter":

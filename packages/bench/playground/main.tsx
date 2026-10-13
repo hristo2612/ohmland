@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Health, PartState, Snapshot } from "@ohmland/sim";
 import { type BenchController, BenchView, type BenchViewKind, DEFAULT_GALLERY, PartGallery, PartPreview, benchToNetlist, createBenchStore, emptyBench, type BenchAction, type BenchState, type Quality } from "../src";
-import { FULL_TRAY, clipBench, demoBench, glowBench, smokeBench } from "./scenes";
+import { FULL_TRAY, clipBench, demoBench, glowBench, propsBench, smokeBench } from "./scenes";
 
 const q = new URLSearchParams(location.search);
 const num3 = (s: string | null) => (s ? (s.split(",").map(Number) as [number, number, number]) : undefined);
@@ -23,6 +23,8 @@ function initialBench(): BenchState {
       return glowBench();
     case "glow0":
       return glowBench(false);
+    case "props":
+      return propsBench();
     default:
       return demoBench();
   }

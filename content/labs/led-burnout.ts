@@ -1,15 +1,18 @@
-// Blueprint: docs/curriculum/unit-1.md, L8. Conventions and interim helpers: ./lib/goals.ts.
-// Mascot (needs a lab field): hint "Less resistance, more current. Keep an eye on that stress bar."
-//   fried "Poor little LED. It gave everything it had. To the Hall."
-//   success "Fresh LED, sensible resistor. Bright and built to last."
-// Fried moment (required, task too-far): Hall entry kind "led", label "Red LED, 15 Ω on 9 V".
-// Instruments (N8): an LED stress bar above D1 showing its current as a share of its 50 mA maximum: green below 50%,
-//   amber to 90%, red above. No numbers yet.
-// Expected: 1.5 kΩ about 5 mA (glow about 0.35); 470 Ω about 16 mA (about 0.6); 150 Ω about 47 mA (about 0.9, bar
-//   amber-red, health "hot"); 15 Ω several hundred mA, the LED dies within about 0.5 s with a bright flash.
-// Needs: a dead part stays dead when it is moved or re-clipped (the bench keeps its id, N11).
-import { defineLab } from "@ohmland/lab";
-import { amps, between, glow } from "./lib/goals";
+// Blueprint: docs/curriculum/unit-1.md, L8. A battery, a resistor holder (the R slot) and a red LED, clipped into a
+// loop. Dropping a resistor from the tray onto the holder swaps it in (the old one pops out); dropping a fresh LED
+// onto the dead one takes its place and its clips. A stress bar over each LED shows its current as a share of its
+// 50 mA maximum.
+import { defineLab, type LabView } from "@ohmland/lab";
+
+/** Nominal ohms of the resistor in the holder, or null. */
+const slotOhms = (lab: LabView): number | null => {
+  const id = lab.holds("H1")[0];
+  const p = id ? (lab.prop(id) as { ohms?: number } | undefined) : undefined;
+  return p?.ohms ?? null;
+};
+
+const leds = (lab: LabView) => lab.bench.parts.filter((p) => p.kind === "led").map((p) => p.id);
+const glow = (lab: LabView, id: string) => lab.part(id)?.glow ?? 0;
 
 export default defineLab({
   id: "led-burnout",
@@ -17,61 +20,83 @@ export default defineLab({
   bench: {
     board: "none",
     parts: [
-      { id: "B1", kind: "battery", props: { emf: 9.4, internalOhms: 1.7, mAh: 500 } },
-      // A pair of resistor clips (the R slot), holding the 1.5 kΩ resistor. Dropping a resistor on it swaps it in.
-      { id: "R1", kind: "resistor", at: "slot:R", props: { ohms: 1500, watts: 0.25 } },
-      { id: "D1", kind: "led", props: { color: "red", maxmA: 50 } },
-      { id: "L1", kind: "wire", at: "B1.pos|slot:R.a" },
-      { id: "L2", kind: "wire", at: "slot:R.b|D1.anode" },
-      { id: "L3", kind: "wire", at: "D1.cathode|B1.neg" },
+      { id: "B1", kind: "battery", at: "desk:-92,10", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
+      { id: "H1", kind: "holder", at: "desk:2,-42", locked: true, label: "Resistor holder" },
+      { id: "R1", kind: "resistor", at: "in:H1", params: { ohms: 1500, watts: 0.25 }, label: "1.5 kΩ resistor" },
+      { id: "D1", kind: "led", at: "desk:62,22", rot: 90, params: { color: "red", maxmA: 50 }, label: "Red LED" },
+    ],
+    leads: [
+      { id: "TL1", from: "B1.pos", to: "H1.a", color: "red" },
+      { id: "TL2", from: "H1.b", to: "D1.anode", color: "yellow" },
+      { id: "TL3", from: "D1.cathode", to: "B1.neg", color: "black" },
     ],
     tray: [
-      { kind: "resistor", props: { ohms: 470, watts: 0.25 }, count: 1 },
-      { kind: "resistor", props: { ohms: 150, watts: 0.25 }, count: 1 },
-      { kind: "resistor", props: { ohms: 15, watts: 0.25 }, count: 1 },
-      { kind: "led", props: { color: "red", maxmA: 50 }, count: 3 },
+      { id: "R2", kind: "resistor", params: { ohms: 470, watts: 0.25 }, count: 1 },
+      { id: "R3", kind: "resistor", params: { ohms: 150, watts: 0.25 }, count: 1 },
+      { id: "R4", kind: "resistor", params: { ohms: 15, watts: 0.25 }, count: 1 },
+      { id: "D2", kind: "led", params: { color: "red", maxmA: 50 }, count: 3, label: "Spare LED" },
     ],
-    instruments: [],
+    // A stress bar over every LED: its current as a share of its maximum.
+    instruments: [{ kind: "inspect", show: "stress", parts: ["led"] }],
   },
+  mascot: {
+    start: "Brighter is always better, right? Let's test that.",
+    hint: "Less resistance, more current. Keep an eye on that stress bar.",
+    fried: "Poor little LED. It gave everything it had. To the Hall.",
+    success: "Fresh LED, sensible resistor. Bright and built to last.",
+  },
+  fried: (f) => (f.kind === "led" ? (slotOhms(f.lab) === 15 ? "Red LED, 15 Ω on 9 V" : "Red LED, too much current") : undefined),
   tasks: [
     {
       id: "brighter",
       prompt: "Swap the 1.5 kΩ resistor for the **470 Ω** one.",
-      // GOAL: R slot holds 470 Ω && isLit(D1) && part(D1).glow > 0.5
-      // Interim: the LED current that 470 Ω gives (about 16 mA) stands in for "the slot holds 470 Ω".
-      goal: (lab) => lab.isLit("D1") && glow(lab, "D1") > 0.5 && between(amps(lab, "D1"), 0.012, 0.02),
-      hints: ["Drag a resistor from the tray onto the two clips. The old one pops out."],
-      success: "Brighter. Less resistance lets more current through.",
+      goal: (lab) => slotOhms(lab) === 470 && lab.isLit("D1") && glow(lab, "D1") > 0.5,
+      hints: ["Drag a resistor onto the clips. The old one pops out."],
+      highlight: ["H1"],
+      success: "Brighter. Less resistance, more current.",
     },
     {
       id: "brighter-still",
-      prompt: "Now try **150 Ω**. Watch the LED's stress bar.",
-      // GOAL: R slot holds 150 Ω && part(D1).glow > 0.8 && part(D1).health != "dead"
-      // Interim: the LED current that 150 Ω gives (about 47 mA) stands in for "the slot holds 150 Ω".
-      goal: (lab) => glow(lab, "D1") > 0.8 && lab.part("D1")?.health !== "dead" && between(amps(lab, "D1"), 0.035, 0.055),
+      prompt: "Now **150 Ω**. Watch the stress bar.",
+      goal: (lab) => slotOhms(lab) === 150 && glow(lab, "D1") > 0.8 && lab.part("D1")?.health !== "dead",
       hints: ["Drop the 150 Ω resistor onto the clips."],
-      success: "Dazzling, and the stress bar is nearly full. It's alive, but close to its limit.",
+      highlight: ["H1"],
+      success: "Dazzling, and nearly at its limit. Still alive.",
     },
     {
       id: "too-far",
-      prompt: "Go on. Try the **15 Ω** resistor.",
-      // GOAL: fried("led")
+      prompt: "Go on. Try **15 Ω**.",
       goal: (lab) => lab.fried("led"),
-      hints: ["Drop the 15 Ω resistor onto the clips and watch closely."],
-      success: "Flash, then nothing. Far too much current, and the LED died. It goes to the Hall of Fried Parts.",
+      hints: ["Drop the 15 Ω resistor onto the clips. Watch closely."],
+      highlight: ["H1"],
+      success: "Flash, then nothing. Far too much current. To the Hall of Fried Parts.",
     },
     {
       id: "no-comeback",
-      prompt: "Put the 1.5 kΩ resistor back. Does the dead LED recover? Then swap in a fresh LED.",
-      // GOAL: the dead D1 observed in place with 1.5 kΩ (glow 0 for at least 1 s), then a fresh LED in the loop with isLit
-      // Interim: an LED has died, and some live LED now glows at the 1.5 kΩ current (about 5 mA).
-      goal: (lab) =>
-        lab.fried("led") &&
-        Object.values(lab.snapshot?.parts ?? {}).some((p) => p.health !== "dead" && (p.glow ?? 0) >= 0.1 && between(Math.abs(p.i), 0.003, 0.007)),
-      hints: ["Drop the 1.5 kΩ resistor back onto the clips first.", "Then swap the dead LED for a fresh one from the tray."],
-      success: "Dead LEDs stay dead. The fresh one is happy at a safe current.",
+      prompt: "Put 1.5 kΩ back. Does the LED recover? Then fit a fresh one.",
+      goal: (lab) => {
+        const safe = slotOhms(lab) === 1500;
+        const mem = lab.memory as { dark?: boolean };
+        // The dead LED, still clipped in, stays dark behind a safe resistor.
+        if (safe && lab.part("D1")?.health === "dead" && lab.connected("D1.anode", "H1.b")) mem.dark = true;
+        return !!mem.dark && safe && leds(lab).some((id) => lab.isLit(id) && lab.connected(`${id}.anode`, "H1.b"));
+      },
+      hints: ["Drag the 1.5 kΩ resistor back onto the clips. Look at the LED.", "Drop a spare LED right onto the dead one. It takes its clips."],
+      highlight: ["H1", "D1"],
+      success: "Dead LEDs stay dead. The fresh one is happy.",
     },
   ],
-  // TODO(solution): bench actions that solve every task, once packages/bench owns BenchState.
-  solution: [],
+  solution: [
+    { do: "place", part: "R2", kind: "resistor", params: { ohms: 470, watts: 0.25 }, at: "in:H1" },
+    { do: "check", task: "brighter" },
+    { do: "place", part: "R3", kind: "resistor", params: { ohms: 150, watts: 0.25 }, at: "in:H1" },
+    { do: "check", task: "brighter-still" },
+    { do: "place", part: "R4", kind: "resistor", params: { ohms: 15, watts: 0.25 }, at: "in:H1" },
+    { do: "wait", seconds: 1 },
+    { do: "check", task: "too-far" },
+    { do: "move", part: "R1", at: "in:H1" },
+    { do: "wait", seconds: 1.2 },
+    { do: "place", part: "D2", kind: "led", params: { color: "red", maxmA: 50 }, at: "on:D1" },
+    { do: "check", task: "no-comeback" },
+  ],
 });

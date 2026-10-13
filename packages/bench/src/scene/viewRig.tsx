@@ -210,8 +210,13 @@ export function ViewRig({
       return p ? pointBox(p, 4) : null;
     };
 
-    /** The work area: the board, every part, the meter body and the clips that hold something. */
+    /**
+     * The work area: the lab's own frame when it sets one, else the board, every part, the meter body and the leads
+     * that hold something.
+     */
     const workBoxes = (portrait: boolean): THREE.Box3[] => {
+      const frame = store.getState().frame;
+      if (frame) return [new THREE.Box3(new THREE.Vector3(frame[0], 0, frame[1]), new THREE.Vector3(frame[2], 16, frame[3]))];
       const b = bench();
       const scene = get().scene;
       const out: THREE.Box3[] = [];

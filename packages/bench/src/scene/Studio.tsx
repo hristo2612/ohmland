@@ -17,11 +17,14 @@ export function StudioEnvironment({ intensity = 0.22 }: { intensity?: number }) 
   const scene = useThree((s) => s.scene);
   const invalidate = useThree((s) => s.invalidate);
   useLayoutEffect(() => {
+    scene.environmentIntensity = intensity;
+    invalidate();
+  }, [scene, intensity, invalidate]);
+  useLayoutEffect(() => {
     const pmrem = new THREE.PMREMGenerator(gl);
     const room = new RoomEnvironment();
     const env = pmrem.fromScene(room, 0.035).texture;
     scene.environment = env;
-    scene.environmentIntensity = intensity;
     invalidate();
     return () => {
       scene.environment = null;
@@ -34,25 +37,28 @@ export function StudioEnvironment({ intensity = 0.22 }: { intensity?: number }) 
         mat?.dispose?.();
       });
     };
-  }, [gl, scene, intensity, invalidate]);
+  }, [gl, scene, invalidate]);
   return null;
 }
 
 /**
  * Soft, low-contrast light like daylight on a page: a strong sky fill, one gentle key light (the only shadow caster,
- * high quality) and a cool rim. Dark pages get a warm desk lamp instead.
+ * high quality) and a cool rim. Dark pages get a warm desk lamp instead. `dim` (0..1) turns the room lights down.
  */
 export function StudioLights({
   quality,
   shadowSpan = 260,
   center = [0, 0],
   palette = PAPER_LIGHT,
+  dim = 1,
 }: {
   quality: Quality;
   shadowSpan?: number;
   center?: [number, number];
   palette?: PaperPalette;
+  dim?: number;
 }) {
+  const k = Math.max(0.05, Math.min(1, dim));
   const shadows = quality === "high";
   const target = useMemo(() => {
     const o = new THREE.Object3D();
@@ -63,11 +69,11 @@ export function StudioLights({
   return (
     <>
       <primitive object={target} />
-      <hemisphereLight args={dark ? ["#ffe9cc", "#3a2c1e", 0.75] : ["#fffaf1", "#d9cdb8", 1.45]} />
+      <hemisphereLight args={dark ? ["#ffe9cc", "#3a2c1e", 0.75 * k] : ["#fffaf1", "#d9cdb8", 1.45 * k]} />
       <directionalLight
         position={[center[0] - 240, 560, center[1] + 260]}
         target={target}
-        intensity={dark ? 1.6 : 1.25}
+        intensity={(dark ? 1.6 : 1.25) * k}
         color={dark ? "#ffd8a8" : "#fff4e4"}
         castShadow={shadows}
         shadow-mapSize={[2048, 2048]}
@@ -81,7 +87,7 @@ export function StudioLights({
         shadow-normalBias={0.18}
         shadow-radius={6}
       />
-      <directionalLight position={[center[0] + 380, 260, center[1] - 260]} target={target} intensity={dark ? 0.22 : 0.3} color={dark ? "#9fb0d8" : "#e6ebf5"} />
+      <directionalLight position={[center[0] + 380, 260, center[1] - 260]} target={target} intensity={(dark ? 0.22 : 0.3) * k} color={dark ? "#9fb0d8" : "#e6ebf5"} />
     </>
   );
 }
@@ -98,7 +104,7 @@ export function prepareBench(): void {
  * The page: grid paper, unlit so it comes out exactly as the page colour, with an optional notebook margin line at
  * `margin` (x in mm). On high quality a shadow catcher on top takes the key light's soft shadows.
  */
-export function Desk({ quality, palette = PAPER_LIGHT, margin }: { quality: Quality; palette?: PaperPalette; margin?: number | null }) {
+export function Desk({ quality, palette = PAPER_LIGHT, margin, light = 1 }: { quality: Quality; palette?: PaperPalette; margin?: number | null; light?: number }) {
   const paper = useMemo(() => paperMaterial(palette), [palette]);
   const catcher = useMemo(
     () => new THREE.ShadowMaterial({ color: palette.dark ? "#000000" : "#3a3226", opacity: palette.dark ? 0.35 : 0.12, depthWrite: false }),
@@ -111,6 +117,8 @@ export function Desk({ quality, palette = PAPER_LIGHT, margin }: { quality: Qual
     },
     [paper, catcher],
   );
+  // The page is unlit, so the room lights dim it here (as they dim the background).
+  paper.uniforms.light!.value = 0.12 + 0.88 * Math.max(0, Math.min(1, light));
   paper.uniforms.marginOn!.value = margin == null ? 0 : 1;
   paper.uniforms.marginX!.value = margin ?? -1e5;
   return (

@@ -54,6 +54,42 @@ export function clipBench(): BenchState {
   return b;
 }
 
+/** Every lab prop on one desk, for a look at the models (`?scene=props`). */
+export function propsBench(): BenchState {
+  const b = emptyBench(null);
+  const p = (id: string, kind: BenchState["parts"][number]["kind"], params: Record<string, unknown>, pos: [number, number], rot = 0) =>
+    ({ id, kind, params, pos, rot }) as BenchState["parts"][number];
+  b.parts = [
+    p("H1", "holder", { held: { r: "R1" } }, [-200, -90]),
+    p("R1", "resistor", { ohms: 1500 }, [-200, -90]),
+    p("H2", "holder", { held: { r: "R5" } }, [-200, -20]),
+    p("R5", "resistor", { ohms: 15, watts: 5 }, [-200, -20]),
+    p("R4", "resistor", { ohms: 15, watts: 1 }, [-200, 40]),
+    p("T1", "station", { held: { cell: "B2" }, load: true }, [-80, -90]),
+    p("B2", "battery", { emf: 9.4 }, [-80, -96]),
+    p("X1", "battery", { size: "aa", chem: "alkaline" }, [-110, 10]),
+    p("X2", "battery", { size: "aa", chem: "nimh" }, [-110, 50]),
+    p("X3", "battery", { size: "coin" }, [-50, 30]),
+    p("B3", "battery", { worn: true }, [-30, -20], 270),
+    p("FC1", "fruit", { held: { left: "E1", right: "E2" } }, [40, -90]),
+    p("E1", "electrode", { metal: "copper" }, [29, -90]),
+    p("E2", "electrode", { metal: "zinc" }, [51, -90]),
+    p("E3", "electrode", { metal: "copper" }, [20, 0]),
+    p("E4", "electrode", { metal: "zinc" }, [50, 10]),
+    p("P1", "skin", { moisture: "wet", pressure: "light" }, [150, -90]),
+    p("P2", "sample", { material: "copper" }, [150, 10]),
+    p("P3", "sample", { material: "plastic" }, [150, 50]),
+    p("P4", "card", { length: 5, layers: 2, wide: false }, [20, 80]),
+    p("L1", "tag", { text: "470 Ω" }, [-40, 90]),
+    p("BIN1", "bin", { held: { s1: "R2" } }, [-140, 120]),
+    p("R2", "resistor", { ohms: 2200 }, [-164, 120]),
+    p("CH1", "chart", {}, [260, -80]),
+    p("CK1", "clock", {}, [260, 20]),
+    p("SC1", "showcase", {}, [270, 110]),
+  ];
+  return b;
+}
+
 export const FULL_TRAY: TrayItem[] = [
   { kind: "resistor", params: { ohms: 470 } },
   { kind: "resistor", params: { ohms: 1000 } },

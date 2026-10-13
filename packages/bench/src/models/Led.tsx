@@ -1,7 +1,7 @@
 // 3 mm and 5 mm LEDs (diffused or water clear) and the clear-bodied phototransistor.
 // The rim is flat on the cathode side and the anode lead is longer (with a small kink once it is in the board).
 
-import { useLayoutEffect, useMemo } from "react";
+import { useContext, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { LED, PITCH } from "../dims";
 import type { PartParamsMap, Quality } from "../types";
@@ -9,7 +9,7 @@ import { Halo, LightSpill, Smoke } from "../effects/effects";
 import { canvasTexture, rng } from "../three/canvas";
 import { bentTube, latheY, memoGeo } from "../three/geometry";
 import { LED_HEX, mat } from "../three/materials";
-import { IN_HOLE, RadialMount, healthOf, mix, type ModelProps } from "./common";
+import { IN_HOLE, RadialMount, RoomLight, healthOf, mix, type ModelProps } from "./common";
 
 type LedSize = 3 | 5;
 
@@ -326,6 +326,9 @@ function LedLike({
   const legMode: LegMode = mount === "board" ? "board" : mount === "desk" ? "desk" : "free";
   const base = mount === "board" ? d.standoff : 0;
   const haloY = base + d.height * 0.62;
+  // In a dim room even a faint glow stands out: lift the halo as the lights go down.
+  const room = useContext(RoomLight);
+  const boost = 1 + (1 - Math.max(0, Math.min(1, room))) * 4;
   return (
     <group>
       <RadialMount mount={mount} centerX={PITCH / 2} deskAxis={d.rim / 2}>
@@ -335,7 +338,7 @@ function LedLike({
         <LedLegs size={size} mode={legMode} />
         {glow > 0.01 && (
           <group position={[0, haloY, 0]}>
-            <Halo color={hex.emit} intensity={quality === "low" ? glow * 1.1 : glow * 0.85} size={size === 5 ? 26 : 17} />
+            <Halo color={hex.emit} intensity={(quality === "low" ? glow * 1.1 : glow * 0.85) * boost} size={size === 5 ? 26 : 17} />
           </group>
         )}
         {health === "smoking" && !photo && (

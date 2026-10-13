@@ -10,8 +10,10 @@ import { LabelsContext, mergeLabels } from "../labels";
 import { anchorPosition, benchBounds, fitCamera, workCenter } from "../layout";
 import { connectivity } from "../netlist";
 import { BenchStoreContext, createBenchStore, useBench, type BenchStore } from "../store";
-import type { BenchAction, BenchState, Quality, Vec3 } from "../types";
+import { heldOf } from "../seats";
+import type { BenchAction, BenchState, PlacedPart, Quality, Vec3 } from "../types";
 import { Breadboard, XRAY_HEX } from "../models/Breadboard";
+import { RoomLight } from "../models/common";
 import { JumperWire } from "../models/Leads";
 import { installPaperTone, paperizeScene, type PaperPalette } from "../three/paper";
 import { Spotlight } from "../three/post";
@@ -21,6 +23,7 @@ import { Desk, StudioEnvironment, StudioLights } from "./Studio";
 import { useInteraction, handleBenchKey, type InteractionApi } from "./Interaction";
 import { Overlay, trayCover } from "./Overlay";
 import { PaletteContext, useReadPalette } from "./palette";
+import { Readouts, inspectKey } from "./Readouts";
 import type { Pick } from "./pick";
 import { PaperRenderer, PaperUpkeep, SoftShadows, type ShadowArea } from "./Render";
 import { SpotlightRig, ViewRig, type ViewApi } from "./viewRig";
@@ -29,6 +32,8 @@ import { LeadView, MeterView, PartView, TargetMarker, WireView, makeFloor, snaps
 export type BenchProps = BenchRendererProps & {
   /** Initial camera. Defaults to a framing of the work area. */
   camera?: { position: Vec3; target: Vec3 };
+  /** A desk rectangle [x0, z0, x1, z1] in mm for the camera to frame (and return to on "reset view"). */
+  frame?: [number, number, number, number] | null;
   /** Page colours: follow the page's notebook tokens (default), or force the light or the night page. */
   theme?: "light" | "dark";
   /** Draw the notebook's margin line left of the work area (default true). */
@@ -119,6 +124,10 @@ export function Bench(props: BenchProps) {
   useEffect(() => {
     store.setState({ locked: lockedKey ? lockedKey.split(",") : [] });
   }, [store, lockedKey]);
+  const frameKey = props.frame ? props.frame.join(",") : "";
+  useLayoutEffect(() => {
+    store.setState({ frame: frameKey ? (frameKey.split(",").map(Number) as [number, number, number, number]) : null });
+  }, [store, frameKey]);
   useEffect(() => {
     // A drag changes the bench while its transaction is open and commits by closing it, so compare against the last
     // bench reported rather than the previous state.
@@ -218,6 +227,7 @@ function CameraRig({
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
 }) {
   const set = useRef(false);
+  const frame = useBench((s) => s.frame);
   const size = useThree((s) => s.size);
   return (
     <CameraControls
@@ -235,10 +245,14 @@ function CameraRig({
         if (!c || set.current) return;
         set.current = true;
         // A first guess; the view rig frames the real models on the first frame.
-        const fit = fitCamera(bench, size.width / Math.max(1, size.height), false, {
-          left: viewPad.current.left / Math.max(1, size.width),
-          bottom: viewPad.current.bottom / Math.max(1, size.height),
-        });
+        const fit = fitCamera(
+          bench,
+          size.width / Math.max(1, size.height),
+          false,
+          { left: viewPad.current.left / Math.max(1, size.width), bottom: viewPad.current.bottom / Math.max(1, size.height) },
+          32,
+          frame,
+        );
         const pos = initial?.position ?? fit.position;
         const tgt = initial?.target ?? fit.target;
         void c.setLookAt(...pos, ...tgt, false);
@@ -334,16 +348,19 @@ function Warmup({ held, offscreen, dark, onWarm }: { held: boolean; offscreen: b
   return null;
 }
 
-/** Sets the page colour as the scene background (the canvas is opaque). */
-function Background({ color }: { color: string }) {
+/** Sets the page colour as the scene background (the canvas is opaque); it darkens with the room lights. */
+function Background({ color, light = 1 }: { color: string; light?: number }) {
   const scene = useThree((s) => s.scene);
   const invalidate = useThree((s) => s.invalidate);
   useLayoutEffect(() => {
-    scene.background = new THREE.Color(color);
+    scene.background = new THREE.Color(color).multiplyScalar(roomShade(light));
     invalidate();
-  }, [scene, color, invalidate]);
+  }, [scene, color, light, invalidate]);
   return null;
 }
+
+/** How much of the page's own colour shows with the room lights at `light` (1 bright to about 0.1 dim). */
+export const roomShade = (light: number) => 0.12 + 0.88 * Math.max(0, Math.min(1, light));
 
 const snap = (v: number, step: number) => Math.round(v / step) * step;
 
@@ -390,10 +407,13 @@ function BenchScene({
   // Draw a frame on any change, except snapshots that change nothing visible (the simulator sends about 30 a second
   // even when the circuit is steady; rendering each one would keep post-processing busy for nothing).
   useEffect(() => {
-    let seen = snapshotKey(store.getState().snapshot);
+    // Readouts and the desk clock also change with the snapshot.
+    const extra = (s: ReturnType<typeof store.getState>) =>
+      (s.bench.parts.some((p) => p.kind === "clock") ? `|t${Math.floor((s.snapshot?.t ?? 0) / 60)}` : "") + (s.inspect.length ? `|${inspectKey(s)}` : "");
+    let seen = snapshotKey(store.getState().snapshot) + extra(store.getState());
     return store.subscribe((s, prev) => {
       if (s.snapshot !== prev.snapshot && s.bench === prev.bench && s.ui === prev.ui) {
-        const key = snapshotKey(s.snapshot);
+        const key = snapshotKey(s.snapshot) + extra(s);
         if (key === seen) return;
         seen = key;
       }
@@ -450,6 +470,14 @@ function BenchScene({
   }, [ui.hover, conn, bench.board]);
 
   const hl = useMemo(() => new Set(highlight ?? []), [highlight]);
+  // Parts sitting in holders take their pose from the holder.
+  const holders = useMemo(() => {
+    const out = new Map<string, PlacedPart>();
+    for (const h of bench.parts) for (const id of Object.values(heldOf(h))) if (id) out.set(id, h);
+    return out;
+  }, [bench.parts]);
+  const ambient = useBench((s) => s.ambient);
+  const inspect = useBench((s) => s.inspect);
   const leadOpen = (id: string) => (ui.dragging && ui.selection?.type === "lead" && ui.selection.id === id ? 0.25 : 0);
 
   // Wire being drawn.
@@ -461,21 +489,23 @@ function BenchScene({
 
   return (
     <>
-      <Background color={palette.paper} />
-      <StudioEnvironment intensity={palette.dark ? 0.14 : 0.22} />
-      <StudioLights quality={quality} center={center} palette={palette} />
-      <Desk quality={quality} palette={palette} margin={marginX} />
+      <Background color={palette.paper} light={ambient} />
+      <StudioEnvironment intensity={(palette.dark ? 0.14 : 0.22) * ambient} />
+      <StudioLights quality={quality} center={center} palette={palette} dim={ambient} />
+      <Desk quality={quality} palette={palette} margin={marginX} light={ambient} />
       <SoftShadows areas={shadowAreas} version={changed} palette={palette} />
       <PaperUpkeep version={changed} dark={palette.dark} shadows={quality === "high"} />
       <CameraRig center={center} initial={camera} bench={bench} viewPad={viewPad} />
       <ViewRig store={store} apiRef={view} viewPad={viewPad} setSpotTargets={setSpotTargets} initialCamera={!!camera} onChange={notify} pendingFocus={pendingFocus} />
       <SpotlightRig store={store} targets={spotTargets} spot={spot} palette={palette} />
       <ReadySignal onReady={onReady} />
+      <RoomLight.Provider value={ambient}>
       {bench.board && <Breadboard spec={bench.board} xray={ui.xray} litStrips={xr?.strips} litHoles={xr?.holes} />}
       {bench.parts.map((p) => (
         <PartView
           key={p.id}
           part={p}
+          holder={holders.get(p.id)}
           board={bench.board}
           selected={ui.selection?.type === "part" && ui.selection.id === p.id}
           hinted={hl.has(p.id)}
@@ -500,6 +530,7 @@ function BenchScene({
         />
       ))}
       {bench.meter && <MeterView meter={bench.meter} bench={bench} selected={ui.selection?.type === "meter"} floor={floor} />}
+      </RoomLight.Provider>
       {draftFrom && (
         <>
           <TargetMarker at={[draftFrom[0], BOARD_TOP + 0.2, draftFrom[1]]} color={palette.blue} />
@@ -521,6 +552,7 @@ function BenchScene({
         const p = anchorPosition(bench, a);
         return p ? <TargetMarker key={a} at={[p[0], p[1] + 0.3, p[2]]} color={palette.red} pulse size={2.6} /> : null;
       })}
+      {inspect.length > 0 && <Readouts bench={bench} inspect={inspect} />}
       <PaperRenderer quality={quality} palette={palette} spot={spot} />
     </>
   );

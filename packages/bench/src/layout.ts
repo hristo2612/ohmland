@@ -2,8 +2,9 @@
 
 import { parseAnchor } from "./anchors";
 import { PITCH, boardGeometry, boardOrigin, holeWorld } from "./board";
-import { BOARD_TOP, BOARD_CLIP_LIFT, LED, NPN, CERAMIC, electrolyticSize, RESISTOR, DIODE } from "./dims";
-import { canMountOnBoard, footprintOf, isFlying, partDef, rotateXZ } from "./parts";
+import { BOARD_TOP, BOARD_CLIP_LIFT, LED, NPN, CERAMIC, electrolyticSize, RESISTOR, DIODE, blockWidth } from "./dims";
+import { canMountOnBoard, footprintOf, isFlying, partDef, partLegs, rotateXZ } from "./parts";
+import { holderOf, seatPose } from "./seats";
 import type { Anchor, BenchState, MeterSocket, MeterState, PlacedPart, ProbeColor, Vec2, Vec3 } from "./types";
 
 export type PartPose = {
@@ -18,6 +19,8 @@ export type PartPose = {
   legs: Record<string, Vec3>;
   /** Flexible leads: where each free end lies or which hole it is in (world). */
   ends?: Record<string, { pos: Vec3; inHole: boolean }>;
+  /** Sitting in a holder's seat (the holder's id). */
+  heldBy?: string;
 };
 
 const add3 = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -49,7 +52,7 @@ function boardClipLift(part: PlacedPart): number {
 export function isOnBoard(bench: BenchState, part: PlacedPart): boolean {
   if (!bench.board || !canMountOnBoard(part) || !part.holes) return false;
   const geom = boardGeometry(bench.board);
-  return partDef(part.kind).legs.every((leg) => {
+  return partLegs(part).every((leg) => {
     const h = part.holes?.[leg];
     return !!h && geom.holes.has(h);
   });
@@ -61,11 +64,11 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
     const board = bench.board;
     const legs: Record<string, Vec3> = {};
     const lift = boardClipLift(part);
-    for (const leg of def.legs) {
+    for (const leg of partLegs(part)) {
       const p = holeWorld(board, part.holes![leg]!)!;
       legs[leg] = [p[0], BOARD_TOP + lift, p[1]];
     }
-    const first = holeWorld(board, part.holes![def.legs[0]!]!)!;
+    const first = holeWorld(board, part.holes![partLegs(part)[0]!]!)!;
     let rot = part.rot;
     let span: number | undefined;
     if (def.span) {
@@ -81,13 +84,27 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
     return pose;
   }
 
+  const seat = holderOf(bench, part.id);
+  if (seat) {
+    const sp = seatPose(seat.holder, seat.seat, part);
+    const local = ((def.heldLegs ?? def.deskLegs) as (p: unknown) => Record<string, Vec3>)(part.params);
+    const legs: Record<string, Vec3> = {};
+    for (const leg of def.legs) {
+      const l = local[leg];
+      if (!l) continue;
+      const [rx, rz] = rotateXZ(l[0], l[2], sp.rot);
+      legs[leg] = add3(sp.origin, [rx, l[1], rz]);
+    }
+    return { mount: "desk", origin: sp.origin, rot: sp.rot, legs, heldBy: seat.holder.id };
+  }
+
   const origin: Vec3 = [part.pos[0], 0, part.pos[1]];
   const local = (def.deskLegs as (p: unknown) => Record<string, Vec3>)(part.params);
   const legs: Record<string, Vec3> = {};
   const pose: PartPose = { mount: "desk", origin, rot: part.rot, legs };
   if (isFlying(part)) {
     const ends: Record<string, { pos: Vec3; inHole: boolean }> = {};
-    for (const leg of def.legs) {
+    for (const leg of partLegs(part)) {
       const hole = part.holes?.[leg];
       const hp = hole && bench.board ? holeWorld(bench.board, hole) : null;
       if (hp) {
@@ -109,7 +126,7 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
     pose.ends = ends;
     return pose;
   }
-  for (const leg of def.legs) {
+  for (const leg of partLegs(part)) {
     const l = local[leg]!;
     const [rx, rz] = rotateXZ(l[0], l[2], part.rot);
     legs[leg] = add3(origin, [rx, l[1], rz]);
@@ -233,17 +250,13 @@ export function clipTargets(bench: BenchState, opts: { holes?: boolean; probes?:
       for (const h of geom.holes.values()) out.push({ anchor: `hole:${h.id}`, pos: [ox + h.x, BOARD_TOP + 0.15, oz + h.z], kind: "hole" });
     }
   }
+  // Probe tips and clips can be touched together, wherever they are (on something or lying on the desk).
   if (opts.probes && bench.meter) {
-    for (const c of ["red", "black"] as const) {
-      if (!bench.meter.probes[c].tip.to) continue;
-      out.push({ anchor: `probe:${c}`, pos: probeTip(bench, c), kind: "probe" });
-    }
+    for (const c of ["red", "black"] as const) out.push({ anchor: `probe:${c}`, pos: probeTip(bench, c), kind: "probe" });
   }
   if (opts.leads) {
     for (const l of bench.leads) {
       for (const end of ["a", "b"] as const) {
-        const e = end === "a" ? l.a : l.b;
-        if (!e.to) continue;
         const p = anchorPosition(bench, `lead:${l.id}.${end}`);
         if (p) out.push({ anchor: `lead:${l.id}.${end}`, pos: p, kind: "lead" });
       }
@@ -298,6 +311,24 @@ export function outwardHeading(bench: BenchState, at: Vec3, toward?: Vec3, bias 
   return [hx, hz];
 }
 
+/** Room each desk part needs around its position when framing the bench (mm). */
+const PROP_REACH: Partial<Record<PlacedPart["kind"], number>> = {
+  cup: 52,
+  lemon: 38,
+  fruit: 38,
+  battery: 30,
+  speaker: 24,
+  holder: 34,
+  station: 58,
+  skin: 42,
+  card: 70,
+  bin: 40,
+  chart: 54,
+  clock: 32,
+  showcase: 66,
+  tag: 14,
+};
+
 /** Desk rectangle covering the board, parts and meter: [x0, z0, x1, z1]. */
 export function benchBounds(bench: BenchState): [number, number, number, number] {
   let x0 = Infinity;
@@ -319,8 +350,17 @@ export function benchBounds(bench: BenchState): [number, number, number, number]
   for (const p of bench.parts) {
     if (isOnBoard(bench, p)) continue;
     // Tall props reach up toward the camera, so give them more room than their footprint.
+    const block = p.kind === "dpdt-switch" || (p.params as { base?: boolean }).base;
     const big =
-      p.kind === "cup" ? 52 : p.kind === "lemon" ? 38 : p.kind === "battery" ? 30 : p.kind === "speaker" ? 24 : p.kind === "toggle-switch" && p.params.base ? 26 : 14;
+      block
+        ? Math.max(26, blockWidth(partLegs(p).length) / 2 + 4)
+        : p.kind === "sample"
+          ? p.params.material === "plastic"
+            ? 80
+            : 54
+          : p.kind === "battery" && p.params.size && p.params.size !== "9v"
+            ? 28
+            : (PROP_REACH[p.kind] ?? 14);
     grow(p.pos[0], p.pos[1], big);
   }
   // An empty desk still has a work area to frame (otherwise a lone meter fills the view).
@@ -358,10 +398,12 @@ export function fitCamera(
   top = false,
   pad: { left?: number; bottom?: number } = {},
   fovDeg = 32,
+  /** A desk rectangle [x0, z0, x1, z1] to frame instead of the whole bench (a lab's working area). */
+  frame?: readonly [number, number, number, number] | null,
 ): { position: Vec3; target: Vec3 } {
   // On a tall, narrow screen frame the board alone (the learner can zoom out to reach the meter).
   const portrait = aspect < 0.85 && !!bench.board;
-  const [x0, z0, x1, z1] = portrait ? benchBounds({ ...bench, parts: [], leads: [], meter: null }) : benchBounds(bench);
+  const [x0, z0, x1, z1] = frame ?? (portrait ? benchBounds({ ...bench, parts: [], leads: [], meter: null }) : benchBounds(bench));
   // `pad` gives the fractions of the view covered by panels; fit into what is left and shift away from them.
   const visible = 1 - Math.min(0.6, Math.max(0, pad.left ?? 0));
   const visibleY = 1 - Math.min(0.5, Math.max(0, pad.bottom ?? 0));

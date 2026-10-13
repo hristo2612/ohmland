@@ -119,6 +119,44 @@ export class LabAudio {
     }
   }
 
+  private clickEnd = 0;
+
+  /**
+   * Relay contacts moving: `count` clicks in the last snapshot (about 33 ms), spread evenly so a relay switching
+   * itself 80 times a second buzzes. A pull-in is a firmer, lower clack than a release.
+   */
+  relay(count: number, pull: boolean): void {
+    const ctx = this.ctx;
+    if (!ctx || this.muted() || ctx.state !== "running" || count <= 0) return;
+    const n = Math.min(count, 12);
+    const span = 1 / 30;
+    const rate = ctx.sampleRate;
+    const len = Math.ceil(rate * (span + 0.012));
+    const buf = ctx.createBuffer(1, len, rate);
+    const d = buf.getChannelData(0);
+    let x = 1234567 + count * 7;
+    for (let k = 0; k < n; k++) {
+      const start = Math.floor(((k + 0.5) / n) * span * rate);
+      const vol = (pull && k % 2 === 0) || n === 1 ? 0.55 : 0.32;
+      const f = pull ? 1700 : 2600;
+      const dur = Math.floor(rate * 0.006);
+      for (let i = 0; i < dur && start + i < len; i++) {
+        x = (x * 16807) % 2147483647;
+        const env = Math.exp(-i / (rate * 0.0011));
+        d[start + i]! += vol * env * (0.6 * Math.sin((2 * Math.PI * f * i) / rate) + 0.4 * ((x / 2147483647) * 2 - 1));
+      }
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.value = 0.3;
+    src.connect(g).connect(ctx.destination);
+    // Back to back with the previous snapshot's clicks, so a buzz stays continuous.
+    const at = Math.max(ctx.currentTime + 0.005, Math.min(this.clickEnd, ctx.currentTime + 0.1));
+    src.start(at);
+    this.clickEnd = at + span;
+  }
+
   /** Speaker samples from the simulator (44.1 kHz chunks). */
   play(samples: Float32Array): void {
     if (!this.ctx || this.ctx.state !== "running") return;
