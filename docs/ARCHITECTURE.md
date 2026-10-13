@@ -89,6 +89,7 @@ content/
   units/<unit-id>/<module-id>/module.yaml     id, title, summary, landmark {id, name}, lesson order
   units/<unit-id>/<module-id>/<lesson-id>/lesson.yaml
   labs/<lab-id>.ts                    lab definitions (typed TS, default export defineLab(...))
+  labs/lib/                           goal helpers shared by labs (not labs themselves)
 ```
 
 Every file is validated by zod (`apps/web/src/content/schema.ts`) when the site builds (`apps/web/src/content/load.ts`);
