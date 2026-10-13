@@ -2,7 +2,7 @@
  * The free-build bench (/bench): the lab runtime with no tasks. The tray holds the learner's unlocked parts, the meter
  * and scope come with their parts, builds save to the learner record, and "Start fresh" clears the bench.
  */
-import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { defaultMeter, emptyBench, partDef, type BenchState } from "@ohmland/bench/core";
 import { Button } from "../components/Button";
@@ -18,14 +18,14 @@ import type { BuiltBench } from "./build";
 import type { LabDefinition, ScopeConfig } from "./define";
 import { ConnectionsPanel, MeterPanel, Notebook, ScopePanel } from "./instruments";
 import { friedLabel } from "./labels";
-import { takeSim } from "./prefetch";
+import { BenchViewChunk, takeSim } from "./prefetch";
 import { autoQuality, pickQuality, storeQuality, type Quality } from "./quality";
 import { LabRuntime } from "./runtime";
 import { sandboxKit } from "./sandbox-parts";
 import { BenchBoundary, BenchSkeleton, FriedNotice } from "./shell";
 import "./lab.css";
 
-const BenchView = lazy(() => import("./BenchView"));
+const BenchView = BenchViewChunk.Component;
 
 const SANDBOX: LabDefinition = {
   id: "sandbox",

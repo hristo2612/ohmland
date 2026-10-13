@@ -433,8 +433,14 @@ each one headlessly (`replay.ts`: bench ops + the in-thread simulator) and fails
 Runtime (`apps/web/src/lab`):
 
 - `LabStepHost` (lesson player) lazy-loads `LabStep` and the lab module (`import.meta.glob`, one chunk per lab);
-  `LabStep` lazy-loads `BenchView`, the only module that imports three.js. `prefetch.ts` warms all three and spawns
-  the simulator worker on the learner's first tap on the step before the lab (or after 4 s), never during first load.
+  `LabStep` lazy-loads `BenchView`, the only module that imports three.js. `prefetch.ts` warms all three, spawns
+  the simulator worker and draws the bench's desk texture (`prepareBench()`, when idle) on the learner's first tap on
+  the step before the lab (or after 4 s), never during first load; a lesson resumed at its lab starts them all at
+  once from `LabStepHost`. `LabStep` and `BenchView` are preloadable components: once warm they render without a
+  Suspense fallback (React would hold a revealed fallback back for 300 ms).
+- `<Bench>` holds its first frame while three's `compileAsync` compiles the scene's shaders in parallel (in the
+  variant post-processing renders, on high quality) and uploads the drawn textures, for at most 2.5 s, and reports
+  ready one frame after the first.
 - `LabRuntime` (`runtime.ts`) owns the bench store, the worker client and a `LabSession` (`session.ts`, pure: task
   order, notebook, fried parts, triggers). Each committed bench change rebuilds the netlist and calls `sim.load`
   (state carries over by part id); bench `input` actions go to `sim.setInput`; snapshots go to the bench store and
