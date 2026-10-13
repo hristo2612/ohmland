@@ -94,8 +94,10 @@ content/
 Every file is validated by zod (`apps/web/src/content/schema.ts`) when the site builds (`apps/web/src/content/load.ts`);
 any problem fails the build with a list of every issue, file by file and field by field. The loader also checks
 cross-references: folder names match ids, lesson ids are unique across the course, every `lab` step has its
-`content/labs/<lab>.ts`, every `unlocks.parts` id and hook `visual.part` exists in `parts.yaml`, landmark and island
-piece ids are unique. Unknown fields are errors (typos never pass silently).
+`content/labs/<lab>.ts`, every `unlocks.parts` id and hook `visual.part` exists in `parts.yaml`, landmark ids are
+unique, and every `unlocks.isle` is a known island piece (`PIECES` in `packages/isle/src/catalog.ts`, mirrored in
+`apps/web/src/content/isle-pieces.ts`). Pieces are kinds, so many lessons may place the same one. Unknown fields are
+errors (typos never pass silently).
 
 `course.yaml`:
 
