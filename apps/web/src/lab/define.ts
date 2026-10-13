@@ -128,7 +128,7 @@ export type TriggerSpec =
 
 /**
  * A data logger: plots node voltages against time from the moment a run starts (the `start` trigger, or the Start
- * button), with a cursor that reads off time and value. Goals read runs with `lab.loggerRuns()`.
+ * button), with a cursor that reads off time and value. Goals read when a run started with `lab.loggerStart()`.
  */
 export type LoggerConfig = { kind: "logger"; traces: ScopeTrace[]; start?: TriggerSpec | TriggerSpec[]; seconds?: number; range?: [number, number] };
 

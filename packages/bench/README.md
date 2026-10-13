@@ -50,6 +50,7 @@ function Lab({ sim }) {
 | `highlight` | `string[]` | Part ids (pulsing amber frame) or anchors such as `"hole:e12"`, `"pin:R1.a"` (pulsing ring) for lab hints. |
 | `labels` | `Partial<BenchLabels>` | Translated UI strings (see `DEFAULT_LABELS`). |
 | `camera` | `{ position, target }` | Initial camera; defaults to a fit of the whole bench. |
+| `frame` | `[x0, z0, x1, z1] \| null` | Desk rectangle (mm) that the first camera and reset view frame, instead of the whole bench. |
 | `controllerRef` | `Ref<BenchController>` | `topView()`, `resetView()`, `project(anchor)` (page coordinates), `pickAt(x, y)` (what is under a point), `stats()` (draw calls). |
 | `onReady` | `() => void` | After the first frames have rendered. |
 
@@ -95,8 +96,11 @@ conductor), which is what topology checks want. Resistors pass their nominal `oh
 Part mapping: resistor, led, diode, npn, phototransistor and fuse map one to one; slide and toggle switches are `spdt`;
 ceramic and electrolytic capacitors are `capacitor` (`polarized` set); the trimmer is `pot`; the cup of water is
 `probe-resistance` (distilled 600 kΩ, tap 30 kΩ, salty 1.2 kΩ); the lemon is a `cell`. The DPDT relay becomes two
-simulator relays, `K1` and `K1:2`, whose coils sit in parallel at twice the coil resistance each, so coil current and
-pull-in voltage match one real coil.
+simulator relays, `K1` and `K1:2`, whose coils sit in parallel at twice the coil resistance (and inductance) each,
+so coil current and pull-in voltage match one real coil; a `poles: 1` relay is one simulator relay. The DPDT switch is a
+simulator `dpdt` (two poles on one slider). Touch pads are a `probe-resistance` (a fingertip, 100 kOhm to 2 MOhm, set with the
+`ohms` input). A mystery part (`mystery: "31402"`) is wired through its permutation: terminal i is the leg the
+permutation names, so the netlist sees the real wiring while the model shows only numbers.
 
 `connectivity(bench)` gives the metal-contact groups without building a netlist (used by the x-ray view).
 
@@ -127,7 +131,12 @@ The same operations exist as pure functions in `benchOps` (`movePart`, `fitOnBoa
   `JumperWire`, `StudioEnvironment`, `StudioLights`, `Desk`.
 
 Helpers: `resistorBands(ohms, 4 | 5)`, `bandsToOhms`, `formatOhms`, `formatFarads`, `ceramicCode`, `boardGeometry`,
-`parseHole`, `holeWorld`, `partPose`, `anchorPosition`, `clipTargets`, `PART_KINDS`, `partDef`.
+`parseHole`, `holeWorld`, `partPose`, `anchorPosition`, `clipTargets`, `PART_KINDS`, `partDef`, `partLegs(part)` (the
+leads a placed part actually has: a single-pole relay has five, a one-throw toggle two), `isThrowSwitch(kind)`.
+
+Mystery parts: `shuffleFor(seed, n)` gives a permutation (never the identity) from any string, `physicalLeg(part,
+leg)` is the terminal wired as `leg`, `wiredAs(part, terminal)` the reverse, and `terminalNumber(part, leg)` the
+number printed beside a terminal.
 
 ## BenchState
 
@@ -163,13 +172,18 @@ type LeadEnd = { to: Anchor | null; pos: [x, z] };
 Lead names per part: resistor `a b`; diode and LED `anode cathode`; phototransistor `e c`; npn `e b c` (flat face
 toward you, left to right); ceramic `a b`; electrolytic `pos neg`; trimmer `a wiper b`; slide and toggle switches
 `a com b`; pushbutton `a1 a2 b1 b2` (a1 and a2 face each other across the channel and are always joined); relay
-`coil1 coil2 com1 nc1 no1 com2 nc2 no2` (DIP-16 positions 1, 4, 6, 8 per side); fuse, speaker and cup `a b`;
-battery and lemon `pos neg`.
+`coil1 coil2 com1 nc1 no1 com2 nc2 no2` (DIP-16 positions 1, 4, 6, 8 per side; `poles: 1` keeps the first five);
+DPDT switch `a1 com1 b1 a2 com2 b2`; fuse, speaker, cup and touch pads `a b`; battery and lemon `pos neg`.
 
 Footprints (board pitch 2.54 mm): LED and phototransistor 2 adjacent holes; small electrolytics 2 adjacent holes,
 8 mm cans and up 2 holes apart; ceramic discs 2 holes apart; transistor, trimmer and slide switch 3 adjacent holes;
 toggle switch 3 lugs 2 holes apart; pushbutton 4 legs straddling the channel; relay 8 pins straddling the channel;
-fuse clips 4 holes apart; resistor and diode 3 to 8 holes.
+fuse clips 4 holes apart; resistor and diode 3 to 8 holes; capacitors bend their legs to `span` holes (1 to 7); touch
+pads 2 holes apart.
+
+Desk modules: `base: true` on a pushbutton, slide or toggle switch, trimmer or relay (and every DPDT switch) puts the
+part on a wooden block with brass screw terminals for clip leads (`tag` prints a name on its front). Base parts stay on
+the desk. A mystery relay or DPDT switch has an opaque cover and numbered terminals; `peek: true` shows the inside.
 
 ## Playground
 
