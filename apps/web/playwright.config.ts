@@ -4,6 +4,8 @@ const PORT = Number(process.env.OHMLAND_E2E_PORT ?? 4329);
 
 export default defineConfig({
   testDir: "e2e",
+  // The account specs need the Firebase emulators: `pnpm e2e:accounts` (playwright.accounts.config.ts).
+  testIgnore: "accounts/**",
   timeout: 60_000,
   fullyParallel: true,
   reporter: process.env.CI ? "github" : "list",

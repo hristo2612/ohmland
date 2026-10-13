@@ -15,6 +15,7 @@
     "test": "vitest run",
     "test:rules": "node scripts/emulators.mjs firestore -- vitest run --config vitest.rules.config.ts",
     "e2e": "playwright test",
+    "e2e:accounts": "node scripts/emulators.mjs auth,firestore -- playwright test --config playwright.accounts.config.ts",
     "emulators": "firebase emulators:start --only auth,firestore,hosting --project ohmland",
     "deploy:rules": "firebase deploy --only firestore:rules --project ohmland",
     "lint:colors": "node scripts/check-colors.mjs",

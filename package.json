@@ -9,6 +9,7 @@
     "build": "pnpm --filter @ohmland/web build",
     "test": "pnpm -r --if-present test",
     "test:rules": "pnpm --filter @ohmland/web test:rules",
+    "e2e:accounts": "pnpm --filter @ohmland/web e2e:accounts",
     "emulators": "pnpm --filter @ohmland/web emulators",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint:copy": "node scripts/check-copy.mjs"
