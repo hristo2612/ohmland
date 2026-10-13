@@ -1,12 +1,15 @@
-// Lab for lesson `stairway-light` (docs/curriculum/unit-2.md, Lesson 3).
-// Pre-wired by test leads: vcc through R1 and D1 to the pole of SA, and the pole of SB to gnd. All four throws are
-// free for the learner. `at` anchors are provisional until packages/bench owns BenchState.
-// LAB NEEDS: an auto truth table that logs SA, SB and whether D1 is lit for every combination.
-// Damage moments: a lead from vcc straight to a throw that SB grounds shorts the battery (`shorted`, battery warms,
-// nothing dies; the robot explains). Bypassing R1 kills D1 (a Unit 1 callback).
-// Notice: the stairway computes "same" or "different", the first logic function of the course.
-import { defineLab } from "@ohmland/lab";
-import { extraStr } from "./lib/goals-switching";
+// Blueprint: docs/curriculum/unit-2.md, Lesson 3. Two SPDT toggles on blocks: battery plus, R1 and the LED run to
+// switch A's pole; switch B's pole runs back to battery minus. The learner joins the four throws with clip leads,
+// and a truth table logs every combination of the two switches with the lamp, starting again after each rewire.
+import { defineLab, type LabView } from "@ohmland/lab";
+
+/** The truth table is full and lit in exactly these rows ("a,a" = both thrown to their first throw). */
+function litRows(lab: LabView, rows: string[]): boolean {
+  const t = lab.panel("truth");
+  const keys = Object.keys(t.cells);
+  if (keys.length < 4) return false;
+  return keys.every((k) => t.cells[k] === rows.includes(k));
+}
 
 export default defineLab({
   id: "stairway-light",
@@ -14,58 +17,105 @@ export default defineLab({
   bench: {
     board: "none",
     parts: [
-      // pins { pos: vcc, neg: gnd }
-      { id: "B1", kind: "battery", at: "mat:battery", props: { emf: 9, internalOhms: 1.5 }, locked: true },
-      // pins { a: vcc, b: r1b }
-      { id: "R1", kind: "resistor", at: "mat:r1", props: { ohms: 470 }, locked: true },
-      // pins { anode: r1b, cathode: ledk }
-      { id: "D1", kind: "led", at: "mat:lamp", props: { color: "red" }, locked: true },
-      // Downstairs switch. pins { com: ledk, a: a1, b: a2 }
-      { id: "SA", kind: "spdt", at: "mat:downstairs", props: { to: "a" }, locked: true },
-      // Upstairs switch. pins { com: gnd, a: b1, b: b2 }
-      { id: "SB", kind: "spdt", at: "mat:upstairs", props: { to: "a" }, locked: true },
-      // Pre-wired test leads.
-      { id: "W1", kind: "wire", at: "B1.pos to R1.a", locked: true },
-      { id: "W2", kind: "wire", at: "D1.cathode to SA.com", locked: true },
-      { id: "W3", kind: "wire", at: "SB.com to B1.neg", locked: true },
+      { id: "B1", kind: "battery", at: "desk:-118,6", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "R1", kind: "resistor", at: "desk:-52,-44", params: { ohms: 470 }, locked: true, label: "470 Ω resistor" },
+      { id: "D1", kind: "led", at: "desk:14,-50", rot: 180, params: { color: "red" }, locked: true, label: "Red LED (the lamp)" },
+      { id: "SA", kind: "toggle-switch", at: "desk:-36,32", params: { base: true, to: "a" }, locked: true, label: "Downstairs switch A" },
+      { id: "SB", kind: "toggle-switch", at: "desk:58,32", params: { base: true, to: "a" }, locked: true, label: "Upstairs switch B" },
     ],
-    // Four test leads for the throws.
-    tray: [{ kind: "wire", count: 4 }],
-    instruments: ["meter"],
+    leads: [
+      { id: "TL1", from: "B1.pos", to: "R1.a", color: "red", locked: true },
+      { id: "TL2", from: "R1.b", to: "D1.anode", color: "yellow", locked: true },
+      { id: "TL3", from: "D1.cathode", to: "SA.com", color: "green", locked: true },
+      { id: "TL4", from: "SB.com", to: "B1.neg", color: "black", locked: true },
+    ],
+    tray: [
+      { kind: "lead", params: { color: "blue" }, count: 2 },
+      { kind: "lead", params: { color: "white" }, count: 2 },
+    ],
+    instruments: [],
   },
+  panels: [
+    {
+      kind: "truth-table",
+      id: "truth",
+      inputs: [
+        { part: "SA", label: "Switch A", a: "A1", b: "A2" },
+        { part: "SB", label: "Switch B", a: "B1", b: "B2" },
+      ],
+      output: { part: "D1" },
+    },
+  ],
+  mascot: {
+    start: "Upstairs, downstairs, any switch, any time. Let's find out how.",
+    hint: "Flip one switch at a time and watch which row of the table fills in.",
+    success: "Four rows, one truth. Tables never get tired.",
+    fried: "That LED had no resistor in its path. Check where your clips go.",
+    exit: "You just built a logic gate. With your hands. I'm impressed.",
+  },
+  fried: { led: "Red LED, bypassed resistor in the stairway light" },
   tasks: [
     {
       id: "series-pair",
-      prompt: "Clip one lead from throw `A1` to throw `B1`. Try all four switch combinations and fill in the table.",
-      // GOAL: the truth table has all 4 rows, with exactly one row lit.
-      goal: (lab) => lab.isLit("D1") && extraStr(lab, "SA", "to") === "a" && extraStr(lab, "SB", "to") === "a",
-      hints: ["Only one path exists, and both switches must line up on it.", "Flip one switch at a time."],
+      prompt:
+        "Clip one lead from throw **A1** (switch A's left screw) to throw **B1** (switch B's left screw). Try all four switch combinations and watch the table fill.",
+      goal: (lab) => {
+        const t = lab.panel("truth");
+        return Object.keys(t.cells).length >= 4 && Object.values(t.cells).filter(Boolean).length === 1;
+      },
+      hints: ["Only one path exists, and both switches must line up on it.", "Flip one switch at a time, and wait for each row to fill."],
+      highlight: ["pin:SA.a", "pin:SB.a"],
       success: "Exactly one combination lights the lamp. That's two switches in series: both must agree on one path.",
     },
     {
       id: "two-travelers",
-      prompt: "Add a second lead from `A2` to `B2`. Now try all four combinations again.",
-      // GOAL: the table shows 2 lit rows (both switches the same way), and from any state a single flip toggles D1.
-      goal: (lab) => lab.isLit("D1") && extraStr(lab, "SA", "to") === "b" && extraStr(lab, "SB", "to") === "b",
+      prompt: "Add a second lead from **A2** to **B2** (the right screws). Now try all four combinations again.",
+      goal: (lab) => litRows(lab, ["a,a", "b,b"]),
       hints: [
-        "Each pair of throws gets its own wire. Those two wires are called travelers.",
+        "Each pair of throws gets its own lead. Those two leads are called travelers.",
         "Watch the current's path: it travels along whichever traveler both poles touch.",
       ],
+      highlight: ["pin:SA.b", "pin:SB.b"],
       success: "Any single flip changes the lamp. That's the stairway trick.",
+      notice: "The lamp is on when both switches point the same way.",
     },
     {
       id: "cross-the-travelers",
-      prompt: "Swap the travelers so `A1` goes to `B2` and `A2` goes to `B1`. What changes?",
-      // GOAL: the table shows lit rows exactly when the two switches differ.
-      goal: (lab) => {
-        const a = extraStr(lab, "SA", "to");
-        const b = extraStr(lab, "SB", "to");
-        return lab.isLit("D1") && a !== undefined && b !== undefined && a !== b;
-      },
-      hints: ["Predict first, then flip."],
+      prompt: "Swap the travelers at switch B, so **A1** goes to **B2** and **A2** goes to **B1**. What changes?",
+      goal: (lab) => litRows(lab, ["a,b", "b,a"]),
+      hints: ["Move only the two clips on switch B. Predict first, then flip."],
       success: "Still a perfect stairway, but now different means on. Both versions toggle on every flip.",
+      notice: "The stairway computes same or different: the first logic function of the course.",
     },
   ],
-  // TODO(solution): bench actions that solve every task, once packages/bench defines anchors.
-  solution: [],
+  solution: [
+    { do: "lead", id: "TL5", from: "SA.a", to: "SB.a", color: "blue" },
+    { do: "wait", seconds: 0.4 },
+    { do: "flip", part: "SA", to: "b" },
+    { do: "wait", seconds: 0.4 },
+    { do: "flip", part: "SB", to: "b" },
+    { do: "wait", seconds: 0.4 },
+    { do: "flip", part: "SA", to: "a" },
+    { do: "wait", seconds: 0.4 },
+    { do: "check", task: "series-pair" },
+    { do: "lead", id: "TL6", from: "SA.b", to: "SB.b", color: "white" },
+    { do: "wait", seconds: 0.4 },
+    { do: "flip", part: "SB", to: "a" },
+    { do: "wait", seconds: 0.4 },
+    { do: "flip", part: "SA", to: "b" },
+    { do: "wait", seconds: 0.4 },
+    { do: "flip", part: "SB", to: "b" },
+    { do: "wait", seconds: 0.4 },
+    { do: "check", task: "two-travelers" },
+    { do: "clip", lead: "TL5", end: "b", to: "SB.b" },
+    { do: "clip", lead: "TL6", end: "b", to: "SB.a" },
+    { do: "wait", seconds: 0.4 },
+    { do: "flip", part: "SA", to: "a" },
+    { do: "wait", seconds: 0.4 },
+    { do: "flip", part: "SB", to: "a" },
+    { do: "wait", seconds: 0.4 },
+    { do: "flip", part: "SA", to: "b" },
+    { do: "wait", seconds: 0.4 },
+    { do: "check", task: "cross-the-travelers" },
+  ],
 });
