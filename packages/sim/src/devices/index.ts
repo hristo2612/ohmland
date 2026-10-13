@@ -21,10 +21,10 @@ export function createDevice(spec: PartSpec, seed?: string): Device | null {
       return new ResistorDevice(spec, false);
     case "switch":
     case "pushbutton":
-      return new SwitchDevice(spec);
+      return new SwitchDevice(spec, seed);
     case "spdt":
     case "dpdt":
-      return new ThrowDevice(spec);
+      return new ThrowDevice(spec, seed);
     case "pot":
       return new PotDevice(spec);
     case "battery":

@@ -22,16 +22,22 @@ export type PartSpec =
     })
   | (Base & { kind: "battery"; pins: { pos: NodeId; neg: NodeId }; emf: number; internalOhms: number; mAh?: number })
   | (Base & { kind: "led"; pins: { anode: NodeId; cathode: NodeId }; color: LedColor; maxmA?: number })
-  | (Base & { kind: "switch"; pins: { a: NodeId; b: NodeId }; closed: boolean })
+  | (Base & { kind: "switch"; pins: { a: NodeId; b: NodeId }; closed: boolean; bounce?: Bounce })
   | (Base & {
       kind: "pushbutton";
       pins: { a: NodeId; b: NodeId };
       pressed?: boolean;
       normallyClosed?: boolean; // default false: connects only while pressed. true: connected until pressed
+      bounce?: Bounce;
     })
-  | (Base & { kind: "spdt"; pins: { com: NodeId; a: NodeId; b: NodeId }; to: "a" | "b" })
+  | (Base & { kind: "spdt"; pins: { com: NodeId; a: NodeId; b: NodeId }; to: "a" | "b"; bounce?: Bounce })
   // Two SPDT contact sets moved by one actuator (input "to"): com1 joins a1 or b1, com2 joins a2 or b2.
-  | (Base & { kind: "dpdt"; pins: { com1: NodeId; a1: NodeId; b1: NodeId; com2: NodeId; a2: NodeId; b2: NodeId }; to: "a" | "b" })
+  | (Base & {
+      kind: "dpdt";
+      pins: { com1: NodeId; a1: NodeId; b1: NodeId; com2: NodeId; a2: NodeId; b2: NodeId };
+      to: "a" | "b";
+      bounce?: Bounce;
+    })
   | (Base & { kind: "fuse"; pins: { a: NodeId; b: NodeId }; amps: number })
   | (Base & {
       kind: "capacitor";
@@ -81,6 +87,13 @@ export type PartSpec =
   // A coil: inductance in series with its winding resistance (default 1 Ω). watts: what the winding takes
   // continuously (default 1 W); far more cooks it open.
   | (Base & { kind: "inductor"; pins: { a: NodeId; b: NodeId }; henries: number; ohms?: number; watts?: number });
+
+/**
+ * Contact bounce for switches and pushbuttons: true chatters for 1 to 5 ms on every make and break (seeded by
+ * id, the netlist seed and the press count, so each press differs but runs repeat), a number is the longest
+ * chatter in milliseconds. Off by default.
+ */
+export type Bounce = boolean | number;
 
 export type PartKind = PartSpec["kind"];
 
@@ -140,6 +153,7 @@ export type InputKey =
   | "to"
   | "ohms"
   | "replaceFuse"
-  | "replace";
+  | "replace"
+  | "bounce"; // switches and pushbuttons: Bounce (true, false or the longest chatter in ms)
 
 export type InputValue = number | string | boolean;

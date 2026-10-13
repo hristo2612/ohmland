@@ -9,6 +9,7 @@
 import type { Health, InputKey, InputValue, PartSpec, PartState } from "../types";
 import { Device, R_OFF, R_ON, baseState, bool, breakdownIG, finiteOr, stampBranch, stampG, volt, type Binder, type Ctx } from "../engine/device";
 import { fmtV } from "../util/format";
+import { seededRandom } from "../util/rng";
 
 type Spec<K extends PartSpec["kind"]> = Extract<PartSpec, { kind: K }>;
 
@@ -135,17 +136,116 @@ export class Contact {
   }
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// Contact bounce. A closing contact hits, springs back open and hits again, each rebound shorter, for a few
+// milliseconds; an opening one rebounds a little too. Chatter is a seeded schedule of contact flips, so every
+// press differs but a run repeats exactly.
+
+/** Default chatter: 1 to 5 ms per make. */
+const BOUNCE_MIN_MS = 1;
+const BOUNCE_MAX_MS = 5;
+/** A changeover pole travels this long (0.5 to 2 ms) between its throws before it hits the new one. */
+const TRAVEL_MIN = 0.5e-3;
+const TRAVEL_MAX = 2e-3;
+
+/** Longest chatter in ms for a `bounce` value: 0 means off. */
+export function bounceMs(v: InputValue | undefined): number {
+  if (v === true || v === "true" || v === "on") return BOUNCE_MAX_MS;
+  if (typeof v === "number" && Number.isFinite(v) && v > 0) return Math.min(50, v);
+  if (typeof v === "string" && Number(v) > 0) return Math.min(50, Number(v));
+  return 0;
+}
+
+/**
+ * Times (seconds after the first touch or separation) at which the contact flips back and forth before it settles
+ * in its new state. Dwell in the new state grows and the rebounds shrink. An even count: it ends in the new state.
+ */
+export function chatterOffsets(rnd: () => number, maxMs: number, make: boolean): number[] {
+  const minMs = maxMs >= BOUNCE_MAX_MS ? BOUNCE_MIN_MS : 0.4 * maxMs;
+  let span = (minMs + (maxMs - minMs) * rnd()) / 1000;
+  const k = make ? 3 + Math.floor(rnd() * 6) : 1 + Math.floor(rnd() * 3);
+  if (!make) span *= 0.4;
+  const w: number[] = [];
+  for (let j = 1; j <= k; j++) {
+    w.push(j * (0.5 + rnd())); // settled in the new state
+    w.push((k - j + 1) * 0.6 * (0.5 + rnd())); // rebounded
+  }
+  const sum = w.reduce((a, b) => a + b, 0);
+  const out: number[] = [];
+  let acc = 0;
+  for (const x of w) {
+    acc += (x / sum) * span;
+    out.push(acc);
+  }
+  return out;
+}
+
+type Flip = { t: number; c: Contact; closed: boolean; loud?: boolean };
+
 /** A part made of contacts on one actuator. Subclasses create `contacts` and bind their nodes. */
 export abstract class ContactDevice extends Device {
   contacts: Contact[] = [];
   dead = false;
   /** Friendly name for messages ("switch", "button", "relay"). */
   protected abstract readonly noun: string;
+  /** Longest chatter in ms, 0 for clean contacts. */
+  bounce = 0;
+  /** Scheduled contact flips (bounce), in time order. */
+  protected flips: Flip[] = [];
+  /** Actuations so far: mixed into the bounce seed so each press chatters differently. */
+  private actuations = 0;
+  protected readonly seed: string | undefined;
 
-  constructor(spec: PartSpec) {
+  constructor(spec: PartSpec, seed?: string) {
     super(spec);
     // Open gaps can arc, which is nonlinear; below a few hundred volts the stamp is skipped.
     this.nonlinear = true;
+    this.seed = seed;
+  }
+  /** Random numbers for the next actuation's chatter. */
+  protected bounceRandom(): () => number {
+    return seededRandom(`bounce:${this.seed ?? ""}:${this.id}:${this.actuations++}`);
+  }
+  /** Moves contact c to its new state at t0 and, with bounce on, schedules the chatter that follows. */
+  protected actuate(c: Contact, closed: boolean, t0: number, ctx: Ctx, rnd?: () => number): void {
+    this.flips = this.flips.filter((f) => f.c !== c);
+    if (this.bounce <= 0 || ctx.restoring) {
+      c.set(closed, t0, ctx.restoring);
+      return;
+    }
+    const r = rnd ?? this.bounceRandom();
+    if (t0 <= ctx.t) c.set(closed, t0, false);
+    else this.flips.push({ t: t0, c, closed, loud: true });
+    let state = !closed;
+    for (const dt of chatterOffsets(r, this.bounce, closed)) {
+      this.flips.push({ t: t0 + dt, c, closed: state });
+      state = !state;
+    }
+    this.flips.sort((a, b) => a.t - b.t);
+    if (this.flips.length > 0) ctx.addBreakpoint(this.flips[0]!.t);
+  }
+  override beginStep(ctx: Ctx): void {
+    const q = this.flips;
+    if (q.length === 0) return;
+    let changed = false;
+    while (q.length > 0 && q[0]!.t <= ctx.t + 1e-12) {
+      const f = q.shift()!;
+      // Rebounds are quiet: the switching wear is booked once per actuation, not per rebound.
+      f.c.set(f.closed, ctx.t, f.loud !== true);
+      changed = true;
+    }
+    if (changed) {
+      ctx.markDirty();
+      ctx.markBreak();
+    }
+    if (q.length > 0) ctx.addBreakpoint(q[0]!.t);
+  }
+  /** True while contacts are still chattering. */
+  get bouncing(): boolean {
+    return this.flips.length > 0;
+  }
+  protected setBounce(value: InputValue): void {
+    this.bounce = bounceMs(value);
   }
   get wear(): number {
     let w = 0;
@@ -209,6 +309,7 @@ export abstract class ContactDevice extends Device {
   }
   override replace(): void {
     this.dead = false;
+    this.flips = [];
     for (const c of this.contacts) c.reset();
   }
 }
@@ -223,14 +324,16 @@ export class SwitchDevice extends ContactDevice {
   readonly normallyClosed: boolean;
   protected readonly noun: string;
 
-  constructor(spec: Spec<"switch"> | Spec<"pushbutton">) {
-    super(spec);
+  constructor(spec: Spec<"switch"> | Spec<"pushbutton">, seed?: string) {
+    super(spec, seed);
     this.normallyClosed = spec.kind === "pushbutton" && spec.normallyClosed === true;
     this.pressed = spec.kind === "pushbutton" && spec.pressed === true;
     const closed = spec.kind === "switch" ? spec.closed === true : this.pressed !== this.normallyClosed;
     this.c = new Contact(closed);
     this.contacts = [this.c];
     this.noun = spec.kind === "switch" ? "switch" : "button";
+    this.bounce = bounceMs(spec.bounce);
+    this.timed = true;
   }
   bind(b: Binder): void {
     this.c.p = b.node(this.pinNames[0]!);
@@ -253,26 +356,36 @@ export class SwitchDevice extends ContactDevice {
       s.extra.pressed = this.pressed;
       s.extra.normallyClosed = this.normallyClosed;
     }
+    if (this.bounce > 0) s.extra.bouncing = this.bouncing;
     return s;
   }
+  /** Where the actuator puts the contact (the contact itself may still be chattering). */
+  private target(): boolean {
+    return this.kind === "pushbutton" ? this.pressed !== this.normallyClosed : this.switchClosed;
+  }
+  private switchClosed: boolean = this.kind === "switch" && (this.spec as Spec<"switch">).closed === true;
   override setInput(key: InputKey, value: InputValue, ctx: Ctx): boolean {
+    if (key === "bounce") {
+      this.setBounce(value);
+      return true;
+    }
+    const before = this.target();
     if (this.kind === "pushbutton" && key === "pressed") {
       this.pressed = bool(value, this.pressed);
-      this.c.set(this.pressed !== this.normallyClosed, ctx.t, ctx.restoring);
-      return true;
-    }
-    if (key === "closed") {
+    } else if (key === "closed") {
       // Pushbuttons accept "closed" too: it sets the contact itself.
-      const closed = bool(value, this.c.closed);
+      const closed = bool(value, before);
       if (this.kind === "pushbutton") this.pressed = closed !== this.normallyClosed;
-      this.c.set(closed, ctx.t, ctx.restoring);
-      return true;
-    }
-    return false;
+      else this.switchClosed = closed;
+    } else return false;
+    const after = this.target();
+    if (after !== before || after !== this.c.closed) this.actuate(this.c, after, ctx.t, ctx);
+    return true;
   }
   override inputValue(key: InputKey): InputValue | undefined {
+    if (key === "bounce") return this.bounce;
     if (this.kind === "pushbutton") return key === "pressed" ? this.pressed : undefined;
-    return key === "closed" ? this.c.closed : undefined;
+    return key === "closed" ? this.switchClosed : undefined;
   }
 }
 
@@ -283,13 +396,15 @@ export class ThrowDevice extends ContactDevice {
   readonly poles: [Contact, Contact][];
   protected readonly noun = "switch";
 
-  constructor(spec: Spec<"spdt"> | Spec<"dpdt">) {
-    super(spec);
+  constructor(spec: Spec<"spdt"> | Spec<"dpdt">, seed?: string) {
+    super(spec, seed);
     this.to = spec.to === "b" ? "b" : "a";
     const count = spec.kind === "dpdt" ? 2 : 1;
     this.poles = [];
     for (let k = 0; k < count; k++) this.poles.push([new Contact(this.to === "a"), new Contact(this.to === "b")]);
     this.contacts = this.poles.flat();
+    this.bounce = bounceMs(spec.bounce);
+    this.timed = true;
   }
   private names(k: number): [string, string, string] {
     return this.kind === "dpdt" ? [`com${k + 1}`, `a${k + 1}`, `b${k + 1}`] : ["com", "a", "b"];
@@ -326,6 +441,7 @@ export class ThrowDevice extends ContactDevice {
     const s = baseState(ia + ib, v, Math.abs(v * (ia + ib)), 25, this.health());
     s.closed = !this.dead;
     s.extra = { to: this.to, ...this.contactState() };
+    if (this.bounce > 0) s.extra.bouncing = this.bouncing;
     if (this.poles.length > 1) {
       const [da, db] = this.poles[1]!;
       const sel2 = this.to === "a" ? da : db;
@@ -335,15 +451,35 @@ export class ThrowDevice extends ContactDevice {
     return s;
   }
   override setInput(key: InputKey, value: InputValue, ctx: Ctx): boolean {
+    if (key === "bounce") {
+      this.setBounce(value);
+      return true;
+    }
     if (key !== "to") return false;
-    this.to = value === "b" || value === 1 || value === true ? "b" : "a";
+    const to = value === "b" || value === 1 || value === true ? "b" : "a";
+    const moved = to !== this.to;
+    this.to = to;
+    if (this.bounce <= 0 || ctx.restoring || !moved) {
+      for (const [ca, cb] of this.poles) {
+        ca.set(this.to === "a", ctx.t, ctx.restoring);
+        cb.set(this.to === "b", ctx.t, ctx.restoring);
+      }
+      return true;
+    }
+    // With bounce: the pole leaves its old throw at once, travels, then hits the new throw and chatters on it.
+    // The old throw never recloses, which is why a latch after a changeover switch debounces it.
+    const rnd = this.bounceRandom();
+    const travel = TRAVEL_MIN + (TRAVEL_MAX - TRAVEL_MIN) * rnd();
     for (const [ca, cb] of this.poles) {
-      ca.set(this.to === "a", ctx.t, ctx.restoring);
-      cb.set(this.to === "b", ctx.t, ctx.restoring);
+      const [leave, reach] = this.to === "a" ? [cb, ca] : [ca, cb];
+      this.flips = this.flips.filter((f) => f.c !== leave);
+      leave.set(false, ctx.t, false);
+      this.actuate(reach, true, ctx.t + travel, ctx, seededRandom(`${rnd()}`));
     }
     return true;
   }
   override inputValue(key: InputKey): InputValue | undefined {
+    if (key === "bounce") return this.bounce;
     return key === "to" ? this.to : undefined;
   }
 }
