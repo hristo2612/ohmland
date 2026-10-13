@@ -297,19 +297,38 @@ function zincTexture(): THREE.Texture {
   });
 }
 
+let zincMat: THREE.Material | null = null;
+/** Galvanised steel (zinc spangle), shared by the lemon cell's strip and the zinc electrode. */
+export function zincMaterial(): THREE.Material {
+  zincMat ??= new THREE.MeshStandardMaterial({ map: zincTexture(), metalness: 0.85, roughness: 0.38 });
+  return zincMat;
+}
+
 export function LemonModel() {
+  const H = LEMON.height;
+  const strip = memoGeo("lemon-strip", () => roundedBox(0.7, 30, LEMON.stripW, 0.25, 2));
+  const stripY = H + LEMON.stripUp - 15;
+  return (
+    <group>
+      <LemonHalf />
+      <mesh geometry={strip} material={mat.copperBright()} position={[-10, stripY, 0]} castShadow />
+      <mesh geometry={strip} material={zincMaterial()} position={[10, stripY, 0]} castShadow />
+    </group>
+  );
+}
+
+/** Half a lemon, cut face up (the fruit cell prop, with or without electrodes). `slots` marks two cuts in the face. */
+export function LemonHalf({ slots = false }: { slots?: boolean }) {
   const R = LEMON.dia / 2;
   const H = LEMON.height;
   const face = useMemo(() => new THREE.MeshPhysicalMaterial({ map: lemonFaceTexture(), roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.15 }), []);
   const peel = useMemo(() => new THREE.MeshStandardMaterial({ color: "#f3d23a", roughness: 0.5, bumpMap: peelBump(), bumpScale: 0.8 }), []);
-  const zinc = useMemo(() => new THREE.MeshStandardMaterial({ map: zincTexture(), metalness: 0.85, roughness: 0.38 }), []);
   useLayoutEffect(
     () => () => {
       face.dispose();
       peel.dispose();
-      zinc.dispose();
     },
-    [face, peel, zinc],
+    [face, peel],
   );
   const rind = memoGeo("lemon-rind", () => {
     const pts: [number, number][] = [[0.001, 0.2], [2.2, 0.25], [3.2, 0.9]];
@@ -320,16 +339,16 @@ export function LemonModel() {
     pts.push([R - 0.2, H + 0.25], [R - 1.2, H + 0.35]);
     return latheY(pts, 56);
   });
-  const strip = memoGeo("lemon-strip", () => roundedBox(0.7, 30, LEMON.stripW, 0.25, 2));
-  const stripY = H + LEMON.stripUp - 15;
   return (
     <group>
       <mesh geometry={rind} material={peel} castShadow receiveShadow />
       <mesh material={face} position={[0, H + 0.3, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[R - 1.0, 64]} />
       </mesh>
-      <mesh geometry={strip} material={mat.copperBright()} position={[-10, stripY, 0]} castShadow />
-      <mesh geometry={strip} material={zinc} position={[10, stripY, 0]} castShadow />
+      {slots &&
+        [-11, 11].map((x) => (
+          <mesh key={x} geometry={memoGeo("lemon-slot", () => new THREE.PlaneGeometry(12, 2))} material={mat.basic("#c9a91f")} position={[x, H + 0.36, 0]} rotation={[-Math.PI / 2, 0, 0]} />
+        ))}
     </group>
   );
 }

@@ -8,7 +8,7 @@ import { boardGeometry, boardOrigin, holeWorld } from "../board";
 import { BOARD_TOP, PITCH, TOGGLE_BASE } from "../dims";
 import { METER, anchorPosition, isOnBoard, outwardHeading, partPose, probeTip, socketWorld, meterLocalToWorld } from "../layout";
 import { parseAnchor } from "../anchors";
-import { partDef, rotateXZ } from "../parts";
+import { partDef, rotateXZ, type Hotspot } from "../parts";
 import { PartModel, flyingLeads, type PartModelProps } from "../models/PartModel";
 import { useBench, useBenchStore } from "../store";
 import { MultimeterModel } from "../models/Multimeter";
@@ -87,6 +87,8 @@ function SelectionFrame({ box, color, pulse: wantPulse = false }: { box: THREE.B
 
 type PartViewProps = {
   part: PlacedPart;
+  /** The holder this part sits in, if any (its seat sets the pose). */
+  holder?: PlacedPart | undefined;
   board: BenchState["board"];
   selected: boolean;
   hinted: boolean;
@@ -112,8 +114,10 @@ const LivePartModel = memo(function LivePartModel(props: Omit<PartModelProps, "s
   // Re-render only when something visible changed, not on every snapshot.
   const key = useBench((s) => visualKey(s.snapshot?.parts[props.id]));
   const state = useMemo(() => (store.getState().snapshot?.parts[props.id] as PartState | undefined) ?? null, [store, props.id, key]);
+  // The desk clock shows simulated time.
+  const minutes = useBench((s) => (props.kind === "clock" ? Math.floor((s.snapshot?.t ?? 0) / 60) : 0));
   const { id: _id, ...rest } = props;
-  return <PartModel {...rest} state={state} />;
+  return <PartModel {...rest} state={state} minutes={minutes} />;
 });
 
 /** What a part's look depends on, as a string: health, glow (in 2% steps), contacts, display, relay armature. */
@@ -131,8 +135,12 @@ export function snapshotKey(s: { parts: Record<string, PartState> } | null): str
   return out;
 }
 
-function PartViewImpl({ part, board, selected, hinted, pressed, quality, floor }: PartViewProps) {
-  const pose = useMemo(() => partPose({ v: 1, board, parts: [part], wires: [], leads: [], meter: null }, part), [part, board]);
+function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality, floor }: PartViewProps) {
+  const pose = useMemo(() => partPose({ v: 1, board, parts: holder ? [holder, part] : [part], wires: [], leads: [], meter: null }, part), [part, holder, board]);
+  const hotspots = useMemo(() => {
+    const d = partDef(part.kind) as { hotspots?: (p: unknown) => Hotspot[] };
+    return d.hotspots ? d.hotspots(part.params) : [];
+  }, [part.kind, part.params]);
   const model = useRef<THREE.Group>(null);
   const [box, setBox] = useState<THREE.Box3 | null>(null);
   const def = partDef(part.kind);
@@ -148,7 +156,7 @@ function PartViewImpl({ part, board, selected, hinted, pressed, quality, floor }
   const outline = quality === "high" && (selected || hinted);
   const body = (
     <group ref={model}>
-      <LivePartModel id={part.id} kind={part.kind} params={part.params} mount={pose.mount} span={pose.span} quality={quality} pressed={pressed} />
+      <LivePartModel id={part.id} kind={part.kind} params={part.params} mount={pose.mount} span={pose.span} quality={quality} pressed={pressed} held={!!pose.heldBy} />
     </group>
   );
   return (
@@ -176,6 +184,9 @@ function PartViewImpl({ part, board, selected, hinted, pressed, quality, floor }
             {(selected || hinted) && <SelectionFrame box={box} color={hinted && !selected ? ACCENT : SELECT_HEX} pulse={hinted && !selected} />}
           </>
         )}
+        {hotspots.map((h, i) => (
+          <Proxy key={i} pick={{ ...h.pick, id: part.id }} size={h.size} position={h.at} />
+        ))}
         {def.span && pose.mount === "board" && pose.span !== undefined && (
           <>
             <Proxy pick={{ type: "leg", id: part.id, leg: def.span.legs[0], flying: false }} size={[2.8, 5, 2.8]} position={[0, 1.6, 0]} />

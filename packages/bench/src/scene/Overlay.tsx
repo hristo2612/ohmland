@@ -5,6 +5,8 @@ import { formatFarads, formatOhms } from "../colorCode";
 import { useLabels } from "../labels";
 import type { BenchLabels } from "../labels";
 import { DIAL_MODES } from "../layout";
+import * as ops from "../ops";
+import { partDef } from "../parts";
 import { useBench, useBenchStore } from "../store";
 import type { LeadColor, MeterMode, PlacedPart, TrayItem, WireColor } from "../types";
 import { LED_HEX, WIRE_HEX } from "../three/materials";
@@ -42,6 +44,9 @@ const CSS = `
 .ohb-status{position:absolute;left:206px;bottom:14px;padding:6px 10px;font-size:12px;font-weight:600}
 .ohb-hint{position:absolute;top:66px;left:50%;transform:translateX(-50%);padding:7px 12px;font-size:12.5px;white-space:nowrap}
 .ohb-select{all:unset;height:36px;padding:0 10px;border-radius:9px;background:rgba(60,45,30,.06);font-weight:600;cursor:pointer}
+.ohb-seg{display:inline-flex;gap:2px;padding:2px;border-radius:12px;background:rgba(60,45,30,.06)}
+.ohb-chip{min-width:44px;padding:0 9px;font-size:12.5px}
+.ohb-sel .ohb-row{flex-wrap:wrap;justify-content:center}
 .ohb-compact .ohb-tray{left:8px;right:8px;top:auto;bottom:8px;width:auto;height:92px}
 .ohb-compact .ohb-tray h2{display:none}
 .ohb-compact .ohb-tray-list{display:flex;flex-direction:row;overflow-x:auto;overflow-y:hidden;padding:6px}
@@ -165,6 +170,51 @@ export function Overlay({
       }
       if (selPart.kind === "pushbutton") {
         out.push(<Btn key="press" label={labels.press} icon={<ToolIcon name="press" />} compact={compact && !inMenu} onPointerDown={() => s.press(selPart.id, true)} onPointerUp={() => s.press(selPart.id, false)} />);
+      }
+      // Prop settings (moisture, a test load, a pencil line) and one-shot actions (erase).
+      const def = partDef(selPart.kind);
+      for (const st of def.settings ?? []) {
+        const text = labels.settings[`${selPart.kind}.${st.key}`];
+        const cur = (selPart.params as Record<string, unknown>)[st.key];
+        const name = (v: string | number | boolean) => text?.values?.[String(v)] ?? `${v}${text?.unit ? ` ${text.unit}` : ""}`;
+        const set = (v: string | number | boolean) => {
+          if (fresh()) return;
+          s.setParams(selPart.id, ops.settingParams(s.bench, selPart.id, st.key, v) as never);
+        };
+        if (st.values.length > 5) {
+          out.push(
+            <select key={`set:${st.key}`} className="ohb-select" aria-label={text?.label ?? st.key} value={String(cur)} onChange={(e) => set(st.values.find((v) => String(v) === e.target.value) ?? e.target.value)}>
+              {!st.values.some((v) => String(v) === String(cur)) && <option value={String(cur)}>{name(cur as string)}</option>}
+              {st.values.map((v) => (
+                <option key={String(v)} value={String(v)}>
+                  {name(v)}
+                </option>
+              ))}
+            </select>,
+          );
+        } else {
+          out.push(
+            <span key={`set:${st.key}`} role="group" aria-label={text?.label ?? st.key} className="ohb-seg">
+              {st.values.map((v) => (
+                <button key={String(v)} type="button" className="ohb-btn ohb-chip" aria-pressed={cur === v} onClick={() => set(v)}>
+                  {name(v)}
+                </button>
+              ))}
+            </span>,
+          );
+        }
+      }
+      for (const a of def.actions ?? []) {
+        out.push(
+          <button key={`act:${a.id}`} type="button" className="ohb-btn ohb-chip" onClick={() => {
+            if (fresh()) return;
+            const p = ops.actionParams(s.bench, selPart.id, a.id);
+            if (p) s.setParams(selPart.id, p as never);
+            close();
+          }}>
+            {labels.actions[`${selPart.kind}.${a.id}`] ?? a.id}
+          </button>,
+        );
       }
       if (!s.locked.includes(selPart.id)) out.push(<Btn key="rot" label={labels.rotate} icon={<ToolIcon name="rotate" />} compact={compact && !inMenu} onClick={() => { if (fresh()) return; s.rotatePart(selPart.id); close(); }} />);
     }

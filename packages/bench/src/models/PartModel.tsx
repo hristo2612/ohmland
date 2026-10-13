@@ -8,6 +8,7 @@ import { CeramicCapModel, ElectrolyticModel } from "./Capacitors";
 import { LedModel, PhototransistorModel } from "./Led";
 import { FuseModel, NpnModel, RelayModel, TrimmerModel } from "./Misc";
 import { CupModel, LemonModel, SpeakerModel, speakerExits } from "./Props";
+import { BinModel, CardModel, ChartModel, ClockModel, ElectrodeModel, FruitModel, HolderModel, SampleModel, ShowcaseModel, SkinModel, StationModel, TagModel } from "./LabProps";
 import { PushbuttonModel, SlideSwitchModel, ToggleSwitchModel } from "./Switches";
 import type { Mount } from "./common";
 
@@ -19,6 +20,10 @@ export type PartModelProps<K extends BenchPartKind = BenchPartKind> = {
   state?: PartState | null;
   quality?: Quality;
   pressed?: boolean;
+  /** Sitting in a holder's seat (an electrode stands up in its lemon slot). */
+  held?: boolean;
+  /** Simulated minutes since the lab started (the desk clock). */
+  minutes?: number;
 };
 
 /** Renders any bench part in its local frame. See `Mount` for what the origin means. */
@@ -60,6 +65,30 @@ export function PartModel(props: PartModelProps) {
       return <CupModel {...p} />;
     case "lemon":
       return <LemonModel />;
+    case "holder":
+      return <HolderModel />;
+    case "station":
+      return <StationModel {...p} />;
+    case "fruit":
+      return <FruitModel />;
+    case "electrode":
+      return <ElectrodeModel {...p} held={props.held} />;
+    case "skin":
+      return <SkinModel {...p} />;
+    case "sample":
+      return <SampleModel {...p} />;
+    case "card":
+      return <CardModel {...p} />;
+    case "tag":
+      return <TagModel {...p} />;
+    case "bin":
+      return <BinModel {...p} />;
+    case "chart":
+      return <ChartModel />;
+    case "clock":
+      return <ClockModel minutes={props.minutes} />;
+    case "showcase":
+      return <ShowcaseModel quality={props.quality} />;
   }
 }
 
