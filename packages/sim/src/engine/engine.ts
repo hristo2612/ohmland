@@ -1,0 +1,766 @@
+// Modified nodal analysis engine: Newton-Raphson for nonlinear parts, trapezoidal integration with backward Euler
+// after discontinuities, adaptive steps from a local truncation error estimate, and a breakpoint queue.
+//
+// Unknowns are node voltages only. Ideal wires merge nodes (union-find), sources are Norton equivalents and inductors
+// use Norton companions, so no branch-current rows are needed.
+
+import { DenseLU } from "../solver/dense";
+import type { InputKey, InputValue, Netlist, PartState, SimEvent, SimEventType } from "../types";
+import { createDevice } from "../devices";
+import { Device, GMIN, type Binder, type Ctx, type Method, type Reactive } from "./device";
+import { WireDevice } from "../devices/basic";
+
+export type EngineOptions = {
+  /** Largest step in seconds. Defaults to 2 ms, or one audio sample period when a speaker is present. */
+  maxStep?: number;
+};
+
+const RELTOL = 1e-4;
+const VNTOL = 1e-6;
+const H_BREAK = 1e-6;
+const H_MIN = 1e-12;
+/** Below this step a Newton failure is treated as a fold (a regenerative snap) and solved by homotopy at once. */
+const H_REDUCE_MIN = 6e-6;
+const MAX_ITER = 8;
+const TRTOL = 4;
+export const AUDIO_RATE = 44100;
+export const DEFAULT_MAX_STEP = 2e-3;
+
+function overrides(d: Device, name: keyof Device): boolean {
+  // True when a subclass provides its own implementation of an optional hook.
+  return (d as unknown as Record<string, unknown>)[name] !== (Device.prototype as unknown as Record<string, unknown>)[name];
+}
+
+export class Engine implements Ctx {
+  // Ctx
+  t = 0;
+  h = 0;
+  method: Method = "be";
+  sourceScale = 1;
+  noncon = false;
+
+  readonly devices: Device[] = [];
+  readonly byId = new Map<string, Device>();
+  readonly nodeIndex = new Map<string, number>();
+  readonly nodeNames: string[] = [];
+  /** Internal (private) node name to unknown index. */
+  readonly internalIndex = new Map<string, number>();
+  readonly reactives: Reactive[] = [];
+  readonly wires: WireDevice[] = [];
+  n = 0;
+  hasSpeaker = false;
+
+  private nonlinearDevs: Device[] = [];
+  private rhsDevs: Device[] = [];
+  private timedDevs: Device[] = [];
+  private acceptDevs: Device[] = [];
+
+  private lu!: DenseLU;
+  private Alin!: Float64Array;
+  private bstep!: Float64Array;
+  private bwork!: Float64Array;
+  /** Last accepted solution. */
+  x!: Float64Array;
+  private xIter!: Float64Array;
+  private xNew!: Float64Array;
+  private xBack!: Float64Array;
+
+  private linearDirty = true;
+  private linFactored = false;
+  private lastH = -1;
+  private lastMethod: Method = "be";
+  private needBreak = true;
+  private hNext = H_BREAK;
+  hmax = DEFAULT_MAX_STEP;
+  private gshunt = 0;
+  private lastIters = 0;
+  private freshStart = true;
+  private cautious = 0;
+  /** Step to restart with after a jump (the edge is already resolved to this scale). */
+  private hRestart = 0;
+
+  private readonly histT = new Float64Array(3);
+  private histCount = 0;
+  private breakpoints: number[] = [];
+
+  /** Events raised since the owner last drained them. */
+  events: SimEvent[] = [];
+  /** Optional hook called after every accepted step (audio sampling, meters). */
+  onAccept: ((e: Engine) => void) | null = null;
+
+  stats = { steps: 0, iterations: 0, factorizations: 0, rejected: 0, failed: 0, rescued: 0 };
+
+  // -------------------------------------------------------------------------------------------------------------
+  // Ctx implementation
+
+  emit(partId: string, type: SimEventType, message: string, data?: Record<string, number | string>): void {
+    const ev: SimEvent = { t: this.t, partId, type, message };
+    if (data) ev.data = data;
+    this.events.push(ev);
+  }
+  markDirty(): void {
+    this.linearDirty = true;
+  }
+  markBreak(): void {
+    this.needBreak = true;
+  }
+  addBreakpoint(t: number): void {
+    if (!(t > this.t + 1e-12) || !Number.isFinite(t)) return;
+    const bp = this.breakpoints;
+    let i = 0;
+    while (i < bp.length && bp[i]! < t) i++;
+    if (i < bp.length && Math.abs(bp[i]! - t) < 1e-12) return;
+    if (i > 0 && Math.abs(bp[i - 1]! - t) < 1e-12) return;
+    bp.splice(i, 0, t);
+  }
+
+  // -------------------------------------------------------------------------------------------------------------
+  // Building
+
+  static build(netlist: Netlist, prev: Engine | null, opts: EngineOptions = {}): Engine {
+    const e = new Engine();
+    const seen = new Set<string>();
+    for (const spec of netlist?.parts ?? []) {
+      if (!spec || typeof spec.id !== "string" || seen.has(spec.id)) continue;
+      const d = createDevice(spec);
+      if (!d) continue;
+      seen.add(spec.id);
+      e.devices.push(d);
+      e.byId.set(d.id, d);
+      if (d instanceof WireDevice) e.wires.push(d);
+      if (d.kind === "speaker") e.hasSpeaker = true;
+    }
+
+    // Union-find over node names; wires merge their two ends.
+    const parent = new Map<string, string>();
+    const find = (a: string): string => {
+      let r = a;
+      while (parent.get(r) !== r) r = parent.get(r)!;
+      let c = a;
+      while (c !== r) {
+        const nx = parent.get(c)!;
+        parent.set(c, r);
+        c = nx;
+      }
+      return r;
+    };
+    const add = (a: string) => {
+      if (!parent.has(a)) parent.set(a, a);
+    };
+    for (const d of e.devices) for (const nm of d.pinNames) add(nm);
+    for (const w of e.wires) {
+      const ra = find(w.pinNames[0]!);
+      const rb = find(w.pinNames[1]!);
+      if (ra !== rb) parent.set(ra, rb);
+    }
+
+    // Reference node: "gnd" if any part uses it, else the first battery's negative terminal, else anything.
+    const usesGnd = e.devices.some((d) => d.pinNames.includes("gnd"));
+    let refName = "gnd";
+    if (!usesGnd) {
+      const src = e.devices.find((d) => d.kind === "battery" || d.kind === "cell");
+      refName = src ? src.pin("neg") : (e.devices.find((d) => d.pinNames.length > 0)?.pinNames[0] ?? "gnd");
+    }
+    add(refName);
+    const refRoot = find(refName);
+    // Provisional ids: one per merged node group, then one per internal node a device asks for.
+    const groupId = new Map<string, number>();
+    groupId.set(refRoot, -1);
+    let groups = 0;
+    const names = [...parent.keys()];
+    for (const nm of names) {
+      const r = find(nm);
+      if (!groupId.has(r)) groupId.set(r, groups++);
+    }
+
+    // Pass 1: record which unknowns each device couples, to choose an elimination order with little fill-in.
+    let extra: string[] = [];
+    let touched: number[] = [];
+    const incidence: number[][] = [];
+    const recordId = (id: number) => {
+      if (id >= 0) touched.push(id);
+      return id;
+    };
+    const probe: Binder = {
+      node: (name: string) => {
+        if (parent.has(name)) return recordId(groupId.get(find(name))!);
+        extra.push(name);
+        return recordId(groups + extra.length - 1);
+      },
+      internal: (name: string) => {
+        extra.push(name);
+        return recordId(groups + extra.length - 1);
+      },
+      reactive: () => {},
+    };
+    for (const d of e.devices) {
+      touched = [];
+      d.bind(probe);
+      incidence.push(touched);
+    }
+    const total = groups + extra.length;
+    const order = minimumDegreeOrder(total, incidence);
+    const finalOf = new Int32Array(total);
+    order.forEach((pid, k) => (finalOf[pid] = k));
+
+    for (const nm of names) {
+      const g = groupId.get(find(nm))!;
+      e.nodeIndex.set(nm, g < 0 ? -1 : finalOf[g]!);
+      e.nodeNames.push(nm);
+    }
+    if (!e.nodeIndex.has("gnd")) {
+      // Report "gnd" as 0 V even when no part uses it (it then coincides with the chosen reference).
+      e.nodeIndex.set("gnd", -1);
+      e.nodeNames.push("gnd");
+    }
+
+    // Pass 2: bind for real with the final numbering (devices ask for the same nodes in the same order).
+    extra = [];
+    const binder: Binder = {
+      node: (name: string) => {
+        const idx = parent.has(name) ? e.nodeIndex.get(name) : undefined;
+        if (idx !== undefined) return idx;
+        extra.push(name);
+        const k = finalOf[groups + extra.length - 1]!;
+        e.internalIndex.set(name, k);
+        return k;
+      },
+      internal: (name: string) => {
+        extra.push(name);
+        const k = finalOf[groups + extra.length - 1]!;
+        e.internalIndex.set(name, k);
+        return k;
+      },
+      reactive: (r: Reactive) => {
+        e.reactives.push(r);
+      },
+    };
+    for (const d of e.devices) d.bind(binder);
+    e.n = total;
+
+    for (const d of e.devices) {
+      if (d.nonlinear) e.nonlinearDevs.push(d);
+      if (overrides(d, "stampRhs")) e.rhsDevs.push(d);
+      if (d.timed) e.timedDevs.push(d);
+      if (d.accepts && overrides(d, "accept")) e.acceptDevs.push(d);
+    }
+
+    const n = e.n;
+    e.lu = new DenseLU(n);
+    e.Alin = new Float64Array(Math.max(1, n * n));
+    e.bstep = new Float64Array(Math.max(1, n));
+    e.bwork = new Float64Array(Math.max(1, n));
+    e.x = new Float64Array(Math.max(1, n));
+    e.xIter = new Float64Array(Math.max(1, n));
+    e.xNew = new Float64Array(Math.max(1, n));
+    e.xBack = new Float64Array(Math.max(1, n));
+    e.hmax = opts.maxStep ?? (e.hasSpeaker ? 1 / AUDIO_RATE : DEFAULT_MAX_STEP);
+
+    if (prev) e.inherit(prev);
+    e.needBreak = true;
+    e.freshStart = true;
+    return e;
+  }
+
+  /** Carries time, physical state, live inputs and a solution guess over from the previous engine. */
+  private inherit(prev: Engine): void {
+    this.t = prev.t;
+    for (const d of this.devices) {
+      const old = prev.byId.get(d.id);
+      if (!old || old.kind !== d.kind) continue;
+      d.restore(old.save());
+      const oldSpec = old.spec as unknown as Record<string, unknown>;
+      const newSpec = d.spec as unknown as Record<string, unknown>;
+      for (const key of INPUT_KEYS) {
+        if (oldSpec[key] !== newSpec[key]) continue;
+        const v = old.inputValue(key);
+        if (v !== undefined) d.setInput(key, v, this);
+      }
+    }
+    // Initial guess for Newton from the old node voltages (by name, including internal nodes).
+    const oldV = new Map<string, number>();
+    for (const [nm, idx] of prev.nodeIndex) oldV.set(nm, idx >= 0 ? prev.x[idx]! : 0);
+    for (const [nm, idx] of prev.internalIndex) oldV.set(nm, prev.x[idx]!);
+    for (const map of [this.nodeIndex, this.internalIndex]) {
+      for (const [nm, idx] of map) {
+        const v = oldV.get(nm);
+        if (idx >= 0 && v !== undefined) this.x[idx] = v;
+      }
+    }
+    // Pending breakpoints in the future (relay timers re-register themselves through restore()).
+    this.events = [];
+  }
+
+  // -------------------------------------------------------------------------------------------------------------
+  // Inputs
+
+  setInput(partId: string, key: InputKey, value: InputValue): boolean {
+    const d = this.byId.get(partId);
+    if (!d) return false;
+    if (key === "replace") {
+      d.replace(this);
+      this.markDirty();
+      this.markBreak();
+      return true;
+    }
+    const ok = d.setInput(key, value, this);
+    if (ok) {
+      this.markDirty();
+      this.markBreak();
+    }
+    return ok;
+  }
+
+  // -------------------------------------------------------------------------------------------------------------
+  // Time stepping
+
+  /** Advances until t reaches tEnd (exactly). Stops early when shouldStop() returns true; returns false then. */
+  advance(tEnd: number, shouldStop?: () => boolean): boolean {
+    let guard = 0;
+    while (tEnd - this.t > 1e-13) {
+      this.stepOnce(tEnd);
+      if (shouldStop && (++guard & 3) === 0 && shouldStop()) return tEnd - this.t <= 1e-13;
+    }
+    return true;
+  }
+
+  private nextLimit(tEnd: number): number {
+    const bp = this.breakpoints;
+    while (bp.length > 0 && bp[0]! <= this.t + 1e-13) bp.shift();
+    return bp.length > 0 && bp[0]! < tEnd ? bp[0]! : tEnd;
+  }
+
+  /** Takes one accepted step that does not pass tEnd or the next breakpoint. */
+  stepOnce(tEnd: number): void {
+    for (const d of this.timedDevs) d.beginStep(this);
+
+    const isBreak = this.needBreak;
+    let method: Method = isBreak ? "be" : "tr";
+    if (isBreak) {
+      this.needBreak = false;
+      // Restart the error history at the discontinuity.
+      this.histCount = 1;
+      this.histT[0] = this.t;
+      for (const r of this.reactives) r.hist[0] = r.state;
+    }
+    const limit = this.nextLimit(tEnd);
+    let h = isBreak ? Math.min(this.hNext, Math.max(H_BREAK, this.hRestart)) : this.hNext;
+    this.hRestart = 0;
+    h = Math.min(h, this.hmax);
+    const room = limit - this.t;
+    if (room <= 0) return;
+    if (!(h > 0)) h = H_BREAK;
+    if (h >= room) h = room;
+    else if (room < 2 * h) h = room / 2;
+
+    const maxIter = this.freshStart ? 100 : MAX_ITER;
+    let failedHere = false;
+    for (let attempt = 0; ; attempt++) {
+      this.prepare(h, method);
+      let ok = this.newton(maxIter, false);
+      let jumped = false;
+      if (!ok) {
+        failedHere = true;
+        if (h > H_REDUCE_MIN && this.reactives.length > 0 && attempt < 6) {
+          this.stats.rejected++;
+          h = Math.max(h / 4, H_MIN);
+          continue;
+        }
+        // Either a hard operating point or a fold: a regenerative circuit (an astable, a latch) has run off the
+        // end of its solution branch and must snap to the other one. Treat it as a discontinuity: solve the jump
+        // with backward Euler (no memory of the old currents), by homotopy if needed, then restart integration.
+        if (method === "tr") {
+          method = "be";
+          this.prepare(h, method);
+        }
+        ok = this.rescue();
+        if (ok) {
+          this.stats.rescued++;
+          this.needBreak = true;
+          this.hRestart = h;
+          jumped = true;
+        } else {
+          // Give up on this point: keep the previous solution so time still moves on and the worker never freezes.
+          this.stats.failed++;
+          this.xIter.set(this.x);
+          this.needBreak = true;
+        }
+      }
+      if (ok && !jumped && method === "tr" && this.histCount >= 3) {
+        const ratio = this.lteRatio(h);
+        if (ratio > 1 && h > 1e-9 && attempt < 12) {
+          this.stats.rejected++;
+          h = h * Math.max(0.1, 0.9 * Math.pow(ratio, -1 / 3));
+          continue;
+        }
+        const grow = ratio > 0 ? Math.min(2, 0.9 * Math.pow(ratio, -1 / 3)) : 2;
+        this.hNext = h * Math.max(0.25, grow);
+      } else {
+        this.hNext = h * 2;
+      }
+      // Be careful for a few steps after a convergence failure: those cluster near sharp transitions.
+      if (failedHere) this.cautious = 3;
+      else if (this.cautious > 0) this.cautious--;
+      if (this.cautious > 0 || this.lastIters > 8) this.hNext = Math.min(this.hNext, h);
+      this.acceptStep(h, limit);
+      return;
+    }
+  }
+
+  private prepare(h: number, method: Method): void {
+    this.h = h;
+    this.method = method;
+    const n = this.n;
+    if (this.linearDirty || h !== this.lastH || method !== this.lastMethod) {
+      for (const r of this.reactives) r.prepare(h, method);
+      const A = this.Alin;
+      A.fill(0);
+      for (let i = 0; i < n; i++) A[i * n + i] = GMIN;
+      for (const d of this.devices) d.stampLinear(A, n, this);
+      for (const r of this.reactives) r.stampLinear(A, n);
+      this.linearDirty = false;
+      this.linFactored = false;
+      this.lastH = h;
+      this.lastMethod = method;
+    }
+    const b = this.bstep;
+    b.fill(0);
+    for (const r of this.reactives) {
+      r.history(h, method);
+      r.stampRhs(b);
+    }
+    for (const d of this.rhsDevs) d.stampRhs(b, this);
+  }
+
+  /** Newton-Raphson from the last accepted solution (or from the current iterate when fromCurrent is set). */
+  private newton(maxIter: number, fromCurrent: boolean): boolean {
+    const n = this.n;
+    if (n === 0) {
+      this.lastIters = 0;
+      return true;
+    }
+    const xi = this.xIter;
+    const xn = this.xNew;
+    const lu = this.lu;
+    if (!fromCurrent) xi.set(this.x);
+    if (this.nonlinearDevs.length === 0 && this.gshunt === 0) {
+      // Linear circuit: the factors stay valid until the linear matrix changes.
+      if (!this.linFactored) {
+        lu.a.set(this.Alin);
+        lu.factor();
+        this.linFactored = true;
+        this.stats.factorizations++;
+      }
+      lu.solve(this.bstep, xn);
+      for (let i = 0; i < n; i++) if (!Number.isFinite(xn[i]!)) return false;
+      xi.set(xn);
+      this.lastIters = 1;
+      this.stats.iterations++;
+      return true;
+    }
+    this.linFactored = false;
+    for (const d of this.nonlinearDevs) d.initIter(xi);
+    const a = lu.a;
+    for (let it = 0; it < maxIter; it++) {
+      a.set(this.Alin);
+      this.bwork.set(this.bstep);
+      this.noncon = false;
+      for (const d of this.nonlinearDevs) d.stampNonlinear(a, this.bwork, n, xi, this);
+      if (this.gshunt > 0) for (let i = 0; i < n; i++) a[i * n + i]! += this.gshunt;
+      lu.factor();
+      lu.solve(this.bwork, xn);
+      this.stats.iterations++;
+      this.stats.factorizations++;
+      let conv = !this.noncon;
+      for (let i = 0; i < n; i++) {
+        const v = xn[i]!;
+        if (!Number.isFinite(v)) return false;
+        const o = xi[i]!;
+        const d = v > o ? v - o : o - v;
+        if (conv && d > RELTOL * Math.max(v < 0 ? -v : v, o < 0 ? -o : o) + VNTOL) conv = false;
+      }
+      xi.set(xn);
+      if (conv) {
+        this.lastIters = it + 1;
+        return true;
+      }
+    }
+    this.lastIters = maxIter;
+    return false;
+  }
+
+  /** gmin stepping from the last accepted solution: a shunt to ground on every node, relaxed in steps. */
+  private gminStepping(factor: number): boolean {
+    this.xIter.set(this.x);
+    let ok = true;
+    for (let g = 1e-3; g > 1e-13; g /= factor) {
+      this.gshunt = g;
+      if (!this.newton(40, true)) {
+        ok = false;
+        break;
+      }
+    }
+    this.gshunt = 0;
+    return ok && this.newton(80, true);
+  }
+
+  /** Convergence aids: gmin stepping (coarse, then fine), then source stepping. */
+  private rescue(): boolean {
+    if (this.gminStepping(1000)) return true;
+    if (this.gminStepping(100)) return true;
+    if (this.gminStepping(10)) return true;
+
+    // source stepping
+    this.xIter.fill(0);
+    this.sourceScale = 0;
+    this.prepare(this.h, this.method);
+    let s = 0;
+    let ds = 0.1;
+    let good = this.newton(80, true);
+    while (good && s < 1) {
+      const sTry = Math.min(1, s + ds);
+      this.sourceScale = sTry;
+      this.prepare(this.h, this.method);
+      this.xBack.set(this.xIter);
+      if (this.newton(80, true)) {
+        s = sTry;
+        ds = Math.min(ds * 2, 0.5);
+      } else {
+        this.xIter.set(this.xBack);
+        ds /= 4;
+        if (ds < 1e-4) good = false;
+      }
+    }
+    this.sourceScale = 1;
+    this.prepare(this.h, this.method);
+    return good && s >= 1 && this.newton(80, true);
+  }
+
+  private lteRatio(h: number): number {
+    const T = this.histT;
+    const t0 = T[0]!;
+    const t1 = T[1]!;
+    const t2 = T[2]!;
+    const t3 = this.t + h;
+    const x = this.xIter;
+    let worst = 0;
+    const h3 = (h * h * h) / 2; // h^3/12 * 6 (third derivative = 6 x third divided difference)
+    for (const r of this.reactives) {
+      if (r.alwaysBE) continue;
+      const x3 = r.stateOf(x);
+      const hs = r.hist;
+      const x0 = hs[0]!;
+      const x1 = hs[1]!;
+      const x2 = hs[2]!;
+      const d01 = (x1 - x0) / (t1 - t0);
+      const d12 = (x2 - x1) / (t2 - t1);
+      const d23 = (x3 - x2) / (t3 - t2);
+      const d012 = (d12 - d01) / (t2 - t0);
+      const d123 = (d23 - d12) / (t3 - t1);
+      const d0123 = (d123 - d012) / (t3 - t0);
+      const lte = h3 * Math.abs(d0123);
+      const tol = TRTOL * (r.relTol * Math.max(Math.abs(x3), Math.abs(x2)) + r.absTol);
+      const ratio = lte / tol;
+      if (ratio > worst) worst = ratio;
+    }
+    return Number.isFinite(worst) ? worst : 10;
+  }
+
+  private acceptStep(h: number, limit: number): void {
+    const x = this.xIter;
+    for (const r of this.reactives) r.accept(x);
+    let tNew = this.t + h;
+    if (Math.abs(tNew - limit) < 1e-12) tNew = limit;
+    // Error history
+    if (this.histCount < 3) {
+      this.histT[this.histCount] = tNew;
+      for (const r of this.reactives) r.hist[this.histCount] = r.state;
+      this.histCount++;
+    } else {
+      this.histT[0] = this.histT[1]!;
+      this.histT[1] = this.histT[2]!;
+      this.histT[2] = tNew;
+      for (const r of this.reactives) {
+        const hs = r.hist;
+        hs[0] = hs[1]!;
+        hs[1] = hs[2]!;
+        hs[2] = r.state;
+      }
+    }
+    this.x.set(x);
+    this.t = tNew;
+    this.h = h;
+    this.freshStart = false;
+    this.stats.steps++;
+    for (const d of this.acceptDevs) d.accept(x, this);
+    if (this.onAccept) this.onAccept(this);
+  }
+
+  // -------------------------------------------------------------------------------------------------------------
+  // Read-out
+
+  voltage(name: string): number {
+    const idx = this.nodeIndex.get(name);
+    return idx !== undefined && idx >= 0 ? this.x[idx]! : 0;
+  }
+
+  nodeVoltages(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const nm of this.nodeNames) {
+      const idx = this.nodeIndex.get(nm)!;
+      out[nm] = idx >= 0 ? this.x[idx]! : 0;
+    }
+    return out;
+  }
+
+  partStates(): Record<string, PartState> {
+    const out: Record<string, PartState> = {};
+    for (const d of this.devices) if (!(d instanceof WireDevice)) out[d.id] = d.state(this.x);
+    if (this.wires.length > 0) {
+      const wi = this.wireCurrents();
+      for (const w of this.wires) {
+        const i = wi.get(w.id) ?? 0;
+        const v = this.voltage(w.pinNames[0]!) - this.voltage(w.pinNames[1]!);
+        out[w.id] = { i, v, p: 0, temp: 25, health: "ok" };
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Wires are merged away by union-find, so their currents come from KCL: the current each non-wire pin draws at a
+   * node name must arrive through the wires touching it. Each wire cluster is solved as equal tiny resistors.
+   */
+  wireCurrents(): Map<string, number> {
+    const out = new Map<string, number>();
+    if (this.wires.length === 0) return out;
+    const inj = new Map<string, number>();
+    for (const d of this.devices) {
+      if (d instanceof WireDevice) continue;
+      const pc = d.pinCurrents(this.x);
+      for (let k = 0; k < d.pinNames.length; k++) {
+        const nm = d.pinNames[k]!;
+        inj.set(nm, (inj.get(nm) ?? 0) + (pc[k] ?? 0));
+      }
+    }
+    // Clusters of names connected by wires.
+    const adj = new Map<string, WireDevice[]>();
+    for (const w of this.wires) {
+      for (const nm of w.pinNames) {
+        let l = adj.get(nm);
+        if (!l) adj.set(nm, (l = []));
+        l.push(w);
+      }
+    }
+    const done = new Set<string>();
+    for (const start of adj.keys()) {
+      if (done.has(start)) continue;
+      const names: string[] = [];
+      const stack = [start];
+      done.add(start);
+      while (stack.length) {
+        const nm = stack.pop()!;
+        names.push(nm);
+        for (const w of adj.get(nm)!) {
+          for (const o of w.pinNames) {
+            if (!done.has(o)) {
+              done.add(o);
+              stack.push(o);
+            }
+          }
+        }
+      }
+      const m = names.length;
+      const idx = new Map(names.map((nm, k) => [nm, k]));
+      const cw = new Set<WireDevice>();
+      for (const nm of names) for (const w of adj.get(nm)!) cw.add(w);
+      if (m <= 1) {
+        for (const w of cw) out.set(w.id, 0);
+        continue;
+      }
+      // Laplacian L phi = -inj with the first name grounded.
+      const k = m - 1;
+      const lu = new DenseLU(k);
+      const rhs = new Float64Array(k);
+      const sol = new Float64Array(k);
+      for (const w of cw) {
+        const a = idx.get(w.pinNames[0]!)! - 1;
+        const b = idx.get(w.pinNames[1]!)! - 1;
+        if (a === b) continue;
+        if (a >= 0) lu.a[a * k + a]! += 1;
+        if (b >= 0) lu.a[b * k + b]! += 1;
+        if (a >= 0 && b >= 0) {
+          lu.a[a * k + b]! -= 1;
+          lu.a[b * k + a]! -= 1;
+        }
+      }
+      for (let r = 0; r < k; r++) rhs[r] = -(inj.get(names[r + 1]!) ?? 0);
+      lu.factor();
+      lu.solve(rhs, sol);
+      const phi = (nm: string) => {
+        const r = idx.get(nm)! - 1;
+        return r >= 0 ? sol[r]! : 0;
+      };
+      for (const w of cw) out.set(w.id, phi(w.pinNames[0]!) - phi(w.pinNames[1]!));
+    }
+    return out;
+  }
+
+  /** Sum of the voltages across all speakers (for the audio stream). */
+  speakerVolts(): number {
+    let v = 0;
+    for (const d of this.devices) if (d.kind === "speaker") v += d.audioVolts;
+    return v;
+  }
+
+  drainEvents(): SimEvent[] {
+    const ev = this.events;
+    this.events = [];
+    return ev;
+  }
+}
+
+export const INPUT_KEYS: InputKey[] = ["pressed", "closed", "position", "light", "mode", "range", "to", "ohms"];
+
+/**
+ * Greedy minimum-degree ordering of the unknowns (devices couple all of their nodes). Eliminating low-degree nodes
+ * first (internal series-resistance nodes, then signal nodes, supply rails last) keeps LU fill-in small, which makes
+ * the sparse-aware dense factorisation much cheaper. Deterministic: ties go to the lower provisional id.
+ */
+function minimumDegreeOrder(total: number, incidence: number[][]): number[] {
+  const adj: Set<number>[] = [];
+  for (let i = 0; i < total; i++) adj.push(new Set());
+  for (const nodes of incidence) {
+    for (let a = 0; a < nodes.length; a++) {
+      for (let b = a + 1; b < nodes.length; b++) {
+        const u = nodes[a]!;
+        const v = nodes[b]!;
+        if (u === v) continue;
+        adj[u]!.add(v);
+        adj[v]!.add(u);
+      }
+    }
+  }
+  const done = new Uint8Array(total);
+  const order: number[] = [];
+  for (let k = 0; k < total; k++) {
+    let best = -1;
+    let bestDeg = Infinity;
+    for (let i = 0; i < total; i++) {
+      if (done[i]) continue;
+      const d = adj[i]!.size;
+      if (d < bestDeg) {
+        bestDeg = d;
+        best = i;
+      }
+    }
+    done[best] = 1;
+    order.push(best);
+    const nb = [...adj[best]!];
+    for (const v of nb) {
+      adj[v]!.delete(best);
+      for (const w of nb) if (w !== v) adj[v]!.add(w);
+    }
+  }
+  return order;
+}
