@@ -54,8 +54,14 @@ export type LearnerStoreState = {
   saveProgress(lessonId: string, entry: Omit<InProgress, "at">): void;
   clearProgress(lessonId: string): void;
   completeLesson(input: CompleteInput): Completion;
-  recordFried(kind: string, label: string, lessonId: string | null): { earned: Achievement[] };
+  /** Adds a part to the Hall of Fried Parts. `silent` skips the toast (the lab shows its own card). */
+  recordFried(kind: string, label: string, lessonId: string | null, opts?: { silent?: boolean }): { earned: Achievement[] };
+  /** A lab event (task done, achievement trigger): evaluates achievements against it and toasts what unlocks. */
+  labEvent(event: LabEvent): { earned: Achievement[] };
   setSettings(patch: Partial<Settings>): void;
+  /** Saves a free-build bench under a new id (or replaces `id`). Returns the id. */
+  saveBench(name: string, bench: unknown, id?: string): string;
+  deleteBench(id: string): void;
   exportJson(): string;
   importJson(text: string): Promise<boolean>;
   /** Deletes all progress on this device (and, while syncing, the cloud copy too). Keeps the settings. */
@@ -218,16 +224,40 @@ export const useLearner = create<LearnerStoreState>((set, get) => {
       };
     },
 
-    recordFried(kind, label, lessonId) {
+    recordFried(kind, label, lessonId, opts) {
       const { learner, outline } = get();
       const at = nowIso();
       const fried = [...learner.fried, { kind, label, lessonId, at }].slice(-FRIED_CAP);
       const events: LabEvent[] = [{ type: "fried", kind, lessonId }];
       const evaluated = evaluateAchievements({ state: { ...learner, fried }, outline, events }, at);
       commit(evaluated.state);
-      toast({ title: m.fried.toastTitle(label), body: m.fried.toastBody, tone: "fried", mascot: "oops" });
+      if (!opts?.silent) toast({ title: m.fried.toastTitle(label), body: m.fried.toastBody, tone: "fried", mascot: "oops" });
       for (const a of evaluated.earned) toast({ title: m.achievements.toast(a.title), body: a.description, tone: "good", icon: a.icon });
       return { earned: evaluated.earned };
+    },
+
+    labEvent(event) {
+      const { learner, outline } = get();
+      const evaluated = evaluateAchievements({ state: learner, outline, events: [event] }, nowIso());
+      if (!evaluated.earned.length) return { earned: [] };
+      commit(evaluated.state);
+      for (const a of evaluated.earned) toast({ title: m.achievements.toast(a.title), body: a.description, tone: "good", icon: a.icon });
+      return { earned: evaluated.earned };
+    },
+
+    saveBench(name, bench, id) {
+      const { learner } = get();
+      const key = id ?? `b${Date.now().toString(36)}`;
+      commit({ ...learner, sandbox: { saved: { ...learner.sandbox.saved, [key]: { name, bench, at: nowIso() } } } });
+      return key;
+    },
+
+    deleteBench(id) {
+      const { learner } = get();
+      if (!learner.sandbox.saved[id]) return;
+      const saved = { ...learner.sandbox.saved };
+      delete saved[id];
+      commit({ ...learner, sandbox: { saved } });
     },
 
     setSettings(patch) {
