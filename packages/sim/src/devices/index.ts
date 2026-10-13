@@ -3,7 +3,7 @@ import type { Device } from "../engine/device";
 import { FuseDevice, PotDevice, ResistorDevice, SourceDevice, WireDevice } from "./basic";
 import { SwitchDevice, ThrowDevice } from "./contacts";
 import { DiodeDevice, LedDevice, NpnDevice, PhototransistorDevice } from "./semis";
-import { CapacitorDevice, RelayDevice, SpeakerDevice } from "./reactive";
+import { CapacitorDevice, InductorDevice, RelayDevice, SpeakerDevice } from "./reactive";
 import { MultimeterDevice } from "./meter";
 
 /**
@@ -48,6 +48,8 @@ export function createDevice(spec: PartSpec, seed?: string): Device | null {
       return new SpeakerDevice(spec);
     case "multimeter":
       return new MultimeterDevice(spec);
+    case "inductor":
+      return new InductorDevice(spec);
     default:
       return null;
   }

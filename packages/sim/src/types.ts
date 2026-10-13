@@ -77,7 +77,10 @@ export type PartSpec =
   | (Base & { kind: "probe-resistance"; pins: { a: NodeId; b: NodeId }; ohms: number })
   | (Base & { kind: "cell"; pins: { pos: NodeId; neg: NodeId }; emf: number; internalOhms: number })
   // ohms > 0 makes a real (unmerged) resistance, for clip leads and test leads (about 0.1 to 0.15 Ω).
-  | (Base & { kind: "wire"; pins: { a: NodeId; b: NodeId }; ohms?: number });
+  | (Base & { kind: "wire"; pins: { a: NodeId; b: NodeId }; ohms?: number })
+  // A coil: inductance in series with its winding resistance (default 1 Ω). watts: what the winding takes
+  // continuously (default 1 W); far more cooks it open.
+  | (Base & { kind: "inductor"; pins: { a: NodeId; b: NodeId }; henries: number; ohms?: number; watts?: number });
 
 export type PartKind = PartSpec["kind"];
 
