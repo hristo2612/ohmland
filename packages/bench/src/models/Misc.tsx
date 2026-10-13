@@ -311,20 +311,45 @@ function FuseCartridge({ amps, blown, quality }: { amps: number; blown: boolean;
   );
 }
 
-/** Spring clip that holds one end cap (pin down into the hole at the origin). */
+/** Spring clip that holds one end cap (pin down into the hole at the origin, under the cap). */
 function FuseClip({ toward }: { toward: 1 | -1 }) {
   const r = FUSE.dia / 2;
   const axisY = 1.0 + r;
+  // A curved spring band wrapping the cap from below, open at the top, with a stop tab past the cap's outer end.
+  const band = memoGeo("fclip-band", () => {
+    const open = 2.0;
+    const g = new THREE.CylinderGeometry(r + 0.3, r + 0.3, 3.4, 32, 1, true, Math.PI / 2 + open / 2, Math.PI * 2 - open);
+    g.rotateZ(Math.PI / 2);
+    return g;
+  });
+  const roll = memoGeo("fclip-roll", () => {
+    const open = 2.0;
+    const g = new THREE.CylinderGeometry(r + 0.45, r + 0.45, 0.5, 32, 1, true, Math.PI / 2 + open / 2, Math.PI * 2 - open);
+    g.rotateZ(Math.PI / 2);
+    return g;
+  });
   return (
     <group>
-      <mesh geometry={memoGeo("fclip-base", () => new THREE.BoxGeometry(3.6, 0.35, 5.4))} material={mat.brass()} position={[toward * 1.9, 0.85, 0]} castShadow />
-      {[-1, 1].map((sz) => (
-        <mesh key={sz} geometry={memoGeo("fclip-arm", () => new THREE.BoxGeometry(3.2, axisY + 0.6, 0.35))} material={mat.brass()} position={[toward * 1.9, 0.85 + (axisY + 0.6) / 2, sz * (r + 0.25)]} rotation={[sz * 0.1, 0, 0]} castShadow />
-      ))}
-      <mesh geometry={memoGeo("fclip-stop", () => new THREE.BoxGeometry(0.35, 1.6, 2.4))} material={mat.brass()} position={[toward * 0.05 - toward * 0.1, 1.6, 0]} />
+      <group position={[0, axisY, 0]}>
+        <mesh geometry={band} material={brassDouble()} castShadow />
+        <mesh geometry={roll} material={brassDouble()} position={[1.5, 0, 0]} />
+        <mesh geometry={roll} material={brassDouble()} position={[-1.5, 0, 0]} />
+      </group>
+      <mesh geometry={memoGeo("fclip-foot", () => new THREE.BoxGeometry(3.4, 0.35, 2.8))} material={mat.brass()} position={[0, 0.85, 0]} castShadow />
+      <mesh geometry={memoGeo("fclip-stop", () => new THREE.BoxGeometry(0.35, 2.6, 2.2))} material={mat.brass()} position={[-toward * 2.45, axisY - 0.9, 0]} />
       <mesh geometry={memoGeo("fclip-pin", () => bentTube([[0, 0.9, 0], [0, IN_HOLE, 0]], 0.32, 0.2, 6))} material={mat.brass()} castShadow />
     </group>
   );
+}
+
+let brassDoubleMat: THREE.Material | null = null;
+function brassDouble(): THREE.Material {
+  if (!brassDoubleMat) {
+    const m = (mat.brass() as THREE.MeshStandardMaterial).clone();
+    m.side = THREE.DoubleSide;
+    brassDoubleMat = m;
+  }
+  return brassDoubleMat;
 }
 
 export function FuseModel({ params, mount, state, quality = "high" }: ModelProps<PartParamsMap["fuse"]>) {

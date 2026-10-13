@@ -21,8 +21,8 @@ export const BATTERY_TERM_X = BATTERY.termSpacing / 2;
 
 /** Where the snap connector's leads leave its top, in battery-local coordinates. */
 export const SNAP_EXITS = {
-  pos: { pos: [-1.4, TOP + 7.6, 0] as [number, number, number], dir: [0.15, 1, 0.35] as [number, number, number] },
-  neg: { pos: [1.4, TOP + 7.6, 0] as [number, number, number], dir: [0.3, 1, 0.3] as [number, number, number] },
+  pos: { pos: [-1.5, TOP + 3.3, 7.4] as [number, number, number], dir: [0, -0.12, 1] as [number, number, number] },
+  neg: { pos: [1.5, TOP + 3.3, 7.4] as [number, number, number], dir: [0, -0.12, 1] as [number, number, number] },
 };
 
 function labelTexture(): THREE.CanvasTexture {
@@ -139,13 +139,14 @@ function TopTerminals() {
 function SnapCap() {
   const body = memoGeo("snap-body", () => roundedBox(W - 0.8, 6.8, 10.2, 2.6, 3));
   const boss = memoGeo("snap-boss", () => new THREE.CylinderGeometry(3.6, 3.9, 0.8, 28));
-  const tube = memoGeo("snap-tube", () => roundedBox(5.4, 3.2, 3.2, 1.2, 2));
+  const tube = memoGeo("snap-tube", () => roundedBox(6.4, 3.0, 3.6, 1.2, 2));
   return (
     <group position={[0, TOP + 3.4, 0]}>
       <mesh geometry={body} material={mat.blackMatte()} castShadow />
       <mesh geometry={boss} material={mat.blackMatte()} position={[-BATTERY_TERM_X, 3.6, 0]} />
       <mesh geometry={boss} material={mat.blackMatte()} position={[BATTERY_TERM_X, 3.6, 0]} />
-      <mesh geometry={tube} material={mat.blackMatte()} position={[0, 4.6, 0]} castShadow />
+      {/* Strain relief where the two leads leave the front of the cap. */}
+      <mesh geometry={tube} material={mat.blackMatte()} position={[0, -0.1, 5.6]} castShadow />
     </group>
   );
 }

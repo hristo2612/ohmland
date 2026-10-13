@@ -124,7 +124,7 @@ function PartViewImpl({ part, board, state, selected, hinted, pressed, quality, 
   return (
     <group>
       <group position={pose.origin} rotation={[0, rotY, 0]}>
-        {outline ? <Select enabled>{body}</Select> : body}
+        <Select enabled={outline}>{body}</Select>
         {box && (
           <>
             <Proxy
