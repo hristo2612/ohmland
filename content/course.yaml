@@ -1,0 +1,18 @@
+# The course: unit order. Each unit in `units` has a folder content/units/<id>/ with a unit.yaml.
+# Units in `upcoming` are planned and show as "coming soon" on the course map until their folder exists.
+title: Ohmland
+units:
+  - basics
+upcoming:
+  - id: switching
+    title: Switching
+    summary: Switches, relays, breadboards, capacitors, transistors, light and sound.
+  - id: making-it-permanent
+    title: Making it permanent
+    summary: Soldering, perfboard and building circuits that last.
+  - id: chips
+    title: Chips
+    summary: The 555 timer, logic gates, counters and latches.
+  - id: beyond
+    title: Beyond
+    summary: Magnetism, induction, radio and microcontrollers.

@@ -1,0 +1,9 @@
+id: basics
+title: Basics
+summary: Meet the meter, then resistance, current, voltage, power and cells.
+isle:
+  theme: green-board
+  seed: 1
+# The sample module is a placeholder that exercises every step and quiz type. Real modules replace it.
+modules:
+  - sample-first-light

@@ -1,0 +1,113 @@
+# SAMPLE LESSON. It exists so every step type renders end to end, and will be replaced by real lessons.
+id: sample-first-glow
+version: 1
+title: "Sample: Make an LED glow"
+summary: Light an LED, burn one out on purpose, then find out why it needs a resistor.
+minutes: 8
+unlocks:
+  parts: [battery-9v, resistor, led]
+  isle: sample-street-lamp
+steps:
+  - type: hook
+    body: |
+      An LED is a tiny light that runs on very little current: about 20 mA at most for a typical 5 mm one.
+      Give it more than that and it burns out in a blink.
+
+      On this bench, burning things out is free. So start with a guess.
+    visual: { kind: part, part: led }
+    predict:
+      prompt: You connect a red LED straight to a 9 V battery, with nothing else in the loop. What happens?
+      options:
+        - It glows a little brighter than usual
+        - It glows normally
+        - It flashes bright, then goes dark for good
+
+  - type: lab
+    lab: sample-light-an-led
+    intro: Build the circuit, measure it, then break it on purpose.
+
+  - type: explain
+    cards:
+      - title: The LED takes what it can get
+        body: |
+          If you guessed it burns out, you were right. Once a red LED has about 2 V across it, its current
+          climbs steeply with every extra bit of voltage. Nothing inside it says stop. Connected straight to 9 V,
+          the current shoots far past its rating and the LED dies.
+      - title: A resistor sets the limit
+        body: |
+          Put a resistor in series and the current has to squeeze through it. The current through a resistor is
+          the voltage across it divided by its resistance: **I = V / R**. Drag the sliders to see how the two
+          trade off.
+        widget: { kind: ohms-law, props: { volts: 7, ohms: 470 } }
+      - title: Where the 9 V goes
+        body: |
+          Around a loop, the voltages across the parts add up to the battery's voltage. A red LED takes about
+          2 V. The resistor takes the other 7 V. That is why you use 7 V, not 9 V, to pick the resistor:
+          7 V / 470 Ω is about 15 mA, a comfortable glow.
+        mascot: The LED's 2 V barely changes. The resistor does all the adjusting.
+
+  - type: quiz
+    items:
+      - id: why-resistor
+        type: choice
+        prompt: Why does the LED need a resistor in series?
+        options:
+          - text: To limit the current through the LED
+            correct: true
+            why: An LED cannot limit its own current, so the resistor does it.
+          - text: To raise the voltage to what the LED needs
+            why: A resistor never raises voltage. It takes some of the voltage for itself.
+          - text: To make the LED blink
+            why: Blinking needs a timing circuit. A resistor alone keeps the current steady.
+        explain: The resistor is the brake. Without it, the current is limited only by the battery, and that is far too much.
+
+      - id: smaller-current
+        type: choice
+        prompt: Which changes would make the LED's current smaller?
+        options:
+          - text: Use a bigger resistor, such as 1 kΩ
+            correct: true
+            why: More resistance means less current for the same voltage.
+          - text: Use a battery with a lower voltage
+            correct: true
+            why: Less voltage across the resistor pushes less current through it.
+          - text: Use longer wires
+            why: Hookup wire has almost no resistance, so its length barely changes anything here.
+        explain: Current depends on the voltage across the resistor and on its resistance. Change either one and the current follows.
+
+      - id: current-470
+        type: numeric
+        prompt: The resistor has 7 V across it and a resistance of 470 Ω. How much current flows through it?
+        answer: 14.9
+        unit: mA
+        tolerance: 3
+        hint: Use I = V / R, then turn amps into milliamps.
+        explain: "I = V / R = 7 V / 470 Ω, which is about 0.0149 A. Multiply by 1000 to get milliamps: about 15 mA."
+
+      - id: loop-order
+        type: order
+        prompt: In this circuit the resistor sits between the battery's plus terminal and the LED. Follow conventional current around the loop.
+        items:
+          - The battery's plus terminal
+          - The resistor
+          - The LED's anode (the longer leg)
+          - The LED's cathode (the shorter leg)
+          - The battery's minus terminal
+        explain: Conventional current leaves the plus terminal, passes through each part in turn and returns to the minus terminal.
+
+  - type: wrap
+    rules:
+      - An LED always needs something to limit its current, usually a resistor in series.
+      - "Ohm's law: **I = V / R**."
+      - Around a loop, the voltages across the parts add up to the supply voltage.
+    realWorld:
+      body: You can build this on a desk in two minutes. No soldering needed.
+      parts:
+        - A 9 V battery and a snap connector
+        - A red 5 mm LED
+        - A 470 Ω resistor (yellow, violet, brown, gold)
+        - Two clip leads, or a small breadboard
+      safety:
+        - A 9 V battery is safe to touch, but never short its terminals. It gets hot fast.
+        - Skip the resistor only in the simulator. On a real bench the LED dies at once.
+        - Never connect anything from this lesson to mains electricity.

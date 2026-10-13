@@ -1,0 +1,158 @@
+# The parts bin catalog. Lessons unlock parts by id (lesson.yaml: unlocks.parts).
+# `icon` picks the 2D drawing; a 3D preview comes later from packages/bench.
+parts:
+  - id: battery-9v
+    name: 9 V battery
+    icon: battery
+    blurb: A small box of stored energy with both terminals on top.
+    facts:
+      - Gives about 9 V when fresh, sagging toward 7 V as it runs down.
+      - Holds roughly 500 mAh, enough to supply 20 mA for about a day.
+      - The smaller, round snap is the positive terminal.
+      - Shorting the terminals makes it hot. Never carry one loose next to coins or keys.
+
+  - id: resistor
+    name: Resistor
+    icon: resistor
+    blurb: Limits current. The most common part in electronics.
+    facts:
+      - Resistance is measured in ohms (Ω). Everyday values run from 10 Ω to 1 MΩ.
+      - Coloured bands give its value. Yellow, violet, brown is 470 Ω.
+      - A typical small resistor is rated for 0.25 W. Past that it overheats and can burn.
+      - It has no polarity, so it works either way round.
+
+  - id: led
+    name: LED
+    icon: led
+    blurb: A light-emitting diode. A tiny, efficient light that only works one way round.
+    facts:
+      - Current flows in at the anode (the longer leg) and out at the cathode (the shorter leg).
+      - A red LED drops about 2 V. Blue and white ones drop about 3 V.
+      - A typical 5 mm LED is rated around 20 mA. Always limit its current.
+
+  - id: multimeter
+    name: Multimeter
+    icon: multimeter
+    blurb: Measures voltage, current and resistance. Your eyes for electricity.
+    facts:
+      - Measure voltage across a part, and current by putting the meter in the loop.
+      - The black lead goes in COM. The red lead moves to match what you measure.
+      - The mA socket has a fuse inside. Too much current blows it.
+
+  - id: test-leads
+    name: Test leads
+    icon: test-leads
+    blurb: Probes and clip leads that connect the meter to a circuit.
+    facts:
+      - By convention black is the common (negative) lead and red the positive one.
+      - Alligator clips hold on by themselves, so your hands stay free.
+
+  - id: breadboard
+    name: Breadboard
+    icon: breadboard
+    blurb: Build circuits without soldering by pushing leads into holes.
+    facts:
+      - Each short row of five holes is joined inside by a metal strip.
+      - The long rails along the edges carry power, usually marked red for plus and blue for minus.
+      - The gap down the middle lets a chip straddle it, each pin on its own strip.
+
+  - id: jumper-wire
+    name: Jumper wires
+    icon: jumper-wire
+    blurb: Short wires with stiff ends, made for breadboards.
+    facts:
+      - Their resistance is tiny, a small fraction of an ohm.
+      - Colours mean nothing electrically, but red for plus and black for minus keeps you sane.
+
+  - id: pushbutton
+    name: Pushbutton
+    icon: pushbutton
+    blurb: A switch that is on only while you press it.
+    facts:
+      - It is momentary. A spring pushes it back when you let go.
+      - Most small tactile buttons have four legs, joined inside in two pairs.
+
+  - id: slide-switch
+    name: Slide switch
+    icon: switch
+    blurb: Stays where you put it, on or off.
+    facts:
+      - SPDT means single pole, double throw. One input connects to one of two outputs.
+      - Small slide switches are usually rated for half an amp or less.
+
+  - id: fuse
+    name: Fuse
+    icon: fuse
+    blurb: A thin wire that melts on purpose to protect a circuit.
+    facts:
+      - When too much current flows, the wire inside melts and the circuit opens.
+      - A blown fuse must be replaced, always with the same rating.
+      - Fast-blow fuses react in milliseconds. Slow-blow fuses ride out short surges.
+
+  - id: capacitor
+    name: Capacitor
+    icon: capacitor
+    blurb: Stores charge, then lets it go.
+    facts:
+      - Capacitance is measured in farads. Everyday values are in µF, nF and pF.
+      - Electrolytic capacitors have polarity. The stripe marks the negative leg.
+      - Never exceed a capacitor's voltage rating.
+
+  - id: potentiometer
+    name: Potentiometer
+    icon: pot
+    blurb: A resistor with a knob.
+    facts:
+      - Three legs. The outer two are the ends of a track, the middle one is a wiper that slides along it.
+      - Turning the knob changes the resistance between the wiper and each end.
+
+  - id: relay
+    name: Relay
+    icon: relay
+    blurb: A switch flipped by an electromagnet.
+    facts:
+      - A small current through the coil can switch a much bigger current.
+      - You can hear it click when it switches.
+      - A diode across the coil soaks up the voltage spike when it turns off.
+
+  - id: npn-transistor
+    name: NPN transistor
+    icon: transistor
+    blurb: A small current at the base controls a bigger one.
+    facts:
+      - The 2N3904 has three legs. Collector, base and emitter.
+      - A small base current lets a current about 100 times bigger flow from collector to emitter.
+      - The 2N3904 handles up to 200 mA of collector current.
+
+  - id: phototransistor
+    name: Phototransistor
+    icon: phototransistor
+    blurb: A transistor switched by light.
+    facts:
+      - More light lets more current flow.
+      - Light falling on it does the job of a base current.
+
+  - id: diode
+    name: Diode
+    icon: diode
+    blurb: A one-way valve for current.
+    facts:
+      - The stripe marks the cathode.
+      - A silicon diode drops about 0.7 V while it conducts.
+      - The 1N4001 handles up to 1 A.
+
+  - id: speaker
+    name: Speaker
+    icon: speaker
+    blurb: Turns a changing current into sound.
+    facts:
+      - Small speakers are often 8 Ω.
+      - A steady current makes no sound. The current has to change to move the cone.
+
+  - id: fruit-cell
+    name: Fruit cell
+    icon: cell
+    blurb: Two different metals in a lemon make a weak battery.
+    facts:
+      - A zinc and copper pair in a lemon gives about 0.9 V.
+      - It supplies only a tiny current, too little to light most LEDs on its own.
