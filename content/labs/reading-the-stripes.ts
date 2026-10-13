@@ -20,7 +20,7 @@ const labelled = (lab: LabView, label: string, resistor: string): boolean => {
 };
 
 // Where the resistors lie, tipped out of the bag (desk mm).
-const AT: Record<string, [number, number]> = { R1: [-150, -12], R2: [-92, 8], R3: [-36, -14], R4: [20, 6], R5: [76, -12] };
+const AT: Record<string, [number, number]> = { R1: [-104, -6], R2: [-64, 10], R3: [-16, -8], R4: [32, 8], R5: [80, -6] };
 
 export default defineLab({
   id: "reading-the-stripes",
@@ -34,17 +34,17 @@ export default defineLab({
       { id: "R4", kind: "resistor", at: `desk:${AT.R4}`, rot: -6, params: { ohms: 1500, watts: 0.25, actualOhms: 1520 }, label: "1.5 kΩ resistor" },
       // Out of tolerance (+11.8%); its body is very slightly darkened.
       { id: "R5", kind: "resistor", at: `desk:${AT.R5}`, rot: 12, params: { ohms: 2200, watts: 0.25, actualOhms: 2460 }, label: "2.2 kΩ resistor" },
-      { id: "CH1", kind: "chart", at: "desk:-60,-92", locked: true, label: "Colour chart" },
-      { id: "BIN1", kind: "bin", at: "desk:86,-86", locked: true, label: "Reject bin" },
+      { id: "CH1", kind: "chart", at: "desk:-80,-86", locked: true, label: "Colour chart" },
+      { id: "BIN1", kind: "bin", at: "desk:56,-82", locked: true, label: "Reject bin" },
       // The value labels, shuffled along the front.
-      { id: "L3", kind: "tag", at: "desk:-148,58", params: { text: "470 Ω" } },
-      { id: "L5", kind: "tag", at: "desk:-110,64", params: { text: "2.2 kΩ" } },
-      { id: "L1", kind: "tag", at: "desk:-72,58", params: { text: "15 Ω" } },
-      { id: "L4", kind: "tag", at: "desk:-34,64", params: { text: "1.5 kΩ" } },
-      { id: "L2", kind: "tag", at: "desk:4,58", params: { text: "150 Ω" } },
+      { id: "L3", kind: "tag", at: "desk:-100,46", params: { text: "470 Ω" } },
+      { id: "L5", kind: "tag", at: "desk:-62,52", params: { text: "2.2 kΩ" } },
+      { id: "L1", kind: "tag", at: "desk:-24,46", params: { text: "15 Ω" } },
+      { id: "L4", kind: "tag", at: "desk:14,52", params: { text: "1.5 kΩ" } },
+      { id: "L2", kind: "tag", at: "desk:52,46", params: { text: "150 Ω" } },
     ],
     tray: [],
-    instruments: [{ kind: "meter", at: "desk:176,22", mode: "ohm", range: "2k" }],
+    instruments: [{ kind: "meter", at: "desk:168,22", mode: "ohm", range: "2k" }],
   },
   mascot: {
     start: "Stripes, not numbers. Let's crack the code.",

@@ -20,11 +20,11 @@ export default defineLab({
   bench: {
     board: "none",
     parts: [
-      { id: "B1", kind: "battery", at: "desk:-84,12", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, label: "Fresh 9 V battery" },
-      { id: "S1", kind: "toggle-switch", at: "desk:-8,-44", params: { base: true, to: "a" }, locked: true, label: "Switch" },
-      { id: "R1", kind: "resistor", at: "desk:58,6", rot: -90, params: { ohms: 15, watts: 5 }, locked: true, label: "15 Ω, 5 W resistor" },
-      // An old, scuffed battery on the shelf at the back.
-      { id: "B2", kind: "battery", at: "desk:-128,-62", rot: 270, params: { emf: 8.6, internalOhms: 8, mAh: 500, worn: true }, label: "Old 9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:66,44", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, label: "Fresh 9 V battery" },
+      { id: "S1", kind: "toggle-switch", at: "desk:-40,-38", params: { base: true, to: "a" }, locked: true, label: "Switch" },
+      { id: "R1", kind: "resistor", at: "desk:8,26", rot: -90, params: { ohms: 15, watts: 5 }, locked: true, label: "15 Ω, 5 W resistor" },
+      // An old, scuffed battery to one side.
+      { id: "B2", kind: "battery", at: "desk:-118,10", rot: 270, params: { emf: 8.6, internalOhms: 8, mAh: 500, worn: true }, label: "Old 9 V battery" },
     ],
     leads: [
       { id: "TL1", from: "B1.pos", to: "S1.com", color: "red" },

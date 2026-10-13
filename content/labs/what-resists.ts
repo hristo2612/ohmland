@@ -47,15 +47,15 @@ export default defineLab({
   bench: {
     board: "none",
     parts: [
-      { id: "P1", kind: "skin", at: "desk:-100,-44", params: { moisture: "dry", pressure: "light" }, locked: true, label: "Skin patch" },
-      { id: "P2", kind: "cup", at: "desk:6,-58", params: { water: "distilled", ohms: 1_200_000 }, locked: true, label: "Distilled water" },
-      { id: "P3", kind: "cup", at: "desk:74,-58", params: { water: "tap", ohms: 40_000 }, locked: true, label: "Tap water" },
-      { id: "P4", kind: "cup", at: "desk:142,-58", params: { water: "salty", ohms: 1_500 }, locked: true, label: "Salty water" },
-      { id: "P5", kind: "sample", at: "desk:-104,40", params: { material: "copper" }, locked: true, label: "Copper wire" },
-      { id: "P6", kind: "sample", at: "desk:-6,74", params: { material: "plastic" }, locked: true, label: "Plastic ruler" },
+      { id: "P1", kind: "skin", at: "desk:-108,-42", params: { moisture: "dry", pressure: "light" }, locked: true, label: "Skin patch" },
+      { id: "P2", kind: "cup", at: "desk:-6,-66", params: { water: "distilled", ohms: 1_200_000 }, locked: true, label: "Distilled water" },
+      { id: "P3", kind: "cup", at: "desk:62,-66", params: { water: "tap", ohms: 40_000 }, locked: true, label: "Tap water" },
+      { id: "P4", kind: "cup", at: "desk:130,-66", params: { water: "salty", ohms: 1_500 }, locked: true, label: "Salty water" },
+      { id: "P5", kind: "sample", at: "desk:-100,38", params: { material: "copper" }, locked: true, label: "Copper wire" },
+      { id: "P6", kind: "sample", at: "desk:-14,72", params: { material: "plastic" }, locked: true, label: "Plastic ruler" },
     ],
     tray: [],
-    instruments: [{ kind: "meter", at: "desk:154,58", mode: "off" }],
+    instruments: [{ kind: "meter", at: "desk:196,56", mode: "off" }],
   },
   notebook: {
     tags: {
