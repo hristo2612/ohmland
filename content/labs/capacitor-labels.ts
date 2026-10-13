@@ -16,9 +16,9 @@ export default defineLab({
   title: "Reading the fine print",
   bench: {
     board: "full",
-    frame: ["desk:-90,-30", "desk:30,70"],
+    frame: ["desk:-100,-30", "desk:-10,30"],
     parts: [
-      { id: "B1", kind: "battery", at: "rails", params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "rail+:3", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "R1", kind: "resistor", at: "rail+:6-b6", params: { ohms: 10000 }, locked: true, label: "10 kΩ resistor R1" },
       { id: "S1", kind: "slide-switch", at: "b20", params: { to: "a" }, locked: true, label: "Blast corner switch S1" },
     ],
@@ -32,7 +32,7 @@ export default defineLab({
       { id: "CB", kind: "electrolytic-cap", params: { farads: 100e-6, volts: 16 }, count: 1, label: "100 µF 16 V" },
       { id: "CC", kind: "electrolytic-cap", params: { farads: 100e-6, volts: 6.3 }, count: 1, label: "100 µF 6.3 V" },
     ],
-    instruments: [{ kind: "meter", at: "desk:-8,72", rot: 0, mode: "dca-ma", range: "2mA", red: "ma", black: "com", probes: { red: "c6", black: "c8" } }],
+    instruments: [{ kind: "meter", at: "desk:-178,22", rot: 16, mode: "dca-ma", range: "2mA", red: "ma", black: "com", probes: { red: "a6", black: "a8" } }],
   },
   mascot: {
     start: "104 is a code, not a price.",

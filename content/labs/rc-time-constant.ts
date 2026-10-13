@@ -47,9 +47,9 @@ export default defineLab({
   title: "Counting in taus",
   bench: {
     board: "full",
-    frame: ["desk:-110,-30", "desk:10,70"],
+    frame: ["desk:-104,-30", "desk:-30,30"],
     parts: [
-      { id: "B1", kind: "battery", at: "rails", params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "rail+:3", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "S1", kind: "slide-switch", at: "c4", params: { to: "b" }, locked: true, label: "Charge or discharge switch S1" },
       { id: "R1", kind: "resistor", at: "e5-e10", params: { ohms: 1000 }, label: "1 kΩ resistor R1" },
       { id: "C1", kind: "electrolytic-cap", at: "c10-rail-:10", params: { farads: 1000e-6, volts: 16 }, label: "1,000 µF capacitor C1" },
@@ -65,7 +65,7 @@ export default defineLab({
       { id: "C2", kind: "electrolytic-cap", params: { farads: 470e-6, volts: 16 }, count: 1, label: "470 µF" },
     ],
     instruments: [
-      { kind: "meter", at: "desk:-20,74", rot: 0, mode: "dcv", probes: { red: "C1.pos", black: "C1.neg" } },
+      { kind: "meter", at: "desk:-178,22", rot: 16, mode: "dcv", tips: { red: "desk:-52,48", black: "desk:-40,54" } },
       {
         kind: "logger",
         traces: [{ label: "C1", volts: "C1.pos" }],

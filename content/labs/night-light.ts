@@ -26,9 +26,9 @@ export default defineLab({
   title: "Lights on at dusk",
   bench: {
     board: "full",
-    frame: ["desk:-92,-30", "desk:30,32"],
+    frame: ["desk:-96,-30", "desk:24,30"],
     parts: [
-      { id: "B1", kind: "battery", at: "rails", params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "rail+:3", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       // Station A.
       { id: "PT1", kind: "phototransistor", at: "c5", locked: true, label: "Phototransistor PT1" },
       { id: "R1", kind: "resistor", at: "b5-b10", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor R1" },

@@ -36,9 +36,9 @@ export default defineLab({
   title: "All the way on",
   bench: {
     board: "full",
-    frame: ["desk:-92,-30", "desk:-6,74"],
+    frame: ["desk:-90,-30", "desk:-4,30"],
     parts: [
-      { id: "B1", kind: "battery", at: "rails", params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "rail+:3", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "R1", kind: "resistor", at: "rail+:23-b23", params: { ohms: 470 }, locked: true, label: "470 Ω resistor R1" },
       { id: "D1", kind: "led", at: "d23", rot: 180, params: { color: "red" }, locked: true, label: "Red LED D1" },
       { id: "Q1", kind: "npn", at: "c20", locked: true, label: "Q1 (2N3904)" },
@@ -56,7 +56,7 @@ export default defineLab({
       { id: "T1", kind: "touch-pads", count: 1, label: "Touch pads" },
       { id: "Q2", kind: "npn", count: 1, label: "2N3904 (Q2)" },
     ],
-    instruments: [{ kind: "meter", at: "desk:-40,76", rot: 0, mode: "dcv" }],
+    instruments: [{ kind: "meter", at: "desk:-178,22", rot: 16, mode: "dcv", tips: { red: "desk:-52,48", black: "desk:-40,54" } }],
     controls: [{ id: "finger", label: "Fingertip on the pads", part: "*", key: "ohms", min: 100_000, max: 2_000_000, value: 2_000_000, scale: "log", unit: "Ω" }],
   },
   mascot: {

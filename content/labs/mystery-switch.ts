@@ -14,7 +14,7 @@ export default defineLab({
     board: "none",
     parts: [{ id: "SW", kind: "dpdt-switch", at: "desk:-40,-6", params: { to: "a", mystery: "shuffle" }, locked: true, label: "Mystery switch" }],
     tray: [],
-    instruments: [{ kind: "meter", at: "desk:90,4", mode: "continuity" }],
+    instruments: [{ kind: "meter", at: "desk:112,-26", rot: -22, mode: "continuity" }],
   },
   panels: [
     { kind: "continuity", id: "pairs", part: "SW", title: "Continuity log" },

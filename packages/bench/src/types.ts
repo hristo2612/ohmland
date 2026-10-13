@@ -57,6 +57,8 @@ export type WaterKind = "distilled" | "tap" | "salty";
  */
 type Base = {
   base?: boolean;
+  /** A short name printed on the block ("S1", "K1"), so a desk full of blocks can be told apart. */
+  tag?: string;
 };
 
 /**
@@ -88,6 +90,8 @@ export type PartParamsMap = {
     to: "a" | "b";
     /** Mounted on a small wooden block with screw terminals: a big, easy switch for desk circuits. Desk only. */
     base?: boolean;
+    /** A short name printed on the block ("S1"). */
+    tag?: string;
     /** 1: an on/off switch with only the com and b terminals (SPST). Default 2 (SPDT). */
     throws?: 1 | 2;
   };
@@ -113,7 +117,7 @@ export type PartParamsMap = {
   cup: { water: WaterKind; /** overrides the default resistance for the water kind */ ohms?: number };
   lemon: { emf?: number; internalOhms?: number };
   /** Two slide-switch poles on one slider (desk block, six terminals). */
-  "dpdt-switch": { to: "a" | "b" } & Mystery;
+  "dpdt-switch": { to: "a" | "b"; /** A short name printed on the block. */ tag?: string } & Mystery;
   /** A pair of copper touch pads: a fingertip across them is a resistance (100 kΩ firm and damp to 2 MΩ light and dry). */
   "touch-pads": { ohms?: number };
 };

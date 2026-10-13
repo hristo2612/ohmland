@@ -20,9 +20,9 @@ export default defineLab({
     board: "none",
     parts: [
       { id: "B1", kind: "battery", at: "desk:-126,-20", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "Coil battery B1" },
-      { id: "S1", kind: "pushbutton", at: "desk:-74,-52", params: { base: true, cap: "red" }, locked: true, label: "Button S1" },
-      { id: "K1", kind: "relay", at: "desk:-8,-40", params: { base: true, poles: 1, coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, locked: true, label: "Relay K1" },
-      { id: "P1", kind: "trimmer", at: "desk:-74,22", params: { base: true, ohms: 1000, position: 0 }, locked: true, label: "Knob P1, 1 kΩ" },
+      { id: "S1", kind: "pushbutton", at: "desk:-74,-52", params: { base: true, cap: "red", tag: "S1" }, locked: true, label: "Button S1" },
+      { id: "K1", kind: "relay", at: "desk:-8,-40", params: { base: true, tag: "K1", poles: 1, coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, locked: true, label: "Relay K1" },
+      { id: "P1", kind: "trimmer", at: "desk:-74,22", params: { base: true, tag: "P1", ohms: 1000, position: 0 }, locked: true, label: "Knob P1, 1 kΩ" },
       { id: "B2", kind: "battery", at: "desk:-4,52", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "LED battery B2" },
       { id: "R2", kind: "resistor", at: "desk:58,-14", rot: 90, params: { ohms: 470 }, label: "470 Ω resistor R2" },
       { id: "D2", kind: "led", at: "desk:86,-36", rot: 270, params: { color: "yellow" }, label: "Yellow LED D2" },
@@ -39,7 +39,7 @@ export default defineLab({
       { kind: "lead", params: { color: "green" }, count: 3 },
       { kind: "lead", params: { color: "black" }, count: 3 },
     ],
-    instruments: [{ kind: "meter", at: "desk:150,4", mode: "dcv" }],
+    instruments: [{ kind: "meter", at: "desk:156,-26", rot: -22, mode: "dcv" }],
     controls: [{ id: "knob", label: "Knob P1", part: "P1", key: "position", min: 0, max: 1, value: 0, step: 0.005, unit: "%" }],
   },
   mascot: {

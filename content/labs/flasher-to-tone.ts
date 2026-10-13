@@ -23,9 +23,9 @@ export default defineLab({
   title: "Shrink it to a song",
   bench: {
     board: "full",
-    frame: ["desk:-140,-80", "desk:-10,32"],
+    frame: ["desk:-108,-80", "desk:0,30"],
     parts: [
-      { id: "B1", kind: "battery", at: "desk:-118,6", holes: { pos: "a2", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "a2", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "S1", kind: "slide-switch", at: "b1", params: { to: "a" }, locked: true, label: "Power switch" },
       // The flasher.
       { id: "Q1", kind: "npn", at: "d10", locked: true, label: "Q1 (2N3904)" },

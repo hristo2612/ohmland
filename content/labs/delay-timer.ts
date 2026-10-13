@@ -24,9 +24,9 @@ export default defineLab({
   title: "Wait for it",
   bench: {
     board: "full",
-    frame: ["desk:-128,-30", "desk:14,74"],
+    frame: ["desk:-104,-30", "desk:14,30"],
     parts: [
-      { id: "B1", kind: "battery", at: "desk:-112,14", holes: { pos: "a2", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "a2", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "S1", kind: "slide-switch", at: "b1", params: { to: "a" }, locked: true, label: "Start switch S1" },
       { id: "R1", kind: "resistor", at: "rail+:11-b11", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor R1" },
       { id: "P1", kind: "trimmer", at: "c11", params: { ohms: 10_000, position: 0 }, locked: true, label: "10 kΩ trimmer P1" },
@@ -50,7 +50,7 @@ export default defineLab({
     tray: [{ id: "Q1", kind: "npn", count: 1, label: "2N3904" }],
     instruments: [
       { kind: "stopwatch", start: { part: "S1", to: "b" }, stop: { part: "K1", contact: "no" }, watch: "C1.pos" },
-      { kind: "meter", at: "desk:-24,76", rot: 0, mode: "dcv" },
+      { kind: "meter", at: "desk:-178,22", rot: 16, mode: "dcv", tips: { red: "desk:-52,48", black: "desk:-40,54" } },
     ],
     controls: [{ id: "trim", label: "Trimmer P1", part: "P1", key: "position", min: 0, max: 1, value: 0, step: 0.005, unit: "%" }],
   },

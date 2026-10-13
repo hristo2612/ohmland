@@ -17,9 +17,9 @@ export default defineLab({
   title: "Smooth it, kick it through",
   bench: {
     board: "full",
-    frame: ["desk:-96,-30", "desk:44,32"],
+    frame: ["desk:-96,-30", "desk:40,30"],
     parts: [
-      { id: "B1", kind: "battery", at: "rails", params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "rail+:3", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       // Station A: smoothing.
       { id: "S1", kind: "pushbutton", at: "e5", params: { cap: "yellow" }, locked: true, label: "Tapped button S1" },
       { id: "R1", kind: "resistor", at: "c7-c11", params: { ohms: 100 }, locked: true, label: "100 Ω resistor R1" },

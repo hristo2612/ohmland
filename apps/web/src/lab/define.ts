@@ -90,6 +90,8 @@ export type MeterConfig = {
   black?: MeterSocket | null;
   /** Where the probe tips start (default: lying on the desk). */
   probes?: { red?: Attach; black?: Attach };
+  /** Where loose probe tips lie on the desk ("desk:x,z"), when not beside the meter (a meter off to one side of the view). */
+  tips?: { red?: Spot; black?: Spot };
   /** Spare 200 mA fuses for "Replace meter fuse" (default unlimited). */
   spareFuses?: number;
 };

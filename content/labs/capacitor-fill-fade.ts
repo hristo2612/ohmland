@@ -17,9 +17,9 @@ export default defineLab({
   title: "Fill it, watch it fade",
   bench: {
     board: "full",
-    frame: ["desk:-120,-30", "desk:-12,32"],
+    frame: ["desk:-100,-30", "desk:-16,30"],
     parts: [
-      { id: "B1", kind: "battery", at: "rails", params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "rail+:3", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "S1", kind: "pushbutton", at: "e5", params: { cap: "red" }, locked: true, label: "Fill button S1" },
       { id: "S2", kind: "pushbutton", at: "e9", params: { cap: "black" }, locked: true, label: "Empty button S2" },
       { id: "R1", kind: "resistor", at: "h7-h11", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor R1" },
@@ -35,7 +35,7 @@ export default defineLab({
     ],
     tray: [],
     instruments: [
-      { kind: "meter", at: "desk:16,62", rot: -8, mode: "dcv", probes: { red: "C1.pos", black: "C1.neg" } },
+      { kind: "meter", at: "desk:-178,22", rot: 16, mode: "dcv", tips: { red: "desk:-52,48", black: "desk:-40,54" } },
       { kind: "logger", traces: [{ label: "C1", volts: "C1.pos" }], start: { part: "S1", pressed: true }, seconds: 10, range: [0, 7] },
     ],
   },

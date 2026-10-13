@@ -25,9 +25,9 @@ export default defineLab({
   title: "A relay that switches itself",
   bench: {
     board: "full",
-    frame: ["desk:-130,-30", "desk:-6,32"],
+    frame: ["desk:-104,-30", "desk:-6,30"],
     parts: [
-      { id: "B1", kind: "battery", at: "desk:-112,14", holes: { pos: "a2", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "a2", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "S2", kind: "slide-switch", at: "b1", params: { to: "a" }, locked: true, label: "Power switch S2" },
       { id: "K1", kind: "relay", at: "e11", params: { coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, locked: true, label: "Relay K1" },
       { id: "D1", kind: "diode", at: "h11-d11", params: { model: "1N4001" }, locked: true, label: "1N4001 diode D1" },

@@ -21,8 +21,9 @@ export default defineLab({
   bench: {
     board: "full",
     splitRails: true,
+    frame: ["desk:-110,-30", "desk:88,30"],
     parts: [
-      { id: "B1", kind: "battery", at: "rails", params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "rail+:3", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       // Station A: a working reference.
       { id: "R1", kind: "resistor", at: "rail+:5-b5", params: { ohms: 470 }, locked: true, label: "470 Ω resistor R1" },
       { id: "D1", kind: "led", at: "c5", params: { color: "red" }, locked: true, label: "Red LED D1" },
@@ -46,7 +47,7 @@ export default defineLab({
       { id: "D5", kind: "led", params: { color: "yellow" }, count: 1, label: "Yellow LED" },
       { id: "D6", kind: "led", params: { color: "green" }, count: 1, label: "Green LED" },
     ],
-    instruments: [{ kind: "meter", at: "desk:150,4", mode: "dcv" }],
+    instruments: [{ kind: "meter", at: "desk:150,-6", rot: -18, mode: "dcv" }],
   },
   panels: [{ kind: "hole-hunt", id: "hunt", start: "a12", cols: [9, 15], show: ["xray-hunt"] }],
   mascot: {

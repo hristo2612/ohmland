@@ -12,6 +12,7 @@ import { latheY, memoGeo, roundedBox } from "../three/geometry";
 import { mat } from "../three/materials";
 import { useEased } from "../three/anim";
 import { RelayBody } from "./Misc";
+import { BlockTag } from "./BlockTag";
 
 const WOOD = "#7a4a2a";
 
@@ -32,7 +33,7 @@ function namesTexture(width: number, xs: number[], names: string[]): THREE.Textu
 }
 
 /** The block with its terminals; `children` sit on the top plate, centred over the back half. */
-export function TerminalBlock({ legs, names, plateW, children }: { legs: readonly string[]; names?: string[]; plateW?: number; children?: ReactNode }) {
+export function TerminalBlock({ legs, names, plateW, tag, children }: { legs: readonly string[]; names?: string[]; plateW?: number; tag?: string; children?: ReactNode }) {
   const n = legs.length;
   const w = blockWidth(n);
   const pts = useMemo(() => blockTerminals(legs), [legs]);
@@ -60,10 +61,12 @@ export function TerminalBlock({ legs, names, plateW, children }: { legs: readonl
         );
       })}
       {printed && (
-        <mesh material={printed} position={[0, BLOCK.h * 0.45, BLOCK.d / 2 + 0.05]}>
-          <planeGeometry args={[w - 2, ((w - 2) * 160) / 1024]} />
+        // With a name tag above them, the terminal names sit in the lower band of the front face.
+        <mesh material={printed} position={[0, tag ? BLOCK.h * 0.3 : BLOCK.h * 0.45, BLOCK.d / 2 + 0.05]}>
+          <planeGeometry args={[w - 2, (((w - 2) * 160) / 1024) * (tag ? 0.8 : 1)]} />
         </mesh>
       )}
+      {tag && <BlockTag tag={tag} above={!!printed} />}
       <group position={[0, top + 0.8, BLOCK.deviceZ]}>{children}</group>
     </group>
   );
@@ -87,7 +90,7 @@ export function RelayBlock({ params, closed, quality }: { params: PartParamsMap[
   const legs = partLegs({ kind: "relay", params });
   const mystery = !!params.mystery;
   return (
-    <TerminalBlock legs={legs} names={terminalNames(part, RELAY_NAMES)}>
+    <TerminalBlock legs={legs} names={terminalNames(part, RELAY_NAMES)} tag={params.tag}>
       <RelayBody closed={closed} quality={quality ?? "high"} poles={params.poles === 1 ? 1 : 2} opaque={mystery && !params.peek} printed={!mystery} />
     </TerminalBlock>
   );
@@ -119,7 +122,7 @@ function BigSlider({ to, length = 24 }: { to: "a" | "b"; length?: number }) {
 
 export function SlideBlock({ params }: { params: PartParamsMap["slide-switch"] }) {
   return (
-    <TerminalBlock legs={["a", "com", "b"]}>
+    <TerminalBlock legs={["a", "com", "b"]} tag={params.tag}>
       <BigSlider to={params.to} />
     </TerminalBlock>
   );
@@ -131,7 +134,7 @@ export function DpdtBlock({ params }: { params: PartParamsMap["dpdt-switch"] }) 
   const part = { kind: "dpdt-switch" as const, params: params as Record<string, unknown> };
   const mystery = !!params.mystery;
   return (
-    <TerminalBlock legs={partLegs({ kind: "dpdt-switch", params })} names={mystery ? terminalNames(part, DPDT_NAMES) : undefined}>
+    <TerminalBlock legs={partLegs({ kind: "dpdt-switch", params })} names={mystery ? terminalNames(part, DPDT_NAMES) : undefined} tag={params.tag}>
       <BigSlider to={params.to} length={30} />
     </TerminalBlock>
   );
@@ -146,7 +149,7 @@ export function ButtonBlock({ params, pressed }: { params: PartParamsMap["pushbu
     if (cap.current) cap.current.position.y = v;
   }, 30);
   return (
-    <TerminalBlock legs={["a1", "b1"]} plateW={22}>
+    <TerminalBlock legs={["a1", "b1"]} plateW={22} tag={params.tag}>
       <mesh geometry={memoGeo("bb-bezel", () => latheY([[0.001, 0], [8.4, 0], [8.4, 1.2], [7.4, 2.4], [6.1, 2.4], [6.1, 1.0], [0.001, 1.0]], 40))} material={mat.chrome()} castShadow />
       <group ref={cap}>
         <mesh
@@ -187,7 +190,7 @@ export function KnobBlock({ params }: { params: PartParamsMap["trimmer"] }) {
   }, 16);
   const dial = useMemo(() => new THREE.MeshBasicMaterial({ map: dialTexture(), transparent: true, depthWrite: false, toneMapped: false }), []);
   return (
-    <TerminalBlock legs={["a", "wiper", "b"]} plateW={26}>
+    <TerminalBlock legs={["a", "wiper", "b"]} plateW={26} tag={params.tag}>
       <mesh material={dial} position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[19, 19]} />
       </mesh>

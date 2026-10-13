@@ -20,9 +20,9 @@ export default defineLab({
   title: "A tiny current in charge",
   bench: {
     board: "full",
-    frame: ["desk:-92,-30", "desk:-6,74"],
+    frame: ["desk:-90,-30", "desk:-4,30"],
     parts: [
-      { id: "B1", kind: "battery", at: "rails", params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "rail+:3", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "R1", kind: "resistor", at: "rail+:23-b23", params: { ohms: 470 }, locked: true, label: "470 Ω resistor R1" },
       { id: "D1", kind: "led", at: "d23", rot: 180, params: { color: "red" }, locked: true, label: "Red LED D1" },
       { id: "S1", kind: "pushbutton", at: "e14", params: { cap: "red" }, locked: true, label: "Button S1" },
@@ -37,7 +37,7 @@ export default defineLab({
       { id: "R3", kind: "resistor", params: { ohms: 470_000 }, count: 1, label: "470 kΩ" },
       { id: "R4", kind: "resistor", params: { ohms: 220_000 }, count: 1, label: "220 kΩ" },
     ],
-    instruments: [{ kind: "meter", at: "desk:-40,76", rot: 0, mode: "dca-ma", range: "200uA", red: "ma", black: "com" }],
+    instruments: [{ kind: "meter", at: "desk:-178,22", rot: 16, mode: "dca-ma", range: "200uA", red: "ma", black: "com", tips: { red: "desk:-40,48", black: "desk:-28,54" } }],
   },
   mascot: {
     start: "Tiny trickle, big river. I love this part.",

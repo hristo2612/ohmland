@@ -15,9 +15,9 @@ export default defineLab({
   bench: {
     board: "none",
     parts: [
-      { id: "K1", kind: "relay", at: "desk:-20,-30", params: { base: true, poles: 1, mystery: "shuffle", coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, locked: true, label: "Mystery relay" },
+      { id: "K1", kind: "relay", at: "desk:-20,-30", params: { base: true, tag: "K1", poles: 1, mystery: "shuffle", coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, locked: true, label: "Mystery relay" },
       { id: "B1", kind: "battery", at: "desk:-118,20", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
-      { id: "S1", kind: "pushbutton", at: "desk:-48,40", params: { base: true, cap: "red" }, locked: true, label: "Button S1" },
+      { id: "S1", kind: "pushbutton", at: "desk:-48,40", params: { base: true, cap: "red", tag: "S1" }, locked: true, label: "Button S1" },
     ],
     leads: [
       { id: "TL1", from: "B1.pos", to: "S1.a1", color: "red" },
@@ -25,7 +25,7 @@ export default defineLab({
       { id: "TL3", from: "B1.neg", to: null, color: "black" },
     ],
     tray: [{ kind: "lead", params: { color: "green" }, count: 2 }],
-    instruments: [{ kind: "meter", at: "desk:112,6", mode: "off" }],
+    instruments: [{ kind: "meter", at: "desk:128,-24", rot: -22, mode: "off" }],
   },
   panels: [
     {

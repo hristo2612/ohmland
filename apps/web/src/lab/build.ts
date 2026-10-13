@@ -406,6 +406,10 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
     if (meter.red !== undefined) m.probes.red.socket = meter.red;
     if (meter.black !== undefined) m.probes.black.socket = meter.black;
     if (m.probes.red.socket && m.probes.red.socket === m.probes.black.socket) m.probes.black.socket = null;
+    for (const c of ["red", "black"] as const) {
+      const spot = meter.tips?.[c] ? deskSpot(meter.tips[c]!) : null;
+      if (spot) m.probes[c].tip.pos = spot;
+    }
     bench = { ...bench, meter: m };
     for (const c of ["red", "black"] as const) {
       const tip = meter.probes?.[c];

@@ -46,9 +46,9 @@ export default defineLab({
   title: "The siren button",
   bench: {
     board: "full",
-    frame: ["desk:-130,-80", "desk:6,32"],
+    frame: ["desk:-108,-80", "desk:12,30"],
     parts: [
-      { id: "B1", kind: "battery", at: "desk:-114,10", holes: { pos: "a2", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "a2", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "S1", kind: "pushbutton", at: "e2", params: { cap: "red" }, locked: true, label: "Siren button S1" },
       // The slow oscillator.
       { id: "Q1", kind: "npn", at: "d10", locked: true, label: "Slow Q1" },

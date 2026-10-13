@@ -20,8 +20,8 @@ export default defineLab({
       { id: "B1", kind: "battery", at: "desk:-118,6", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "R1", kind: "resistor", at: "desk:-52,-44", params: { ohms: 470 }, locked: true, label: "470 Ω resistor" },
       { id: "D1", kind: "led", at: "desk:14,-50", rot: 180, params: { color: "red" }, locked: true, label: "Red LED (the lamp)" },
-      { id: "SA", kind: "toggle-switch", at: "desk:-36,32", params: { base: true, to: "a" }, locked: true, label: "Downstairs switch A" },
-      { id: "SB", kind: "toggle-switch", at: "desk:58,32", params: { base: true, to: "a" }, locked: true, label: "Upstairs switch B" },
+      { id: "SA", kind: "toggle-switch", at: "desk:-36,32", params: { base: true, to: "a", tag: "A" }, locked: true, label: "Downstairs switch A" },
+      { id: "SB", kind: "toggle-switch", at: "desk:58,32", params: { base: true, to: "a", tag: "B" }, locked: true, label: "Upstairs switch B" },
     ],
     leads: [
       { id: "TL1", from: "B1.pos", to: "R1.a", color: "red", locked: true },
