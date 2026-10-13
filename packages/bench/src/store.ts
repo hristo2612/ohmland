@@ -56,7 +56,13 @@ export type BenchStoreState = {
   txBase: BenchState | null;
   /** Part ids the learner cannot move, rotate or remove (set by the `locked` prop). */
   locked: readonly string[];
+  /** The desk rectangle the camera frames at the start and on "reset view" (set by the `frame` prop), or null for all. */
+  frame: readonly [number, number, number, number] | null;
   snapshot: Snapshot | null;
+  /** Readouts drawn over parts: an LED's stress bar, a resistor's temperature (lab instruments). */
+  inspect: readonly InspectSpec[];
+  /** Room lighting, 1 bright to about 0.1 dim (faint LED glows show up in a dim room). */
+  ambient: number;
   ui: BenchUi;
   /** Set by <Bench>: receives every BenchAction. */
   emit: (action: BenchAction) => void;
@@ -97,6 +103,13 @@ export type BenchStoreState = {
 
 export type BenchStore = StoreApi<BenchStoreState>;
 
+/**
+ * A readout over parts. `parts` lists part ids or kinds ("D1", "resistor"). "stress" is a bar of an LED's current
+ * as a share of its maximum (green, amber past half, red past 90%); "heat" a part's temperature with a touch-feel
+ * word (cool, warm, hot, ouch).
+ */
+export type InspectSpec = { show: "stress" | "heat"; parts: readonly string[] };
+
 const HISTORY = 100;
 
 const initialUi = (): BenchUi => ({
@@ -129,7 +142,10 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
       future: [],
       txBase: null,
       locked: [],
+      frame: null,
       snapshot: null,
+      inspect: [],
+      ambient: 1,
       ui: initialUi(),
       emit: () => {},
 

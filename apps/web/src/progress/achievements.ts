@@ -91,10 +91,18 @@ const UNIT_2: readonly Achievement[] = [
     ...t["pin-sleuth"],
     icon: "target",
     xp: 75,
-    // TODO(lab-event): mystery-switch `name-the-legs` and meet-the-relay `energize`, each with zero wrong pin-map
-    // submissions. Needs the pin-map panel to count submissions; no fair proxy until then.
-    labEvent: "pin-map-perfect",
-    check: () => false,
+    // Both pin maps right with no wrong submission: each lab's bonus task `clean-map` (which fires "pin-map-perfect"),
+    // done now (a lab event) or saved with a finished lesson. One lab alone is not enough, so no `labEvent`.
+    check: ({ state, events }) => {
+      const perfect = (lessonId: string) =>
+        didTasks(state, lessonId, "clean-map") ||
+        events.some(
+          (e) =>
+            (e.type === "trigger" && e.name === "pin-map-perfect" && e.lessonId === lessonId) ||
+            (e.type === "task" && e.lessonId === lessonId && e.taskId === "clean-map"),
+        );
+      return perfect("mystery-switch") && perfect("meet-the-relay");
+    },
   },
   {
     id: "first-click",
@@ -140,8 +148,8 @@ const UNIT_2: readonly Achievement[] = [
     ...t["tau-tamer"],
     icon: "clock",
     xp: 75,
-    // TODO(lab-event): all four rc-time-constant tasks, each submitted τ within 5% of the instance's actual τ. Needs
-    // numeric entry checked against instance values; the tasks alone only ask for 10% and 20%.
+    // rc-time-constant fires "tau-within-5-percent" once all four τ the learner typed are within 5% of the circuit's
+    // own (its parts' actual values); the tasks themselves accept 10% and 20%.
     labEvent: "tau-within-5-percent",
     check: () => false,
   },
@@ -157,8 +165,8 @@ const UNIT_2: readonly Achievement[] = [
     ...t["five-second-club"],
     icon: "clock",
     xp: 75,
-    // TODO(lab-event): in delay-timer's `five-seconds` task, three consecutive runs measure 4.75 to 5.25 s. Needs run
-    // timing; the task itself accepts 4.5 to 5.5 s.
+    // delay-timer fires "five-seconds-tight" when its stopwatch's last three runs from an empty capacitor all land
+    // within 4.75 to 5.25 s; the task itself accepts 4.5 to 5.5 s.
     labEvent: "five-seconds-tight",
     check: () => false,
   },
@@ -301,9 +309,10 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     ...t.bracketed,
     icon: "fuse",
     xp: 50,
-    // The blueprint also asks for no blown event on F2 in that session. measure-big already requires F2 alive and
-    // carrying over 1 A, so the two tasks are a close stand-in. TODO(lab-event): tighten if the lab emits a trigger.
-    check: ({ state }) => hasTask(state, "fuse-guard", "blow-1a") && hasTask(state, "fuse-guard", "measure-big"),
+    // Unlocks when fuse-guard fires "bracketed" (a lab `triggers` entry): blow-1a and measure-big done with no blown
+    // event on the 3 A fuse in that visit.
+    labEvent: "bracketed",
+    check: () => false,
   },
   { id: "sour-power", ...t["sour-power"], icon: "spark", xp: 50, check: ({ state }) => hasTask(state, "stack-the-cells", "light-it") },
   {

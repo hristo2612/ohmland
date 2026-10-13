@@ -1,14 +1,13 @@
-// Lab for lesson `meet-the-relay` (docs/curriculum/unit-2.md, Lesson 4).
-// The relay wears a mystery skin: five legs labeled 1 to 5, leg-to-node order shuffled per learner. `at` anchors are
-// provisional until packages/bench owns BenchState.
-// BENCH NEEDS: mystery mode with a seeded pin shuffle; relay x-ray and exploded views; a click sound on `clicked`
-// (softer on release).
-// LAB NEEDS: a pin-tagging panel (coil A/B, COM, NO, NC) that counts wrong submissions for `pin-sleuth`.
-// Damage moment: clipping the battery across COM and NC (closed at rest) shorts it: `shorted`, battery warms, and the
-// robot explains that those two legs are joined inside, so that was a wire across the battery.
-// Notice: the coil and the contacts never beep with each other. That separation is why relays are so useful.
-import { defineLab } from "@ohmland/lab";
-import { beeping, closed, pullIns } from "./lib/goals-switching";
+// Blueprint: docs/curriculum/unit-2.md, Lesson 4. A single-changeover relay on a block with five numbered terminals,
+// wired inside in an order shuffled for each learner (black cover, nothing printed). The battery's plus already runs
+// to the button; a clip from the button's other side and one from battery minus lie ready. The pin map takes the
+// learner's verdict and counts wrong tries; once right, "Peek inside" swaps in the clear cover and prints the names.
+import { defineLab, type LabView } from "@ohmland/lab";
+
+/** The meter's probes are on these two terminals (as wired inside), either way round. */
+const probing = (lab: LabView, a: string, b: string) =>
+  (lab.connected("probe:red", `wired:K1.${a}`) && lab.connected("probe:black", `wired:K1.${b}`)) ||
+  (lab.connected("probe:red", `wired:K1.${b}`) && lab.connected("probe:black", `wired:K1.${a}`));
 
 export default defineLab({
   id: "meet-the-relay",
@@ -16,51 +15,91 @@ export default defineLab({
   bench: {
     board: "none",
     parts: [
-      // pins { coilA: k1a, coilB: k1b, com: kc, no: kno, nc: knc }
-      { id: "K1", kind: "relay", at: "mat:relay", props: { coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, locked: true },
-      // pins { pos: vcc, neg: gnd }. Its negative lead starts parked.
-      { id: "B1", kind: "battery", at: "mat:battery", props: { emf: 9, internalOhms: 1.5 }, locked: true },
-      // pins { a: vcc, b: sw }. The lead from `sw` starts parked.
-      { id: "S1", kind: "pushbutton", at: "mat:button", locked: true },
+      { id: "K1", kind: "relay", at: "desk:-20,-30", params: { base: true, tag: "K1", poles: 1, mystery: "shuffle", coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, locked: true, label: "Mystery relay" },
+      { id: "B1", kind: "battery", at: "desk:-118,20", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "S1", kind: "pushbutton", at: "desk:-48,40", params: { base: true, cap: "red", tag: "S1" }, locked: true, label: "Button S1" },
     ],
-    // Two test leads.
-    tray: [{ kind: "wire", count: 2 }],
-    instruments: ["meter"],
+    leads: [
+      { id: "TL1", from: "B1.pos", to: "S1.a1", color: "red" },
+      { id: "TL2", from: "S1.b1", to: null, color: "yellow" },
+      { id: "TL3", from: "B1.neg", to: null, color: "black" },
+    ],
+    tray: [{ kind: "lead", params: { color: "green" }, count: 2 }],
+    instruments: [{ kind: "meter", at: "desk:128,-24", rot: -22, mode: "off" }],
+  },
+  panels: [
+    {
+      kind: "pin-map",
+      id: "legs",
+      part: "K1",
+      show: ["energize"],
+      peek: true,
+      roles: [
+        { id: "coil", label: "Coil", legs: ["coil1", "coil2"] },
+        { id: "com", label: "COM", legs: ["com1"] },
+        { id: "nc", label: "NC (closed at rest)", legs: ["nc1"] },
+        { id: "no", label: "NO (open at rest)", legs: ["no1"] },
+      ],
+    },
+  ],
+  mascot: {
+    start: "Five legs, no labels. Let's find out who is who.",
+    hint: "At rest, COM hugs NC. Energized, it switches partners.",
+    success: "Hear that click? That's a magnet doing your job.",
+    exit: "Two worlds, one box, zero shared wires.",
   },
   tasks: [
     {
       id: "find-the-coil",
-      prompt: "Set the meter to the 2 kΩ range and measure between pairs of legs. One pair reads a few hundred ohms. Tag it as the coil.",
-      // GOAL: the coil legs are tagged correctly.
-      goal: (lab) => lab.meter?.mode === "ohm" && (lab.meterReads(0.54, { tol: 0.05 }) || lab.meterReads(540, { tol: 0.05 })),
+      prompt: "Ohms, 2 kΩ range. The pair reading a few hundred is the coil.",
+      goal: (lab) => lab.meter?.mode === "ohm" && probing(lab, "coil1", "coil2") && lab.meterReads(540, { tol: 0.1, unit: "Ω" }),
       hints: [
-        "Contacts read either almost 0 Ω or OL. The coil is a long, thin wire, so it reads somewhere in between.",
-        "Five legs make only ten pairs. Sweep them all.",
+        "Contacts read 0 Ω or OL. The coil reads in between.",
+        "Five terminals make only ten pairs. Sweep them all.",
       ],
-      success: "About 540 Ω. That's a long coil of very thin copper. Notice it reads the same either way round.",
+      highlight: ["K1"],
+      success: "About 540 Ω. That's a long coil of very thin copper.",
+      notice: "The coil reads the same either way round.",
     },
     {
       id: "find-com-nc",
       prompt: "Switch to continuity. With the relay resting, which pair beeps?",
-      // GOAL: the learner tags the beeping pair as "COM + NC (order unknown)".
-      goal: (lab) => beeping(lab) && !closed(lab, "K1"),
-      hints: ["Leave the coil legs out of it."],
-      success:
-        "One pair is already connected at rest. That's the normally closed contact and the common. Which one is which? We need the magnet.",
+      goal: (lab) => lab.meter?.mode === "continuity" && lab.meter.beep && !lab.closed("K1") && probing(lab, "com1", "nc1"),
+      hints: ["Leave the coil terminals out of it.", "Only one pair beeps while nothing powers the coil."],
+      success: "One pair is joined at rest: normally closed and common.",
     },
     {
       id: "energize",
-      prompt: "Clip the leads so `S1` connects the battery to the coil. Hold the button and probe again.",
-      // GOAL: a K1 `clicked` event was seen, and the final pin map (coil A and B, COM, NO, NC) was submitted correctly.
-      goal: (lab) => pullIns(lab, "K1").length > 0,
-      hints: [
-        "Listen for the click.",
-        "COM is the leg that beeps with one partner at rest and a different partner while you hold the button.",
-      ],
-      success:
-        "A double-throw switch inside a box, flipped by electricity. Nothing on the coil side ever touches the contact side.",
+      prompt:
+        "Clip yellow and black to the coil. Hold S1, then fill the pin map.",
+      goal: (lab) => lab.event("clicked", "K1") && lab.panel("legs").correct,
+      hints: ["Listen for the click.", "COM beeps with one partner at rest, another while S1 is held."],
+      highlight: ["S1"],
+      success: "A changeover switch, flipped by electricity. The coil never touches the contacts.",
+      notice: "Coil and contacts never beep together. That makes relays useful.",
+    },
+    {
+      id: "clean-map",
+      prompt: "Bonus: get the pin map right on your first try.",
+      goal: (lab) => lab.panel("legs").correct && lab.panel("legs").wrong === 0,
+      hints: ["Find all five first: coil, COM and NC at rest, then NO."],
+      success: "First try. You read that relay like a datasheet.",
+      trigger: "pin-map-perfect",
+      bonus: true,
     },
   ],
-  // TODO(solution): bench actions that solve every task, once packages/bench defines anchors and panels.
-  solution: [],
+  solution: [
+    { do: "probe", red: "wired:K1.coil1", black: "wired:K1.coil2", mode: "ohm", range: "2k" },
+    { do: "wait", seconds: 0.4 },
+    { do: "check", task: "find-the-coil" },
+    { do: "probe", red: "wired:K1.com1", black: "wired:K1.nc1", mode: "continuity" },
+    { do: "wait", seconds: 0.4 },
+    { do: "check", task: "find-com-nc" },
+    { do: "clip", lead: "TL2", end: "b", to: "wired:K1.coil1" },
+    { do: "clip", lead: "TL3", end: "b", to: "wired:K1.coil2" },
+    { do: "probe", red: "wired:K1.com1", black: "wired:K1.no1" },
+    { do: "press", part: "S1", seconds: 1 },
+    { do: "panel", id: "legs", value: { coil1: "coil", coil2: "coil", com1: "com", nc1: "nc", no1: "no" } },
+    { do: "check", task: "energize" },
+  ],
 });

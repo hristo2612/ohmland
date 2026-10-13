@@ -12,6 +12,10 @@ export type Pick =
   | { type: "press"; id: string }
   | { type: "flip"; id: string }
   | { type: "rotor"; id: string }
+  /** The drawing area of a pencil card: dragging along it draws (or shades over) the line. */
+  | { type: "draw"; id: string }
+  /** A setting printed on a prop (a moisture tab, a load switch): clicking sets `key` to `value`. */
+  | { type: "setting"; id: string; key: string; value: string | number | boolean }
   | { type: "wire"; id: string }
   | { type: "wireEnd"; id: string; end: "a" | "b" }
   | { type: "clip"; id: string; end: "a" | "b" }

@@ -13,6 +13,8 @@ import { LabAudio } from "./audio";
 import { buildBench } from "./build";
 import { isOptional, type LabDefinition, type LabTask } from "./define";
 import { ConnectionsPanel, ControlsPanel, MeterPanel, Notebook, ScopePanel } from "./instruments";
+import { LabPanels } from "./panels-ui";
+import { LoggerPanel, StopwatchPanel, TapperPanel } from "./timing";
 import { friedLabel } from "./labels";
 import { loadedLab, loadLab } from "./labs";
 import { BenchViewChunk, takeSim } from "./prefetch";
@@ -53,8 +55,16 @@ export default function LabStep(props: LabStepProps) {
   return <LabRunner {...props} lab={lab} />;
 }
 
+/** A seed that is the same for a learner every visit (their first finished lesson), for shuffled mystery parts. */
+function learnerSeed(): string {
+  const lessons = Object.entries(useLearner.getState().learner.lessons);
+  if (!lessons.length) return "guest";
+  const [id, rec] = lessons.reduce((a, b) => (b[1].at < a[1].at ? b : a));
+  return `${id}|${rec.at}`;
+}
+
 function LabRunner({ lab, lessonId, intro, done, onTaskDone }: LabStepProps & { lab: LabDefinition }) {
-  const built = useMemo(() => buildBench(lab.bench), [lab]);
+  const built = useMemo(() => buildBench(lab.bench, { seed: learnerSeed() }), [lab]);
   const muted = useLearner((s) => s.learner.settings.muted);
   const mutedRef = useRef(muted);
   mutedRef.current = muted;
@@ -79,6 +89,7 @@ function LabRunner({ lab, lessonId, intro, done, onTaskDone }: LabStepProps & { 
         labelFor: (rec, bench) => friedLabel(rec, bench),
         sound: (kind) => audio.cue(kind),
         audio: (samples) => audio.play(samples),
+        relay: (count, pull) => audio.relay(count, pull),
       }),
     // A runtime per lab visit; `done` is read once, at the start.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -136,6 +147,7 @@ function LabRunner({ lab, lessonId, intro, done, onTaskDone }: LabStepProps & { 
               readOnly={!!ui.showing}
               highlight={highlight}
               locked={built.locked}
+              frame={built.frame}
               onReady={() => setBenchReady(true)}
             />
             {!benchReady && <BenchSkeleton />}
@@ -204,14 +216,18 @@ function LabRunner({ lab, lessonId, intro, done, onTaskDone }: LabStepProps & { 
           )}
           {allDone && <p className="lab__alldone small">{m.lab.allDone}</p>}
           <TaskList runtime={runtime} hints={hints} onHint={onHint} />
+          <LabPanels runtime={runtime} />
           <ControlsPanel runtime={runtime} controls={built.controls} />
           {hasMeter && <Notebook runtime={runtime} />}
           <ConnectionsPanel runtime={runtime} />
         </div>
-        {(hasMeter || built.scope) && (
+        {(hasMeter || built.scope || built.logger || built.stopwatch || built.tapper) && (
           <div className="lab__dock">
+            {built.tapper && <TapperPanel runtime={runtime} config={built.tapper} />}
+            {built.stopwatch && <StopwatchPanel runtime={runtime} config={built.stopwatch} />}
             {hasMeter && <MeterPanel runtime={runtime} />}
             {built.scope && <ScopePanel runtime={runtime} config={built.scope} />}
+            {built.logger && <LoggerPanel runtime={runtime} config={built.logger} />}
           </div>
         )}
       </aside>

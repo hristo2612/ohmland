@@ -9,6 +9,7 @@ import { bentTube, latheY, memoGeo, roundedBox } from "../three/geometry";
 import { mat } from "../three/materials";
 import { useEased } from "../three/anim";
 import { IN_HOLE, type ModelProps } from "./common";
+import { BlockTag } from "./BlockTag";
 
 /** Upright multi-lead parts are modelled in board coordinates; on the desk they stand on their legs. */
 export function UprightMount({ mount, cx, cz, children }: { mount: ModelProps<unknown>["mount"]; cx: number; cz: number; children: React.ReactNode }) {
@@ -142,7 +143,7 @@ function onOffTexture(): THREE.CanvasTexture {
 }
 
 /** A toggle switch panel-mounted in a small stained wooden block, with three brass screw terminals along the front. */
-function BlockToggle({ to }: { to: "a" | "b" }) {
+function BlockToggle({ to, throws = 2, tag }: { to: "a" | "b"; throws?: 1 | 2; tag?: string | undefined }) {
   const B = TOGGLE_BASE;
   const T = TOGGLE;
   const lever = useRef<THREE.Group>(null);
@@ -169,8 +170,9 @@ function BlockToggle({ to }: { to: "a" | "b" }) {
           <mesh geometry={memoGeo("tgb-tip", () => new THREE.SphereGeometry(1.7, 20, 14))} material={mat.chrome()} position={[0, T.lever + 1.9, 0]} castShadow />
         </group>
       </group>
-      {/* Screw terminals: a, com, b. */}
-      {[-B.screwX, 0, B.screwX].map((x) => (
+      {tag && <BlockTag tag={tag} />}
+      {/* Screw terminals: a, com, b (com and b only on an on/off switch). */}
+      {(throws === 1 ? [-B.screwX / 2, B.screwX / 2] : [-B.screwX, 0, B.screwX]).map((x) => (
         <group key={x} position={[x, top, B.screwZ]}>
           <mesh geometry={memoGeo("tgb-pad", () => new THREE.BoxGeometry(7, 0.5, 6))} material={mat.brass()} position={[0, 0.25, 0]} receiveShadow />
           <mesh geometry={memoGeo("tgb-screw", () => new THREE.CylinderGeometry(2.1, 2.3, 1.6, 20))} material={mat.brass()} position={[0, 1.2, 0]} castShadow />
@@ -182,7 +184,7 @@ function BlockToggle({ to }: { to: "a" | "b" }) {
 }
 
 export function ToggleSwitchModel({ params, mount }: ModelProps<PartParamsMap["toggle-switch"]>) {
-  if (params.base && mount !== "board") return <BlockToggle to={params.to} />;
+  if (params.base && mount !== "board") return <BlockToggle to={params.to} throws={params.throws ?? 2} tag={params.tag} />;
   return <PanelToggle params={params} mount={mount} />;
 }
 
