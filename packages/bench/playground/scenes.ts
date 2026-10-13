@@ -98,3 +98,24 @@ export function smokeBench(): BenchState {
   ];
   return b;
 }
+
+/**
+ * The first lab with a light in it (first-glow): a 9 V battery, a 1.5 kOhm resistor and a red LED on the desk,
+ * joined in one loop by three clip leads (or still loose, with `wired` false).
+ */
+export function glowBench(wired = true): BenchState {
+  const b = emptyBench(null);
+  b.parts = [
+    { id: "B1", kind: "battery", params: { emf: 9.4 }, pos: [-74, 6], rot: 0 },
+    { id: "R1", kind: "resistor", params: { ohms: 1500 }, pos: [0, -20], rot: 0 },
+    { id: "D1", kind: "led", params: { color: "red" }, pos: [58, 12], rot: 180 },
+  ];
+  if (wired) {
+    b.leads = [
+      { id: "TL1", color: "red", a: { to: "pin:B1.pos", pos: [0, 0] }, b: { to: "pin:R1.a", pos: [0, 0] } },
+      { id: "TL2", color: "green", a: { to: "pin:R1.b", pos: [0, 0] }, b: { to: "pin:D1.anode", pos: [0, 0] } },
+      { id: "TL3", color: "black", a: { to: "pin:D1.cathode", pos: [0, 0] }, b: { to: "pin:B1.neg", pos: [0, 0] } },
+    ];
+  }
+  return b;
+}
