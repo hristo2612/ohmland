@@ -20,6 +20,8 @@ export interface Ctx {
   method: Method;
   /** Scales independent sources during source stepping (normally 1). */
   sourceScale: number;
+  /** True while a rebuild carries live inputs over: state changes then are not new physical events. */
+  restoring: boolean;
   /** Set by devices when they limit a junction voltage during an iteration. */
   noncon: boolean;
   emit(partId: string, type: SimEventType, message: string, data?: Record<string, number | string>): void;

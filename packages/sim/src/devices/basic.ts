@@ -1,15 +1,12 @@
-// Linear and nearly linear parts: wires, resistors, switches, pots, batteries, cells and fuses.
+// Linear and nearly linear parts: wires, resistors, pots, batteries, cells and fuses. Switches are in contacts.ts.
 
 import type { Health, InputKey, InputValue, PartSpec, PartState } from "../types";
 import {
   AMBIENT,
   Device,
   G_OPEN,
-  R_OFF,
-  R_ON,
   Thermal,
   baseState,
-  bool,
   clamp,
   finiteOr,
   num,
@@ -160,88 +157,6 @@ export class ResistorDevice extends TwoTerminal {
   }
   get power(): number {
     return this.pLast;
-  }
-}
-
-// ---------------------------------------------------------------------------------------------------------------
-// Switches
-
-export class SwitchDevice extends TwoTerminal {
-  closed: boolean;
-  constructor(spec: Spec<"switch"> | Spec<"pushbutton">) {
-    super(spec);
-    this.closed = spec.kind === "switch" ? spec.closed === true : spec.pressed === true;
-    this.accepts = false;
-  }
-  private get key(): InputKey {
-    return this.kind === "switch" ? "closed" : "pressed";
-  }
-  get g(): number {
-    return this.closed ? 1 / R_ON : 1 / R_OFF;
-  }
-  state(x: Float64Array): PartState {
-    const v = this.vOf(x);
-    const i = v * this.g;
-    const s = baseState(i, v, v * i);
-    s.closed = this.closed;
-    return s;
-  }
-  override setInput(key: InputKey, value: InputValue): boolean {
-    if (key !== this.key && !(key === "closed" && this.kind === "pushbutton")) return false;
-    this.closed = bool(value, this.closed);
-    return true;
-  }
-  override inputValue(key: InputKey): InputValue | undefined {
-    return key === this.key ? this.closed : undefined;
-  }
-}
-
-export class SpdtDevice extends Device {
-  com = -1;
-  ta = -1;
-  tb = -1;
-  to: "a" | "b";
-  constructor(spec: Spec<"spdt">) {
-    super(spec);
-    this.to = spec.to === "b" ? "b" : "a";
-    this.accepts = false;
-  }
-  bind(b: Binder): void {
-    this.com = b.node(this.pin("com"));
-    this.ta = b.node(this.pin("a"));
-    this.tb = b.node(this.pin("b"));
-  }
-  private ga(): number {
-    return this.to === "a" ? 1 / R_ON : 1 / R_OFF;
-  }
-  private gb(): number {
-    return this.to === "b" ? 1 / R_ON : 1 / R_OFF;
-  }
-  override stampLinear(A: Float64Array, n: number): void {
-    stampG(A, n, this.com, this.ta, this.ga());
-    stampG(A, n, this.com, this.tb, this.gb());
-  }
-  pinCurrents(x: Float64Array): number[] {
-    const vc = volt(x, this.com);
-    const ia = (vc - volt(x, this.ta)) * this.ga();
-    const ib = (vc - volt(x, this.tb)) * this.gb();
-    return [ia + ib, -ia, -ib];
-  }
-  state(x: Float64Array): PartState {
-    const [ic] = this.pinCurrents(x);
-    const v = volt(x, this.com) - volt(x, this.to === "a" ? this.ta : this.tb);
-    const s = baseState(ic!, v, Math.abs(v * ic!));
-    s.closed = true;
-    s.extra = { to: this.to };
-    return s;
-  }
-  override setInput(key: InputKey, value: InputValue): boolean {
-    if (key !== "to") return false;
-    this.to = value === "b" || value === 1 || value === true ? "b" : "a";
-    return true;
-  }
-  override inputValue(key: InputKey): InputValue | undefined {
-    return key === "to" ? this.to : undefined;
   }
 }
 

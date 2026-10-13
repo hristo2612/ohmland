@@ -20,8 +20,15 @@ export type PartSpec =
   | (Base & { kind: "battery"; pins: { pos: NodeId; neg: NodeId }; emf: number; internalOhms: number; mAh?: number })
   | (Base & { kind: "led"; pins: { anode: NodeId; cathode: NodeId }; color: LedColor; maxmA?: number })
   | (Base & { kind: "switch"; pins: { a: NodeId; b: NodeId }; closed: boolean })
-  | (Base & { kind: "pushbutton"; pins: { a: NodeId; b: NodeId }; pressed?: boolean })
+  | (Base & {
+      kind: "pushbutton";
+      pins: { a: NodeId; b: NodeId };
+      pressed?: boolean;
+      normallyClosed?: boolean; // default false: connects only while pressed. true: connected until pressed
+    })
   | (Base & { kind: "spdt"; pins: { com: NodeId; a: NodeId; b: NodeId }; to: "a" | "b" })
+  // Two SPDT contact sets moved by one actuator (input "to"): com1 joins a1 or b1, com2 joins a2 or b2.
+  | (Base & { kind: "dpdt"; pins: { com1: NodeId; a1: NodeId; b1: NodeId; com2: NodeId; a2: NodeId; b2: NodeId }; to: "a" | "b" })
   | (Base & { kind: "fuse"; pins: { a: NodeId; b: NodeId }; amps: number })
   | (Base & {
       kind: "capacitor";
@@ -34,13 +41,15 @@ export type PartSpec =
   | (Base & { kind: "pot"; pins: { a: NodeId; wiper: NodeId; b: NodeId }; ohms: number; position: number })
   | (Base & {
       kind: "relay";
-      pins: { coilA: NodeId; coilB: NodeId; com: NodeId; no: NodeId; nc: NodeId };
+      // com2, no2, nc2: optional second contact set on the same armature (DPDT relay).
+      pins: { coilA: NodeId; coilB: NodeId; com: NodeId; no: NodeId; nc: NodeId; com2?: NodeId; no2?: NodeId; nc2?: NodeId };
       coilOhms: number;
       pullIn: number;
       dropOut: number;
       coilHenries?: number; // default 0.1
       operateMs?: number; // default 5
       releaseMs?: number; // default 3
+      tolerance?: number; // spread of each relay's actual pullIn and dropOut, seeded by id; default 0.05
     })
   | (Base & { kind: "npn"; pins: { c: NodeId; b: NodeId; e: NodeId }; model?: "2N3904" })
   | (Base & { kind: "phototransistor"; pins: { c: NodeId; e: NodeId }; light?: number })
@@ -75,7 +84,16 @@ export type PartState = {
   extra?: Record<string, number | string | boolean>;
 };
 
-export type SimEventType = "damaged" | "died" | "blown" | "clicked" | "shorted" | "reversed" | "smoke" | "meter-fuse";
+export type SimEventType =
+  | "damaged"
+  | "died"
+  | "blown"
+  | "clicked"
+  | "shorted"
+  | "reversed"
+  | "smoke"
+  | "meter-fuse"
+  | "spark"; // opening contacts arced (an inductive kick above about 300 V across the gap)
 
 export type SimEvent = { t: number; partId: string; type: SimEventType; message: string; data?: Record<string, number | string> };
 

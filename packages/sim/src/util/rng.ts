@@ -22,7 +22,7 @@ export function seededRandom(seed: string): () => number {
   };
 }
 
-/** A value in [-1, 1) that depends only on the id and a salt. */
-export function spread(id: string, salt: string): number {
-  return seededRandom(`${salt}:${id}`)() * 2 - 1;
+/** A value in [-1, 1) that depends only on the id, a salt and the netlist seed (if any). */
+export function spread(id: string, salt: string, seed?: string): number {
+  return seededRandom(seed ? `${salt}:${seed}:${id}` : `${salt}:${id}`)() * 2 - 1;
 }

@@ -8,7 +8,7 @@ import type { InputKey, InputValue, Netlist, SimEvent, Snapshot } from "./types"
 const now = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
 
 /** Events that can repeat many times a second are merged per part within one snapshot, with data.count. */
-const COALESCE = new Set(["clicked"]);
+const COALESCE = new Set(["clicked", "spark"]);
 
 export class SimulationImpl implements Simulation {
   private engine: Engine;

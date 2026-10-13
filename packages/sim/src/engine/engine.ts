@@ -50,6 +50,7 @@ export class Engine implements Ctx {
   method: Method = "be";
   sourceScale = 1;
   noncon = false;
+  restoring = false;
 
   readonly devices: Device[] = [];
   readonly byId = new Map<string, Device>();
@@ -307,6 +308,7 @@ export class Engine implements Ctx {
   /** Carries time, physical state, live inputs and a solution guess over from the previous engine. */
   private inherit(prev: Engine): void {
     this.t = prev.t;
+    this.restoring = true;
     for (const d of this.devices) {
       const old = prev.byId.get(d.id);
       if (!old || old.kind !== d.kind) continue;
@@ -319,6 +321,7 @@ export class Engine implements Ctx {
         if (v !== undefined) d.setInput(key, v, this);
       }
     }
+    this.restoring = false;
     // Initial guess for Newton from the old node voltages (by name, including internal nodes).
     const oldV = new Map<string, number>();
     for (const [nm, idx] of prev.nodeIndex) oldV.set(nm, idx >= 0 ? prev.x[idx]! : 0);

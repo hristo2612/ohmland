@@ -1,6 +1,7 @@
 import type { PartSpec } from "../types";
 import type { Device } from "../engine/device";
-import { FuseDevice, PotDevice, ResistorDevice, SourceDevice, SpdtDevice, SwitchDevice, WireDevice } from "./basic";
+import { FuseDevice, PotDevice, ResistorDevice, SourceDevice, WireDevice } from "./basic";
+import { SwitchDevice, ThrowDevice } from "./contacts";
 import { DiodeDevice, LedDevice, NpnDevice, PhototransistorDevice } from "./semis";
 import { CapacitorDevice, RelayDevice, SpeakerDevice } from "./reactive";
 import { MultimeterDevice } from "./meter";
@@ -18,7 +19,8 @@ export function createDevice(spec: PartSpec): Device | null {
     case "pushbutton":
       return new SwitchDevice(spec);
     case "spdt":
-      return new SpdtDevice(spec);
+    case "dpdt":
+      return new ThrowDevice(spec);
     case "pot":
       return new PotDevice(spec);
     case "battery":
