@@ -37,6 +37,11 @@ export function nextId(bench: BenchState, prefix: string): string {
   for (let i = 1; ; i++) if (!used.has(`${prefix}${i}`)) return `${prefix}${i}`;
 }
 
+/** Whether an id is already used by a part, wire, lead or the meter. */
+export function nextIdTaken(bench: BenchState, id: string): boolean {
+  return bench.parts.some((p) => p.id === id) || bench.wires.some((w) => w.id === id) || bench.leads.some((l) => l.id === id) || bench.meter?.id === id;
+}
+
 /** Holes in use, mapped to who uses them ("R1.a", "W2.b"). */
 export function occupiedHoles(bench: BenchState, except?: { part?: string; wire?: string; leg?: string }): Map<HoleId, string> {
   const out = new Map<HoleId, string>();

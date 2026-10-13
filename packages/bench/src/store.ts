@@ -54,6 +54,8 @@ export type BenchStoreState = {
   future: BenchState[];
   /** Bench at the start of the current drag, if one is in progress. */
   txBase: BenchState | null;
+  /** Part ids the learner cannot move, rotate or remove (set by the `locked` prop). */
+  locked: readonly string[];
   snapshot: Snapshot | null;
   ui: BenchUi;
   /** Set by <Bench>: receives every BenchAction. */
@@ -71,14 +73,15 @@ export type BenchStoreState = {
   setUi: (patch: Partial<BenchUi>) => void;
   select: (selection: Selection | null) => void;
 
-  addPart: <K extends BenchPartKind>(kind: K, params: Partial<PartParamsMap[K]> | undefined, at: ops.Placement) => string;
+  /** Adds a part; `id` is used when it is free, else the next free id for the kind. */
+  addPart: <K extends BenchPartKind>(kind: K, params: Partial<PartParamsMap[K]> | undefined, at: ops.Placement, id?: string) => string;
   movePart: (id: string, to: Vec2) => void;
   rotatePart: (id: string) => void;
   removePart: (id: string) => void;
   setParams: <K extends BenchPartKind>(id: string, params: Partial<PartParamsMap[K]>) => void;
   addWire: (a: HoleId, b: HoleId, color?: WireColor) => string | null;
   removeWire: (id: string) => void;
-  addLead: (color: LeadColor, at: Vec2) => string;
+  addLead: (color: LeadColor, at: Vec2, id?: string) => string;
   clipLead: (id: string, end: "a" | "b", to: Anchor | null, pos?: Vec2) => void;
   removeLead: (id: string) => void;
   setMeterMode: (mode: NonNullable<BenchState["meter"]>["mode"]) => void;
@@ -125,6 +128,7 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
       past: [],
       future: [],
       txBase: null,
+      locked: [],
       snapshot: null,
       ui: initialUi(),
       emit: () => {},
@@ -166,14 +170,16 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
         get().emit({ type: "select", selection });
       },
 
-      addPart: (kind, params, at) => {
-        const [next, id] = ops.addPart(get().bench, kind, params, at);
+      addPart: (kind, params, at, wanted) => {
+        const free = wanted && !ops.nextIdTaken(get().bench, wanted) ? wanted : undefined;
+        const [next, id] = ops.addPart(get().bench, kind, params, at, free);
         record(next, { type: "part:add", partId: id, kind });
         return id;
       },
       movePart: (id, to) => record(ops.movePart(get().bench, id, to), { type: "part:move", partId: id }),
       rotatePart: (id) => record(ops.rotatePart(get().bench, id), { type: "part:rotate", partId: id }),
       removePart: (id) => {
+        if (get().locked.includes(id)) return;
         record(ops.removePart(get().bench, id), { type: "part:remove", partId: id });
         if (get().ui.selection?.id === id) get().select(null);
       },
@@ -196,8 +202,9 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
         record(ops.removeWire(get().bench, id), { type: "wire:remove", wireId: id });
         if (get().ui.selection?.id === id) get().select(null);
       },
-      addLead: (color, at) => {
-        const [next, id] = ops.addLead(get().bench, color, at);
+      addLead: (color, at, wanted) => {
+        const free = wanted && !ops.nextIdTaken(get().bench, wanted) ? wanted : undefined;
+        const [next, id] = ops.addLead(get().bench, color, at, free);
         record(next, { type: "lead:add", leadId: id });
         return id;
       },
@@ -216,6 +223,7 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
       touchProbe: (color, to, pos) => record(ops.touchProbe(get().bench, color, to, pos), { type: "meter:probe", probe: color, to }),
       rotateSelected: () => {
         const s = get().ui.selection;
+        if (s?.type === "part" && get().locked.includes(s.id)) return;
         if (s?.type === "part") get().rotatePart(s.id);
         else if (s?.type === "meter") get().apply((b) => (b.meter ? ops.moveMeter(b, b.meter.pos, (b.meter.rot + 90) % 360) : b));
       },

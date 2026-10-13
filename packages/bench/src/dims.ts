@@ -25,6 +25,9 @@ export const SLIDE = { len: 8.6, wid: 3.8, h: 3.8, knobW: 1.5, knobL: 1.6, knobH
 
 export const TOGGLE = { len: 12.8, wid: 7.0, h: 8.6, bushingDia: 6.0, bushingH: 6.0, lever: 10.0 };
 
+/** The wooden block a desk toggle switch is mounted on, with three screw terminals along its front edge. */
+export const TOGGLE_BASE = { w: 46, h: 15, d: 30, screwX: 14, screwZ: 8.5, switchZ: -5.5 };
+
 export const TRIMMER = { size: 6.6, h: 4.6, rotorDia: 4.6 };
 
 export const RELAY = { len: 20.4, wid: 10.0, h: 11.4 };

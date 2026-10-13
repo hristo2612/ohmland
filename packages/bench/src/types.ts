@@ -49,15 +49,28 @@ export type BenchPartKind =
 export type WaterKind = "distilled" | "tap" | "salty";
 
 export type PartParamsMap = {
-  resistor: { ohms: number; bands?: 4 | 5; watts?: number; /** percent, 5 = gold, 10 = silver, 1 = brown */ tolerance?: number };
+  resistor: {
+    /** Nominal value: what the colour bands show. */
+    ohms: number;
+    bands?: 4 | 5;
+    watts?: number;
+    /** percent, 5 = gold, 10 = silver, 1 = brown */
+    tolerance?: number;
+    /** The part's real value within its tolerance, used by the simulator (labs seed it). Defaults to `ohms`. */
+    actualOhms?: number;
+  };
   led: { color: LedColor; size?: 3 | 5; lens?: "diffused" | "clear"; maxmA?: number };
   battery: { snap?: boolean; emf?: number; internalOhms?: number; mAh?: number };
-  pushbutton: { cap?: "black" | "red" | "blue" | "yellow" | "white" };
+  pushbutton: { cap?: "black" | "red" | "blue" | "yellow" | "white"; /** Connected until pressed. */ normallyClosed?: boolean };
   "slide-switch": { to: "a" | "b" };
-  "toggle-switch": { to: "a" | "b" };
+  "toggle-switch": {
+    to: "a" | "b";
+    /** Mounted on a small wooden block with screw terminals: a big, easy switch for desk circuits. Desk only. */
+    base?: boolean;
+  };
   fuse: { amps: number };
-  "ceramic-cap": { farads: number; volts?: number };
-  "electrolytic-cap": { farads: number; volts?: number };
+  "ceramic-cap": { farads: number; volts?: number; /** The real value, for an out-of-spec part (labs). */ actualFarads?: number };
+  "electrolytic-cap": { farads: number; volts?: number; /** The real value, for an out-of-spec part (labs). */ actualFarads?: number };
   trimmer: { ohms: number; /** wiper position 0..1 from pin a to pin b */ position: number };
   relay: { coilVolts?: number; coilOhms?: number; pullIn?: number; dropOut?: number };
   npn: { model?: "2N3904" };
@@ -145,8 +158,16 @@ export type BenchState = {
 
 /** An item that can be dragged from the tray onto the bench. */
 export type TrayItem =
-  | { kind: BenchPartKind; params?: Record<string, unknown>; label?: string; /** how many may be placed; unlimited when absent */ count?: number }
-  | { kind: "lead"; params?: { color?: LeadColor }; label?: string; count?: number };
+  | {
+      kind: BenchPartKind;
+      params?: Record<string, unknown>;
+      label?: string;
+      /** how many may be placed; unlimited when absent */
+      count?: number;
+      /** Id for the placed part when it is free ("R2"); otherwise the next free id for the kind. */
+      id?: string;
+    }
+  | { kind: "lead"; params?: { color?: LeadColor }; label?: string; count?: number; id?: string };
 
 export type TrayKind = TrayItem["kind"];
 
