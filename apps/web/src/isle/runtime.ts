@@ -4,12 +4,9 @@
  */
 import type { IsleMessages, IslePlan, IsleView } from "@ohmland/isle";
 
-export { madeUp, makeIsle, mountIsle } from "@ohmland/isle";
+export { madeUp, makeIsle, mountIsle, preloadIsle } from "@ohmland/isle";
 export { isleCounts, isleEvents, revealRange } from "../progress/isleEvents";
 export { isleMessages } from "./messages";
-
-/** Loads three.js (the renderer's bulk) without creating anything; mountIsle() then only fetches the small rest. */
-export const warmRenderer = (): Promise<void> => import("three").then(() => undefined);
 
 /** Stops drawing while the tab is hidden. Returns the cleanup. */
 export function pauseWhenHidden(view: IsleView): () => void {

@@ -3,7 +3,7 @@
  * code (and three.js) loads after hydration. Drag to turn, pinch or scroll to zoom, tap a piece for its label. A new
  * learner sees the bare starting plot and the way to their first lesson.
  */
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { IsleLabel, IsleView } from "@ohmland/isle";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
@@ -43,10 +43,6 @@ export default function IslePage({ outline }: { outline: CourseOutline }) {
   const [entries, setEntries] = useState<IsleEntry[]>([]);
   const [touched, setTouched] = useState(false);
 
-  // A closed label stays closed while the camera moves; only a new tap opens one again.
-  const hush = useRef(false);
-  const down = useRef<{ x: number; y: number; t: number } | null>(null);
-
   const lessons = outline.order.filter((id) => learner.lessons[id]).length;
   const modules = completedModules(learner, outline).length;
   const empty = ready && lessons === 0;
@@ -72,11 +68,7 @@ export default function IslePage({ outline }: { outline: CourseOutline }) {
           muted: useLearner.getState().learner.settings.muted,
           reducedMotion: prefersReducedMotion(),
           messages,
-          onPick: (l) => {
-            if (!l) hush.current = false;
-            if (hush.current) return;
-            setLabel(l);
-          },
+          onPick: setLabel,
           ...timeOption(),
         });
         if (cancelled) {
@@ -118,11 +110,15 @@ export default function IslePage({ outline }: { outline: CourseOutline }) {
 
   useEffect(() => view.current?.setMuted(muted), [muted]);
 
+  // A closed label stays closed while the camera moves; only a new tap opens one again.
+  const closeLabel = () => {
+    view.current?.clearPick();
+    setLabel(null);
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || !label) return;
-      hush.current = true;
-      setLabel(null);
+      if (e.key === "Escape" && label) closeLabel();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -132,21 +128,6 @@ export default function IslePage({ outline }: { outline: CourseOutline }) {
     const k = Math.max(0, Math.min(ZOOMS.length - 1, i));
     setZoom(k);
     view.current?.setZoom(ZOOMS[k]!);
-  };
-
-  const onDown = (e: PointerEvent) => {
-    setTouched(true);
-    down.current = e.isPrimary ? { x: e.clientX, y: e.clientY, t: performance.now() } : null;
-  };
-  const onUp = (e: PointerEvent) => {
-    const d = down.current;
-    down.current = null;
-    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 8 && performance.now() - d.t < 500) hush.current = false;
-  };
-
-  const closeLabel = () => {
-    hush.current = true;
-    setLabel(null);
   };
 
   const target = resumeTarget(learner, outline) ?? outline.order[0];
@@ -194,7 +175,7 @@ export default function IslePage({ outline }: { outline: CourseOutline }) {
       </header>
 
       <main id="main" className="isle-stage" tabIndex={-1}>
-        <div className="isle-stage__canvas" ref={stage} onPointerDown={onDown} onPointerUp={onUp} />
+        <div className="isle-stage__canvas" ref={stage} onPointerDown={() => setTouched(true)} />
 
         {status === "loading" && (
           <p className="isle-stage__loading" role="status">

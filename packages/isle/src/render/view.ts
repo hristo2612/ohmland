@@ -50,7 +50,14 @@ export type MountOptions = {
   at?: number;
   /** The words for labels and reveal captions (default: English, ISLE_EN), so the app can translate them. */
   messages?: IsleMessages;
+  /** The reveal sound plays on this context (default: the page's shared isle context, unlocked by primeAudio()). */
+  audio?: AudioContext;
+  /** Turns a teaser (not interactive) slowly round, in degrees a second, instead of swaying; reducedMotion keeps it still. */
+  autoRotate?: number;
+  /** Screen space covered at the edge, in CSS pixels (say a caption card at the bottom): the isle and reveals frame above it. */
+  inset?: IsleInset;
 };
+export type IsleInset = { bottom?: number };
 export type IsleView = {
   /** Animates what events from + 1 ... to brought; resolves once it has landed. */
   reveal(from: number, to: number): Promise<RevealInfo>;
@@ -67,6 +74,10 @@ export type IsleView = {
   setMuted(muted: boolean): void;
   /** Zooms the default framing in (above 1) or out (below 1), for zoom buttons. */
   setZoom(zoom: number): void;
+  /** Forgets the tapped thing, so its label is not sent again as the camera moves (onPick is not called). */
+  clearPick(): void;
+  /** Changes the covered screen space (see MountOptions.inset), for example when a caption card is resized. */
+  setInset(inset: IsleInset): void;
 };
 
 const deg = (d: number) => (d * Math.PI) / 180;
@@ -97,6 +108,15 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   const msg = opts.messages ?? EN;
   let muted = opts.muted;
   const reduced = opts.reducedMotion;
+  /** A teaser that turns round (unless motion is reduced), framed as it stands at each angle. */
+  const turning = !opts.interactive && !!opts.autoRotate && !reduced;
+  /** Degrees turned so far, and where the frame was last fitted. */
+  let spin = 0;
+  let fittedAt = 0;
+  /** CSS pixels covered at the bottom, and the canvas height they are a share of. */
+  let insetPx = Math.max(0, opts.inset?.bottom ?? 0);
+  let heightPx = 1;
+  const cover = () => Math.min(0.6, insetPx / heightPx);
   const canvas = document.createElement("canvas");
   // an interactive isle takes touch gestures; a teaser leaves them to the page, so it still scrolls
   canvas.style.cssText = `display:block;width:100%;height:100%;outline:none;touch-action:${opts.interactive ? "none" : "auto"}`;
@@ -273,6 +293,34 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   const RIGHT = new THREE.Vector3(Math.cos(th), 0, -Math.sin(th));
   const UPV = new THREE.Vector3(-Math.cos(ph) * Math.sin(th), Math.sin(ph), -Math.cos(ph) * Math.cos(th));
   const onScreen = (x: number, y: number, z: number): [number, number] => [x * RIGHT.x + z * RIGHT.z, x * UPV.x + y * UPV.y + z * UPV.z];
+  // The default camera's right, up and view axes as they are now: a turning isle turns them, and the frame, the
+  // clouds and the screen box follow.
+  const camR = RIGHT.clone();
+  const camU = UPV.clone();
+  const camV = new THREE.Vector3().crossVectors(RIGHT, UPV);
+  const turnTo = (azDeg: number) => {
+    const a = deg(azDeg);
+    camR.set(Math.cos(a), 0, -Math.sin(a));
+    camU.set(-Math.cos(ph) * Math.sin(a), Math.sin(ph), -Math.cos(ph) * Math.cos(a));
+    camV.crossVectors(camR, camU);
+  };
+  /** The points that bound the isle on screen (x, y, z triples), kept for a turning isle to refit its frame. */
+  let bounds: number[] = [];
+  const boxNow = () => {
+    const b = { sx0: Infinity, sx1: -Infinity, sy0: Infinity, sy1: -Infinity };
+    for (let i = 0; i < bounds.length; i += 3) {
+      const x = bounds[i]!;
+      const y = bounds[i + 1]!;
+      const z = bounds[i + 2]!;
+      const a = x * camR.x + z * camR.z;
+      const v = x * camU.x + y * camU.y + z * camU.z;
+      b.sx0 = Math.min(b.sx0, a);
+      b.sx1 = Math.max(b.sx1, a);
+      b.sy0 = Math.min(b.sy0, v);
+      b.sy1 = Math.max(b.sy1, v);
+    }
+    return b;
+  };
   let landInfo: (LandInfo | null)[] = [];
   let boards: (Board | null)[] = [];
   let refs = designators(plan.items);
@@ -313,12 +361,14 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     let top = 6;
     let depth = 4;
     const fr = { sx0: Infinity, sx1: -Infinity, sy0: Infinity, sy1: -Infinity };
+    const seen: number[] = [];
     const see = (x: number, y: number, z: number) => {
       const [a, b] = onScreen(x, y, z);
       fr.sx0 = Math.min(fr.sx0, a);
       fr.sx1 = Math.max(fr.sx1, a);
       fr.sy0 = Math.min(fr.sy0, b);
       fr.sy1 = Math.max(fr.sy1, b);
+      if (turning) seen.push(x, y, z);
     };
     const lights: { x: number; y: number; z: number; c: THREE.Color; s: number }[] = [];
     smokeAt = [];
@@ -442,21 +492,28 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     const m0 = plan.islands[0]!;
     see(m0.x, m0.y + 6.5, m0.z);
     if (Number.isFinite(fr.sx0)) screenBox = fr;
+    if (turning && seen.length) {
+      bounds = seen;
+      screenBox = boxNow();
+    }
     fitShadow();
     halfGoal = frameFor(extent);
     renderer.shadowMap.needsUpdate = true;
     dirty = true;
   };
 
-  /** Half the view height that fits the whole isle, with a small margin. */
+  /** The shape of the open part of the screen (above any inset). */
+  const openAspect = () => aspect / (1 - cover());
+  /** Half the view height that fits the whole isle in the open part of the screen, with a small margin. */
   const frameFor = (_e: typeof extent) => {
     const hh = (screenBox.sy1 - screenBox.sy0) / 2;
     const hw = (screenBox.sx1 - screenBox.sx0) / 2;
-    const m = aspect < 0.8 ? 1.07 : 1.12;
-    return Math.max(hh * m + 0.5, (hw * m + 0.5) / aspect) / userZoom;
+    const a = openAspect();
+    const m = a < 0.8 ? 1.07 : 1.12;
+    return Math.max(hh * m + 0.5, (hw * m + 0.5) / a) / userZoom;
   };
-  /** The point the default camera looks at so the isle sits in the middle of the screen. */
-  const frameCentre = (out: THREE.Vector3) => out.copy(RIGHT).multiplyScalar((screenBox.sx0 + screenBox.sx1) / 2).addScaledVector(UPV, (screenBox.sy0 + screenBox.sy1) / 2);
+  /** The point the default camera looks at so the isle sits in the middle of the open part of the screen. */
+  const frameCentre = (out: THREE.Vector3) => out.copy(camR).multiplyScalar((screenBox.sx0 + screenBox.sx1) / 2).addScaledVector(camU, (screenBox.sy0 + screenBox.sy1) / 2);
   let userZoom = 1;
   const fitShadow = () => {
     const R = extent.r + 8;
@@ -503,7 +560,6 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   const clouds = new THREE.InstancedMesh(cloudGeo, cloudMat, CLOUDS);
   clouds.frustumCulled = false;
   scene.add(clouds);
-  const VIEW = new THREE.Vector3().crossVectors(RIGHT, UPV);
   /** Clouds sit in the screen's margins round the isle (beside it on a wide screen, above and below on a tall one), behind it, drifting a little. */
   const SLOTS: ["l" | "r" | "t" | "b", number][] = [
     ["l", 0.45],
@@ -513,13 +569,16 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     ["t", -0.3],
     ["b", 0.35],
   ];
+  // the clouds keep their place on screen: they move with the camera's axes when the isle turns
+  const cloudC = new THREE.Vector3();
   const placeClouds = () => {
     const vh = halfGoal * userZoom;
-    const vw = vh * aspect;
+    const vw = vh * openAspect();
     const cx = (screenBox.sx0 + screenBox.sx1) / 2;
     const cy = (screenBox.sy0 + screenBox.sy1) / 2;
     const ihw = (screenBox.sx1 - screenBox.sx0) / 2;
     const ihh = (screenBox.sy1 - screenBox.sy0) / 2;
+    frameCentre(cloudC);
     SLOTS.forEach(([side, rel], i) => {
       const lr = side === "l" || side === "r";
       const margin = lr ? vw - ihw : vh - ihh;
@@ -534,7 +593,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
         sx = cx + rel * vw * 0.8 + drift;
         sy = cy + (side === "t" ? 1 : -1) * (ihh + margin * 0.45);
       }
-      P.copy(RIGHT).multiplyScalar(sx).addScaledVector(UPV, sy).addScaledVector(VIEW, -60);
+      P.copy(cloudC).addScaledVector(camR, sx - cx).addScaledVector(camU, sy - cy).addScaledVector(camV, -60);
       compose(P.x, P.y, P.z, 0, margin < 3.5 ? 0.001 : k);
       clouds.setMatrixAt(i, M);
     });
@@ -710,7 +769,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     to = Math.max(from, Math.min(to, plan.events.length - 1));
     const info = describe(from, to);
     finishReveal();
-    if (!muted) play(info.big, reduced ? 0 : 0.7);
+    if (!muted) play(info.big, reduced ? 0 : 0.7, opts.audio);
     if (reduced || to === from) {
       show(to);
       return Promise.resolve(info);
@@ -855,6 +914,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     if (!w || !h) return;
     renderer.setSize(w, h, false);
     aspect = w / h;
+    heightPx = h;
     halfGoal = frameFor(extent);
     dirty = true;
   };
@@ -873,6 +933,16 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     dirty = true;
   });
   const update = (dt: number) => {
+    // a turning teaser turns, and refits its frame to the isle as it stands now every half degree (eased below)
+    if (turning) {
+      spin = (spin + dt * opts.autoRotate!) % 360;
+      turnTo(AZ + spin);
+      if (Math.abs(spin - fittedAt) > 0.5) {
+        fittedAt = spin;
+        screenBox = boxNow();
+        halfGoal = frameFor(extent);
+      }
+    }
     // framing: the whole isle, or the reveal's flight to its newest thing
     frameCentre(focusGoal);
     let hg = halfGoal;
@@ -907,11 +977,14 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       controls.target.copy(focus);
       cam.position.copy(focus).add(off);
     } else {
-      const sway = reduced ? 0 : Math.sin(t * 0.12) * 10;
-      cam.position.setFromSphericalCoords(900, deg(POLAR), deg(AZ + sway)).add(focus);
+      // a teaser sways gently, or turns round slowly when asked to
+      const az = turning ? AZ + spin : AZ + (reduced ? 0 : Math.sin(t * 0.12) * 10);
+      cam.position.setFromSphericalCoords(900, deg(POLAR), deg(az)).add(focus);
       cam.lookAt(focus);
     }
-    Object.assign(cam, { top: half, bottom: -half, left: -half * aspect, right: half * aspect });
+    // the framed half height sits in the open part of the screen: the view reaches further down, under the inset
+    const c = cover();
+    Object.assign(cam, { top: half, bottom: (-half * (1 + c)) / (1 - c), left: (-half * aspect) / (1 - c), right: (half * aspect) / (1 - c) });
     cam.updateProjectionMatrix();
 
     // the reveal's actors spring in (or shrink away)
@@ -955,7 +1028,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     }
 
     // level of detail: small pieces drop out when they would be a pixel or two
-    const ppu = renderer.getDrawingBufferSize(size).y / ((2 * half) / cam.zoom);
+    const ppu = renderer.getDrawingBufferSize(size).y / ((cam.top - cam.bottom) / cam.zoom);
     const near = ppu > 7;
     for (const p of pools) if (p.small && p.mesh.visible !== near) {
       p.mesh.visible = near;
@@ -1097,6 +1170,15 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     },
     setZoom(z: number) {
       userZoom = Math.max(0.5, Math.min(8, z));
+      halfGoal = frameFor(extent);
+      dirty = true;
+    },
+    clearPick() {
+      labelled = null;
+      lastLabel = "";
+    },
+    setInset(inset: IsleInset) {
+      insetPx = Math.max(0, inset.bottom ?? 0);
       halfGoal = frameFor(extent);
       dirty = true;
     },

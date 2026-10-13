@@ -13,7 +13,7 @@
  * This module stays tiny: the reveal itself (../isle/reveal.tsx) and the island load on demand.
  */
 import type { CourseOutline } from "../content/outline";
-import { primeAudio } from "../isle/audio";
+import { primeAudio } from "@ohmland/isle/audio";
 import { prefetchIsle } from "../isle/load";
 import type { LearnerState } from "../progress/types";
 

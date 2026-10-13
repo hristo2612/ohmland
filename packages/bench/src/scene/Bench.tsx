@@ -113,6 +113,10 @@ export function Bench(props: BenchProps) {
   }, [element]);
   const compact = size.w < 640;
   const showTray = !readOnly && tray.length > 0;
+  // Nothing is drawn until the scene's shaders have compiled (in parallel, off the main thread where the browser can),
+  // so the first frame does not stall on them one by one.
+  const [held, setHeld] = useState(true);
+  const release = useCallback(() => setHeld(false), []);
   viewPad.current = { left: showTray && !compact ? 204 : 0, bottom: showTray && compact ? 104 : 0 };
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -136,7 +140,7 @@ export function Bench(props: BenchProps) {
           style={{ position: "relative", width: "100%", height: "100%", touchAction: "none", outline: "none", overflow: "hidden", background: BACKGROUND, ...style }}
         >
           <Canvas
-            frameloop="demand"
+            frameloop={held ? "never" : "demand"}
             shadows={quality === "high" ? "percentage" : false}
             dpr={[1, quality === "high" ? 2 : 1.5]}
             camera={{ fov: 32, near: 2, far: 6000, position: [0, 320, 360] }}
@@ -148,6 +152,7 @@ export function Bench(props: BenchProps) {
             style={{ position: "absolute", inset: 0 }}
           >
             <BenchScene store={store} element={element} api={api} readOnly={readOnly} quality={quality} highlight={highlight} emit={emit} camera={props.camera} onReady={props.onReady} viewPad={viewPad} />
+            <Warmup held={held} offscreen={quality === "high"} onWarm={release} />
           </Canvas>
           <Overlay tray={tray} readOnly={readOnly} compact={compact} api={api} size={size} />
         </div>
@@ -224,22 +229,78 @@ const PostEffects = memo(function PostEffects() {
   );
 });
 
+/** Calls back once the first frame is on screen (the frame after it has begun). */
 function ReadySignal({ onReady }: { onReady?: () => void }) {
   const done = useRef(false);
-  const invalidate = useThree((s) => s.invalidate);
   useFrame(() => {
     if (done.current) return;
     done.current = true;
-    // Let shadows, textures and the env map settle for a couple of frames.
-    let n = 0;
-    const tick = () => {
-      if (++n < 3) {
-        invalidate();
-        requestAnimationFrame(tick);
-      } else onReady?.();
-    };
-    requestAnimationFrame(tick);
+    requestAnimationFrame(() => onReady?.());
   });
+  return null;
+}
+
+/** The canvas-drawn textures the scene's materials use. */
+function canvasTextures(scene: THREE.Object3D): Set<THREE.Texture> {
+  const found = new Set<THREE.Texture>();
+  scene.traverse((o) => {
+    const m = (o as THREE.Mesh).material;
+    for (const mat of Array.isArray(m) ? m : m ? [m] : []) {
+      for (const v of Object.values(mat)) if ((v as THREE.CanvasTexture | null)?.isCanvasTexture) found.add(v as THREE.Texture);
+    }
+  });
+  return found;
+}
+
+/** Longest the first frame waits for shaders to compile in the background; after that they finish as it draws. */
+const MAX_WARM_MS = 2500;
+
+/**
+ * Compiles every material in the scene before the first frame, with KHR_parallel_shader_compile where the browser
+ * has it (three's compileAsync), then lets the frame loop start. A cold GPU shader cache otherwise compiles them one
+ * by one inside the first frame. `offscreen` compiles the variant that renders into post-processing's buffers.
+ */
+function Warmup({ held, offscreen, onWarm }: { held: boolean; offscreen: boolean; onWarm: () => void }) {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    if (!held) {
+      invalidate();
+      return;
+    }
+    let waiting = true;
+    const go = () => {
+      if (!waiting) return;
+      waiting = false;
+      onWarm();
+    };
+    const target = offscreen ? new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType }) : null;
+    const before = gl.getRenderTarget();
+    let compiled: Promise<unknown> = Promise.resolve();
+    try {
+      gl.setRenderTarget(target);
+      compiled = gl.compileAsync(scene, camera);
+    } catch {
+      // drawn without the head start
+    } finally {
+      gl.setRenderTarget(before);
+    }
+    // While the GPU compiles, upload the drawn textures (the desk alone is 2048 px), which the first frame would do.
+    try {
+      for (const tex of canvasTextures(scene)) gl.initTexture(tex);
+    } catch {
+      // uploaded by the first frame instead
+    }
+    const timer = window.setTimeout(go, MAX_WARM_MS);
+    compiled.then(go, go);
+    return () => {
+      waiting = false;
+      window.clearTimeout(timer);
+      target?.dispose();
+    };
+  }, [held, offscreen, gl, scene, camera, invalidate, onWarm]);
   return null;
 }
 

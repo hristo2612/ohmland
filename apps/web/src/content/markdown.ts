@@ -28,12 +28,14 @@ export function inlineMd(src: string): string {
     const external = /^https?:/i.test(safe);
     return `<a href="${escapeHtml(safe)}"${external ? ' rel="noopener" target="_blank"' : ""}>${label}</a>`;
   });
-  s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  s = s.replace(/(^|[^\w*])\*(?!\s)(.+?)(?<!\s)\*(?!\w)/g, "$1<em>$2</em>");
-  s = s.replace(/(^|[^\w])_(?!\s)(.+?)(?<!\s)_(?!\w)/g, "$1<em>$2</em>");
+  // Spans may wrap: text from a YAML block scalar keeps its line breaks, so `[\s\S]` rather than `.` inside them.
+  s = s.replace(/\*\*([\s\S]+?)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/(^|[^\w*])\*(?!\s)([\s\S]+?)(?<!\s)\*(?!\w)/g, "$1<em>$2</em>");
+  s = s.replace(/(^|[^\w])_(?!\s)([\s\S]+?)(?<!\s)_(?!\w)/g, "$1<em>$2</em>");
   s = s.replace(/\\\n/g, "<br>");
-  // Keep a number and its unit together ("20 mA", "470 Ω", "5 mm") so a line never breaks between them.
-  s = s.replace(/(\d) (?=(?:[pnµmkMG]?(?:Ω|V|A|W|F|Hz|s|Ah)|mAh|mm|cm|%)(?![A-Za-z0-9]))/g, "$1 ");
+  // Keep a number and its unit together ("20 mA", "470 Ω", "5 mm") so a line never breaks between them, even where
+  // the source wrapped.
+  s = s.replace(/(\d)[ \n](?=(?:[pnµmkMG]?(?:Ω|V|A|W|F|Hz|s|Ah)|mAh|mm|cm|%)(?![A-Za-z0-9]))/g, "$1 ");
   // eslint-disable-next-line no-control-regex
   s = s.replace(/\u0000(\d+)\u0000/g, (_, i: string) => codes[Number(i)] ?? "");
   return s;
