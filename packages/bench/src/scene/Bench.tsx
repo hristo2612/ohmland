@@ -50,7 +50,7 @@ export type BenchProps = {
   controllerRef?: React.MutableRefObject<BenchController | null>;
 };
 
-export type BenchController = Pick<InteractionApi, "topView" | "resetView" | "project" | "stats">;
+export type BenchController = Pick<InteractionApi, "topView" | "resetView" | "project" | "stats" | "pickAt">;
 
 export function Bench(props: BenchProps) {
   const { tray = [], snapshot = null, quality = "high", readOnly = false, highlight, className, style } = props;
@@ -72,6 +72,7 @@ export function Bench(props: BenchProps) {
       resetView: () => api.current?.resetView(),
       project: (t) => api.current?.project(t) ?? null,
       stats: () => api.current?.stats() ?? { calls: 0, triangles: 0, geometries: 0, textures: 0 },
+      pickAt: (x, y) => api.current?.pickAt(x, y) ?? null,
     };
     return () => {
       controllerRef.current = null;
@@ -93,14 +94,15 @@ export function Bench(props: BenchProps) {
   );
 
   // Compact layout for narrow containers (phones). Measured before the first paint so the camera fit knows.
-  const [compact, setCompact] = useState(() => typeof window !== "undefined" && window.innerWidth < 640);
+  const [size, setSize] = useState(() => ({ w: typeof window !== "undefined" ? window.innerWidth : 1000, h: typeof window !== "undefined" ? window.innerHeight : 700 }));
   useLayoutEffect(() => {
     if (!element) return;
-    setCompact(element.clientWidth < 640);
-    const ro = new ResizeObserver(([e]) => setCompact((e?.contentRect.width ?? 1000) < 640));
+    setSize({ w: element.clientWidth, h: element.clientHeight });
+    const ro = new ResizeObserver(([e]) => e && setSize({ w: e.contentRect.width, h: e.contentRect.height }));
     ro.observe(element);
     return () => ro.disconnect();
   }, [element]);
+  const compact = size.w < 640;
   const showTray = !readOnly && tray.length > 0;
   viewPad.current = { left: showTray && !compact ? 204 : 0, bottom: showTray && compact ? 104 : 0 };
 
@@ -114,7 +116,7 @@ export function Bench(props: BenchProps) {
       <LabelsContext.Provider value={labels}>
         <div
           ref={setElement}
-          className={className}
+          className={className ? `ohb-root ${className}` : "ohb-root"}
           tabIndex={0}
           role="application"
           aria-label={labels.canvas}
@@ -138,7 +140,7 @@ export function Bench(props: BenchProps) {
           >
             <BenchScene store={store} element={element} api={api} readOnly={readOnly} quality={quality} highlight={highlight} emit={emit} camera={props.camera} onReady={props.onReady} viewPad={viewPad} />
           </Canvas>
-          <Overlay tray={tray} readOnly={readOnly} compact={compact} api={api} />
+          <Overlay tray={tray} readOnly={readOnly} compact={compact} api={api} size={size} />
         </div>
       </LabelsContext.Provider>
     </BenchStoreContext.Provider>
@@ -246,7 +248,7 @@ function BenchScene({
   useInteraction({ store, element, readOnly, api, emit, viewPad });
 
   const center = useMemo(() => workCenter(bench), [bench.board]);
-  const floor = useMemo(() => makeFloor(bench), [bench]);
+  const floor = useMemo(() => makeFloor(bench), [bench.board, bench.meter]);
   const conn = useMemo(() => connectivity(bench), [bench]);
 
   // X-ray: everything joined to the hovered hole or lead.

@@ -318,7 +318,8 @@ export function benchBounds(bench: BenchState): [number, number, number, number]
   }
   for (const p of bench.parts) {
     if (isOnBoard(bench, p)) continue;
-    const big = p.kind === "cup" || p.kind === "lemon" ? 32 : p.kind === "battery" || p.kind === "speaker" ? 22 : 14;
+    // Tall props reach up toward the camera, so give them more room than their footprint.
+    const big = p.kind === "cup" ? 52 : p.kind === "lemon" ? 38 : p.kind === "battery" ? 30 : p.kind === "speaker" ? 24 : 14;
     grow(p.pos[0], p.pos[1], big);
   }
   if (bench.meter) {

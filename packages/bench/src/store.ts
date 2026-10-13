@@ -36,8 +36,8 @@ export type BenchUi = {
   xray: boolean;
   /** Tray item waiting for a tap on the bench (touch placement). */
   armed: TrayItem | null;
-  /** Context menu at client coordinates. */
-  menu: { x: number; y: number; selection: Selection } | null;
+  /** Context menu at container coordinates; `at` is when it opened (ms). */
+  menu: { x: number; y: number; selection: Selection; at: number } | null;
   /** Something is being dragged (the camera is locked). */
   dragging: boolean;
   /** Wire being drawn from a hole. */

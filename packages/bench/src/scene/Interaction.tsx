@@ -25,6 +25,8 @@ export type InteractionApi = {
   project: (target: Anchor | [number, number, number]) => { x: number; y: number } | null;
   /** Renderer statistics of the last frame (draw calls, triangles) for performance checks. */
   stats: () => { calls: number; triangles: number; geometries: number; textures: number };
+  /** What the pointer would grab at a client point (for tests and tutorials). */
+  pickAt: (clientX: number, clientY: number) => Pick | null;
 };
 
 type Drag =
@@ -469,7 +471,7 @@ export function useInteraction({
       if (s.txBase) s.cancel();
       s.select(sel);
       const r = element.getBoundingClientRect();
-      setUi({ menu: { x: cx - r.left, y: cy - r.top, selection: sel }, dragging: false });
+      setUi({ menu: { x: cx - r.left, y: cy - r.top, selection: sel, at: performance.now() }, dragging: false });
     };
 
     // ---- DOM listeners ---------------------------------------------------------------------------------------
@@ -610,9 +612,11 @@ export function useInteraction({
         }
         if (p?.type === "leg") hover = `pin:${p.id}.${p.leg}`;
         if (p?.type === "wireEnd") hover = `wire:${p.id}.${p.end}`;
-        if (s.ui.mode === "wire" && s.ui.wireDraft && !s.ui.wireDraft.target) {
-          const wp = workPoint(cx, cy);
-          if (wp) setUi({ wireDraft: { ...s.ui.wireDraft, to: [wp.x, wp.y, wp.z] } });
+        if (s.ui.mode === "wire" && s.ui.wireDraft) {
+          // Preview the wire to the hole under the pointer while choosing the second end.
+          const h = holeAt(cx, cy);
+          const target = h && h !== s.ui.wireDraft.from ? h : null;
+          if (target !== s.ui.wireDraft.target) setUi({ wireDraft: { ...s.ui.wireDraft, target } });
         }
         if (hover !== s.ui.hover) setUi({ hover });
         element.style.cursor = p ? (p.type === "press" || p.type === "flip" || p.type === "dialMode" ? "pointer" : "grab") : hover && s.ui.mode === "wire" ? "crosshair" : "";
@@ -629,7 +633,9 @@ export function useInteraction({
       return Math.hypot(s.x - cx, s.y - cy) < 14 && BOARD_PRINT.holeSize > 0;
     };
 
-    const onLeave = () => {
+    const onLeave = (e: PointerEvent) => {
+      // Touch pointers "leave" when lifted; keep the tapped hole's x-ray showing.
+      if (e.pointerType !== "mouse") return;
       if (store.getState().ui.hover) setUi({ hover: null });
     };
     const onContext = (e: MouseEvent) => e.preventDefault();
@@ -741,6 +747,7 @@ export function useInteraction({
         invalidate();
         return true;
       },
+      pickAt: (x, y) => hit(x, y),
       stats: () => ({
         calls: gl.info.render.calls,
         triangles: gl.info.render.triangles,

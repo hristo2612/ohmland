@@ -7,11 +7,12 @@ import type { BenchLabels } from "../labels";
 import { DIAL_MODES } from "../layout";
 import { useBench, useBenchStore } from "../store";
 import type { LeadColor, MeterMode, PlacedPart, TrayItem, WireColor } from "../types";
-import { WIRE_HEX } from "../three/materials";
+import { LED_HEX, WIRE_HEX } from "../three/materials";
 import { PartIcon, ToolIcon } from "./icons";
 import type { InteractionApi } from "./Interaction";
 
 const CSS = `
+.ohb-root:focus-visible{box-shadow:inset 0 0 0 3px var(--ohb-focus,#2f7df6)}
 .ohb-ui{position:absolute;inset:0;pointer-events:none;font:500 13px/1.25 Inter,"Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--ohb-fg,#2b2620)}
 .ohb-panel{pointer-events:auto;background:var(--ohb-panel,rgba(255,251,244,.92));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(60,45,30,.12);border-radius:14px;box-shadow:0 6px 24px rgba(60,40,20,.14),0 1px 2px rgba(60,40,20,.12)}
 .ohb-row{display:flex;gap:4px;align-items:center;padding:4px}
@@ -50,7 +51,7 @@ const CSS = `
 .ohb-compact .ohb-sel{bottom:108px}
 .ohb-compact .ohb-status{left:8px;bottom:108px}
 .ohb-compact .ohb-hint{top:62px;white-space:normal;width:calc(100% - 32px);text-align:center}
-.ohb-compact .ohb-label{display:none}
+.ohb-compact .ohb-tools .ohb-label,.ohb-compact .ohb-sel .ohb-label{display:none}
 .ohb-notray .ohb-tools,.ohb-notray .ohb-status{left:10px}
 `;
 
@@ -114,11 +115,14 @@ export function Overlay({
   readOnly,
   compact,
   api,
+  size,
 }: {
   tray: TrayItem[];
   readOnly: boolean;
   compact: boolean;
   api: React.MutableRefObject<InteractionApi | null>;
+  /** Container size in pixels. */
+  size: { w: number; h: number };
 }) {
   const labels = useLabels();
   const store = useBenchStore();
@@ -147,10 +151,13 @@ export function Overlay({
   const actions = (inMenu: boolean) => {
     const out: ReactNode[] = [];
     const close = () => inMenu && s.setUi({ menu: null });
+    // The finger that opened a menu by long-press lifts right after; ignore that release as a choice.
+    const fresh = () => inMenu && !!ui.menu && performance.now() - ui.menu.at < 400;
     if (selPart) {
       if (selPart.kind === "slide-switch" || selPart.kind === "toggle-switch") {
         out.push(
           <Btn key="flip" label={labels.toggle} icon={<ToolIcon name="flip" />} compact={compact && !inMenu} onClick={() => {
+            if (fresh()) return;
             s.setParams<"slide-switch">(selPart.id, { to: selPart.params.to === "a" ? "b" : "a" });
             close();
           }} />,
@@ -159,7 +166,7 @@ export function Overlay({
       if (selPart.kind === "pushbutton") {
         out.push(<Btn key="press" label={labels.press} icon={<ToolIcon name="press" />} compact={compact && !inMenu} onPointerDown={() => s.press(selPart.id, true)} onPointerUp={() => s.press(selPart.id, false)} />);
       }
-      out.push(<Btn key="rot" label={labels.rotate} icon={<ToolIcon name="rotate" />} compact={compact && !inMenu} onClick={() => { s.rotatePart(selPart.id); close(); }} />);
+      out.push(<Btn key="rot" label={labels.rotate} icon={<ToolIcon name="rotate" />} compact={compact && !inMenu} onClick={() => { if (fresh()) return; s.rotatePart(selPart.id); close(); }} />);
     }
     if (sel?.type === "meter" && bench.meter && !inMenu) {
       out.push(
@@ -176,7 +183,7 @@ export function Overlay({
       out.push(
         <span key="wc" role="group" aria-label={labels.wireColor} style={{ display: "inline-flex", flexWrap: "wrap" }}>
           {WIRE_COLORS.map((c) => (
-            <button key={c} type="button" className="ohb-sw" aria-label={labels.colors[c]} aria-pressed={selWire.color === c} style={{ background: WIRE_HEX[c] }} onClick={() => { s.apply((b) => ({ ...b, wires: b.wires.map((w) => (w.id === selWire.id ? { ...w, color: c } : w)) })); close(); }} />
+            <button key={c} type="button" className="ohb-sw" aria-label={labels.colors[c]} aria-pressed={selWire.color === c} style={{ background: WIRE_HEX[c] }} onClick={() => { if (fresh()) return; s.apply((b) => ({ ...b, wires: b.wires.map((w) => (w.id === selWire.id ? { ...w, color: c } : w)) })); close(); }} />
           ))}
         </span>,
       );
@@ -185,13 +192,13 @@ export function Overlay({
       out.push(
         <span key="lc" role="group" aria-label={labels.leadColor} style={{ display: "inline-flex", flexWrap: "wrap" }}>
           {LEAD_COLORS.map((c) => (
-            <button key={c} type="button" className="ohb-sw" aria-label={labels.colors[c]} aria-pressed={selLead.color === c} style={{ background: WIRE_HEX[c] }} onClick={() => { s.apply((b) => ({ ...b, leads: b.leads.map((l) => (l.id === selLead.id ? { ...l, color: c } : l)) })); close(); }} />
+            <button key={c} type="button" className="ohb-sw" aria-label={labels.colors[c]} aria-pressed={selLead.color === c} style={{ background: WIRE_HEX[c] }} onClick={() => { if (fresh()) return; s.apply((b) => ({ ...b, leads: b.leads.map((l) => (l.id === selLead.id ? { ...l, color: c } : l)) })); close(); }} />
           ))}
         </span>,
       );
     }
     if (sel && sel.type !== "meter") {
-      out.push(<Btn key="del" label={labels.delete} icon={<ToolIcon name="delete" />} compact={compact && !inMenu} onClick={() => { s.deleteSelected(); close(); }} />);
+      out.push(<Btn key="del" label={labels.delete} icon={<ToolIcon name="delete" />} compact={compact && !inMenu} onClick={() => { if (fresh()) return; s.deleteSelected(); close(); }} />);
     }
     return out;
   };
@@ -208,7 +215,8 @@ export function Overlay({
             {tray.map((item, i) => {
               const { name, detail } = itemLabel(item, labels);
               const left = item.count === undefined ? undefined : Math.max(0, item.count - (placed.get(item.kind) ?? 0));
-              const color = item.kind === "lead" ? WIRE_HEX[item.params?.color ?? "red"] : item.kind === "led" ? undefined : undefined;
+              const ledColor = item.kind === "led" ? String((item.params as { color?: string } | undefined)?.color ?? "red") : null;
+              const color = item.kind === "lead" ? WIRE_HEX[item.params?.color ?? "red"] : ledColor ? LED_HEX[ledColor]?.lens : undefined;
               return (
                 <button
                   key={i}
@@ -281,9 +289,9 @@ export function Overlay({
         </div>
       )}
       {ui.menu && !readOnly && (
-        <div className="ohb-panel ohb-menu" style={menuStyle(ui.menu.x, ui.menu.y)} role="menu">
+        <div className="ohb-panel ohb-menu" style={menuStyle(ui.menu.x, ui.menu.y, size.w, size.h)} role="menu">
           {actions(true)}
-          <Btn label={labels.cancel} icon={<span style={{ width: 20 }} />} onClick={() => s.setUi({ menu: null })} />
+          <Btn label={labels.cancel} icon={<span style={{ width: 20 }} />} onClick={() => performance.now() - ui.menu!.at > 400 && s.setUi({ menu: null })} />
         </div>
       )}
       {hoverText && !compact && <div className="ohb-panel ohb-status">{hoverText}</div>}
@@ -291,6 +299,11 @@ export function Overlay({
   );
 }
 
-function menuStyle(x: number, y: number): CSSProperties {
-  return { left: Math.max(8, x - 20), top: Math.max(8, y - 20) };
+/** Open the menu beside the pointer (not under the finger), kept inside the bench. */
+function menuStyle(x: number, y: number, w: number, h: number): CSSProperties {
+  const mw = 200;
+  const mh = 200;
+  const left = x + 18 + mw > w ? Math.max(8, x - 18 - mw) : x + 18;
+  const top = Math.min(Math.max(8, y - mh / 2), Math.max(8, h - mh - 8));
+  return { left, top };
 }

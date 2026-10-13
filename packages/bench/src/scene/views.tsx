@@ -14,7 +14,7 @@ import { AlligatorClip, BananaPlug, CLIP_LEN, Cable, JumperWire, PLUG_TOP, PROBE
 import type { FloorFn } from "../three/geometry";
 import type { BenchState, MeterState, PlacedPart, ProbeColor, Quality, TestLead, Vec3, Wire } from "../types";
 import { Proxy, localBox } from "./pick";
-import { useAnimating } from "../three/anim";
+import { prefersReducedMotion, useAnimating } from "../three/anim";
 import { useFrame } from "@react-three/fiber";
 
 export const ACCENT = "#ff8a1f";
@@ -44,7 +44,9 @@ export function makeFloor(bench: BenchState): FloorFn {
 // ---------------------------------------------------------------------------------------------------------------
 // Selection frame: corner brackets on the surface around a box (always visible, both quality tiers).
 
-function SelectionFrame({ box, color, pulse = false }: { box: THREE.Box3; color: string; pulse?: boolean }) {
+function SelectionFrame({ box, color, pulse: wantPulse = false }: { box: THREE.Box3; color: string; pulse?: boolean }) {
+  const reduced = useMemo(() => prefersReducedMotion(), []);
+  const pulse = wantPulse && !reduced;
   const mat = useMemo(() => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, depthWrite: false, toneMapped: false }), [color]);
   const ref = useRef<THREE.Group>(null);
   useAnimating(pulse);
@@ -411,8 +413,10 @@ export function MeterView({
 }
 
 /** Small glowing ring marking a snap target or a lab hint anchor. */
-export function TargetMarker({ at, color = ACCENT, pulse = false, size = 2.2, onTop = true }: { at: Vec3; color?: string; pulse?: boolean; size?: number; onTop?: boolean }) {
+export function TargetMarker({ at, color = ACCENT, pulse: wantPulse = false, size = 2.2, onTop = true }: { at: Vec3; color?: string; pulse?: boolean; size?: number; onTop?: boolean }) {
   const ref = useRef<THREE.Mesh>(null);
+  const reduced = useMemo(() => prefersReducedMotion(), []);
+  const pulse = wantPulse && !reduced;
   useAnimating(pulse);
   useFrame((s) => {
     if (pulse && ref.current) ref.current.scale.setScalar(1 + 0.25 * (0.5 + 0.5 * Math.sin(s.clock.elapsedTime * 5)));

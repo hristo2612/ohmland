@@ -3,6 +3,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
+import { Select } from "@react-three/postprocessing";
 import { canvasTexture, glowTexture, rng, smokeTexture } from "../three/canvas";
 import { prefersReducedMotion } from "../three/anim";
 
@@ -133,7 +134,11 @@ export function Smoke({ active, amount = 1, dark = false, spread = 2 }: { active
   useLayoutEffect(() => {
     if (active) invalidate();
   }, [active, invalidate]);
-  return <mesh geometry={geometry} material={material} frustumCulled={false} renderOrder={10} />;
+  return (
+    <Select exclude>
+      <mesh geometry={geometry} material={material} frustumCulled={false} renderOrder={10} />
+    </Select>
+  );
 }
 
 /** Additive halo sprite around a lit LED (cheap glow, also used under bloom for a softer edge). */
@@ -154,7 +159,11 @@ export function Halo({ color, intensity, size = 16 }: { color: string; intensity
   material.opacity = Math.min(1, intensity);
   const s = size * (0.45 + 0.55 * Math.min(1, intensity));
   if (intensity <= 0.01) return null;
-  return <sprite material={material} scale={[s, s, s]} renderOrder={12} />;
+  return (
+    <Select exclude>
+      <sprite material={material} scale={[s, s, s]} renderOrder={12} />
+    </Select>
+  );
 }
 
 /** Coloured light pooling on the surface below a lit LED. */
@@ -177,9 +186,11 @@ export function LightSpill({ color, intensity, radius = 10 }: { color: string; i
   material.opacity = Math.min(1, intensity) * 0.55;
   if (intensity <= 0.01) return null;
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]} material={material} renderOrder={4}>
-      <planeGeometry args={[radius * 2, radius * 2]} />
-    </mesh>
+    <Select exclude>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]} material={material} renderOrder={4}>
+        <planeGeometry args={[radius * 2, radius * 2]} />
+      </mesh>
+    </Select>
   );
 }
 
@@ -218,8 +229,10 @@ export function Scorch({ width = 12, depth = 7, opacity = 1 }: { width?: number;
   useLayoutEffect(() => () => material.dispose(), [material]);
   material.opacity = opacity;
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]} material={material} renderOrder={3}>
-      <planeGeometry args={[width, depth]} />
-    </mesh>
+    <Select exclude>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]} material={material} renderOrder={3}>
+        <planeGeometry args={[width, depth]} />
+      </mesh>
+    </Select>
   );
 }
