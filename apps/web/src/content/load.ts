@@ -172,7 +172,6 @@ export function loadCourse(root = findContentDir()): Course {
   const lessons: LessonData[] = [];
   const lessonIds = new Map<string, string>();
   const landmarkIds = new Set<string>();
-  const islePieces = new Map<string, string>();
 
   for (const [ui, unitId] of (course?.units ?? []).entries()) {
     const unitDir = join(root, "units", unitId);
@@ -204,11 +203,6 @@ export function loadCourse(root = findContentDir()): Course {
         lesson.unlocks.parts.forEach((p, i) => {
           if (!partIds.has(p)) issues.push(`unlocks.parts[${i}]: no part "${p}" in content/parts.yaml`);
         });
-        if (lesson.unlocks.isle) {
-          const other = islePieces.get(lesson.unlocks.isle);
-          if (other) issues.push(`unlocks.isle: piece "${lesson.unlocks.isle}" is already placed by ${other}`);
-          islePieces.set(lesson.unlocks.isle, lesson.id);
-        }
         lesson.steps.forEach((s, i) => {
           if (s.type === "lab" && !existsSync(join(root, "labs", `${s.lab}.ts`)))
             issues.push(`steps[${i}].lab: no lab file content/labs/${s.lab}.ts`);
