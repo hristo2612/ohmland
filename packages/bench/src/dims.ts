@@ -29,7 +29,7 @@ export const TRIMMER = { size: 6.6, h: 4.6, rotorDia: 4.6 };
 
 export const RELAY = { len: 20.4, wid: 10.0, h: 11.4 };
 
-export const FUSE = { len: 14.5, dia: 4.5, capLen: 4.2, clipPitch: 7 };
+export const FUSE = { len: 14.5, dia: 4.5, capLen: 4.2, clipPitch: 4 };
 
 export const BATTERY = { len: 48.5, wid: 26.5, thick: 17.5, termSpacing: 12.7 };
 

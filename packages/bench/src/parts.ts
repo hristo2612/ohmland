@@ -163,7 +163,8 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     legs: ["e", "b", "c"],
     footprint: () => line("e", "b", "c"),
     defaults: { model: "2N3904" },
-    deskLegs: () => deskRadial(["e", "b", "c"], [NPN.deskLead], 1.6),
+    // Lies on its rounded back with the marked flat face up; the emitter ends up nearest the viewer.
+    deskLegs: () => deskRadial(["c", "b", "e"], [NPN.deskLead], NPN.dia / 2),
     toSpecs: (p, n) => [{ id: p.id, kind: "npn", pins: { c: n("c"), b: n("b"), e: n("e") }, model: p.params.model ?? "2N3904" }],
   },
   "ceramic-cap": {
@@ -266,7 +267,7 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     legs: ["a", "b"],
     footprint: () => [
       { leg: "a", dx: 0, dz: 0 },
-      { leg: "b", dx: 7, dz: 0 },
+      { leg: "b", dx: 4, dz: 0 },
     ],
     defaults: { amps: 1 },
     deskLegs: () => ({ a: [-15.5, 1.6, 0], b: [15.5, 1.6, 0] }),
@@ -281,7 +282,7 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     deskLegs: (pp) =>
       pp.snap
         ? { pos: [-24, 0.7, 34], neg: [-12, 0.7, 38] }
-        : { pos: [-BATTERY.termSpacing / 2, BATTERY.len + 1.6, 0], neg: [BATTERY.termSpacing / 2, BATTERY.len + 1.4, 0] },
+        : { pos: [-BATTERY.termSpacing / 2, BATTERY.len - 0.9, 0], neg: [BATTERY.termSpacing / 2, BATTERY.len - 0.9, 0] },
     toSpecs: (p, n) => {
       const spec: PartSpec = {
         id: p.id,
