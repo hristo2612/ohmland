@@ -426,6 +426,22 @@ export const en = {
       "smoke-signals": { title: "Smoke signals", description: "Burn out five parts." },
       "tiny-graves": { title: "LED graveyard", description: "Burn out three LEDs." },
       "fuse-whisperer": { title: "Fuse whisperer", description: "Blow a fuse." },
+
+      // Unit 2: Switching (docs/curriculum/unit-2.md, section 5).
+      "either-way": { title: "Either way up", description: "Wire a light that either of two switches can flip." },
+      "pin-sleuth": { title: "Pin sleuth", description: "Map a mystery switch and a mystery relay without a single wrong guess." },
+      "first-click": { title: "First click", description: "Hear a relay pull in." },
+      "spark-catcher": { title: "Spark catcher", description: "See a coil's kickback spark, then tame it with a diode." },
+      "buzzed-to-bits": { title: "Buzzed to bits", description: "Wear out a relay's contacts by letting it buzz." },
+      "wrong-way-round": { title: "Wrong way round", description: "Vent an electrolytic capacitor by connecting it backwards." },
+      "tau-tamer": { title: "Tau tamer", description: "Measure every time constant in the RC lab within 5%." },
+      "feather-touch": { title: "Feather touch", description: "Light a lamp at full brightness with the lightest touch." },
+      "five-second-club": { title: "Five-second club", description: "Tune your delay timer to five seconds, three times in a row, within 5%." },
+      "night-shift": { title: "Night shift", description: "Build your own dusk-activated light on the free-build bench." },
+      "tuning-fork": { title: "Tuning fork", description: "Make a speaker sing concert A." },
+      wailer: { title: "Wailer", description: "Make the Siren Tower wail." },
+      "smoke-shelf": { title: "Shelf of smoke", description: "Burn out five different kinds of part, at least one of them a relay, a capacitor or a transistor." },
+      "two-islands": { title: "Two islands", description: "Finish every lesson on Switchback Isle." },
     },
     hall: {
       title: "Hall of Fried Parts",
