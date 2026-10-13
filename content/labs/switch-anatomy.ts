@@ -13,14 +13,15 @@ export default defineLab({
   title: "What's inside a switch",
   bench: {
     board: "none",
+    frame: ["desk:-134,-34", "desk:172,30"],
     parts: [
-      { id: "S1", kind: "toggle-switch", at: "desk:-118,-8", params: { base: true, throws: 1, to: "a", tag: "S1" }, locked: true, label: "On/off switch S1" },
-      { id: "S2", kind: "slide-switch", at: "desk:-56,-8", params: { base: true, to: "a", tag: "S2" }, locked: true, label: "Slide switch S2" },
-      { id: "S3", kind: "pushbutton", at: "desk:-2,-8", params: { base: true, tag: "S3" }, locked: true, label: "Button S3" },
-      { id: "S4", kind: "pushbutton", at: "desk:44,-8", params: { base: true, normallyClosed: true, tag: "S4" }, locked: true, label: "Button S4" },
+      { id: "S1", kind: "toggle-switch", at: "desk:-108,-8", params: { base: true, throws: 1, to: "a", tag: "S1" }, locked: true, label: "On/off switch S1" },
+      { id: "S2", kind: "slide-switch", at: "desk:-50,-8", params: { base: true, to: "a", tag: "S2" }, locked: true, label: "Slide switch S2" },
+      { id: "S3", kind: "pushbutton", at: "desk:2,-8", params: { base: true, tag: "S3" }, locked: true, label: "Button S3" },
+      { id: "S4", kind: "pushbutton", at: "desk:46,-8", params: { base: true, normallyClosed: true, tag: "S4" }, locked: true, label: "Button S4" },
     ],
     tray: [],
-    instruments: [{ kind: "meter", at: "desk:146,-30", rot: -24, mode: "off" }],
+    instruments: [{ kind: "meter", at: "desk:128,-28", rot: -24, mode: "off" }],
   },
   panels: [
     { kind: "continuity", id: "s1", part: "S1", show: ["beep-test"] },
