@@ -69,7 +69,7 @@ test("a lesson's first load carries no three.js", async ({ page }) => {
   page.on("response", (res) => {
     if (res.request().resourceType() === "script") scripts.push(res.text().catch(() => ""));
   });
-  await page.goto("/learn/basics/sample-first-glow", { waitUntil: "networkidle" });
+  await page.goto("/learn/basics/welcome-to-the-bench", { waitUntil: "networkidle" });
   await expect(page.locator("[data-step-type=hook]")).toBeVisible();
   const bodies = await Promise.all(scripts);
   expect(bodies.length).toBeGreaterThan(0);
