@@ -23,6 +23,8 @@ type Runtime = Awaited<ReturnType<typeof loadIsle>>;
 const CONTINUE_DELAY_MS = 1400;
 /** A beat on the island as it was, before the new piece springs in. */
 const BEAT_MS = 350;
+/** Open sky kept between the island and the caption card, in CSS pixels. */
+const CARD_GAP = 12;
 
 /** Shows the reveal for the change from `before` to `after`; resolves when the learner closes it (null: nothing new). */
 export async function playReveal(info: IsleRevealInfo): Promise<IsleRevealResult> {
@@ -85,6 +87,7 @@ type DialogProps = {
 function RevealDialog({ rt, plan, from, to, big, muted, outline, onShow, onDone }: DialogProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const stage = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const next = useRef<HTMLButtonElement>(null);
   const view = useRef<IsleView | null>(null);
@@ -115,9 +118,16 @@ function RevealDialog({ rt, plan, from, to, big, muted, outline, onShow, onDone 
     d.addEventListener("cancel", onCancel);
     let cancelled = false;
     const timer = reduced ? 0 : window.setTimeout(() => setCanGo(true), CONTINUE_DELAY_MS);
+    // The caption card covers the bottom of the stage: the island frames the new piece above it.
+    const inset = () => {
+      const card = panel.current?.getBoundingClientRect();
+      return { bottom: card ? Math.max(0, el.getBoundingClientRect().bottom - card.top + CARD_GAP) : 0 };
+    };
+    const ro = new ResizeObserver(() => view.current?.setInset(inset()));
+    if (panel.current) ro.observe(panel.current);
     (async () => {
       try {
-        const v = await rt.mountIsle(el, plan, { interactive: false, quality: "high", muted, reducedMotion: reduced, at: from, messages: rt.isleMessages(outline), ...timeOption() });
+        const v = await rt.mountIsle(el, plan, { interactive: false, quality: "high", muted, reducedMotion: reduced, at: from, messages: rt.isleMessages(outline), inset: inset(), ...timeOption() });
         if (cancelled) {
           v.dispose();
           return;
@@ -138,6 +148,7 @@ function RevealDialog({ rt, plan, from, to, big, muted, outline, onShow, onDone 
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      ro.disconnect();
       d.removeEventListener("cancel", onCancel);
     };
     // the dialog plays once: its inputs never change while it is open
@@ -161,7 +172,7 @@ function RevealDialog({ rt, plan, from, to, big, muted, outline, onShow, onDone 
     >
       <div className="reveal__stage" ref={stage} />
       {status === "loading" && <span className="reveal__spinner" aria-hidden="true" />}
-      <div className="reveal__panel">
+      <div className="reveal__panel" ref={panel}>
         <p className="eyebrow">{big ? m.reveal.module : m.reveal.lesson}</p>
         <h2 id="reveal-title" className="reveal__title" ref={heading} tabIndex={-1}>
           {caption?.title ?? m.reveal.growing}
