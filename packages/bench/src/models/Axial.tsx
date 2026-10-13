@@ -58,8 +58,15 @@ function bandMaterial(color: BandColor, burnt: number): THREE.Material {
 
 const BODY_HEX = { carbon: "#dcc49c", metal: "#86b2da" };
 
-/** Resistor body (with bands) centred at the origin, axis along +x. */
-function ResistorBody({ ohms, bands, tolerance, burnt }: { ohms: number; bands: 4 | 5; tolerance?: number; burnt: number }) {
+/** The part's real value (labs set `actualOhms`) lies outside its tolerance. */
+const offSpec = (p: PartParamsMap["resistor"]): boolean =>
+  p.actualOhms !== undefined && Math.abs(p.actualOhms - p.ohms) > (p.ohms * (p.tolerance ?? 5)) / 100;
+
+/**
+ * Resistor body (with bands) centred at the origin, axis along +x. A part whose real value is outside its tolerance
+ * (`offSpec`, most likely overheated once) has a slightly darkened body.
+ */
+function ResistorBody({ ohms, bands, tolerance, burnt, offSpec = false }: { ohms: number; bands: 4 | 5; tolerance?: number; burnt: number; offSpec?: boolean }) {
   const colors = useMemo(() => {
     try {
       return resistorBands(ohms, bands, tolerance);
@@ -68,7 +75,7 @@ function ResistorBody({ ohms, bands, tolerance, burnt }: { ohms: number; bands: 
     }
   }, [ohms, bands, tolerance]);
   const layout = bandLayout(bands);
-  const base = bands === 5 ? BODY_HEX.metal : BODY_HEX.carbon;
+  const base = mix(bands === 5 ? BODY_HEX.metal : BODY_HEX.carbon, "#7d5a3a", offSpec ? 0.22 : 0);
   const bodyHex = burnt > 0 ? mix(base, burnt > 0.8 ? "#2a1e16" : "#6b4a2e", Math.min(1, burnt * 1.35)) : base;
   const body = memoGeo("res-body", () => resistorLathe(-HALF - TAIL, HALF + TAIL, 0, 90));
   return (
@@ -241,7 +248,7 @@ export function ResistorModel({ params, mount, span = 4, state }: ModelProps<Par
     return (
       <group>
         <group position={[0, spec.axisLift, 0]} scale={[k, k, k]}>
-          <ResistorBody ohms={params.ohms} bands={params.bands ?? 4} tolerance={params.tolerance} burnt={burnt} />
+          <ResistorBody ohms={params.ohms} bands={params.bands ?? 4} tolerance={params.tolerance} burnt={burnt} offSpec={offSpec(params)} />
         </group>
         {(health === "smoking" || health === "dead") && (
           <group position={[0, spec.axisLift * 2, 0]}>
@@ -264,7 +271,7 @@ export function ResistorModel({ params, mount, span = 4, state }: ModelProps<Par
   return (
     <group>
       <group position={pose.pos} rotation={pose.rot}>
-        <ResistorBody ohms={params.ohms} bands={params.bands ?? 4} tolerance={params.tolerance} burnt={burnt} />
+        <ResistorBody ohms={params.ohms} bands={params.bands ?? 4} tolerance={params.tolerance} burnt={burnt} offSpec={offSpec(params)} />
         {(health === "smoking" || health === "dead") && (
           <group position={[0, CAP_R, 0]}>
             <Smoke active amount={health === "smoking" ? 1 : 0.15} spread={4} />
