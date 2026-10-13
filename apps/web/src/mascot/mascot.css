@@ -1,0 +1,45 @@
+.mascot {
+  display: block;
+  flex: none;
+  overflow: visible;
+  image-rendering: pixelated;
+}
+.mascot__blink { opacity: 0; }
+
+:root[data-motion="full"] .mascot--animate .mascot__hover {
+  animation: mascot-hover var(--dur-hover-loop) steps(1, end) infinite;
+}
+:root[data-motion="full"] .mascot--animate .mascot__flame {
+  animation: mascot-flicker calc(var(--dur-1) * 2) steps(1, end) infinite;
+}
+:root[data-motion="full"] .mascot--animate .mascot__eyes {
+  animation: mascot-eyes calc(var(--dur-hover-loop) * 1.5) steps(1, end) infinite;
+}
+:root[data-motion="full"] .mascot--animate .mascot__blink {
+  animation: mascot-blink calc(var(--dur-hover-loop) * 1.5) steps(1, end) infinite;
+}
+:root[data-motion="full"] .mascot--celebrate.mascot--animate .mascot__fx {
+  animation: mascot-twinkle calc(var(--dur-1) * 4) steps(1, end) infinite;
+}
+
+/* One-pixel steps keep the hover true to the pixel grid. */
+@keyframes mascot-hover {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1px); }
+}
+@keyframes mascot-flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+@keyframes mascot-eyes {
+  0%, 94%, 100% { opacity: 1; }
+  95%, 98% { opacity: 0; }
+}
+@keyframes mascot-blink {
+  0%, 94%, 100% { opacity: 0; }
+  95%, 98% { opacity: 1; }
+}
+@keyframes mascot-twinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

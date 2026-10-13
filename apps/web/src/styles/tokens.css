@@ -1,0 +1,308 @@
+/*
+ * Ohmland design tokens. This is the only file that may hold raw colours, font sizes, radii, shadows and durations
+ * (scripts/check-colors.mjs enforces the colour part). Everything else reads these custom properties.
+ *
+ * Light ("paper") values come first. The dark ("night lab") values live in two identical blocks: one follows a dark
+ * system unless the learner chose light, one applies when the learner chose dark. Keep the two blocks in sync.
+ */
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces and ink: warm paper, white cards, near-black ink. */
+  --bg: #F7F3EB;
+  --bg-band: #EFE8DB;
+  --surface: #FFFFFF;
+  --surface-2: #FBF8F2;
+  --surface-sunk: #F2ECE1;
+  --ink: #1C1915;
+  --ink-2: #554D45;
+  --ink-3: #74695D;
+  --line: #E6DDCF;
+  --line-strong: #D3C5B1;
+  --bar: color-mix(in srgb, #F7F3EB 86%, transparent);
+  --scrim: rgb(28 25 21 / 0.55);
+
+  /* Copper and amber. Primary fills carry dark ink, never white text. */
+  --primary: #EE9A45;
+  --primary-hover: #F3A859;
+  --primary-press: #E08A33;
+  --primary-ink: #1C1915;
+  --primary-soft: #FBE6CF;
+  --primary-soft-hover: #F8DABB;
+  --accent-ink: #94430F;
+  --copper: #C2702F;
+  --glow: #FFB547;
+  --glow-soft: rgb(255 181 71 / 0.35);
+
+  /* Meaning. Never told by colour alone. */
+  --good: #1D7648;
+  --good-soft: #E0F2E6;
+  --bad: #B2352A;
+  --bad-soft: #FBE4E0;
+  --info: #2C5BA5;
+  --info-soft: #E2EBF8;
+  --focus: #1C1915;
+
+  /* Elevation: two levels, plus the amber glow for "you are here". */
+  --shadow-1: 0 1px 2px rgb(60 40 20 / 0.06), 0 6px 18px rgb(60 40 20 / 0.06);
+  --shadow-2: 0 18px 48px rgb(40 26 12 / 0.20), 0 2px 6px rgb(40 26 12 / 0.08);
+  --shadow-glow: 0 0 0 6px rgb(238 154 69 / 0.22), 0 6px 20px rgb(238 154 69 / 0.35);
+  --shadow-button: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 1px 2px rgb(120 60 10 / 0.18), 0 4px 12px rgb(238 154 69 / 0.25);
+  --shadow-inset: inset 0 1px 2px rgb(60 40 20 / 0.08);
+  --highlight: rgb(255 255 255 / 0.6);
+  --dot-grid: rgb(60 40 20 / 0.07);
+
+  /* Illustration palette (the board island, part icons, figures). Same in both themes. */
+  --pcb: #2F7A55;
+  --pcb-hi: #3D9268;
+  --pcb-lo: #24603F;
+  --pcb-edge: #CDB582;
+  --pcb-edge-lo: #A98F5D;
+  --pcb-core: #8A7650;
+  --trace: #D48A45;
+  --trace-hi: #EDB37C;
+  --silk: #F4F0E6;
+  --solder: #C9CDD3;
+  --solder-lo: #9EA4AD;
+  --cap-blue: #3E5F96;
+  --cap-blue-hi: #5A7DB6;
+  --cap-blue-lo: #2C4572;
+  --chip: #2A2D33;
+  --chip-hi: #3C4048;
+  --chip-lo: #1D1F24;
+  --cloud: #FFFFFF;
+  --cloud-lo: #E3E8EF;
+  --led-red: #FF4B3E;
+  --led-red-hi: #FFB3A8;
+  --led-green: #3BD27A;
+  --led-amber: #FFB547;
+  --led-amber-hi: #FFE2A8;
+  --led-blue: #4D8DFF;
+  --wire-red: #D9473A;
+  --wire-black: #2B2B2E;
+  --plastic: #F1EEE7;
+  --plastic-lo: #D8D2C6;
+  --meter-body: #F2B33D;
+  --meter-body-lo: #C98D22;
+  --meter-face: #2A2D33;
+  --lcd: #B9C9A3;
+  --lcd-ink: #1F2A1A;
+  --char: #3A2E26;
+  --char-lo: #241C17;
+  --ash: #8F857C;
+
+  /* Resistor colour code bands. */
+  --band-black: #1E1E1E;
+  --band-brown: #7A4523;
+  --band-red: #D3372B;
+  --band-orange: #F07D1E;
+  --band-yellow: #F4CC2F;
+  --band-green: #2C9A4C;
+  --band-blue: #2E68D6;
+  --band-violet: #8B4FD2;
+  --band-grey: #8E8E8E;
+  --band-white: #F7F7F7;
+  --band-gold: #C9A13A;
+  --band-silver: #B9BFC7;
+  --resistor-body: #E8D3A6;
+  --resistor-body-hi: #F4E6C6;
+  --resistor-body-lo: #CDB07C;
+  --lead: #B6BBC3;
+  --lead-hi: #DDE1E6;
+
+  /* The mascot (pixel art). Same in both themes. */
+  --bot-outline: #2E241E;
+  --bot-cream: #F5EAD3;
+  --bot-cream-hi: #FFF8EA;
+  --bot-cream-lo: #DCC9A6;
+  --bot-visor: #1C2330;
+  --bot-visor-hi: #36435A;
+  --bot-led: #FFB13D;
+  --bot-led-hi: #FFE7B3;
+  --bot-copper: #C8743A;
+  --bot-copper-hi: #E89A5E;
+  --bot-copper-lo: #8E4A1F;
+  --bot-metal: #8B8F98;
+  --bot-flame: #FF9A3C;
+  --bot-flame-hi: #FFE08A;
+  --bot-sweat: #8EC9FF;
+
+  /* Type: Space Grotesk for display, Inter for reading, JetBrains Mono for values and readouts. */
+  --font-display: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --text-hero: clamp(40px, 26px + 3.4vw, 68px);
+  --leading-hero: 1.02;
+  --text-title: clamp(30px, 22px + 1.6vw, 42px);
+  --leading-title: 1.1;
+  --text-heading: clamp(22px, 19px + 0.6vw, 27px);
+  --leading-heading: 1.2;
+  --text-subheading: 19px;
+  --leading-subheading: 1.3;
+  --text-lead: 19px;
+  --leading-lead: 1.55;
+  --text-body: 17px;
+  --leading-body: 1.6;
+  --text-callout: 15px;
+  --leading-callout: 1.4;
+  --text-small: 14px;
+  --leading-small: 1.45;
+  --text-caption: 12px;
+  --leading-caption: 1.3;
+  --text-readout: 28px;
+  --text-big-number: clamp(48px, 36px + 3vw, 76px);
+  --weight-regular: 400;
+  --weight-semibold: 600;
+  --weight-display: 700;
+  --weight-display-medium: 500;
+  --weight-mono: 500;
+  --tracking-tight: -0.02em;
+  --tracking-display: -0.025em;
+  --tracking-caps: 0.08em;
+
+  /* Space: a 4 px scale. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --touch: 44px;
+  --gutter: 16px;
+  --page-max: 1180px;
+  --read-max: 66ch;
+  --header-h: 64px;
+  --bottom-nav-h: 64px;
+
+  /* Shapes. */
+  --radius-xs: 6px;
+  --radius-s: 10px;
+  --radius-m: 14px;
+  --radius-l: 20px;
+  --radius-xl: 28px;
+  --radius-full: 999px;
+  --border: 1px;
+  --border-thick: 2px;
+  --focus-ring: 3px;
+
+  /* Motion. */
+  --dur-fast: 140ms;
+  --dur-1: 220ms;
+  --dur-2: 380ms;
+  --dur-3: 600ms;
+  --dur-slow: 1100ms;
+  --dur-hover-loop: 3200ms;
+  --dur-drift: 9s;
+  --dur-none: 0.01ms;
+  --stagger: 100ms;
+  --delay-1: 200ms;
+  --delay-2: 500ms;
+  --delay-3: 1200ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  /* Layers. */
+  --z-sticky: 20;
+  --z-nav: 30;
+  --z-dialog: 50;
+  --z-toast: 60;
+}
+
+@media (min-width: 768px) {
+  :root { --gutter: 24px; }
+}
+@media (min-width: 1100px) {
+  :root { --gutter: 32px; }
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0D131D;
+    --bg-band: #111926;
+    --surface: #151D2A;
+    --surface-2: #19222F;
+    --surface-sunk: #0F1621;
+    --ink: #ECEFF4;
+    --ink-2: #A9B3C3;
+    --ink-3: #8691A4;
+    --line: #243045;
+    --line-strong: #33415A;
+    --bar: color-mix(in srgb, #0D131D 84%, transparent);
+    --scrim: rgb(3 6 12 / 0.7);
+    --primary: #F5A652;
+    --primary-hover: #FFB466;
+    --primary-press: #E8963F;
+    --primary-ink: #1A1206;
+    --primary-soft: #33271B;
+    --primary-soft-hover: #3E2F20;
+    --accent-ink: #FFB46B;
+    --copper: #E08B47;
+    --glow: #FFB547;
+    --glow-soft: rgb(255 181 71 / 0.28);
+    --good: #63D69B;
+    --good-soft: #12301F;
+    --bad: #FF8F82;
+    --bad-soft: #3A1A18;
+    --info: #8EB6FF;
+    --info-soft: #172649;
+    --focus: #FFC680;
+    --shadow-1: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px rgb(0 0 0 / 0.28);
+    --shadow-2: 0 24px 60px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.3);
+    --shadow-glow: 0 0 0 6px rgb(255 181 71 / 0.16), 0 0 28px rgb(255 181 71 / 0.38);
+    --shadow-button: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 0 0 1px rgb(255 190 110 / 0.2), 0 6px 18px rgb(245 166 82 / 0.22);
+    --shadow-inset: inset 0 1px 2px rgb(0 0 0 / 0.3);
+    --highlight: rgb(255 255 255 / 0.06);
+    --dot-grid: rgb(170 190 220 / 0.07);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0D131D;
+  --bg-band: #111926;
+  --surface: #151D2A;
+  --surface-2: #19222F;
+  --surface-sunk: #0F1621;
+  --ink: #ECEFF4;
+  --ink-2: #A9B3C3;
+  --ink-3: #8691A4;
+  --line: #243045;
+  --line-strong: #33415A;
+  --bar: color-mix(in srgb, #0D131D 84%, transparent);
+  --scrim: rgb(3 6 12 / 0.7);
+  --primary: #F5A652;
+  --primary-hover: #FFB466;
+  --primary-press: #E8963F;
+  --primary-ink: #1A1206;
+  --primary-soft: #33271B;
+  --primary-soft-hover: #3E2F20;
+  --accent-ink: #FFB46B;
+  --copper: #E08B47;
+  --glow: #FFB547;
+  --glow-soft: rgb(255 181 71 / 0.28);
+  --good: #63D69B;
+  --good-soft: #12301F;
+  --bad: #FF8F82;
+  --bad-soft: #3A1A18;
+  --info: #8EB6FF;
+  --info-soft: #172649;
+  --focus: #FFC680;
+  --shadow-1: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px rgb(0 0 0 / 0.28);
+  --shadow-2: 0 24px 60px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.3);
+  --shadow-glow: 0 0 0 6px rgb(255 181 71 / 0.16), 0 0 28px rgb(255 181 71 / 0.38);
+  --shadow-button: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 0 0 1px rgb(255 190 110 / 0.2), 0 6px 18px rgb(245 166 82 / 0.22);
+  --shadow-inset: inset 0 1px 2px rgb(0 0 0 / 0.3);
+  --highlight: rgb(255 255 255 / 0.06);
+  --dot-grid: rgb(170 190 220 / 0.07);
+}
