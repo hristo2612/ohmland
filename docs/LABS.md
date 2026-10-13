@@ -50,9 +50,31 @@ bench: {
 **Kinds** are the bench's (`packages/bench`, `BenchPartKind`): resistor, led, battery, pushbutton, slide-switch,
 toggle-switch, fuse, ceramic-cap, electrolytic-cap, trimmer, relay, npn, phototransistor, diode, speaker, cup, lemon.
 `params` are typed per kind (`PartParamsMap`). Useful ones: resistor `ohms` (the bands), `actualOhms` (an
-out-of-spec part), `tolerance` (percent, default 5: the simulator spreads each part's value by its id); capacitors
-`actualFarads`; pushbutton `normallyClosed`; battery `snap` (leads that go into the board); toggle-switch `base: true`
-(a big switch on a wooden block for desk circuits: wire it between `com` and `b`, so "on" means thrown to b).
+out-of-spec part, whose body then looks slightly darkened), `tolerance` (percent, default 5: the simulator spreads each
+part's value by its id), `watts` (1 W parts are bigger, 2 W and up are white ceramic blocks); capacitors
+`actualFarads`; pushbutton `normallyClosed`; battery `snap` (leads that go into the board), `size` (`"aa"` in a
+cradle, `"coin"` in a holder), `chem` (`"nimh"`, `"lithium"`) and `worn` (a scuffed, used one); toggle-switch
+`base: true` (a big switch on a wooden block for desk circuits: wire it between `com` and `b`, so "on" means thrown
+to b).
+
+**Lab props** are desk-only kinds for the Unit 1 experiments (models and numbers in `packages/bench/README.md`):
+
+| Kind | What it is | Leads |
+|---|---|---|
+| `holder` | Two spring clips holding a resistor (or diode); a screw terminal at each end | `a b` |
+| `station` | A battery tester: a bay for any battery, + and − posts, a switchable `load` (`loadOhms`, 100 Ω) | `a` (+) `b` (−) |
+| `fruit` | Half a lemon with two electrode slots; `touching` pushes the electrodes together | (the electrodes') |
+| `electrode` | A copper-plated coin or a zinc strip (`metal`) | `tip` |
+| `skin` | A skin patch: `moisture` dry, damp, wet or salty, probe `pressure` light or firm | `m0` to `m4`, 1 cm apart |
+| `sample` | A bare copper wire or a plastic ruler (`material`) | `a b` |
+| `card` | A pencil card: a line from the 0 mark, `length` (cm), `layers`, `wide` | `p0` to `p20`, every 0.5 cm |
+| `tag`, `bin`, `chart`, `clock`, `showcase` | A value label (`text`), a reject bin, the colour code, a clock showing simulated time, a display case | none |
+
+Holders (`holder`, `station`, `fruit`, `bin`) have **seats**: a part dropped on one goes in (the one already there
+pops out), and a seated part's leads touch the holder's contacts. Props have **settings** (moisture, the test load,
+the pencil line) on their selection bar, and some have clickable spots on the model (the skin's moisture tabs, the
+tester's load switch); dragging along a pencil card draws or shades its line. Dropping a part right onto one of its
+own kind swaps the two, clips and probe tips included (a fresh LED for a dead one, an old battery for a fresh one).
 
 **Places** (`at`):
 
@@ -63,6 +85,8 @@ out-of-spec part), `tolerance` (percent, default 5: the simulator spreads each p
 | `"rail+:12"`, `"rail-:12"`, `"top+:12"`, `"top-:12"` | Rail holes (near plus and minus, far plus and minus); raw `bp12`, `bn12`, `tp12`, `tn12` work too |
 | `"rails"` | A battery with snap leads in the near rails at the left end of the board |
 | `"desk:left"`, `"desk:x,z"` | A spot on the desk in millimetres from the middle (x to the right, z toward you) |
+| `"in:H1"`, `"in:FC1.left"` | In a holder: its first free seat that fits, or that seat |
+| `"on:B1"` | Solutions only: take B1's place, swapping the two (clips and probe tips follow) |
 | nothing, `"shelf"` | Laid out in a row in front of the board (the shelf is the back row) |
 
 `holes: { a: "e5", b: "e12" }` places leads one by one when the shorthand cannot say it. Real scale: 1 unit is 1 mm,
@@ -70,10 +94,12 @@ a 5 mm LED is 5 mm, so leave 50 to 80 mm between desk parts and test the framing
 
 **Attach points** for leads, probes and solution steps: a part lead `"R1.a"` (lead names: resistor `a b`, LED and
 diode `anode cathode`, battery and lemon `pos neg`, switches `a com b`, pushbutton `a1 a2 b1 b2`, trimmer
-`a wiper b`, npn `e b c`), a hole `"e12"` or `"rail+:3"`, a jumper end `"W1.b"`, a clip `"TL1.a"`, a probe `"red"`.
+`a wiper b`, npn `e b c`, props as in the table above), a hole `"e12"` or `"rail+:3"`, a jumper end `"W1.b"`, a clip
+`"TL1.a"`, a probe `"red"`. A probe tip can touch a clip (even one lying loose) or the other probe's tip.
 
 **Leads** are crocodile test leads, `"B1.pos -> S1.com"` or `{ id, from, to, color }`; either end may be `null`
-(lying on the desk). Each has 0.15 Ω of resistance in the simulator. **Wires** are breadboard jumpers.
+(lying on the desk). Each has 0.15 Ω of resistance in the simulator, and each meter probe lead 0.1 Ω (touching the
+tips together reads about 0.2 Ω). **Wires** are breadboard jumpers.
 
 **Locked** parts cannot be moved, rotated or deleted; switches still flip and buttons still press.
 
@@ -82,10 +108,15 @@ then say `"D2"`). `kind: "lead"` is a clip lead.
 
 **Instruments**: `"meter"` or `{ kind: "meter", mode, range, red, black, probes: { red: "B1.pos" }, at, spareFuses }`,
 and `{ kind: "scope", traces, window, range }` (one or two traces: `{ label, volts: node, ref? }`, `{ label, amps:
-partId }` or `{ label, glow: ledId }`). `logger`, `stopwatch` and `tapper` are accepted and planned.
+partId }` or `{ label, glow: ledId }`). `{ kind: "inspect", show: "stress" | "heat", parts: ["led"] }` floats a
+readout over parts (by id or kind): an LED's current as a share of its maximum (green, amber past half, red past
+90%), or a part's temperature with a touch-feel word (cool, warm, hot, ouch). `logger`, `stopwatch` and `tapper` are
+accepted and planned.
 
 **Controls** are sliders bound to a simulator input (`light`, `ohms`, `position`): the lamp over a phototransistor,
-a fingertip's resistance. Goals read them with `lab.control(id)`.
+a fingertip's resistance. Two more need no part: `key: "speed"` sets how fast the simulation runs (1 is real time, up
+to 3600 for a time-lapse; pair it with a `clock` prop), and `key: "room"` dims the room lights (1 bright down to
+0.1) so a faint glow shows. Goals read them with `lab.control(id)`.
 
 **Nodes** name nodes for goals and scope traces: `nodes: { c: "C1.pos" }` makes `lab.volts("c")` work.
 
@@ -131,6 +162,12 @@ with the forms above and move old ones over when you finish their goals.
 | `lab.volts(node, ref?)`, `lab.amps(id)` | A node's voltage (name, attach point or netlist node); current size |
 | `lab.connected(a, b)` | Two attach points are joined by metal |
 | `lab.seriesLoop(["B1", "R1", "D1"])` | Exactly these parts form one series loop in this order, from the battery's plus |
+| `lab.chain(["FC1", "FC2"])` | The parts are linked end to end in one open chain (any order, nothing else on the links): `{ ends, flipped }`, the first end where most of them point from (a cell stack's plus), and the parts turned the other way |
+| `lab.parallel("R1", "R2")` | Both parts' leads sit on the same two nodes |
+| `lab.probed(a, b, "rev" \| "either")` | Red probe on `a` (or metal joined to it), black on `b` |
+| `lab.holds("H1")`, `lab.heldBy("R2")` | Who sits in a holder; which holder a part sits in |
+| `lab.distance("L1", "R1")` | Desk distance between two parts, in mm (a label placed by a resistor) |
+| `lab.doneAt(taskId)` | When a task was done in this visit, and the meter as it read then (`?.meter?.si`) |
 | `lab.loopOpen(id?)` | No current anywhere (or through `id`) |
 | `lab.meter` | `mode`, `range`, `auto`, `red`/`black` (sockets), `redAt`/`blackAt`, `display`, `unit`, `value` (OL is Infinity), `si`, `fuse`, `beep` |
 | `lab.across(id, "rev" \| "either")`, `lab.probesAcross(id, opts)` | Red probe on the first lead, black on the second |
@@ -179,6 +216,7 @@ An empty solution is reported as skipped.
 | `{ do: "wire", from, to }`, `{ do: "unwire", wire }` | Breadboard jumpers |
 | `{ do: "probe", red?, black?, mode?, range? }`, `{ do: "plug", probe, socket }`, `{ do: "dial", mode, range? }` | The meter |
 | `{ do: "flip", part, to? }`, `{ do: "press", part, seconds? }`, `{ do: "set", part, key, value }` | Switches, buttons, raw inputs |
+| `{ do: "param", part, params }`, `{ do: "action", part, action }` | A prop's settings (`{ moisture: "wet" }`, `{ length: 5 }`) and one-shot actions (`"erase"`), as from its selection bar |
 | `{ do: "control", id, value }`, `{ do: "note", id, value }` | Sliders, notebook entries |
 | `{ do: "replace", part }`, `{ do: "replaceFuse" }`, `{ do: "wait", seconds }` | |
 | `{ do: "check", task }` | By here, this task is done. Also splits the solution for "Show me" |
@@ -188,7 +226,10 @@ bench at the previous check and plays the steps up to this one.
 
 ## Trying a lab
 
-- `pnpm --filter @ohmland/web test` replays every solution.
+- `pnpm --filter @ohmland/web test` replays every solution. Every Unit 1 (basics) lab must have one; the bench
+  must build without warnings. A `speed` control raised in a solution fast-forwards the replay like the runtime.
+- `replayLab(lab, (line) => console.log(line))` (`apps/web/src/lab/replay.ts`) prints each step with the meter's
+  display and the tasks done so far: handy while writing a solution.
 - `pnpm dev`, open the lesson, Continue to the lab. The page installs `window.ohmlandLab` (`status()`, `bench()`,
   `part(id)`, `meter()`, `project(anchor)`) for poking at it from the console; the e2e helpers in
   `apps/web/e2e/lab.ts` use it to click and drag like a learner.
