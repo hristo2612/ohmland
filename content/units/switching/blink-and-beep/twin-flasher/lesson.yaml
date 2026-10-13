@@ -1,0 +1,139 @@
+id: twin-flasher
+version: 1
+title: The twin blinker
+summary: Build two transistors that switch each other off in turn, an LED flasher with no moving parts.
+minutes: 14
+unlocks:
+  parts: []
+  isle: led-lamp
+steps:
+  - type: hook
+    body: |
+      The relay buzzer ran by itself, but it clicked, sparked and wore out. Can you make something that runs forever
+      with no moving parts?
+
+      Take two identical transistor switches. Wire each one so that turning on shoves its twin off, and give the
+      shove a capacitor so it fades with time. They'll take turns forever, like two kids on a seesaw. The robot wants
+      two lamps on its new tower that blink in turn.
+    visual: { kind: part, part: npn-transistor }
+    predict:
+      prompt: Both halves of the circuit are identical. When you power it up, which LED lights first?
+      options:
+        - The left one, always
+        - The right one, always
+        - Whichever transistor happens to be a little quicker
+    mascot: Your turn, my turn, forever.
+
+  - type: lab
+    lab: twin-flasher
+    intro: Two transistor switches stand side by side, each with its own LED. You'll make them talk to each other.
+
+  - type: explain
+    cards:
+      - title: The seesaw
+        body: |
+          Say Q1 switches on. Its collector drops from about 7 V to nearly 0 V in an instant. The capacitor to Q2's
+          base can't change its voltage that fast, so it drags Q2's base down by the same 7 V, to about -6 V. Q2 slams
+          off.
+
+          Now Q2's base slowly climbs back up through its 68 kΩ. At about 0.7 V, Q2 turns on and does the same to Q1.
+      - title: Below zero?
+        body: |
+          Voltage is always a difference between two points. We call the battery's negative terminal 0 V, but that's
+          just a choice.
+
+          A capacitor holding 7 V, with its top plate suddenly yanked to 0 V, puts its bottom plate at -7 V compared
+          with our reference. Nothing is broken: it's charge sitting on a plate.
+        mascot: Below zero volts. Don't worry, it's relative.
+      - title: How long is a blink?
+        body: |
+          Each half lasts about 0.69 × R × C, the time the base takes to climb from about -6 V back to 0.7 V. With
+          68 kΩ and 10 µF that's about 0.47 s, so a full cycle is about 0.94 s.
+
+          Real ones run 10 to 20% faster, because the collector doesn't swing the full 9 V and parts vary.
+      - title: Who goes first?
+        body: |
+          Both halves are identical on paper, but no two real transistors are. At switch-on both bases rise together,
+          and the slightly quicker transistor wins.
+
+          One honest footnote: the 2N3904's base is only rated for 6 V backwards, and this circuit dips a little past
+          that. Small flashers get away with it at these tiny currents. This circuit is called an **astable
+          multivibrator**: it never settles, and its output jumps between two states.
+        mascot: No clicks, no wear. These lamps will outlive me.
+
+  - type: quiz
+    items:
+      - id: flasher-period
+        type: numeric
+        prompt: A flasher uses R = 47 kΩ and C = 22 µF on both sides. Using 1.4 × R × C, what is the full period?
+        answer: 1.45
+        unit: s
+        tolerance: 5
+        hint: Turn kΩ into Ω and µF into F before you multiply.
+        explain: "1.4 × 47,000 Ω × 0.000022 F ≈ 1.45 s."
+
+      - id: below-zero
+        type: choice
+        prompt: Why can the base go to about -6 V when the battery's lowest point is 0 V?
+        options:
+          - text: Voltage is relative, and a charged capacitor can hold one plate below our chosen 0 V
+            correct: true
+            why: A sudden drop on one plate drags the other down with it.
+          - text: The battery reverses for a moment
+            why: The battery never flips.
+          - text: It's a measuring error
+            why: The scope is right.
+        explain: Voltages are differences. The capacitor carries its stored difference below the reference.
+
+      - id: no-cross
+        type: choice
+        prompt: You connect a capacitor from Q1's collector to Q1's own base, instead of crossing over to Q2. What happens?
+        options:
+          - text: It stops oscillating
+            correct: true
+            why: Each half no longer kicks the other, so nothing alternates.
+          - text: It blinks twice as fast
+            why: Without the cross-connection there's no cycle at all.
+          - text: Both LEDs blink together
+            why: Nothing links them any more.
+        explain: The cross-connection is the whole trick.
+
+      - id: resistor-ratio
+        type: choice
+        prompt: The collector resistor is 1 kΩ. Which base resistor keeps the flasher reliable?
+        options:
+          - text: 4.7 kΩ
+            why: A ratio under 10. The base climbs back so fast that the collector side can't refill its capacitor in time.
+          - text: 47 kΩ
+            correct: true
+            why: A ratio of about 47, comfortably between 10 and 100, and below β.
+          - text: 4.7 MΩ
+            why: A ratio of 4,700. Far too little base current to switch fully on.
+        explain: Keep the base resistor between about 10 and 100 times the collector resistor, and below the transistor's β times it.
+
+      - id: half-cycle
+        type: order
+        prompt: Put one half-cycle in order, starting with Q1 turning on.
+        items:
+          - Q1 switches on
+          - Q1's collector drops
+          - The capacitor drags Q2's base negative
+          - Q2 turns hard off
+          - Q2's base climbs through its resistor
+          - Q2's base reaches 0.7 V and Q2 turns on
+        explain: Each turn-on causes the other's turn-off, and the RC climb sets the timing.
+
+  - type: wrap
+    rules:
+      - Two transistors cross-coupled by capacitors take turns forever.
+      - Each half lasts about 0.69 × R × C.
+      - "Voltage is relative: a capacitor can hold a node below 0 V."
+      - Keep the base resistor about 10 to 100 times the collector resistor.
+    realWorld:
+      parts:
+        - Two 2N3904 transistors and two red LEDs
+        - Two 1 kΩ and two 68 kΩ resistors
+        - Two 10 µF electrolytic capacitors rated 16 V
+        - A slide switch, a 9 V battery and a breadboard
+      safety:
+        - Check that each electrolytic's stripe faces the base it connects to.

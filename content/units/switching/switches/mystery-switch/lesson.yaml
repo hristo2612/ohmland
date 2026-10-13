@@ -1,0 +1,139 @@
+id: mystery-switch
+version: 1
+title: The mystery switch
+summary: Map an unlabeled switch from continuity alone, then draw it as a schematic symbol.
+minutes: 10
+unlocks:
+  parts: []
+  isle: test-lead-arch
+steps:
+  - type: hook
+    body: |
+      The robot found a switch in a parts drawer. No label, no datasheet, six shiny legs. It might be two switches
+      in one body, or something stranger.
+
+      Professionals meet mystery parts all the time, and they don't guess. They test every pair of pins in every
+      position and let the pattern speak. Your job: crack this switch and draw its symbol.
+    visual: { kind: part, part: slide-switch }
+    predict:
+      prompt: Six legs. How many different pin pairs could you test?
+      options:
+        - "6"
+        - "12"
+        - "15"
+        - "36"
+    mascot: No label? No problem. Patterns don't lie.
+
+  - type: lab
+    lab: mystery-switch
+    intro: Sweep every pair of legs in both slider positions. The beeps will tell you what's inside.
+
+  - type: explain
+    cards:
+      - title: Test everything, once
+        body: |
+          Six pins make 15 different pairs (6 × 5 ÷ 2). That sounds like a lot, but a systematic sweep takes two
+          minutes and leaves no doubt. Keep one probe on pin 1 and walk the other along, then move on to pin 2.
+
+          Write each result down. Guessing feels faster, but it costs more when it's wrong.
+        mascot: Fifteen pairs. We have time. We have beeps.
+      - title: Reading the pattern
+        body: |
+          A pole is the pin that always beeps with somebody, but the somebody changes when you slide. A throw beeps
+          in only one position. Two groups that never beep with each other are electrically separate: two poles.
+
+          Write the groups as little families, one pole and its throws, and the switch suddenly makes sense. The same
+          method cracks relays, connectors and mystery cables.
+      - title: Symbols are a language
+        body: |
+          A **switch** symbol is a lever hinged at the pole, resting near a throw. A **battery** is a long and a
+          short line, the long one positive. An **LED** is a triangle pointing the way conventional current flows,
+          into a bar, with two tiny arrows for the light. A **resistor** is a zigzag, or a small rectangle in many
+          countries.
+        mascot: I'll hold the probe. You hold the pencil.
+      - title: Dots and crossings
+        body: |
+          On a schematic, two lines that cross without a dot are not connected: one wire just passes over the other.
+          A dot means a real junction.
+
+          Careful drawers avoid four-way junctions. They use two offset T-shapes instead, so a faint or missing dot
+          can never be misread.
+
+  - type: quiz
+    items:
+      - id: four-pin-pairs
+        type: choice
+        prompt: A switch has 4 pins. How many different pairs can you test?
+        options:
+          - text: "4"
+            why: Each pin pairs with three others, so there are more pairs than pins.
+          - text: "6"
+            correct: true
+            why: "4 × 3 ÷ 2 = 6. Each pair is counted once."
+          - text: "12"
+            why: That counts A-B and B-A as two different pairs. They are the same pair.
+          - text: "16"
+            why: That pairs every pin with every pin, including itself.
+        hint: Each pin pairs with every other pin. Don't count A-B and B-A twice.
+        explain: "With n pins there are n × (n - 1) ÷ 2 pairs: 4 × 3 ÷ 2 = 6."
+
+      - id: no-dot
+        type: choice
+        prompt: Two lines cross on a schematic with no dot. Are those wires connected?
+        options:
+          - text: Yes, any lines that touch are connected
+            why: Crossing lines connect only where a dot is drawn.
+          - text: No, one passes over the other
+            correct: true
+            why: No dot, no connection.
+          - text: Only if they are the same colour
+            why: Schematic meaning never depends on colour.
+        explain: The dot is the junction. No dot means the wires just cross.
+
+      - id: symbol-match
+        type: match
+        prompt: Match each symbol to its part.
+        pairs:
+          - { left: A long and a short parallel line, right: Battery }
+          - { left: A triangle into a bar with two small arrows, right: LED }
+          - { left: A zigzag, right: Resistor }
+          - { left: A hinged lever near a contact, right: Switch }
+        explain: These four symbols appear in almost every circuit you'll meet in this unit.
+
+      - id: find-the-pole
+        type: choice
+        prompt: In your continuity log, pin 3 beeps with pin 1 in one position and with pin 5 in the other. Pins 1 and 5 never beep together. What is pin 3?
+        options:
+          - text: A pole
+            correct: true
+            why: It always connects to one throw or the other.
+          - text: A throw
+            why: A throw beeps in only one position.
+          - text: A broken pin
+            why: A broken pin wouldn't beep at all.
+        explain: The pin that changes partners when you slide is the pole.
+
+      - id: dashed-line
+        type: choice
+        prompt: What does a dashed line between two switch symbols mean?
+        options:
+          - text: They are wired together
+            why: Electrically they stay separate.
+          - text: One actuator moves both
+            correct: true
+            why: It's a mechanical link, like two oars locked together.
+          - text: One of them is optional
+            why: Optional parts are not shown with dashed links.
+        explain: Dashed lines between switches and relay contacts show a mechanical link, not wiring.
+
+  - type: wrap
+    rules:
+      - Test every pair in every position, then let the pattern decide.
+      - No dot, no connection.
+      - A dashed line between switches means one actuator, separate circuits.
+    realWorld:
+      parts:
+        - A multimeter with a continuity mode
+        - Any multi-pin switch from an old gadget
+      safety:
+        - Unplug it and take the batteries out before you remove a switch from anything.

@@ -3,10 +3,8 @@
 title: Ohmland
 units:
   - basics
+  - switching
 upcoming:
-  - id: switching
-    title: Switching
-    summary: Switches, relays, breadboards, capacitors, transistors, light and sound.
   - id: making-it-permanent
     title: Making it permanent
     summary: Soldering, perfboard and building circuits that last.

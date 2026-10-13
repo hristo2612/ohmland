@@ -1,0 +1,141 @@
+id: relay-buzzer
+version: 1
+title: A relay that switches itself
+summary: Feed a relay's coil through its own contact and it starts to buzz. A capacitor slows it to a steady tick.
+minutes: 12
+unlocks:
+  parts: [electrolytic-capacitor]
+  isle: jumper-arch
+steps:
+  - type: hook
+    body: |
+      Your relay changeover works perfectly: press the button, the relay switches. Now for a mischievous idea. What if
+      the coil got its power through the relay's own normally closed contact?
+
+      Switch on, the contact opens, the coil loses power, the contact closes again, and round it goes. One wire move
+      turns a polite switch into something alive. Make the move and listen.
+    visual: { kind: part, part: relay }
+    predict:
+      prompt: The coil is fed through its own NC contact. What will the relay do?
+      options:
+        - Click once and stay on
+        - Never click
+        - Click on and off by itself
+    mascot: Buzzing too long wears the contacts out. Short bursts, please.
+
+  - type: lab
+    lab: relay-buzzer
+    intro: Your changeover from the last lesson is on the board, with a power switch added. Keep the buzzing short.
+
+  - type: explain
+    cards:
+      - title: A switch that cuts its own power
+        body: |
+          When the coil's supply passes through NC, success undoes itself. Pulling in opens NC, which starves the
+          coil, which lets the armature fall, which closes NC again.
+
+          That loop is negative feedback with a delay, and the delay is the armature's travel time, a few
+          milliseconds. Hence a buzz. Old electric doorbells worked exactly this way.
+        mascot: It's alive! And slightly annoying.
+      - title: The capacitor as a reservoir
+        body: |
+          While NC is closed, the capacitor fills almost at once. When NC opens, the capacitor feeds the coil, its
+          voltage sinking as the charge drains away.
+
+          The relay hangs on until that voltage falls below drop-out. Then it lets go, NC closes, and the cycle
+          starts again.
+        mascot: A capacitor is a little tank that keeps the coil fed.
+      - title: Estimating the tick
+        body: |
+          How fast the tank drains depends on the coil's resistance and the capacitance. Multiply them: 540 Ω ×
+          1,000 µF = 0.54 s.
+
+          Falling from 9 V to the 1.8 V drop-out takes about 1.6 of those, close to 0.9 s. Double the capacitance and
+          the hold time doubles. You'll learn the curve properly in the next module.
+      - title: Contacts have a lifespan
+        body: |
+          Each switching event under load makes a tiny spark. A buzzing relay switches many times a second, so it
+          ages fast.
+
+          The rush of current into an empty capacitor is harsh on contacts too. A small series resistor softens that
+          surge, and the protection diode handles the coil's kickback.
+
+  - type: quiz
+    items:
+      - id: why-buzz
+        type: choice
+        prompt: Why does the relay buzz when its coil is fed through its own NC contact?
+        options:
+          - text: Pulling in cuts its own power, and letting go restores it
+            correct: true
+            why: Each state causes the other.
+          - text: The battery is too weak
+            why: A weak battery would stop the buzz, not start it.
+          - text: The relay is broken
+            why: It's doing exactly what the wiring tells it.
+        explain: Feedback through NC turns the relay into a self-interrupting switch.
+
+      - id: add-capacitor
+        type: choice
+        prompt: You add a large capacitor across the coil. The buzz becomes...
+        options:
+          - text: Faster
+            why: The capacitor adds hold time, so each cycle gets longer.
+          - text: Slower
+            correct: true
+            why: The capacitor keeps the coil powered after NC opens.
+          - text: Silent forever
+            why: It still cycles, just slowly.
+        explain: Stored charge holds the relay in until it drains down to drop-out.
+
+      - id: r-times-c
+        type: numeric
+        prompt: Multiply coil resistance by capacitance, 540 Ω and 470 µF. What do you get, in seconds?
+        answer: 0.254
+        unit: s
+        tolerance: 3
+        hint: 470 µF is 0.00047 F.
+        explain: "540 × 0.00047 = 0.254 s. That number sets how fast the capacitor drains through the coil."
+
+      - id: electrolytic-negative
+        type: choice
+        prompt: Which leg of an electrolytic capacitor goes to the more negative side?
+        options:
+          - text: The one by the stripe of minus signs, usually the shorter leg
+            correct: true
+            why: The stripe on the sleeve marks negative.
+          - text: The longer leg
+            why: The longer leg is positive.
+          - text: Either, they're interchangeable
+            why: Electrolytics are polarized. Backwards, they leak and can burst.
+        explain: The stripe and the short leg go toward negative.
+
+      - id: one-tick
+        type: order
+        prompt: Put one tick of the tamed relay in order, starting from the moment NC closes.
+        items:
+          - NC closes
+          - The capacitor refills
+          - The coil voltage passes pull-in
+          - The relay pulls in and NC opens
+          - The capacitor drains through the coil
+          - The voltage falls below drop-out
+          - The relay lets go
+        explain: Fill fast, drain slow, repeat. The drain sets most of the period.
+
+  - type: wrap
+    rules:
+      - A relay fed through its own NC contact buzzes.
+      - "A capacitor across the coil stretches each click: bigger C, slower ticks."
+      - Fast switching wears contacts out.
+      - Electrolytics have a negative stripe. Respect it.
+    realWorld:
+      parts:
+        - A breadboard, a relay with a 9 V coil and a 1N4001 diode
+        - 1,000 µF and 470 µF electrolytic capacitors, rated 16 V or more
+        - A 100 Ω resistor
+        - Two LEDs with 470 Ω resistors
+        - A slide switch and a 9 V battery
+      safety:
+        - Let it buzz for a few seconds at most. It wears the relay out.
+        - Check the capacitor's stripe before you power up.

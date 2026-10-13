@@ -1,0 +1,10 @@
+id: breadboard
+title: The breadboard and a self-switching relay
+summary: How a breadboard is wired inside, moving circuits onto it, and a relay that buzzes until a capacitor tames it.
+# Reveal caption: A town square with hidden copper streets under every row of tiles.
+landmark:
+  id: breadboard-plaza
+  name: Breadboard Plaza
+lessons:
+  - breadboard-inside
+  - relay-buzzer

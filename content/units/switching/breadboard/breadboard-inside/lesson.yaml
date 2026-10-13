@@ -1,0 +1,150 @@
+id: breadboard-inside
+version: 1
+title: X-ray the breadboard
+summary: See the hidden metal strips inside a breadboard, fix three classic mistakes, and move a relay circuit onto it.
+minutes: 12
+unlocks:
+  parts: [breadboard, jumper-wires]
+  isle: breadboard-patch
+steps:
+  - type: hook
+    body: |
+      Clip leads are great for three parts. At ten parts they turn into spaghetti. A **breadboard** is a plastic
+      block full of holes, and hidden underneath are rows of springy metal clips that join some of the holes
+      together.
+
+      Push a leg in and it's connected. No tools, no mess, and you can rearrange everything in seconds. The catch? You
+      have to know which holes are secretly holding hands. Let's switch on the x-ray.
+    visual: { kind: part, part: breadboard }
+    predict:
+      prompt: Do all the holes in one long row of a breadboard connect to each other?
+      options:
+        - Yes, the whole row
+        - Only small groups of holes
+        - None of them connect
+    mascot: X-ray on. Now the breadboard has no secrets.
+
+  - type: lab
+    lab: breadboard-inside
+    intro: Three stations, two of them broken on purpose. Then you'll rebuild the relay circuit the tidy way.
+
+  - type: explain
+    cards:
+      - title: What's under the holes
+        body: |
+          On each side of the center channel, rows of five holes are joined by one metal clip. Rows are numbered, and
+          the holes in a row are lettered: a to e on one side, f to j on the other.
+
+          The long rails along the edges join every hole in their stripe. Use red for plus and blue or black for
+          minus, and keep that habit forever.
+      - title: Why the channel?
+        body: |
+          The gap down the middle is the width of a chip. Parts with two rows of legs, like chips and our relay, sit
+          across it so that every leg gets its own strip.
+
+          Anything placed along a strip instead has all those legs shorted together.
+        mascot: Same strip, same node. The LED never stood a chance.
+      - title: Three classic bugs
+        body: |
+          1. Two legs of one part in the same strip: the part is bypassed.
+          2. A rail with a hidden gap halfway: the bottom half is dead.
+          3. A leg one hole off: it lands in the next strip and joins the wrong net.
+
+          When something is dark, measure the rails first, then check each part's legs.
+        mascot: Bridge the gap and the lower half wakes up.
+      - title: Wires that stay put
+        body: |
+          Breadboards like solid-core wire about 0.6 mm thick (22 AWG). Stranded wire frays, and flexible jumpers
+          with pins can hide a bad contact.
+
+          Cut jumpers to length and lay them flat. When a circuit misbehaves, you'll be able to see every connection
+          at a glance.
+
+  - type: quiz
+    items:
+      - id: hole-30c
+        type: choice
+        prompt: Which holes are connected to hole 30c?
+        options:
+          - text: 30a, 30b, 30d and 30e
+            correct: true
+            why: They share one clip with 30c on its side of the channel.
+          - text: Every hole in row 30, from a to j
+            why: The channel splits row 30 into two separate strips.
+          - text: Every hole lettered c, from 1c to 63c
+            why: Holes with the same letter but different row numbers sit in different strips.
+          - text: None, each hole is on its own
+            why: Then you'd need a wire for every connection.
+        explain: Hole 30c shares a clip with the other four holes of row 30 on its side of the channel.
+
+      - id: tap-a-strip
+        type: hotspot
+        figure: breadboard
+        prompt: Tap a group of holes that share one hidden metal clip.
+        answer: strip
+        explain: Each short column of five holes on this drawing is one strip, joined underneath by a single clip.
+
+      - id: dark-led
+        type: choice
+        prompt: An LED's legs are in holes 12a and 12d. Why is it dark?
+        options:
+          - text: Both legs are in the same strip, so it's shorted
+            correct: true
+            why: The clip joins 12a to 12d, so no voltage reaches across the LED.
+          - text: The LED is backwards
+            why: Possible in general, but here both legs share a clip, so polarity doesn't even matter.
+          - text: Row 12 is broken
+            why: Strips rarely fail. The layout is the problem.
+        explain: Every part must bridge two different strips.
+
+      - id: dead-half
+        type: choice
+        prompt: Your circuit works at the top of the board, but the bottom half is dead. What do you check first?
+        options:
+          - text: Whether the power rails are split halfway
+            correct: true
+            why: Many boards break their rails in the middle.
+          - text: Whether the resistors are too big
+            why: That would dim things, not kill a whole region.
+          - text: The battery's age
+            why: A flat battery would kill the top half too.
+        explain: Measure the rail voltage at both ends. A gap needs a bridge jumper.
+
+      - id: longer-route
+        type: choice
+        prompt: Does a longer route through more strips and jumpers add noticeable resistance?
+        options:
+          - text: Yes, every strip adds about 100 Ω
+            why: Strips are metal clips with a tiny fraction of an ohm.
+          - text: No, it's negligible in these circuits
+            correct: true
+            why: Clips and jumpers are far below an ohm.
+        explain: For battery circuits like ours, breadboard connections act like plain wire.
+
+      - id: hole-count
+        type: choice
+        prompt: A full-size breadboard has 63 rows with two 5-hole strips each, plus 4 rails of 50 holes. How many holes is that?
+        options:
+          - text: "630"
+            why: That's only the strips. Add the rails.
+          - text: "830"
+            correct: true
+            why: "63 × 2 × 5 = 630, plus 4 × 50 = 200."
+          - text: "1,030"
+            why: The rails add 200 holes, not 400.
+        explain: "63 × 2 × 5 = 630 strip holes, plus 4 × 50 = 200 rail holes, for 830 in total."
+
+  - type: wrap
+    rules:
+      - The holes in a 5-hole strip are joined. The channel separates the two sides.
+      - Every part needs its legs in different strips.
+      - Check for split rails when half the board is dead.
+      - Red for plus, blue or black for minus.
+    realWorld:
+      parts:
+        - An 830-hole breadboard
+        - 22 AWG solid hookup wire
+        - Wire strippers
+      safety:
+        - Strip wire with strippers, never your teeth.
+        - Keep clipped wire ends off the board. They cause shorts.

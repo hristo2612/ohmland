@@ -1,0 +1,135 @@
+id: capacitor-fill-fade
+version: 1
+title: Fill it, watch it fade
+summary: Charge a capacitor through a resistor, watch an LED fade as it drains, and find out why both plates matter.
+minutes: 10
+unlocks:
+  parts: []
+  isle: capacitor
+steps:
+  - type: hook
+    body: |
+      The capacitor that tamed your buzzing relay deserves a closer look. It soaked up charge in a blink, then fed
+      the coil for most of a second. No chemistry, no moving parts: just two metal layers that never touch.
+
+      Today you'll fill one slowly, let it drain through an LED, and watch the light melt away. Then you'll try a
+      small act of sabotage and see what a capacitor really needs.
+    visual: { kind: part, part: electrolytic-capacitor }
+    predict:
+      prompt: You charge a capacitor, then let it power an LED. How does the LED go out?
+      options:
+        - Instantly
+        - It fades gradually
+        - It flickers, then stops
+    mascot: Watch it fade. Slowly. Like a sunset in a box.
+
+  - type: lab
+    lab: capacitor-fill-fade
+    intro: One button fills the capacitor through a resistor. The other empties it in a hurry.
+
+  - type: explain
+    cards:
+      - title: Two plates and a gap
+        body: |
+          A capacitor is two conductors with a thin insulator between them. Push charge onto one plate and the same
+          amount is pushed off the other, out into the circuit.
+
+          Current flows in the wires on both sides, but nothing crosses the gap. The capacitor ends up holding equal
+          and opposite charges, separated and ready to flow back.
+        mascot: No plate, no party.
+      - title: A stretchy wall
+        body: |
+          Picture a pipe blocked by a rubber sheet. Pump water in from one side and the sheet bulges, pushing water out
+          of the other side.
+
+          Keep pumping and the sheet stretches tighter, until it pushes back as hard as the pump. That's a full
+          capacitor. Let go and the sheet springs back, sending the water the other way.
+      - title: Farads
+        body: |
+          Capacitance is measured in **farads** (F), named after Michael Faraday. One farad is huge, so real parts use
+          microfarads (µF, millionths), nanofarads (nF, billionths) and picofarads (pF, trillionths).
+
+          1,000 pF = 1 nF, and 1,000 nF = 1 µF. Your 1,000 µF capacitor is a big one for a breadboard.
+      - title: Capacitor or battery?
+        body: |
+          Both store energy, but a battery makes its voltage from chemistry and releases it slowly. A capacitor only
+          holds what you put in, and can give it all back in a flash.
+
+          That makes capacitors perfect for smoothing, timing and short bursts, and useless for running a torch all
+          evening.
+        mascot: A capacitor gives back exactly what you put in. Fair, really.
+
+  - type: quiz
+    items:
+      - id: through-insulator
+        type: choice
+        prompt: While a capacitor charges, does current flow through its insulator?
+        options:
+          - text: Yes, that's how it charges
+            why: Charge piles up on the plates. The insulator blocks it.
+          - text: No, but current flows in the wires on both sides
+            correct: true
+            why: Charge arriving on one plate pushes the same amount off the other.
+          - text: Only in big capacitors
+            why: Size doesn't change the physics.
+        explain: Nothing crosses the gap. As charge arrives on one plate, an equal amount leaves the other.
+
+      - id: to-picofarads
+        type: numeric
+        prompt: Convert 0.0022 µF to picofarads.
+        answer: 2200
+        unit: pF
+        tolerance: 0
+        hint: 1 µF is 1,000,000 pF.
+        explain: "0.0022 × 1,000,000 = 2,200 pF, also written 2.2 nF."
+
+      - id: to-nanofarads
+        type: numeric
+        prompt: How many nanofarads is 0.47 µF?
+        answer: 470
+        unit: nF
+        tolerance: 0
+        hint: 1 µF is 1,000 nF.
+        explain: "Move the decimal point three places: 0.47 µF = 470 nF."
+
+      - id: bigger-resistor
+        type: choice
+        prompt: A charged capacitor powers an LED through a resistor. You swap the resistor for a bigger one. The fade...
+        options:
+          - text: Lasts longer and starts dimmer
+            correct: true
+            why: Less current flows, so the charge drains more slowly.
+          - text: Ends sooner
+            why: A bigger resistor slows the drain.
+          - text: Stays the same
+            why: The resistor sets how fast charge leaves.
+        explain: More resistance means less current, so the capacitor empties more slowly.
+
+      - id: lifted-leg
+        type: choice
+        prompt: A capacitor's negative leg is lifted out of the circuit. You press the fill button. What happens?
+        options:
+          - text: It can't charge, so the LED just follows the button
+            correct: true
+            why: One plate needs a return path to match the other.
+          - text: It charges twice as fast
+            why: With no return path there is no charging at all.
+          - text: It explodes
+            why: Nothing dramatic. It simply does nothing.
+        explain: Charge pushed onto one plate must push charge off the other. No path, no charge.
+
+  - type: wrap
+    rules:
+      - A capacitor stores equal and opposite charge on two plates.
+      - Through a resistor it fills and empties gradually. Through a small resistor it empties fast.
+      - Both plates must be connected for a capacitor to work.
+      - 1,000 pF = 1 nF, and 1,000 nF = 1 µF.
+    realWorld:
+      parts:
+        - A 1,000 µF electrolytic capacitor, rated 16 V or more
+        - Two 1 kΩ resistors and a 100 Ω resistor
+        - A red LED and two pushbuttons
+        - A breadboard and a 9 V battery
+      safety:
+        - Small capacitors at 9 V are harmless.
+        - Big capacitors inside old TVs, microwaves and camera flashes can stay charged with dangerous voltages long after unplugging. Never open them.

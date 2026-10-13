@@ -1,0 +1,12 @@
+id: capacitors
+title: Capacitors and time
+summary: What capacitors store, units, codes, polarity and ratings, RC charging, the time constant, smoothing, coupling and blocking DC.
+# Reveal caption: It fills fast, drains slow, and keeps the lamps steady when the supply stutters.
+landmark:
+  id: capacitor-water-tower
+  name: the Capacitor Water Tower
+lessons:
+  - capacitor-fill-fade
+  - capacitor-labels
+  - rc-time-constant
+  - smoothing-and-coupling

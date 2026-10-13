@@ -1,0 +1,15 @@
+# Unit 2. The island is Switchback Isle: a second floating board, a railway junction drawn in copper, linked to the
+# first island by a cable bridge (docs/curriculum/unit-2.md, section 1).
+id: switching
+title: Switching
+summary: One current steering another. Switches, relays, breadboards, capacitors, transistors, light and sound.
+isle:
+  theme: switchback-isle
+  seed: 2
+modules:
+  - switches
+  - relays
+  - breadboard
+  - capacitors
+  - transistors
+  - blink-and-beep

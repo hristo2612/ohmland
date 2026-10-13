@@ -1,0 +1,142 @@
+id: flasher-to-tone
+version: 1
+title: Shrink it to a song
+summary: Shrink the flasher's capacitors step by step until the blink becomes a buzz, a hum and finally a tone in a speaker.
+minutes: 12
+unlocks:
+  parts: [speaker]
+  isle: speaker
+steps:
+  - type: hook
+    body: |
+      Your flasher blinks about once a second. Here's a thought experiment you can actually run: what if the
+      capacitors were a thousand times smaller? The circuit would flip a thousand times faster.
+
+      Your eyes would give up long before that, but your ears would just be getting interested. Add a speaker and
+      shrink the capacitors in steps. Somewhere along the way, a blink turns into a song.
+    visual: { kind: part, part: speaker }
+    predict:
+      prompt: Make both flasher capacitors 1,000 times smaller. What happens to the frequency?
+      options:
+        - It gets 1,000 times lower
+        - It gets 1,000 times higher
+        - It stays about the same
+    mascot: Blink, flicker, hum, sing. Same circuit!
+
+  - type: lab
+    lab: flasher-to-tone
+    intro: Your flasher is back, with a third transistor driving a small speaker. The tray holds smaller and smaller capacitors.
+
+  - type: explain
+    cards:
+      - title: Hertz
+        body: |
+          Frequency counts cycles per second, in **hertz** (Hz). The period is the time for one cycle. They're
+          reciprocals: f = 1 ÷ period. A 1 ms period means 1,000 Hz, or 1 kHz.
+
+          Capital M is mega (millions). Lowercase m is milli (thousandths). Mixing them up is a billionfold mistake.
+      - title: Scaling time
+        body: |
+          The flasher's timing is set by R × C. Shrink C by 1,000 and every half-cycle is 1,000 times shorter, so the
+          frequency is 1,000 times higher.
+
+          Shrinking R does the same, within limits: keep the base resistor about 10 to 100 times the collector
+          resistor, or the flasher stalls. That's why you changed only the capacitors today.
+      - title: Eyes and ears
+        body: |
+          Above about 50 to 60 flashes a second, most people stop seeing flicker: the LEDs just look dimmer. Young ears
+          hear roughly 20 Hz to 20 kHz, and the top end falls with age and loud noise.
+
+          Ears are most sensitive between about 2 and 5 kHz, and your 1 kHz tone sits close by, so it's easy to hear.
+        mascot: My ears are LEDs. I just see it glowing.
+      - title: Inside a speaker
+        body: |
+          A speaker is a light coil of wire glued to a paper cone, sitting in a magnet's gap. Current in the coil
+          pushes it one way or the other, and the cone pushes air. Only a changing current makes sound. A steady one
+          just heats the coil.
+
+          An 8 Ω speaker on 9 V would try to draw about 1 A, so the 220 Ω resistor keeps it to about 39 mA.
+        mascot: That transistor sang its last note. Hall of Fried Parts welcomes it.
+
+  - type: quiz
+    items:
+      - id: two-ms
+        type: numeric
+        prompt: A signal repeats every 2 ms. What is its frequency?
+        answer: 500
+        unit: Hz
+        tolerance: 0
+        hint: f = 1 ÷ period, with the period in seconds.
+        explain: "1 ÷ 0.002 s = 500 Hz."
+
+      - id: scale-both
+        type: choice
+        prompt: You divide both base resistors by 10 and both capacitors by 100. The new frequency is...
+        options:
+          - text: 10 times higher
+            why: Both changes count.
+          - text: 1,000 times higher
+            correct: true
+            why: R × C shrinks by 10 × 100 = 1,000.
+          - text: 100 times lower
+            why: Smaller R and C make it faster, not slower.
+        explain: The frequency scales with 1 ÷ (R × C).
+
+      - id: to-khz
+        type: numeric
+        prompt: Write 2,500 Hz in kHz.
+        answer: 2.5
+        unit: kHz
+        tolerance: 0
+        explain: Divide by 1,000. 2,500 Hz is 2.5 kHz.
+
+      - id: fast-flicker
+        type: choice
+        prompt: An LED flashes on and off 1,000 times a second. What do you see?
+        options:
+          - text: Rapid flashing
+            why: Far too fast for eyes.
+          - text: A steady, slightly dimmer light
+            correct: true
+            why: Your eyes blend flicker above about 50 to 60 Hz.
+          - text: Nothing at all
+            why: It's on half the time, so it glows.
+        explain: Fast flashes blend into a steady glow at about the average brightness.
+
+      - id: speaker-current
+        type: numeric
+        prompt: 9 V drives an 8 Ω speaker through 220 Ω. What current flows when the transistor is fully on?
+        answer: 39
+        unit: mA
+        tolerance: 3
+        hint: The two resistances add up.
+        explain: "9 V ÷ (220 Ω + 8 Ω) ≈ 0.039 A = 39 mA."
+
+      - id: why-changing
+        type: choice
+        prompt: Why does a speaker need a changing current to make sound?
+        options:
+          - text: Sound is air pushed back and forth, and a steady current just holds the cone in one place
+            correct: true
+            why: Only movement makes waves.
+          - text: Speakers only work on AC mains
+            why: Our transistor switching makes a changing current from a battery.
+          - text: A steady current is too weak
+            why: Even a strong steady current makes no sound.
+        explain: The cone must move to push air, and only changes make it move.
+
+  - type: wrap
+    rules:
+      - Frequency = 1 ÷ period, and 1 kHz = 1,000 Hz.
+      - Shrink R × C and the frequency rises in proportion.
+      - Eyes blend flicker above about 50 Hz. Ears hear about 20 Hz to 20 kHz.
+      - Never connect a speaker without a series resistor or other current limit.
+    realWorld:
+      parts:
+        - The flasher from the last lesson
+        - A third 2N3904 and a 4.7 kΩ resistor
+        - A 220 Ω resistor rated 0.5 W
+        - An 8 Ω speaker
+        - Pairs of 1 µF, 100 nF and 10 nF ceramic capacitors
+      safety:
+        - Keep the volume sensible, and never hold a speaker against your ear while you experiment.

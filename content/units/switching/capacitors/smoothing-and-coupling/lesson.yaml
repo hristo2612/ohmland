@@ -1,0 +1,138 @@
+id: smoothing-and-coupling
+version: 1
+title: Smooth it, kick it through
+summary: Use a capacitor to smooth a flickering supply, then put one in series to pass a sudden change but block a steady one.
+minutes: 12
+unlocks:
+  parts: []
+  isle: battery
+steps:
+  - type: hook
+    body: |
+      Capacitors have two party tricks, and they look like opposites. Put one *across* a shaky supply and it irons
+      out the bumps, like a shock absorber. Put one *in line* with a signal and it passes every sudden change while
+      refusing anything steady.
+
+      Same part, different position, completely different job. Let's flicker a light, fix it, and then build a
+      button that flashes only once, however long you hold it.
+    visual: { kind: part, part: electrolytic-capacitor }
+    predict:
+      prompt: An LED is fed through a capacitor in series. You press and hold a button for 3 seconds. How long does the LED glow?
+      options:
+        - 3 seconds
+        - A brief flash
+        - Never
+    mascot: "Across: shock absorber. In line: change detector."
+
+  - type: lab
+    lab: smoothing-and-coupling
+    intro: Station A gets a choppy supply from an auto-tapper. Station B has a capacitor in line with its LED.
+
+  - type: explain
+    cards:
+      - title: Smoothing
+        body: |
+          A capacitor across a supply is a small reservoir. When the supply surges, it soaks up the extra. When the
+          supply dips, it tops the circuit up.
+
+          Bigger capacitors smooth more, but take longer to fill. Every phone charger, and every chip on a circuit
+          board, has capacitors doing this job.
+      - title: The voltage across a capacitor can't jump
+        body: |
+          Changing a capacitor's voltage means moving charge, and that takes time through any resistor. So when one
+          plate suddenly rises by 9 V, the other plate rises by 9 V too, at that instant.
+
+          Then charge drains away through the resistor and the far plate sags back down. A sudden change passes
+          through. A steady level fades.
+        mascot: One flash per change. Capacitors are strict about that.
+      - title: Current without crossing
+        body: |
+          During that flash, real current flows in the wires on both sides of C2, yet no charge crosses the
+          insulator. Charge arriving on one plate pushes charge off the other.
+
+          The current is set by how fast the voltage changes: bigger or faster changes push more. Hold the voltage
+          steady and the current stops. That's why we say capacitors pass changes and block DC.
+      - title: Passive and active
+        body: |
+          Resistors and capacitors are **passive**: they can't switch or amplify, and they need no power supply of
+          their own. Transistors, coming up next, are **active**: they use one current to control another.
+
+          Put passive and active parts together and you get timers, flashers and amplifiers.
+        mascot: You're thinking in time now. That's a big step.
+
+  - type: quiz
+    items:
+      - id: hold-ten-seconds
+        type: choice
+        prompt: In the coupling circuit you hold the button for 10 seconds. How long does the LED glow?
+        options:
+          - text: 10 seconds
+            why: A steady voltage doesn't pass through a capacitor.
+          - text: A brief flash, fading in about a time constant
+            correct: true
+            why: Only the change at the press passes through.
+          - text: It doesn't glow at all
+            why: The sudden step does get through.
+        explain: A series capacitor passes the step, then blocks the steady level.
+
+      - id: one-pulse
+        type: choice
+        prompt: You want one short pulse from a long button press. Which part goes in series with the signal?
+        options:
+          - text: A capacitor, with a resistor to ground after it
+            correct: true
+            why: The capacitor passes the step. The resistor lets it fade and resets the level.
+          - text: A bigger resistor
+            why: That only reduces the current. The signal still lasts as long as the press.
+          - text: A diode
+            why: A diode passes one direction, but it doesn't shorten anything.
+        explain: A coupling capacitor turns a long step into a short pulse.
+
+      - id: bigger-smoother
+        type: choice
+        prompt: Is a bigger smoothing capacitor always better?
+        options:
+          - text: Yes, always
+            why: It also responds more slowly and draws a big surge at switch-on.
+          - text: No, it trades smoothness for a slower response and a bigger switch-on surge
+            correct: true
+            why: Engineers pick "enough", not "as much as possible".
+        explain: A bigger capacitor smooths more, but it fills slowly and gulps current when power arrives.
+
+      - id: where-it-sits
+        type: match
+        prompt: Match each capacitor job to where the capacitor sits.
+        pairs:
+          - { left: Smoothing, right: "Across the supply, to ground" }
+          - { left: Coupling, right: In series with a changing signal }
+          - { left: Timing, right: Charged through a resistor }
+          - { left: Blocking DC, right: "In series with a steady voltage, once charged" }
+        explain: Position decides the job. Across for smoothing, in line for coupling.
+
+      - id: remove-offset
+        type: choice
+        prompt: A signal swings between 8 V and 9 V. After a coupling capacitor, with a resistor to ground, what swing appears?
+        options:
+          - text: Still 8 V to 9 V
+            why: The steady 8.5 V part is blocked.
+          - text: About -0.5 V to +0.5 V, centred on 0 V
+            correct: true
+            why: Only the 1 V change passes.
+          - text: Nothing at all
+            why: The changes do pass.
+        explain: The capacitor removes the steady offset and passes the wiggle.
+
+  - type: wrap
+    rules:
+      - Across a supply, a capacitor smooths.
+      - In series, a capacitor passes changes and blocks steady DC.
+      - The voltage across a capacitor can't change instantly.
+      - Resistors and capacitors are passive. Transistors are active.
+    realWorld:
+      parts:
+        - 470 µF and 100 µF electrolytic capacitors, rated 16 V or more
+        - Two LEDs, two 100 Ω resistors and two 1 kΩ resistors
+        - Three pushbuttons
+        - A 9 V battery and a breadboard
+      safety:
+        - Mind the stripe on every electrolytic.
