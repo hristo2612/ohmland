@@ -82,13 +82,24 @@ function coverMaterial(quality: Quality): THREE.Material {
   return new THREE.MeshPhysicalMaterial({ color: "#a9b4c0", roughness: 0.25, transparent: true, opacity: 0.32, depthWrite: false, clearcoat: 0.6 });
 }
 
-export function RelayModel({ mount, state, quality = "high" }: ModelProps<PartParamsMap["relay"]>) {
+/** The relay itself (base, coil, armature, contacts and cover) with its origin at the centre of its underside. */
+export function RelayBody({
+  closed,
+  quality = "high",
+  poles = 2,
+  opaque = false,
+  printed = true,
+}: {
+  closed: boolean;
+  quality?: Quality;
+  poles?: 1 | 2;
+  /** A black cover with nothing printed: the mystery relay, until someone peeks inside. */
+  opaque?: boolean;
+  printed?: boolean;
+}) {
   const R = RELAY;
-  const cx = 3.5 * PITCH;
-  const cz = -1.5 * PITCH;
-  const closed = !!state?.closed;
-  const cover = useMemo(() => coverMaterial(quality), [quality]);
-  useLayoutEffect(() => () => cover.dispose(), [cover]);
+  const cover = useMemo(() => (opaque ? null : coverMaterial(quality)), [quality, opaque]);
+  useLayoutEffect(() => () => cover?.dispose(), [cover]);
   const label = useMemo(() => new THREE.MeshBasicMaterial({ map: relayTopTexture(), transparent: true, depthWrite: false }), []);
   useLayoutEffect(() => () => label.dispose(), [label]);
   const armature = useRef<THREE.Group>(null);
@@ -97,55 +108,77 @@ export function RelayModel({ mount, state, quality = "high" }: ModelProps<PartPa
     if (armature.current) armature.current.rotation.z = -0.2 * v;
     if (blades.current) blades.current.rotation.z = -0.13 * v;
   }, 26);
-  const legs = useMemo(() => {
-    const out: THREE.BufferGeometry[] = [];
-    for (const dz of [0, -3]) for (const dx of [0, 3, 5, 7]) out.push(bentTube([[dx * PITCH, 0.9, dz * PITCH], [dx * PITCH, IN_HOLE, dz * PITCH]], 0.26, 0.3, 4));
-    return out;
-  }, []);
-  const base = 0.4;
   const inner = R.h - 0.6;
+  const sets = poles === 1 ? [0] : [-2.4, 2.4];
   return (
-    <UprightMount mount={mount} cx={cx} cz={cz}>
-      <group position={[cx, base, cz]}>
-        <mesh geometry={memoGeo("rl-base", () => roundedBox(R.len, 1.6, R.wid, 0.3, 2))} material={mat.blackMatte()} position={[0, 0.8, 0]} castShadow receiveShadow />
-        {/* Coil on the pin-1 end. */}
-        <group position={[-4.6, 5.6, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <mesh geometry={memoGeo("rl-wind", () => new THREE.CylinderGeometry(3.0, 3.0, 7.6, 36))} material={mat.copperBright()} castShadow />
-          <mesh geometry={memoGeo("rl-flange", () => new THREE.CylinderGeometry(3.7, 3.7, 0.6, 36))} material={mat.blackMatte()} position={[0, 4.0, 0]} />
-          <mesh geometry={memoGeo("rl-flange", () => new THREE.CylinderGeometry(3.7, 3.7, 0.6, 36))} material={mat.blackMatte()} position={[0, -4.0, 0]} />
-          <mesh geometry={memoGeo("rl-core", () => new THREE.CylinderGeometry(1.4, 1.4, 1.0, 24))} material={mat.steel()} position={[0, -4.6, 0]} />
-        </group>
-        {/* Yoke: L bracket behind and over the coil. */}
-        <mesh geometry={memoGeo("rl-yoke-v", () => new THREE.BoxGeometry(0.8, 8.4, 5.2))} material={mat.steel()} position={[-9.0, 5.3, 0]} castShadow />
-        <mesh geometry={memoGeo("rl-yoke-h", () => new THREE.BoxGeometry(10.6, 0.8, 5.2))} material={mat.steel()} position={[-4.1, 9.5, 0]} castShadow />
-        {/* Armature hinged at the yoke end, with the plastic card that pushes the contact blades. */}
-        <group ref={armature} position={[1.0, 9.6, 0]}>
-          <mesh geometry={memoGeo("rl-arm", () => new THREE.BoxGeometry(0.75, 7.6, 5.0))} material={mat.steel()} position={[0.4, -3.9, 0]} castShadow />
-          <mesh geometry={memoGeo("rl-card", () => new THREE.BoxGeometry(5.6, 0.9, 6.6))} material={mat.plastic("#f0e6c8", 0.5)} position={[3.4, -4.6, 0]} />
-        </group>
-        {/* Contact sets for both poles. */}
-        {[-2.4, 2.4].map((z) => (
-          <group key={z} position={[0, 0, z]}>
-            <mesh geometry={memoGeo("rl-fixed", () => new THREE.BoxGeometry(6.0, 0.3, 1.4))} material={mat.brass()} position={[6.5, 7.7, 0]} />
-            <mesh geometry={memoGeo("rl-fixed", () => new THREE.BoxGeometry(6.0, 0.3, 1.4))} material={mat.brass()} position={[6.5, 4.1, 0]} />
-            <mesh geometry={memoGeo("rl-post", () => new THREE.BoxGeometry(0.5, 7.8, 1.4))} material={mat.brass()} position={[9.4, 4.4, 0]} />
-            <mesh geometry={memoGeo("rl-dot", () => new THREE.CylinderGeometry(0.55, 0.55, 0.35, 16))} material={mat.nickel()} position={[6.6, 7.42, 0]} />
-            <mesh geometry={memoGeo("rl-dot", () => new THREE.CylinderGeometry(0.55, 0.55, 0.35, 16))} material={mat.nickel()} position={[6.6, 4.38, 0]} />
+    <group>
+      <mesh geometry={memoGeo("rl-base", () => roundedBox(R.len, 1.6, R.wid, 0.3, 2))} material={mat.blackMatte()} position={[0, 0.8, 0]} castShadow receiveShadow />
+      {!opaque && (
+        <>
+          {/* Coil on the pin-1 end. */}
+          <group position={[-4.6, 5.6, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <mesh geometry={memoGeo("rl-wind", () => new THREE.CylinderGeometry(3.0, 3.0, 7.6, 36))} material={mat.copperBright()} castShadow />
+            <mesh geometry={memoGeo("rl-flange", () => new THREE.CylinderGeometry(3.7, 3.7, 0.6, 36))} material={mat.blackMatte()} position={[0, 4.0, 0]} />
+            <mesh geometry={memoGeo("rl-flange", () => new THREE.CylinderGeometry(3.7, 3.7, 0.6, 36))} material={mat.blackMatte()} position={[0, -4.0, 0]} />
+            <mesh geometry={memoGeo("rl-core", () => new THREE.CylinderGeometry(1.4, 1.4, 1.0, 24))} material={mat.steel()} position={[0, -4.6, 0]} />
           </group>
-        ))}
-        <group ref={blades} position={[3.0, 6.0, 0]}>
-          {[-2.4, 2.4].map((z) => (
+          {/* Yoke: L bracket behind and over the coil. */}
+          <mesh geometry={memoGeo("rl-yoke-v", () => new THREE.BoxGeometry(0.8, 8.4, 5.2))} material={mat.steel()} position={[-9.0, 5.3, 0]} castShadow />
+          <mesh geometry={memoGeo("rl-yoke-h", () => new THREE.BoxGeometry(10.6, 0.8, 5.2))} material={mat.steel()} position={[-4.1, 9.5, 0]} castShadow />
+          {/* Armature hinged at the yoke end, with the plastic card that pushes the contact blades. */}
+          <group ref={armature} position={[1.0, 9.6, 0]}>
+            <mesh geometry={memoGeo("rl-arm", () => new THREE.BoxGeometry(0.75, 7.6, 5.0))} material={mat.steel()} position={[0.4, -3.9, 0]} castShadow />
+            <mesh geometry={memoGeo("rl-card", () => new THREE.BoxGeometry(5.6, 0.9, 6.6))} material={mat.plastic("#f0e6c8", 0.5)} position={[3.4, -4.6, 0]} />
+          </group>
+          {/* Contact sets: one per pole. */}
+          {sets.map((z) => (
             <group key={z} position={[0, 0, z]}>
-              <mesh geometry={memoGeo("rl-blade", () => new THREE.BoxGeometry(5.0, 0.22, 1.2))} material={mat.copper()} position={[2.5, 0.8, 0]} />
-              <mesh geometry={memoGeo("rl-dot2", () => new THREE.CylinderGeometry(0.5, 0.5, 1.0, 16))} material={mat.nickel()} position={[3.6, 0.8, 0]} />
+              <mesh geometry={memoGeo("rl-fixed", () => new THREE.BoxGeometry(6.0, 0.3, 1.4))} material={mat.brass()} position={[6.5, 7.7, 0]} />
+              <mesh geometry={memoGeo("rl-fixed", () => new THREE.BoxGeometry(6.0, 0.3, 1.4))} material={mat.brass()} position={[6.5, 4.1, 0]} />
+              <mesh geometry={memoGeo("rl-post", () => new THREE.BoxGeometry(0.5, 7.8, 1.4))} material={mat.brass()} position={[9.4, 4.4, 0]} />
+              <mesh geometry={memoGeo("rl-dot", () => new THREE.CylinderGeometry(0.55, 0.55, 0.35, 16))} material={mat.nickel()} position={[6.6, 7.42, 0]} />
+              <mesh geometry={memoGeo("rl-dot", () => new THREE.CylinderGeometry(0.55, 0.55, 0.35, 16))} material={mat.nickel()} position={[6.6, 4.38, 0]} />
             </group>
           ))}
-        </group>
-        {/* Clear cover with printed top. */}
-        <mesh geometry={memoGeo("rl-cover", () => roundedBox(R.len, inner, R.wid, 0.5, 3))} material={cover} position={[0, 1.4 + inner / 2, 0]} castShadow renderOrder={2} />
+          <group ref={blades} position={[3.0, 6.0, 0]}>
+            {sets.map((z) => (
+              <group key={z} position={[0, 0, z]}>
+                <mesh geometry={memoGeo("rl-blade", () => new THREE.BoxGeometry(5.0, 0.22, 1.2))} material={mat.copper()} position={[2.5, 0.8, 0]} />
+                <mesh geometry={memoGeo("rl-dot2", () => new THREE.CylinderGeometry(0.5, 0.5, 1.0, 16))} material={mat.nickel()} position={[3.6, 0.8, 0]} />
+              </group>
+            ))}
+          </group>
+        </>
+      )}
+      {/* Cover: clear with a printed top, or black and blank. */}
+      <mesh geometry={memoGeo("rl-cover", () => roundedBox(R.len, inner, R.wid, 0.5, 3))} material={cover ?? mat.blackGloss()} position={[0, 1.4 + inner / 2, 0]} castShadow renderOrder={2} />
+      {printed && !opaque && (
         <mesh material={label} position={[0, 1.4 + inner + 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={3}>
           <planeGeometry args={[R.len - 2, R.wid - 2]} />
         </mesh>
+      )}
+    </group>
+  );
+}
+
+export function RelayModel({ params, mount, state, quality = "high" }: ModelProps<PartParamsMap["relay"]>) {
+  const cx = 3.5 * PITCH;
+  const cz = -1.5 * PITCH;
+  const closed = !!state?.closed;
+  const poles = params.poles === 1 ? 1 : 2;
+  const legs = useMemo(() => {
+    const out: THREE.BufferGeometry[] = [];
+    for (const dz of [0, -3])
+      for (const dx of [0, 3, 5, 7]) {
+        if (poles === 1 && dz === -3 && dx > 0) continue;
+        out.push(bentTube([[dx * PITCH, 0.9, dz * PITCH], [dx * PITCH, IN_HOLE, dz * PITCH]], 0.26, 0.3, 4));
+      }
+    return out;
+  }, [poles]);
+  return (
+    <UprightMount mount={mount} cx={cx} cz={cz}>
+      <group position={[cx, 0.4, cz]}>
+        <RelayBody closed={closed} quality={quality} poles={poles} opaque={!!params.mystery && !params.peek} />
       </group>
       {legs.map((g, i) => (
         <mesh key={i} geometry={g} material={mat.lead()} castShadow />

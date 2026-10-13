@@ -5,6 +5,7 @@ import { formatFarads, formatOhms } from "../colorCode";
 import { useLabels } from "../labels";
 import type { BenchLabels } from "../labels";
 import { DIAL_MODES } from "../layout";
+import { isThrowSwitch } from "../parts";
 import { useBench, useBenchStore } from "../store";
 import type { LeadColor, MeterMode, PlacedPart, TrayItem, WireColor } from "../types";
 import { LED_HEX, WIRE_HEX } from "../three/materials";
@@ -154,11 +155,11 @@ export function Overlay({
     // The finger that opened a menu by long-press lifts right after; ignore that release as a choice.
     const fresh = () => inMenu && !!ui.menu && performance.now() - ui.menu.at < 400;
     if (selPart) {
-      if (selPart.kind === "slide-switch" || selPart.kind === "toggle-switch") {
+      if (isThrowSwitch(selPart.kind)) {
         out.push(
           <Btn key="flip" label={labels.toggle} icon={<ToolIcon name="flip" />} compact={compact && !inMenu} onClick={() => {
             if (fresh()) return;
-            s.setParams<"slide-switch">(selPart.id, { to: selPart.params.to === "a" ? "b" : "a" });
+            s.setParams<"slide-switch">(selPart.id, { to: (selPart.params as { to: string }).to === "a" ? "b" : "a" });
             close();
           }} />,
         );

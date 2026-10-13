@@ -6,7 +6,23 @@ export * as benchOps from "./ops";
 export { emptyBench, defaultMeter, type Placement } from "./ops";
 export { holeAnchor, pinAnchor, wireAnchor, leadAnchor, probeAnchor, socketAnchor, parseAnchor, type ParsedAnchor } from "./anchors";
 export { PITCH, boardGeometry, parseHole, holeWorld, nearestHole, type BoardGeometry, type HoleInfo, type StripInfo } from "./board";
-export { PART_KINDS, partDef, defaultParams, footprintOf, isFlying, canMountOnBoard, type PartDef, type FootprintLeg } from "./parts";
+export {
+  PART_KINDS,
+  partDef,
+  partLegs,
+  defaultParams,
+  footprintOf,
+  isFlying,
+  canMountOnBoard,
+  isThrowSwitch,
+  mysteryOrder,
+  physicalLeg,
+  wiredAs,
+  terminalNumber,
+  shuffleFor,
+  type PartDef,
+  type FootprintLeg,
+} from "./parts";
 export { partPose, anchorPosition, benchBounds, fitCamera, isOnBoard, METER, DIAL_MODES, type PartPose } from "./layout";
 export { resistorBands, formatOhms, formatFarads } from "./colorCode";
 // The store needs React and zustand but not three.js, so a host can own it before the 3D view loads.

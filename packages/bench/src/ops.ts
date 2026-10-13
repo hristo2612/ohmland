@@ -135,7 +135,10 @@ function currentSpan(bench: BenchState, part: PlacedPart): number | undefined {
   const def = partDef(part.kind);
   if (!def.span) return undefined;
   if (isOnBoard(bench, part)) return Math.round(partPose(bench, part).span ?? def.span.default);
-  return def.span.default;
+  // Off the board: the part's natural lead spacing (a big electrolytic's legs are two holes apart).
+  const fp = footprintOf(part);
+  const natural = fp.length >= 2 ? Math.round(Math.hypot(fp[1]!.dx - fp[0]!.dx, fp[1]!.dz - fp[0]!.dz)) : def.span.default;
+  return natural || def.span.default;
 }
 
 function replacePart(bench: BenchState, part: PlacedPart): BenchState {

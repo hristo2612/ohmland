@@ -44,9 +44,30 @@ export type BenchPartKind =
   | "diode"
   | "speaker"
   | "cup"
-  | "lemon";
+  | "lemon"
+  | "dpdt-switch"
+  | "touch-pads";
 
 export type WaterKind = "distilled" | "tap" | "salty";
+
+/**
+ * Desk modules: a part mounted on a small wooden block with brass screw terminals along its front edge, easy to clip
+ * test leads to. `base: true` on a pushbutton, slide switch, toggle switch, trimmer or relay; the DPDT switch always
+ * has one. Base parts never go into the board.
+ */
+type Base = {
+  base?: boolean;
+};
+
+/**
+ * A part whose legs are shuffled and unlabelled (a puzzle for the meter): the terminals show only numbers 1 to n, and
+ * terminal i is wired inside as leg `legs[Number(mystery[i])]` (a permutation written as digits, in leg order).
+ * `peek` shows the inside (a clear cover, the wiring printed on the plate).
+ */
+type Mystery = {
+  mystery?: string;
+  peek?: boolean;
+};
 
 export type PartParamsMap = {
   resistor: {
@@ -61,24 +82,40 @@ export type PartParamsMap = {
   };
   led: { color: LedColor; size?: 3 | 5; lens?: "diffused" | "clear"; maxmA?: number };
   battery: { snap?: boolean; emf?: number; internalOhms?: number; mAh?: number };
-  pushbutton: { cap?: "black" | "red" | "blue" | "yellow" | "white"; /** Connected until pressed. */ normallyClosed?: boolean };
-  "slide-switch": { to: "a" | "b" };
+  pushbutton: { cap?: "black" | "red" | "blue" | "yellow" | "white"; /** Connected until pressed. */ normallyClosed?: boolean } & Base;
+  "slide-switch": { to: "a" | "b" } & Base;
   "toggle-switch": {
     to: "a" | "b";
     /** Mounted on a small wooden block with screw terminals: a big, easy switch for desk circuits. Desk only. */
     base?: boolean;
+    /** 1: an on/off switch with only the com and b terminals (SPST). Default 2 (SPDT). */
+    throws?: 1 | 2;
   };
   fuse: { amps: number };
   "ceramic-cap": { farads: number; volts?: number; /** The real value, for an out-of-spec part (labs). */ actualFarads?: number };
   "electrolytic-cap": { farads: number; volts?: number; /** The real value, for an out-of-spec part (labs). */ actualFarads?: number };
-  trimmer: { ohms: number; /** wiper position 0..1 from pin a to pin b */ position: number };
-  relay: { coilVolts?: number; coilOhms?: number; pullIn?: number; dropOut?: number };
+  trimmer: { ohms: number; /** wiper position 0..1 from pin a to pin b */ position: number } & Base;
+  relay: {
+    coilVolts?: number;
+    coilOhms?: number;
+    pullIn?: number;
+    dropOut?: number;
+    /** 1: a single changeover contact, five legs (coil1 coil2 com1 nc1 no1). Default 2 (DPDT, eight legs). */
+    poles?: 1 | 2;
+    /** Coil inductance in henries (simulator default 0.1). */
+    coilHenries?: number;
+  } & Base &
+    Mystery;
   npn: { model?: "2N3904" };
   phototransistor: { size?: 3 | 5 };
   diode: { model?: "1N4001" | "1N4148" };
   speaker: { ohms?: number; /** cone diameter in mm */ size?: number };
   cup: { water: WaterKind; /** overrides the default resistance for the water kind */ ohms?: number };
   lemon: { emf?: number; internalOhms?: number };
+  /** Two slide-switch poles on one slider (desk block, six terminals). */
+  "dpdt-switch": { to: "a" | "b" } & Mystery;
+  /** A pair of copper touch pads: a fingertip across them is a resistance (100 kΩ firm and damp to 2 MΩ light and dry). */
+  "touch-pads": { ohms?: number };
 };
 
 type PartOf<K extends BenchPartKind> = {

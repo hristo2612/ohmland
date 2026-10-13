@@ -11,7 +11,7 @@ export { emptyBench, defaultMeter } from "./ops";
 
 export { holeAnchor, pinAnchor, wireAnchor, leadAnchor, probeAnchor, socketAnchor, parseAnchor, type ParsedAnchor } from "./anchors";
 export { PITCH, boardGeometry, parseHole, holeWorld, nearestHole, type BoardGeometry, type HoleInfo, type StripInfo } from "./board";
-export { PART_KINDS, partDef, defaultParams, footprintOf, type PartDef, type FootprintLeg } from "./parts";
+export { PART_KINDS, partDef, partLegs, defaultParams, footprintOf, isThrowSwitch, mysteryOrder, physicalLeg, wiredAs, terminalNumber, shuffleFor, type PartDef, type FootprintLeg } from "./parts";
 export { partPose, anchorPosition, clipTargets, METER, DIAL_MODES, type PartPose, type ClipTarget } from "./layout";
 export { resistorBands, bandsToOhms, formatOhms, formatFarads, ceramicCode, isPreferredValue, BAND_HEX, type BandColor } from "./colorCode";
 export { DEFAULT_LABELS, mergeLabels, type BenchLabels } from "./labels";

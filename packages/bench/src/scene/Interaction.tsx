@@ -9,7 +9,7 @@ import { BOARD_PRINT, boardGeometry, boardOrigin, nearestHole } from "../board";
 import { BOARD_TOP } from "../dims";
 import { DIAL_MODES, METER, anchorPosition, clipTargets, fitCamera, meterLocalToWorld, nearestSocket, partPose, workCenter } from "../layout";
 import * as ops from "../ops";
-import { canMountOnBoard, footprintOf, partDef, rotateXZ } from "../parts";
+import { canMountOnBoard, footprintOf, isThrowSwitch, partDef, rotateXZ } from "../parts";
 import type { BenchStore } from "../store";
 import type { Anchor, BenchAction, BenchState, MeterMode, Selection, TrayItem, Vec2 } from "../types";
 import { PICK_LAYER, pickOf, type Pick } from "./pick";
@@ -429,8 +429,8 @@ export function useInteraction({
         case "flip": {
           if (readOnly) break;
           const part = s.bench.parts.find((x) => x.id === p.id);
-          if (part && (part.kind === "slide-switch" || part.kind === "toggle-switch")) {
-            s.setParams<"slide-switch">(p.id, { to: part.params.to === "a" ? "b" : "a" });
+          if (part && isThrowSwitch(part.kind)) {
+            s.setParams<"slide-switch">(p.id, { to: (part.params as { to: string }).to === "a" ? "b" : "a" });
           }
           // Flipping is the whole action: no selection bar popping up over what the switch just turned on.
           break;
@@ -870,8 +870,8 @@ export function handleBenchKey(e: KeyboardEvent, store: BenchStore, api: Interac
         s.press(part.id, e.type === "keydown");
         return true;
       }
-      if (part.kind === "slide-switch" || part.kind === "toggle-switch") {
-        if (e.type === "keydown" && !e.repeat) s.setParams<"slide-switch">(part.id, { to: part.params.to === "a" ? "b" : "a" });
+      if (isThrowSwitch(part.kind)) {
+        if (e.type === "keydown" && !e.repeat) s.setParams<"slide-switch">(part.id, { to: (part.params as { to: string }).to === "a" ? "b" : "a" });
         return true;
       }
       return false;
