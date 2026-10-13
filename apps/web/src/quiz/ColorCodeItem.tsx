@@ -20,7 +20,7 @@ export function ColorCodeItem(props: ItemViewProps<Value, ColorCodeItemT>) {
   return props.item.mode === "read" ? <ReadMode {...props} /> : <BuildMode {...props} />;
 }
 
-function ReadMode({ item, value, onChange, locked, outcome, reveal }: ItemViewProps<Value, ColorCodeItemT>) {
+function ReadMode({ item, value, onChange, locked, outcome, reveal, onSubmit }: ItemViewProps<Value, ColorCodeItemT>) {
   const bands = bandsForOhms(item.ohms, item.bands) ?? [];
   const names = bands.map((b) => m.bands[b]).join(", ");
   return (
@@ -35,6 +35,7 @@ function ReadMode({ item, value, onChange, locked, outcome, reveal }: ItemViewPr
         locked={locked}
         label={m.quiz.colorCode.readLabel}
         state={reveal ? "right" : outcome && !outcome.correct ? "wrong" : undefined}
+        onSubmit={onSubmit}
       />
     </div>
   );

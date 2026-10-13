@@ -33,4 +33,6 @@ export type ItemViewProps<V, I extends QuizItem = QuizItem> = {
   reveal: boolean;
   /** Announces a change politely to screen readers. */
   announce(text: string): void;
+  /** Runs the step's primary action (Enter in a text field). */
+  onSubmit?(): void;
 };

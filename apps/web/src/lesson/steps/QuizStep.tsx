@@ -71,6 +71,14 @@ function QuizItemPanel({ item, position, count, records, record, save, onDone, o
   const [notice, setNotice] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
   const feedbackRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const itemRef = useRef<HTMLDivElement>(null);
+
+  // A new question takes focus when the previous one handed it over (keyboard users land on the question).
+  useEffect(() => {
+    const active = document.activeElement;
+    if (!active || active === document.body) headingRef.current?.focus();
+  }, []);
 
   const done = record.done;
   const wrongShowing = !done && !!outcome && !outcome.correct;
@@ -87,7 +95,7 @@ function QuizItemPanel({ item, position, count, records, record, save, onDone, o
   }, []);
 
   const check = () => {
-    if (!canCheck(item, value)) return;
+    if (done || wrongShowing || !canCheck(item, value)) return;
     const o = evaluate(item, value);
     if (o.noTry) {
       setNotice(o.lines[0] ?? null);
@@ -107,6 +115,13 @@ function QuizItemPanel({ item, position, count, records, record, save, onDone, o
   const retry = () => {
     setOutcome(null);
     setShowHint(false);
+    // Hand focus back to the answer controls so the next try starts where it happens.
+    requestAnimationFrame(() => {
+      const target = itemRef.current?.querySelector<HTMLElement>(
+        "input:not([disabled]):not([type=hidden]), button:not([disabled]), [tabindex='0']",
+      );
+      target?.focus();
+    });
   };
 
   const giveUp = () => {
@@ -116,7 +131,9 @@ function QuizItemPanel({ item, position, count, records, record, save, onDone, o
     setOutcome({ correct: false, lines: [] });
   };
 
-  const viewProps = { value, onChange, locked, outcome: done ? null : outcome, reveal, announce };
+  /** Enter in a text field runs whatever the primary button would do right now. */
+  const submit = () => (done ? onDone() : wrongShowing ? retry() : check());
+  const viewProps = { value, onChange, locked, outcome: done ? null : outcome, reveal, announce, onSubmit: submit };
   let view: ReactNode;
   switch (item.type) {
     case "choice":
@@ -130,7 +147,7 @@ function QuizItemPanel({ item, position, count, records, record, save, onDone, o
           unit={item.unit}
           locked={locked}
           state={done ? (record.gaveUp ? undefined : "right") : wrongShowing ? "wrong" : undefined}
-          onSubmit={check}
+          onSubmit={submit}
         />
       );
       break;
@@ -176,9 +193,17 @@ function QuizItemPanel({ item, position, count, records, record, save, onDone, o
             ))}
           </ol>
         </div>
-        <h1 className="step-title step-title--question" tabIndex={-1} data-step-heading dangerouslySetInnerHTML={{ __html: item.prompt }} />
+        <h1
+          ref={headingRef}
+          className="step-title step-title--question"
+          tabIndex={-1}
+          data-step-heading
+          dangerouslySetInnerHTML={{ __html: item.prompt }}
+        />
 
-        <div className="quiz__item">{view}</div>
+        <div className="quiz__item" ref={itemRef}>
+          {view}
+        </div>
 
         {notice && (
           <p className="quiz__notice" role="status">
