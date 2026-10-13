@@ -98,6 +98,8 @@ export const DEFAULT_LABELS: BenchLabels = {
     speaker: "Speaker",
     cup: "Cup of water",
     lemon: "Lemon cell",
+    "dpdt-switch": "DPDT switch",
+    "touch-pads": "Touch pads",
     holder: "Resistor holder",
     station: "Battery tester",
     fruit: "Lemon half",

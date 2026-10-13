@@ -1,7 +1,7 @@
 /**
  * Every lab ships a solution. Replay each one headlessly (bench actions + the in-thread simulator) and check that
- * every required task gets done, and every checkpoint is reached on time. Unit 1 (basics) labs must have a solution;
- * other labs with an empty solution are skipped until they get one.
+ * every required task gets done, and every checkpoint is reached on time. Every lab must have a solution: none is
+ * skipped.
  */
 import { describe, expect, it } from "vitest";
 import { buildBench } from "./build";
@@ -36,9 +36,9 @@ describe("lab solutions", () => {
       if (BASICS.has(lab.id)) expect(built.warnings, "bench warnings").toEqual([]);
     });
 
-    const run = lab.solution.length || BASICS.has(lab.id) ? it : it.skip;
-    run(`${lab.id}: the solution completes every required task`, () => {
-      expect(lab.solution.length, "a Unit 1 lab needs a solution").toBeGreaterThan(0);
+    // Oscillators with a speaker step at the audio rate: the siren's replay takes several seconds.
+    it(`${lab.id}: the solution completes every required task`, { timeout: 120_000 }, () => {
+      expect(lab.solution.length, "every lab needs a solution").toBeGreaterThan(0);
       const r = replayLab(lab);
       expect(r.problems, "steps that did not apply").toEqual([]);
       expect(r.failedChecks, "checkpoints not done in time").toEqual([]);

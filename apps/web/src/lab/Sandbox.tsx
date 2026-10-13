@@ -61,13 +61,16 @@ function SandboxBench({ outline, firstHref }: { outline: CourseOutline; firstHre
       tray: kit.tray,
       meter: kit.meter ? { kind: "meter" } : null,
       scope: null,
-      planned: [],
+      logger: null,
+      stopwatch: null,
+      tapper: null,
       controls: [],
       nodes: {},
       labels: {},
       inputs: [],
       spareFuses: null,
       warnings: [],
+      frame: null,
     };
     return new LabRuntime(SANDBOX, built, [], {
       onFried: (card) => useLearner.getState().recordFried(card.kind, card.shownLabel, null, { silent: true }),

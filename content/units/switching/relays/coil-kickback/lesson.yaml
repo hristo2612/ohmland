@@ -25,7 +25,7 @@ steps:
 
   - type: lab
     lab: coil-kickback
-    intro: The scope watches the top of the coil. Press, release, and keep your eyes on the moment you let go.
+    intro: The scope watches the top of the coil. Its single shot catches the instant you let go of the button.
 
   - type: explain
     cards:

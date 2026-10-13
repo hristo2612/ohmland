@@ -376,10 +376,15 @@ React Three Fiber components and logic for the lab bench:
 - Procedural low-poly part models built in code (no downloaded models), clean and readable: resistor with correct
   colour bands for its value, LEDs (3 and 5 mm, colours, glow + bloom), 9 V battery and snap, alligator test leads,
   jumper wires, solderless breadboard, multimeter (rotary dial, LCD, banana sockets, probes), pushbutton, slide and
-  toggle switches, fuse, capacitors (electrolytic, ceramic), potentiometer, relay, NPN transistor (TO-92),
-  phototransistor, small speaker, AA and coin cells, 1 W and 5 W resistors, plus lab props: cups of water, fruit
-  cells, a resistor holder, a battery tester, a lemon half with copper and zinc electrodes, a skin patch, a copper
-  wire and a plastic ruler, a pencil card, value labels, a reject bin, a colour chart, a desk clock, a display case.
+  toggle switches, fuse, capacitors (electrolytic, ceramic, with legs that bend to reach holes up to seven apart),
+  potentiometer, relay (DPDT, or single changeover with `poles: 1`), NPN transistor (TO-92), phototransistor, small
+  speaker, touch pads, AA and coin cells, 1 W and 5 W resistors, plus lab props: cups of water, fruit cells, a
+  resistor holder, a battery tester, a lemon half with copper and zinc electrodes, a skin patch, a copper wire and a
+  plastic ruler, a pencil card, value labels, a reject bin, a colour chart, a desk clock, a display case.
+- Desk modules for circuits built with clip leads: a pushbutton, slide or toggle switch, panel pot, relay or DPDT
+  switch (`dpdt-switch`) mounted on a wooden block with brass screw terminals (`base: true`, `tag` prints a name on
+  its front). A relay or DPDT switch can be a mystery (`mystery`: its terminals are wired inside in a shuffled order
+  and show only numbers; `peek` shows the inside). `partLegs(part)` gives the leads a part actually has.
 - Holders have seats (`PartDef.seats`, who sits where in `params.held`): a part dropped on one goes in and its leads
   join the holder's contacts. Props have settings and actions on the selection bar and clickable spots on the model
   (`PartDef.settings`, `actions`, `hotspots`). A part dropped right on one of its kind swaps places and wiring.
@@ -428,20 +433,32 @@ export default defineLab({
 ```
 
 Places (`at`) are shorthand: holes (`"e12"`, `"e5-e9"`, `"rail+:12"`), `"rails"` for a snap battery, desk spots
-(`"desk:x,z"` in mm), a holder's seat (`"in:H1"`), and in solutions another part's place (`"on:B1"`, a swap). Attach points are `"R1.a"`, `"e12"`, `"W1.b"`, `"TL1.a"`, `"red"`. `defineLab` checks the
-cheap invariants (kebab-case id, unique task and part ids, checkpoints that name real tasks) when the lab loads. The
-first-draft form of the Unit 1 and 2 stubs (simulator kinds, `props`, `kind: "wire"` leads) still loads.
+(`"desk:x,z"` in mm), a holder's seat (`"in:H1"`), and in solutions another part's place (`"on:B1"`, a swap).
+Attach points are `"R1.a"`, `"e12"`, `"W1.b"`, `"TL1.a"`, `"red"`, and in solutions `"wired:K1.coil1"` (the terminal
+of a mystery part wired as that lead). `frame` names the desk rectangle the camera frames. `defineLab` checks the
+cheap invariants (kebab-case id, unique task, part and panel ids, checkpoints and panel answers that name real tasks
+and panels) when the lab loads. The first-draft form of the Unit 1 and 2 stubs (simulator kinds, `props`,
+`kind: "wire"` leads) still loads.
+
+Labs can declare panels (worksheets beside the tasks, `panels.ts` logic and `panels-ui.tsx`): continuity and truth
+tables that fill themselves from the bench, a pin map that counts wrong submissions, tags, a hole hunt and a symbol
+builder. Instruments beyond the meter and scope: a data logger (plot from a trigger, with a cursor), a stopwatch
+(starts on a switch, stops on a relay's contact, keeps runs), an auto-tapper (works a pushbutton in simulated time)
+and `{ kind: "inspect" }` readouts over parts. The scope can take a single shot: the runtime pauses the worker,
+applies the learner's switch action and steps the simulator in sub-microsecond to tens-of-microsecond steps through
+the next few milliseconds (a coil's kickback).
 
 `goal` receives a read-only `LabView` (`createLabView(...)`, pure): the bench, the latest snapshot, the event log and
 recent history, the meter (mode, range, sockets, parsed value), the notebook, and helpers for the blueprint's checks
-(`isLit`, `closed`, `fried`, `died`, `event`, `count`, `volts`, `amps`, `connected`, `seriesLoop`, `chain`,
-`parallel`, `loopOpen`, `across`, `probed`, `inSeries`, `meterReads`, `heldFor`, `history`, `blinkPeriod`, `toneHz`,
-`relayClicks`, `logged`, `note`, `control`, `holds`, `heldBy`, `distance`, `doneAt`, `trigger`, per-task `memory`).
-Required tasks are checked in order, one at a time; bonus tasks all the time. Every lab ships a `solution` (bench
-actions with `check` points); `apps/web/src/lab/solutions.test.ts` replays each one headlessly (`replay.ts`: bench
-ops + the in-thread simulator) and fails when a required task is not done; every basics lab must have one. Controls
-can drive a part's input, the run speed (`key: "speed"`, a time-lapse the replay fast-forwards too) or the room
-lights (`key: "room"`); `{ kind: "inspect" }` instruments put readouts over parts.
+(`isLit`, `closed`, `fried`, `died`, `event`, `count`, `volts`, `amps`, `connected`, `joins`, `legs`, `seriesLoop`,
+`chain`, `parallel`, `loopOpen`, `across`, `probed`, `inSeries`, `meterReads`, `heldFor`, `history`, `stats`,
+`timeAbove`, `periods`, `blinkPeriod`, `relayPeriods`, `toneHz`, `toneHistory`, `relayClicks`, `actual`, `panel`,
+`runs`, `loggerStart`, `tapping`, `logged`, `note`, `control`, `holds`, `heldBy`, `distance`, `doneAt`, `trigger`,
+per-task `memory` and lab-wide `shared`). Required tasks are checked in order, one at a time; bonus tasks all the
+time. Every lab ships a `solution` (bench actions with `check` points); `apps/web/src/lab/solutions.test.ts` replays
+each one headlessly (`replay.ts`: bench ops + the in-thread simulator) and fails when a required task is not done or
+a lab has no solution. Controls can drive a part's input (every part of a kind with `part: "*"`), the run speed
+(`key: "speed"`, a time-lapse the replay fast-forwards too) or the room lights (`key: "room"`).
 
 Runtime (`apps/web/src/lab`):
 
@@ -462,13 +479,17 @@ Runtime (`apps/web/src/lab`):
   `task` lab event; dead parts go to `recordFried(kind, label, lessonId, { silent: true })` with an in-lab card and
   "Replace part" (`replace` input) or "Replace meter fuse" (`replaceFuse`); triggers go to `labEvent`.
 - Instruments panel: the meter readout (mirrors the LCD, dial and range settable), the scope (canvas, two traces of
-  history), sliders, the notebook and a connections panel (every clip and probe as selects: the keyboard path).
-- Sound: short synthesised cues and the speaker stream through an AudioWorklet (ScriptProcessor fallback), created
-  on the learner's first tap, silent when muted.
+  history, a single shot, a pitch readout), the logger, stopwatch and tapper, sliders (a slider can drive every part
+  of a kind: the desk lamp lights every phototransistor), the lab's panels, the notebook and a connections panel
+  (every clip and probe as selects: the keyboard path).
+- Sound: short synthesised cues, relay clicks synthesised from `clicked` events (a buzz when they come fast) and the
+  speaker stream through an AudioWorklet (ScriptProcessor fallback), created on the learner's first tap, silent when
+  muted.
 - Layout: bench beside the panel on desktops; on phones the bench takes 55% and the panel is a bottom sheet. Quality
   is automatic (low on phones, small or weak devices and software WebGL) with a toggle remembered in
   `localStorage` (`ohmland:bench-quality`).
-- `window.ohmlandLab` (`project`, `pickAt`, `bench`, `status`, `part`, `meter`, `sim`) is a test and tutorial hook.
+- `window.ohmlandLab` (`project`, `pickAt`, `bench`, `status`, `part`, `meter`, `sim`, `showMe`, `panel`) is a test
+  and tutorial hook.
 
 The free-build bench (`/bench`, `Sandbox.tsx`) is the same runtime with no tasks: the tray comes from the parts bin
 (`sandbox-parts.ts`, a battery and three clip leads for everyone), the meter and scope come with their parts, builds

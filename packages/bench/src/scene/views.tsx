@@ -101,6 +101,7 @@ const ACTUATOR: Partial<Record<PlacedPart["kind"], "press" | "flip" | "rotor">> 
   pushbutton: "press",
   "slide-switch": "flip",
   "toggle-switch": "flip",
+  "dpdt-switch": "flip",
   trimmer: "rotor",
 };
 
@@ -171,9 +172,9 @@ function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality,
               position={[(box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, (box.min.z + box.max.z) / 2]}
             />
             {actuator &&
-              (part.kind === "toggle-switch" && part.params.base && pose.mount === "desk" ? (
-                // The lever on its wooden block: a generous target, since it is the one thing to press.
-                <Proxy pick={{ type: actuator, id: part.id }} size={[20, 20, 16]} position={[0, box.max.y - 8, TOGGLE_BASE.switchZ]} />
+              (((part.params as { base?: boolean }).base || part.kind === "dpdt-switch") && pose.mount === "desk" ? (
+                // The lever, slider, button or knob on its wooden block: a generous target, since it is the one thing to press.
+                <Proxy pick={{ type: actuator, id: part.id }} size={part.kind === "pushbutton" ? [16, 10, 16] : [24, 20, 16]} position={[0, part.kind === "toggle-switch" ? box.max.y - 8 : TOGGLE_BASE.h + 5, TOGGLE_BASE.switchZ]} />
               ) : (
                 <Proxy
                   pick={{ type: actuator, id: part.id }}

@@ -3,7 +3,7 @@
  * snapshot to a LabSession and reports which tasks got done. The solution test runs it for every lab.
  */
 import { createSimulation, type InputKey, type InputValue } from "@ohmland/sim";
-import { buildBench } from "./build";
+import { buildBench, controlTargets } from "./build";
 import { isOptional, type LabDefinition, type TaskStatus } from "./define";
 import { parseNote } from "./notes";
 import { LabSession, type FriedRecord } from "./session";
@@ -23,6 +23,8 @@ export type ReplayResult = {
   warnings: string[];
   /** Simulated seconds the replay took. */
   seconds: number;
+  /** The session at the end, for debugging a failing lab. */
+  session: LabSession;
 };
 
 const FRAME = 1 / 30;
@@ -38,6 +40,7 @@ export function replayLab(lab: LabDefinition, trace?: (line: string) => void): R
   const tone = createToneMeter();
   sim.onAudio((samples, rate) => {
     session.tone = tone.push(samples, rate);
+    session.toneQuick = tone.quick();
   });
   const fried: FriedRecord[] = [];
   const triggers: string[] = [];
@@ -68,6 +71,7 @@ export function replayLab(lab: LabDefinition, trace?: (line: string) => void): R
       const u = session.ingest(s);
       fried.push(...u.fried);
       triggers.push(...u.triggers);
+      for (const inp of u.inputs) sim.setInput(inp.id, inp.key, inp.value);
     }
   };
 
@@ -75,7 +79,11 @@ export function replayLab(lab: LabDefinition, trace?: (line: string) => void): R
   lab.solution.forEach((step, i) => {
     const eff = applyStep(session.bench, step);
     if (eff.problem) problems.push(`step ${i + 1} (${step.do}): ${eff.problem}`);
-    if (eff.bench !== session.bench) sim.load(session.setBench(eff.bench).netlist);
+    if (eff.bench !== session.bench) {
+      sim.load(session.setBench(eff.bench).netlist);
+      // Sliders that drive every part of a kind reach parts placed since.
+      for (const c of built.controls) if (c.part === "*") for (const id of controlTargets(session.bench, c)) sim.setInput(id, c.key, session.controls[c.id] ?? c.value);
+    }
     for (const inp of eff.inputs) {
       if (inp.after) delayed.push({ at: sim.time + inp.after, id: inp.id, key: inp.key, value: inp.value });
       else sim.setInput(inp.id, inp.key, inp.value);
@@ -93,8 +101,13 @@ export function replayLab(lab: LabDefinition, trace?: (line: string) => void): R
       else {
         session.setControl(c.id, eff.control.value);
         if (c.key === "speed") speed = eff.control.value;
-        else if (c.part !== undefined) sim.setInput(c.part, c.key, eff.control.value);
+        else for (const id of controlTargets(session.bench, c)) sim.setInput(id, c.key as InputKey, eff.control.value);
       }
+    }
+    if (eff.panel && !session.answer(eff.panel.id, eff.panel.value, true)) problems.push(`step ${i + 1}: no panel "${eff.panel.id}"`);
+    if (eff.tapper !== undefined) {
+      if (!session.tapper) problems.push(`step ${i + 1}: no tapper`);
+      session.setTapper(eff.tapper);
     }
     if (eff.check) {
       // Give the goal a moment: a check right after an action waits for the circuit to settle.
@@ -113,5 +126,5 @@ export function replayLab(lab: LabDefinition, trace?: (line: string) => void): R
   sim.dispose();
 
   const missing = lab.tasks.filter((t) => !isOptional(t) && session.status[t.id] !== "done").map((t) => t.id);
-  return { status: { ...session.status }, missing, failedChecks, problems, fried, triggers, warnings: built.warnings, seconds: sim.time };
+  return { status: { ...session.status }, missing, failedChecks, problems, fried, triggers, warnings: built.warnings, seconds: sim.time, session };
 }

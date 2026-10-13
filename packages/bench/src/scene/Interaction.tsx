@@ -12,7 +12,7 @@ import { DIAL_MODES, METER, anchorPosition, clipTargets, fitCamera, meterLocalTo
 import { CARD } from "../dims";
 import * as ops from "../ops";
 import { penStroke, settingParams } from "../ops";
-import { footprintOf, partDef, rotateXZ } from "../parts";
+import { canMountOnBoard, footprintOf, isThrowSwitch, partDef, rotateXZ } from "../parts";
 import type { BenchStore } from "../store";
 import type { Anchor, BenchAction, BenchState, MeterMode, Selection, TrayItem, Vec2 } from "../types";
 import { PICK_LAYER, pickOf, type Pick } from "./pick";
@@ -471,8 +471,8 @@ export function useInteraction({
         case "flip": {
           if (readOnly) break;
           const part = s.bench.parts.find((x) => x.id === p.id);
-          if (part && (part.kind === "slide-switch" || part.kind === "toggle-switch")) {
-            s.setParams<"slide-switch">(p.id, { to: part.params.to === "a" ? "b" : "a" });
+          if (part && isThrowSwitch(part.kind)) {
+            s.setParams<"slide-switch">(p.id, { to: (part.params as { to: string }).to === "a" ? "b" : "a" });
           }
           // Flipping is the whole action: no selection bar popping up over what the switch just turned on.
           break;
@@ -829,14 +829,14 @@ export function useInteraction({
       topView: () => {
         if (!controls) return;
         const r = element.getBoundingClientRect();
-        const f = fitCamera(bench(), r.width / Math.max(1, r.height), true, { left: viewPad.current.left / r.width, bottom: viewPad.current.bottom / r.height });
+        const f = fitCamera(bench(), r.width / Math.max(1, r.height), true, { left: viewPad.current.left / r.width, bottom: viewPad.current.bottom / r.height }, 32, store.getState().frame);
         void controls.setLookAt(...f.position, ...f.target, true);
         invalidate();
       },
       resetView: () => {
         if (!controls) return;
         const r = element.getBoundingClientRect();
-        const f = fitCamera(bench(), r.width / Math.max(1, r.height), false, { left: viewPad.current.left / r.width, bottom: viewPad.current.bottom / r.height });
+        const f = fitCamera(bench(), r.width / Math.max(1, r.height), false, { left: viewPad.current.left / r.width, bottom: viewPad.current.bottom / r.height }, 32, store.getState().frame);
         void controls.setLookAt(...f.position, ...f.target, true);
         invalidate();
       },
@@ -942,8 +942,8 @@ export function handleBenchKey(e: KeyboardEvent, store: BenchStore, api: Interac
         s.press(part.id, e.type === "keydown");
         return true;
       }
-      if (part.kind === "slide-switch" || part.kind === "toggle-switch") {
-        if (e.type === "keydown" && !e.repeat) s.setParams<"slide-switch">(part.id, { to: part.params.to === "a" ? "b" : "a" });
+      if (isThrowSwitch(part.kind)) {
+        if (e.type === "keydown" && !e.repeat) s.setParams<"slide-switch">(part.id, { to: (part.params as { to: string }).to === "a" ? "b" : "a" });
         return true;
       }
       return false;

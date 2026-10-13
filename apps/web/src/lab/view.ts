@@ -2,10 +2,10 @@
  * Builds the LabView goals read. Pure: the runtime and the headless solution replay both feed it the bench, the latest
  * snapshot, the recent snapshot history and the notebook.
  */
-import { partDef, type BenchNetlist, type BenchState, type MeterSocket, type PlacedPart } from "@ohmland/bench/core";
+import { isThrowSwitch, partLegs, type BenchNetlist, type BenchState, type MeterSocket, type PlacedPart } from "@ohmland/bench/core";
 import type { NodeId, PartState, SimEvent, SimEventType, Snapshot } from "@ohmland/sim";
 import { resolveAttach } from "./anchors";
-import type { LabView, MeterView, Reading, TaskStatus } from "./define";
+import type { LabView, MeterView, PanelState, Reading, Stats, StopwatchRun, TaskStatus } from "./define";
 
 export type LabViewInput = {
   bench: BenchState;
@@ -23,17 +23,27 @@ export type LabViewInput = {
   controls?: Readonly<Record<string, number>>;
   /** Per-task scratch space; the session swaps it before each goal. */
   memory?: Record<string, unknown>;
+  /** Scratch space shared by every task of the lab. */
+  shared?: Record<string, unknown>;
   status?: Readonly<Record<string, TaskStatus>>;
   /** Named nodes from the lab's bench config. */
   nodes?: Readonly<Record<string, string>>;
   /** Pitch of the speaker sound, from the audio stream. */
   tone?: number | null;
+  /** [time, Hz] per snapshot (short windows), 0 while silent. */
+  toneLog?: readonly [number, number][];
+  panels?: Readonly<Record<string, PanelState>>;
+  runs?: readonly StopwatchRun[];
+  loggerStart?: number | null;
+  /** The pushbutton the auto-tapper is working, or null. */
+  tapping?: string | null;
   onTrigger?: (name: string) => void;
   /** When each task was done in this visit, with the meter as it read then. */
   doneAt?: Readonly<Record<string, { t: number; meter: MeterView | null }>>;
 };
 
-const SPDT = new Set(["slide-switch", "toggle-switch"]);
+const SPDT = { has: (kind: string) => isThrowSwitch(kind as PlacedPart["kind"]) };
+const EMPTY_PANEL: PanelState = { cells: {}, size: 0, answer: null, submissions: 0, wrong: 0, correct: false };
 
 /** The simulator kind of a bench part, as the Hall of Fried Parts and achievements name it. */
 export function hallKind(part: PlacedPart | undefined, partId: string): string {
@@ -46,6 +56,7 @@ export function hallKind(part: PlacedPart | undefined, partId: string): string {
       return "pot";
     case "slide-switch":
     case "toggle-switch":
+    case "dpdt-switch":
       return "switch";
     case "lemon":
       return "cell";
@@ -56,9 +67,10 @@ export function hallKind(part: PlacedPart | undefined, partId: string): string {
 
 /** The two pins a part is measured "across": first and second for two-lead parts, com and b for switches. */
 export function acrossPins(part: PlacedPart): [string, string] {
+  if (part.kind === "dpdt-switch") return ["com1", "b1"];
   if (SPDT.has(part.kind)) return ["com", "b"];
   if (part.kind === "pushbutton") return ["a1", "b1"];
-  const legs = partDef(part.kind).legs;
+  const legs = partLegs(part);
   return [legs[0] ?? "", legs[1] ?? ""];
 }
 
@@ -205,7 +217,7 @@ export function createLabView(input: LabViewInput): LabView {
     // The meter's leads must sit on the part's own nodes or on a node in its loop.
     const red = nodeOf("probe:red");
     const black = nodeOf("probe:black");
-    const legs = partDef(p.kind).legs.map((l) => pinNode(partId, l));
+    const legs = partLegs(p).map((l) => pinNode(partId, l));
     return legs.includes(red) || legs.includes(black) || mi > 0;
   };
 
@@ -218,7 +230,7 @@ export function createLabView(input: LabViewInput): LabView {
       if (!s) out.set(n, (s = new Set()));
       s.add(id);
     };
-    for (const p of bench.parts) for (const leg of partDef(p.kind).legs) add(pinNode(p.id, leg), p.id);
+    for (const p of bench.parts) for (const leg of partLegs(p)) add(pinNode(p.id, leg), p.id);
     if (bench.meter && meter && CURRENT_MODES.has(meter.mode)) {
       add(nodeOf("probe:red"), bench.meter.id);
       add(nodeOf("probe:black"), bench.meter.id);
@@ -237,7 +249,7 @@ export function createLabView(input: LabViewInput): LabView {
     }
     const p = partOf(id);
     if (!p) return null;
-    const legs = partDef(p.kind).legs;
+    const legs = partLegs(p);
     const at = legs.filter((l) => pinNode(id, l) === inNode);
     if (at.length === 0) return null;
     const leg = at[0]!;
@@ -351,6 +363,9 @@ export function createLabView(input: LabViewInput): LabView {
     get memory() {
       return (input.memory ??= {});
     },
+    get shared() {
+      return (input.shared ??= {});
+    },
 
     part(id) {
       const s = snapshot?.parts[id];
@@ -362,6 +377,10 @@ export function createLabView(input: LabViewInput): LabView {
     },
     benchPart: (id) => partOf(id),
     prop: (id) => partOf(id)?.params as Record<string, unknown> | undefined,
+    legs: (id) => {
+      const p = partOf(id);
+      return p ? partLegs(p) : [];
+    },
 
     isLit(id, min = 0.1) {
       const p = snapshot?.parts[id];
@@ -494,6 +513,64 @@ export function createLabView(input: LabViewInput): LabView {
     },
     relayClicks: (id, seconds) => view.count("clicked", id, seconds),
     relayClicked: (id) => view.count("clicked", id) > 0,
+    periods(source, level, seconds = 12) {
+      const h = view.history(source, seconds);
+      if (h.length < 4) return [];
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (const [, v] of h) {
+        lo = Math.min(lo, v);
+        hi = Math.max(hi, v);
+      }
+      const mid = level ?? (lo + hi) / 2;
+      if (level === undefined && hi - lo < 1e-6) return [];
+      const rises: number[] = [];
+      for (let i = 1; i < h.length; i++) if (h[i - 1]![1] < mid && h[i]![1] >= mid) rises.push(h[i]![0]);
+      return rises.slice(1).map((x, i) => x - rises[i]!);
+    },
+    relayPeriods(id, seconds = 12) {
+      const pulls = events.filter((e) => e.type === "clicked" && e.partId === id && e.data?.["to"] === "no" && e.t >= t - seconds).map((e) => e.t);
+      return pulls.slice(1).map((x, i) => x - pulls[i]!);
+    },
+    joins(partId, a, b, dir) {
+      const p = partOf(partId);
+      if (!p) return false;
+      const [x, y] = partLegs(p);
+      const fwd = view.connected(`pin:${partId}.${x}`, a) && view.connected(`pin:${partId}.${y}`, b);
+      if (dir === "forward") return fwd;
+      return fwd || (view.connected(`pin:${partId}.${x}`, b) && view.connected(`pin:${partId}.${y}`, a));
+    },
+    stats(source, seconds = 2) {
+      const h = view.history(source, seconds);
+      if (!h.length) return null;
+      let min = Infinity;
+      let max = -Infinity;
+      let sum = 0;
+      for (const [, v] of h) {
+        min = Math.min(min, v);
+        max = Math.max(max, v);
+        sum += v;
+      }
+      const out: Stats = { min, max, mean: sum / h.length, span: max - min, n: h.length };
+      return out;
+    },
+    timeAbove(source, level, seconds = 10) {
+      const h = view.history(source, seconds);
+      let total = 0;
+      for (let i = 1; i < h.length; i++) if (h[i]![1] >= level) total += h[i]![0] - h[i - 1]![0];
+      return total;
+    },
+    toneHistory(seconds = 4) {
+      return (input.toneLog ?? []).filter(([at]) => at >= t - seconds);
+    },
+    actual(id, key) {
+      const x = snapshot?.parts[id]?.extra?.[key];
+      return typeof x === "number" ? x : undefined;
+    },
+    panel: (id) => input.panels?.[id] ?? EMPTY_PANEL,
+    runs: () => input.runs ?? [],
+    loggerStart: () => input.loggerStart ?? null,
+    tapping: (id) => input.tapping === id,
 
     readingsLog: readings,
     logged(tag) {

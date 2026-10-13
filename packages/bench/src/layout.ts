@@ -2,8 +2,8 @@
 
 import { parseAnchor } from "./anchors";
 import { PITCH, boardGeometry, boardOrigin, holeWorld } from "./board";
-import { BOARD_TOP, BOARD_CLIP_LIFT, LED, NPN, CERAMIC, electrolyticSize, RESISTOR, DIODE } from "./dims";
-import { canMountOnBoard, footprintOf, isFlying, partDef, rotateXZ } from "./parts";
+import { BOARD_TOP, BOARD_CLIP_LIFT, LED, NPN, CERAMIC, electrolyticSize, RESISTOR, DIODE, blockWidth } from "./dims";
+import { canMountOnBoard, footprintOf, isFlying, partDef, partLegs, rotateXZ } from "./parts";
 import { holderOf, seatPose } from "./seats";
 import type { Anchor, BenchState, MeterSocket, MeterState, PlacedPart, ProbeColor, Vec2, Vec3 } from "./types";
 
@@ -52,7 +52,7 @@ function boardClipLift(part: PlacedPart): number {
 export function isOnBoard(bench: BenchState, part: PlacedPart): boolean {
   if (!bench.board || !canMountOnBoard(part) || !part.holes) return false;
   const geom = boardGeometry(bench.board);
-  return partDef(part.kind).legs.every((leg) => {
+  return partLegs(part).every((leg) => {
     const h = part.holes?.[leg];
     return !!h && geom.holes.has(h);
   });
@@ -64,11 +64,11 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
     const board = bench.board;
     const legs: Record<string, Vec3> = {};
     const lift = boardClipLift(part);
-    for (const leg of def.legs) {
+    for (const leg of partLegs(part)) {
       const p = holeWorld(board, part.holes![leg]!)!;
       legs[leg] = [p[0], BOARD_TOP + lift, p[1]];
     }
-    const first = holeWorld(board, part.holes![def.legs[0]!]!)!;
+    const first = holeWorld(board, part.holes![partLegs(part)[0]!]!)!;
     let rot = part.rot;
     let span: number | undefined;
     if (def.span) {
@@ -104,7 +104,7 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
   const pose: PartPose = { mount: "desk", origin, rot: part.rot, legs };
   if (isFlying(part)) {
     const ends: Record<string, { pos: Vec3; inHole: boolean }> = {};
-    for (const leg of def.legs) {
+    for (const leg of partLegs(part)) {
       const hole = part.holes?.[leg];
       const hp = hole && bench.board ? holeWorld(bench.board, hole) : null;
       if (hp) {
@@ -126,7 +126,7 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
     pose.ends = ends;
     return pose;
   }
-  for (const leg of def.legs) {
+  for (const leg of partLegs(part)) {
     const l = local[leg]!;
     const [rx, rz] = rotateXZ(l[0], l[2], part.rot);
     legs[leg] = add3(origin, [rx, l[1], rz]);
@@ -350,9 +350,10 @@ export function benchBounds(bench: BenchState): [number, number, number, number]
   for (const p of bench.parts) {
     if (isOnBoard(bench, p)) continue;
     // Tall props reach up toward the camera, so give them more room than their footprint.
+    const block = p.kind === "dpdt-switch" || (p.params as { base?: boolean }).base;
     const big =
-      p.kind === "toggle-switch" && p.params.base
-        ? 26
+      block
+        ? Math.max(26, blockWidth(partLegs(p).length) / 2 + 4)
         : p.kind === "sample"
           ? p.params.material === "plastic"
             ? 80
@@ -397,10 +398,12 @@ export function fitCamera(
   top = false,
   pad: { left?: number; bottom?: number } = {},
   fovDeg = 32,
+  /** A desk rectangle [x0, z0, x1, z1] to frame instead of the whole bench (a lab's working area). */
+  frame?: readonly [number, number, number, number] | null,
 ): { position: Vec3; target: Vec3 } {
   // On a tall, narrow screen frame the board alone (the learner can zoom out to reach the meter).
   const portrait = aspect < 0.85 && !!bench.board;
-  const [x0, z0, x1, z1] = portrait ? benchBounds({ ...bench, parts: [], leads: [], meter: null }) : benchBounds(bench);
+  const [x0, z0, x1, z1] = frame ?? (portrait ? benchBounds({ ...bench, parts: [], leads: [], meter: null }) : benchBounds(bench));
   // `pad` gives the fractions of the view covered by panels; fit into what is left and shift away from them.
   const visible = 1 - Math.min(0.6, Math.max(0, pad.left ?? 0));
   const visibleY = 1 - Math.min(0.5, Math.max(0, pad.bottom ?? 0));

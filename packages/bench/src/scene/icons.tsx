@@ -58,6 +58,10 @@ export function PartIcon({ kind, color }: { kind: BenchPartKind | "lead" | "mete
       return box([<path key="g" d="M8 6h16l-2 22H10z" fill="#eaf4fb" />, <path key="w" d="M9 13h14" stroke="#6aa9d8" />]);
     case "lemon":
       return box([<path key="l" d="M4 16a12 12 0 0 0 24 0z" fill="#f3d23a" />, <path key="c" d="M11 16V6M21 16V6" stroke="#c87533" strokeWidth="2" />]);
+    case "dpdt-switch":
+      return box([<rect key="b" x="3" y="16" width="26" height="10" rx="1.5" fill="#7a4a2a" />, <rect key="p" x="7" y="11" width="18" height="5" rx="1" fill="#bbb" />, <rect key="k" x="10" y="6" width="5" height="6" rx="1" fill="#222" />, <path key="s" d="M6 22h0M11 22h0M16 22h0M21 22h0M26 22h0" strokeWidth="2.6" stroke="#d6ad55" />]);
+    case "touch-pads":
+      return box([<rect key="b" x="6" y="5" width="20" height="17" rx="2" fill="#1f6b3f" />, <path key="f" d="M10 8v11M14 8v8M18 8v11M22 8v8" stroke="#e3b34c" strokeWidth="2" />, <path key="l" d="M12 22v7M20 22v7" />]);
     case "holder":
       return box([<rect key="b" x="3" y="19" width="26" height="6" rx="1.5" fill="#33373d" />, <path key="c" d="M10 19v-6M22 19v-6" stroke="#c9a14a" strokeWidth="2" />, <path key="r" d="M6 13h20" />]);
     case "station":

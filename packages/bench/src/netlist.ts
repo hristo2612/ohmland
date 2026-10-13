@@ -4,7 +4,7 @@
 import type { Netlist, NodeId, PartSpec } from "@ohmland/sim";
 import { holeAnchor, leadAnchor, parseAnchor, pinAnchor, probeAnchor, socketAnchor, wireAnchor } from "./anchors";
 import { RAILS, boardGeometry } from "./board";
-import { partDef, type NetContext } from "./parts";
+import { partDef, partLegs, physicalLeg, type NetContext } from "./parts";
 import { heldOf, seatsOf } from "./seats";
 import type { Anchor, BenchState, MeterSocket, PartParamsMap, PlacedPart } from "./types";
 
@@ -112,7 +112,7 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; sp
   };
   for (const part of bench.parts) {
     const def = partDef(part.kind);
-    for (const leg of def.legs) add(pinAnchor(part.id, leg));
+    for (const leg of partLegs(part)) add(pinAnchor(part.id, leg));
     for (const [leg, hole] of Object.entries(part.holes ?? {})) seat(pinAnchor(part.id, leg), hole, `${part.id}.${leg}`);
     for (const [x, y] of def.bridges ?? []) uf.union(pinAnchor(part.id, x), pinAnchor(part.id, y));
   }
@@ -254,7 +254,7 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
     }
   }
   bench.parts.forEach((p, i) => {
-    for (const leg of partDef(p.kind).legs) consider(pinAnchor(p.id, leg), [2, i, `${p.id}.${leg}`]);
+    for (const leg of partLegs(p)) consider(pinAnchor(p.id, leg), [2, i, `${p.id}.${leg}`]);
   });
   for (const k of uf.keys()) {
     const parsed = parseAnchor(k);
@@ -279,7 +279,8 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
   const ctx: NetContext = { part: (id) => bench.parts.find((p) => p.id === id), pin: (id, leg) => nodeOf(pinAnchor(id, leg)) };
   for (const part of bench.parts) {
     const def = partDef(part.kind);
-    const node = (leg: string) => nodeOf(pinAnchor(part.id, leg));
+    // Mystery parts are wired inside in a shuffled order: leg `fn` of the model is whichever terminal carries it.
+    const node = (leg: string) => nodeOf(pinAnchor(part.id, physicalLeg(part, leg)));
     specs.push(...(def.toSpecs as (p: PlacedPart, n: (leg: string) => NodeId, c: NetContext) => PartSpec[])(part, node, ctx));
   }
 

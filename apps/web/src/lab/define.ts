@@ -93,6 +93,8 @@ export type MeterConfig = {
   black?: MeterSocket | null;
   /** Where the probe tips start (default: lying on the desk). */
   probes?: { red?: Attach; black?: Attach };
+  /** Where loose probe tips lie on the desk ("desk:x,z"), when not beside the meter (a meter off to one side of the view). */
+  tips?: { red?: Spot; black?: Spot };
   /** Spare 200 mA fuses for "Replace meter fuse" (default unlimited). */
   spareFuses?: number;
 };
@@ -111,13 +113,91 @@ export type ScopeConfig = {
   window?: number;
   /** Fixed vertical range; auto when absent. */
   range?: [number, number];
+  /**
+   * Single shot: an "Arm" button; the next time the learner works a switch or button (only switching off, with
+   * `edge: "off"`: a button let go, a switch thrown to a) the scope catches the next `ms` milliseconds at a fast time
+   * base (the simulator steps finely through the moment). For spikes too quick for the live trace: a coil's kickback.
+   */
+  capture?: { ms: number; edge?: "on" | "off" };
+  /** Show the speaker's pitch beside the traces (a frequency readout). */
+  pitch?: string;
 };
 
-/** Planned instruments: accepted now so labs can declare them, rendered when the runtime grows them. */
-export type PlannedInstrument =
-  | { kind: "logger"; traces: ScopeTrace[]; rate?: number }
-  | { kind: "stopwatch"; start?: { event: SimEventType | "input"; part?: string }; stop?: { event: SimEventType | "input"; part?: string } }
-  | { kind: "tapper"; part: string; hz?: number };
+/** What starts or stops the stopwatch or the logger: a switch thrown, a button pressed, or a relay contact moving. */
+export type TriggerSpec =
+  | { part: string; to: "a" | "b" }
+  | { part: string; pressed: boolean }
+  | { part: string; contact: "no" | "nc" };
+
+/**
+ * A data logger: plots node voltages against time from the moment a run starts (the `start` trigger, or the Start
+ * button), with a cursor that reads off time and value. Goals read when a run started with `lab.loggerStart()`.
+ */
+export type LoggerConfig = { kind: "logger"; traces: ScopeTrace[]; start?: TriggerSpec | TriggerSpec[]; seconds?: number; range?: [number, number] };
+
+/**
+ * A stopwatch that starts and stops by itself (a switch thrown, a relay clicking). Each finished run is kept; `watch`
+ * names a node whose voltage is noted when a run starts (was the timing capacitor empty?). Goals read `lab.runs()`.
+ */
+export type StopwatchConfig = { kind: "stopwatch"; start: TriggerSpec; stop: TriggerSpec; watch?: string };
+
+/** An auto-tapper: presses and releases a pushbutton by itself, `hz` times a second (default 4), while switched on. */
+export type TapperConfig = { kind: "tapper"; part: string; hz?: number };
+
+/** @deprecated Use LoggerConfig, StopwatchConfig or TapperConfig. */
+export type PlannedInstrument = LoggerConfig | StopwatchConfig | TapperConfig;
+
+// ---------------------------------------------------------------------------------------------------------------
+// Panels: small worksheets beside the tasks. Auto panels fill themselves from the bench; answer panels hold what the
+// learner submits. Goals read them with `lab.panel(id)`; solutions answer them with `{ do: "panel", id, value }`.
+
+export type PanelConfig = PanelShow &
+  (
+  /** A continuity table: every pair of a part's legs in each switch position (or released and held), filled in as the meter probes them. */
+  | { kind: "continuity"; id: string; part: string; title?: string }
+  /** A truth table: the switches' positions and whether the LED is lit, logged for every combination tried. Clears when the wiring changes. */
+  | {
+      kind: "truth-table";
+      id: string;
+      /** Each switch, with names for its two positions (thrown to a and to b), as the lesson calls them. */
+      inputs: { part: string; label: string; a: string; b: string }[];
+      /** The LED that is the output. */
+      output: { part: string; label?: string };
+      title?: string;
+    }
+  /**
+   * Name every leg of a (mystery) part. Submissions are counted, wrong ones too. `swap` lists two groups of roles
+   * that may be exchanged (which pole is "A" is up to the learner). `peek` lets the learner look inside once right.
+   */
+  | { kind: "pin-map"; id: string; part: string; roles: PinRole[]; swap?: [string[], string[]]; title?: string; peek?: boolean }
+  /** Tag each item with one option ("S3": normally open or normally closed). */
+  | { kind: "tags"; id: string; items: { id: string; label: string }[]; options: { id: string; label: string }[]; answer: Record<string, string>; title?: string }
+  /** Tap every hole joined to `start` on a little map of the board (columns `cols`), then check. */
+  | { kind: "hole-hunt"; id: string; start: string; cols: [number, number]; title?: string }
+  /** Build a schematic symbol: two slots and an optional dashed link. `answer` is what counts as right. */
+  | { kind: "symbol"; id: string; answer: { slots: [SymbolKind, SymbolKind]; linked: boolean }; title?: string });
+
+/** Panels show all the time, or only while one of `show`'s tasks is the current one (and after it is done). */
+export type PanelShow = { show?: string[] };
+
+/** A role a leg can have in a pin map, and the legs (as wired inside the part) that truly have it. */
+export type PinRole = { id: string; label: string; legs: string[] };
+
+export type SymbolKind = "spst" | "spdt" | "button" | "none";
+
+/** What `lab.panel(id)` returns, by panel kind. */
+export type PanelState = {
+  /** Continuity: "legA|legB@state" -> beep or open. Truth table: "a,b" (input positions) -> lit. */
+  cells: Record<string, boolean>;
+  /** Every cell the panel can have (continuity and truth tables), so goals can tell when it is complete. */
+  size: number;
+  /** Answer panels: the last answer submitted (leg -> role, item -> option, picked holes, symbol). */
+  answer: unknown;
+  submissions: number;
+  wrong: number;
+  /** The last submission was right. */
+  correct: boolean;
+};
 
 /**
  * Readouts drawn over parts on the bench: "stress" is a bar of an LED's current as a share of its maximum (green,
@@ -126,7 +206,15 @@ export type PlannedInstrument =
  */
 export type InspectConfig = { kind: "inspect"; show: "stress" | "heat"; parts: string[] };
 
-export type InstrumentConfig = "meter" | "scope" | MeterConfig | ScopeConfig | InspectConfig | PlannedInstrument;
+export type InstrumentConfig =
+  | "meter"
+  | "scope"
+  | MeterConfig
+  | ScopeConfig
+  | InspectConfig
+  | LoggerConfig
+  | StopwatchConfig
+  | TapperConfig;
 
 type ControlCommon = {
   id: string;
@@ -143,8 +231,9 @@ type ControlCommon = {
 
 /**
  * A slider. Bound to a simulator input of a part (light on a phototransistor, a fingertip's resistance, a trimmer's
- * knob), to the simulation's speed (`key: "speed"`, 1 is real time, up to 3600 for a time-lapse), or to the room
- * lights (`key: "room"`, 1 bright down to 0.1, so faint glows show). Goals read it with `lab.control(id)`.
+ * knob; `part: "*"` drives every part that takes the input, all the phototransistors), to the simulation's speed
+ * (`key: "speed"`, 1 is real time, up to 3600 for a time-lapse), or to the room lights (`key: "room"`, 1 bright down
+ * to 0.1, so faint glows show). Goals read it with `lab.control(id)`.
  */
 export type ControlConfig =
   | (ControlCommon & { part: string; key: Extract<InputKey, "light" | "ohms" | "position"> })
@@ -153,6 +242,13 @@ export type ControlConfig =
 export type BenchConfig = {
   /** "half" is a 400-point board, "full" (or "breadboard") an 830-point one. */
   board: "none" | "half" | "full" | "breadboard";
+  /** A full board whose power rails are broken in the middle (between columns 31 and 33). */
+  splitRails?: boolean;
+  /**
+   * What the camera frames at the start (and on "reset view"): the rectangle spanned by these places (holes such as
+   * "tp1" and "bn30", or desk spots), plus a small margin. Default: the whole bench.
+   */
+  frame?: Spot[];
   parts: LabPart[];
   leads?: LeadSpec[];
   wires?: WireSpec[];
@@ -241,6 +337,10 @@ export type SolutionStep =
   | { do: "replace"; part: string }
   | { do: "replaceFuse" }
   | { do: "note"; id: string; value: number | string }
+  /** Answer a panel (pin map, tags, hole hunt, symbol). Pin maps take wired leg names: { coil1: "coil", com1: "com" }. */
+  | { do: "panel"; id: string; value: unknown }
+  /** Switch the auto-tapper on or off. */
+  | { do: "tapper"; on: boolean }
   | { do: "wait"; seconds: number }
   /** Checkpoint: by here this task must be done. Splits the solution for "Show me". */
   | { do: "check"; task: string };
@@ -264,6 +364,8 @@ export type LabDefinition = {
   notebook?: { tags?: Record<string, (lab: LabView) => boolean> };
   /** Achievement triggers checked on every snapshot; each fires once per visit. */
   triggers?: Record<string, (lab: LabView) => boolean>;
+  /** Worksheets beside the tasks: continuity and truth tables, pin maps, tags, a hole hunt, a symbol builder. */
+  panels?: PanelConfig[];
   /** Simulation speed (1 is real time). */
   speed?: number;
 };
@@ -311,6 +413,12 @@ export type Reading = {
 
 export type TaskStatus = "todo" | "done" | "skipped";
 
+/** One timed run of the stopwatch, in simulated seconds. `watch` is the watched node's voltage when it started. */
+export type StopwatchRun = { start: number; stop: number; seconds: number; watch?: number };
+
+/** Summary of a history source over a window. */
+export type Stats = { min: number; max: number; mean: number; span: number; n: number };
+
 /** The read-only view a goal receives. */
 export type LabView = {
   /** Simulated seconds. */
@@ -325,6 +433,8 @@ export type LabView = {
   readonly meter: MeterView | null;
   /** Scratch space that survives between checks of the same task. */
   readonly memory: Record<string, unknown>;
+  /** Scratch space shared by every task and trigger of the lab (a value measured in one task, compared in a later one). */
+  readonly shared: Record<string, unknown>;
 
   /** Simulated state of a part. A slide or toggle switch reports `closed` when thrown to b. */
   part(id: string): PartState | undefined;
@@ -332,6 +442,8 @@ export type LabView = {
   benchPart(id: string): PlacedPart | undefined;
   /** A part's or prop's settings (its bench params). */
   prop(id: string): Record<string, unknown> | undefined;
+  /** The leads a part has ("a", "b"; "e", "b", "c"; a relay's eight), or [] when it is not on the bench. */
+  legs(id: string): readonly string[];
 
   /** An LED glows at least `min` (0..1, default 0.1) and is not dead. */
   isLit(id: string, min?: number): boolean;
@@ -395,6 +507,31 @@ export type LabView = {
   /** Relay clicks (within the last `seconds`, if given). */
   relayClicks(id: string, seconds?: number): number;
   relayClicked(id: string): boolean;
+  /**
+   * Seconds between rising crossings of a history source through `level` (default: halfway between its lowest and
+   * highest), over the last `seconds` (default 12): a blinking LED's or a ticking node's periods, oldest first.
+   */
+  periods(source: string, level?: number, seconds?: number): number[];
+  /** Seconds between a relay's pull-ins (COM moving to NO), over the last `seconds` (default 12), oldest first. */
+  relayPeriods(id: string, seconds?: number): number[];
+  /** A two-lead part joins `a` and `b` (either way round, or first lead on `a` with "forward"). */
+  joins(partId: string, a: Attach, b: Attach, dir?: "forward"): boolean;
+  /** Minimum, maximum, mean and span (max minus min) of a history source over the last `seconds` (default 2). */
+  stats(source: string, seconds?: number): Stats | null;
+  /** Seconds a history source spent at or above `level` within the last `seconds` (default 10). */
+  timeAbove(source: string, level: number, seconds?: number): number;
+  /** Speaker pitch over the last `seconds` (default 4): [time, Hz], Hz 0 while silent. Short windows, so glides show. */
+  toneHistory(seconds?: number): [number, number][];
+  /** A number from a part's simulated state: an instance value ("actualOhms", "actualFarads", "pullIn", "bf"). */
+  actual(id: string, key: string): number | undefined;
+  /** A panel's state (see PanelConfig). */
+  panel(id: string): PanelState;
+  /** Finished stopwatch runs, oldest first. */
+  runs(): readonly StopwatchRun[];
+  /** When the data logger's current run started (simulated seconds), or null. */
+  loggerStart(): number | null;
+  /** The auto-tapper is working this pushbutton. */
+  tapping(partId: string): boolean;
 
   /** Stable meter readings captured by the notebook, oldest first. */
   readonly readingsLog: readonly Reading[];
@@ -434,6 +571,13 @@ export function defineLab(def: LabDefinition): LabDefinition {
     ids.add(p.id);
   }
   for (const s of def.solution) if (s.do === "check" && !tasks.has(s.task)) fail(`solution checks unknown task "${s.task}"`);
+  const panels = new Set<string>();
+  for (const p of def.panels ?? []) {
+    if (panels.has(p.id)) fail(`two panels have the id "${p.id}"`);
+    panels.add(p.id);
+    for (const t of p.show ?? []) if (!tasks.has(t)) fail(`panel "${p.id}" shows with unknown task "${t}"`);
+  }
+  for (const s of def.solution) if (s.do === "panel" && !panels.has(s.id)) fail(`solution answers unknown panel "${s.id}"`);
   return def;
 }
 

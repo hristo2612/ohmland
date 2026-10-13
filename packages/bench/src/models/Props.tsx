@@ -352,3 +352,46 @@ export function LemonHalf({ slots = false }: { slots?: boolean }) {
     </group>
   );
 }
+
+// Touch pads --------------------------------------------------------------------------------------------------------
+
+/** Gold interleaved fingers on a small green board: a fingertip resting across them bridges the gap. */
+function padsTexture(): THREE.Texture {
+  return canvasTexture("touch-pads", 256, 256, (ctx, w, h) => {
+    ctx.fillStyle = "#1f6b3f";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#e3b34c";
+    const m = w * 0.1;
+    ctx.fillRect(m, m, w - 2 * m, h * 0.09);
+    ctx.fillRect(m, h - m - h * 0.09, w - 2 * m, h * 0.09);
+    const n = 5;
+    const step = (w - 2 * m) / (2 * n);
+    for (let i = 0; i < 2 * n; i++) {
+      const x = m + i * step + step * 0.18;
+      const top = i % 2 === 0;
+      ctx.fillRect(x, top ? m : m + h * 0.16, step * 0.64, h - 2 * m - h * 0.16);
+    }
+  });
+}
+
+/** Two copper touch pads on a little board held up on two pins (2 holes apart), tilted toward the viewer. */
+export function TouchPadsModel({ mount }: ModelProps<PartParamsMap["touch-pads"]>) {
+  const pitch = 2.54;
+  const decal = useMemo(() => new THREE.MeshStandardMaterial({ map: padsTexture(), metalness: 0.3, roughness: 0.45 }), []);
+  useLayoutEffect(() => () => decal.dispose(), [decal]);
+  const lift = mount === "desk" ? 2.3 : 0;
+  const board = 11;
+  return (
+    <group position={[pitch, lift, 0]}>
+      {[-1, 1].map((s) => (
+        <mesh key={s} geometry={memoGeo("tp-pin", () => new THREE.CylinderGeometry(0.32, 0.32, 6.6, 8))} material={mat.lead()} position={[s * pitch, 1.0, 0]} />
+      ))}
+      <group position={[0, 4.6, 1.8]} rotation={[-0.62, 0, 0]}>
+        <mesh geometry={memoGeo("tp-board", () => roundedBox(board, 1.2, board, 0.4, 2))} material={mat.plastic("#1f6b3f", 0.5)} castShadow receiveShadow />
+        <mesh material={decal} position={[0, 0.62, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[board - 0.6, board - 0.6]} />
+        </mesh>
+      </group>
+    </group>
+  );
+}

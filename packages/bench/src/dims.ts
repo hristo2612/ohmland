@@ -28,6 +28,22 @@ export const TOGGLE = { len: 12.8, wid: 7.0, h: 8.6, bushingDia: 6.0, bushingH: 
 /** The wooden block a desk toggle switch is mounted on, with three screw terminals along its front edge. */
 export const TOGGLE_BASE = { w: 46, h: 15, d: 30, screwX: 14, screwZ: 8.5, switchZ: -5.5 };
 
+/**
+ * Desk module blocks (relay, slide switch, DPDT switch, pushbutton, panel pot): the same wooden block as the toggle's,
+ * as wide as its row of screw terminals. `pitch` is the terminal spacing for n terminals.
+ */
+export const BLOCK = { h: 15, d: 30, screwZ: 8.5, deviceZ: -5.5, margin: 9 };
+
+/** Terminal spacing on a desk block with `n` terminals (wider apart when there are few). */
+export function blockPitch(n: number): number {
+  return n <= 3 ? 14 : n <= 5 ? 11 : 10;
+}
+
+/** Width of a desk block with `n` terminals. */
+export function blockWidth(n: number): number {
+  return Math.max(34, (n - 1) * blockPitch(n) + 2 * BLOCK.margin + 6);
+}
+
 export const TRIMMER = { size: 6.6, h: 4.6, rotorDia: 4.6 };
 
 export const RELAY = { len: 20.4, wid: 10.0, h: 11.4 };

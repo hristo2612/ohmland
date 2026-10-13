@@ -1,7 +1,7 @@
 /**
  * Solution steps -> bench changes and simulator inputs. Pure: the headless replay test and "Show me" both use it.
  */
-import { benchOps, defaultParams, type BenchState, type LeadColor, type PlacedPart, type WireColor } from "@ohmland/bench/core";
+import { benchOps, defaultParams, isThrowSwitch, type BenchState, type LeadColor, type PlacedPart, type WireColor } from "@ohmland/bench/core";
 import { resolveAttach, resolveHole } from "./anchors";
 import { addLeadBetween, placePart, seatSpot, type SimInput } from "./build";
 import type { SolutionStep } from "./define";
@@ -14,6 +14,10 @@ export type StepEffect = {
   wait: number;
   note?: { id: string; value: number | string };
   control?: { id: string; value: number };
+  /** A panel answer (solution form: pin maps name wired legs). */
+  panel?: { id: string; value: unknown };
+  /** Switch the auto-tapper on or off. */
+  tapper?: boolean;
   /** A task that must be done by now. */
   check?: string;
   /** Something did not apply (for test messages). */
@@ -124,8 +128,8 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
     }
     case "flip": {
       const p = bench.parts.find((x) => x.id === step.part);
-      if (!p || (p.kind !== "slide-switch" && p.kind !== "toggle-switch")) return done(bench, { problem: `flip: ${step.part} is not a switch` });
-      const to = step.to ?? (p.params.to === "a" ? "b" : "a");
+      if (!p || !isThrowSwitch(p.kind)) return done(bench, { problem: `flip: ${step.part} is not a switch` });
+      const to = step.to ?? ((p.params as { to: string }).to === "a" ? "b" : "a");
       return { bench: benchOps.setPartParams(bench, p.id, { to }), inputs: [{ id: p.id, key: "to", value: to }], wait: SETTLE };
     }
     case "param": {
@@ -153,6 +157,10 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
       return { bench, inputs: [{ id: meterId, key: "replaceFuse", value: true }], wait: SETTLE };
     case "note":
       return { bench, inputs: [], wait: 0, note: { id: step.id, value: step.value } };
+    case "panel":
+      return { bench, inputs: [], wait: SETTLE, panel: { id: step.id, value: step.value } };
+    case "tapper":
+      return { bench, inputs: [], wait: SETTLE, tapper: step.on };
     case "wait":
       return { bench, inputs: [], wait: step.seconds };
     case "check":

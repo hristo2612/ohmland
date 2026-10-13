@@ -49,11 +49,14 @@ function codeTexture(code: string, hex: string): THREE.Texture {
   });
 }
 
-export function CeramicCapModel({ params, mount }: ModelProps<PartParamsMap["ceramic-cap"]>) {
+export function CeramicCapModel({ params, mount, span }: ModelProps<PartParamsMap["ceramic-cap"]>) {
   const hex = ceramicHex(params.farads);
   const code = ceramicCode(params.farads);
   const R = CERAMIC.dia / 2;
-  const base = mount === "board" ? CERAMIC.standoff : 0;
+  // Legs bent out (or in) to reach holes `span` apart on the board.
+  const half = ((mount === "board" ? span ?? 2 : 2) * PITCH) / 2;
+  const splay = Math.max(0, half - PITCH);
+  const base = mount === "board" ? CERAMIC.standoff + Math.min(4, splay * 0.35) : 0;
   const discY = base + 1.1 + R;
   const legs = useMemo(() => {
     const bottom = mount === "board" ? IN_HOLE - base : mount === "desk" ? -CERAMIC.deskLead : -11;
@@ -62,21 +65,21 @@ export function CeramicCapModel({ params, mount }: ModelProps<PartParamsMap["cer
         [
           [s * 1.25, discY - R + 0.6, 0],
           [s * 1.25, base + 0.9, 0],
-          [s * PITCH, base - 0.4, 0],
-          [s * PITCH, base + bottom, 0],
+          [s * half, base - 0.4 - Math.min(2, splay * 0.2), 0],
+          [s * half, base + bottom, 0],
         ],
         0.25,
         0.5,
         8,
       ),
     );
-  }, [mount, base, discY, R]);
+  }, [mount, base, discY, R, half, splay]);
   const decal = useMemo(
     () => new THREE.MeshStandardMaterial({ map: codeTexture(code, hex), transparent: true, roughness: 0.5, polygonOffset: true, polygonOffsetFactor: -2 }),
     [code, hex],
   );
   return (
-    <RadialMount mount={mount} centerX={PITCH} deskAxis={CERAMIC.thick / 2} layFlat="down">
+    <RadialMount mount={mount} centerX={half} deskAxis={CERAMIC.thick / 2} layFlat="down">
       <mesh geometry={discGeometry()} material={mat.glossy(hex)} position={[0, discY, 0]} castShadow receiveShadow />
       {/* Coating that ran down the leads when the disc was dipped. */}
       {[-1, 1].map((s) => (
@@ -160,13 +163,16 @@ function topTexture(state: "ok" | "bulged" | "burst"): THREE.Texture {
   });
 }
 
-export function ElectrolyticModel({ params, mount, state }: ModelProps<PartParamsMap["electrolytic-cap"]>) {
+export function ElectrolyticModel({ params, mount, state, span }: ModelProps<PartParamsMap["electrolytic-cap"]>) {
   const size = electrolyticSize(params.farads, params.volts);
   const R = size.d / 2;
   const H = size.h;
   const health = healthOf(state);
   const top: "ok" | "bulged" | "burst" = health === "dead" ? "burst" : health === "smoking" ? "bulged" : "ok";
-  const base = mount === "board" ? 0.5 : 0;
+  // Legs bent out to reach holes `span` apart: the can stands a little higher the wider they splay.
+  const spanP = mount === "board" ? span ?? size.pitch : size.pitch;
+  const splay = Math.max(0, (spanP * PITCH) / 2 - size.lead / 2);
+  const base = mount === "board" ? 0.5 + Math.min(5, splay * 0.55) : 0;
   const lead = size.lead;
   const label = formatFarads(params.farads).replace(" ", "");
   const volts = `${params.volts ?? 16}V`;
@@ -237,7 +243,7 @@ export function ElectrolyticModel({ params, mount, state }: ModelProps<PartParam
   const legs = useMemo(() => {
     const bottom = mount === "board" ? IN_HOLE - base : mount === "desk" ? -16 : -13;
     const bottomNeg = mount === "board" ? IN_HOLE - base : mount === "desk" ? -14 : -11;
-    const half = (size.pitch * PITCH) / 2;
+    const half = (spanP * PITCH) / 2;
     const out = [
       [-lead / 2, -half, bottom],
       [lead / 2, half, bottomNeg],
@@ -247,7 +253,7 @@ export function ElectrolyticModel({ params, mount, state }: ModelProps<PartParam
         [
           [x0, 0.4, 0],
           [x0, -0.3, 0],
-          [x1, Math.min(-0.9, -Math.abs(x1 - x0) - 0.4), 0],
+          [x1, Math.max(b + 1.2, Math.min(-0.9, -Math.abs(x1 - x0) * 0.6 - 0.4)), 0],
           [x1, b, 0],
         ],
         0.28,
@@ -255,10 +261,10 @@ export function ElectrolyticModel({ params, mount, state }: ModelProps<PartParam
         8,
       ),
     );
-  }, [mount, base, lead, size.pitch]);
+  }, [mount, base, lead, spanP]);
   const burst = top === "burst";
   return (
-    <RadialMount mount={mount} centerX={(size.pitch * PITCH) / 2} deskAxis={R}>
+    <RadialMount mount={mount} centerX={(spanP * PITCH) / 2} deskAxis={R}>
       <group position={[0, base, 0]}>
         <mesh geometry={memoGeo(`elec-seal:${R}`, () => new THREE.CylinderGeometry(R - 0.5, R - 0.6, 0.5, 40))} material={mat.blackMatte()} position={[0, 0.2, 0]} />
         <mesh geometry={shoulders} material={sleeve} castShadow />

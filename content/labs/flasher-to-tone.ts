@@ -1,107 +1,132 @@
-// Lab for lesson `flasher-to-tone` (docs/curriculum/unit-2.md, Lesson 18).
-// The lesson 17 flasher (68 kΩ, 10 µF) plus a speaker driver. Netlist pins are noted beside each part; `at` anchors
-// are provisional until packages/bench owns BenchState. Tray comments give the ids the goals expect placed parts to get.
-// Instruments: scope with a frequency readout (BENCH NEEDS) and meter.
-// Numbers: 1 µF about 10 to 13 Hz, 100 nF about 100 to 125 Hz, 10 nF about 1.0 to 1.3 kHz. The speaker stage draws
-// 9 V ÷ (220 + 8) Ω ≈ 39 mA, putting 0.34 W into R7 while on (hence 0.5 W). With R7 bypassed, Q3 tries to pass a few
-// hundred mA with most of the 9 V across it: well over its 625 mW rating.
-// SIM NEEDS: a speaker audio stream at 48 kHz from sim.onAudio, with a simple acoustic filter (a small cone in free air
-// loses bass below about 300 Hz) and a volume limiter; speaker damage above about 0.5 W sustained.
-// LAB NEEDS: the oscillation frequency at a node, click transients through SP1, and glow ripple.
-// Damage moments: task 5 by design; the battery current is high meanwhile (battery warms).
-import { defineLab } from "@ohmland/lab";
-import { between, closed, died, glow, placed } from "./lib/goals-switching";
+// Blueprint: docs/curriculum/unit-2.md, Lesson 18. Lesson 17's flasher, built (68 kΩ and 10 µF, the capacitors
+// crossing the channel at rows 11 and 12), plus a speaker driver on the far half: Q3 in rows 16 to 18 takes its base
+// current from Q2's collector through R6 (4.7 kΩ, row 12 to row 17), and switches the 8 Ω speaker, fed from the far
+// + rail through R7 (220 Ω, 0.5 W, into row 20). The learner swaps the cross-coupling capacitors for smaller and
+// smaller ceramics; the scope shows Q2's collector and reads the speaker's pitch.
+//
+// Measured in the simulator: 10 µF ticks about 2.4 times a second; 1 µF flutters near 12 Hz; 100 nF hums near
+// 120 Hz with both LEDs steady; 10 nF sings near 1.2 kHz.
+import { defineLab, type LabView } from "@ohmland/lab";
+
+/** Capacitors of this value cross over: one from each collector to the other transistor's base. */
+function crossed(lab: LabView, farads: number): boolean {
+  const caps = lab.bench.parts.filter((p) => (p.kind === "ceramic-cap" || p.kind === "electrolytic-cap") && Math.abs(p.params.farads - farads) < farads * 0.01);
+  const joins = (c: string, b: string) => caps.some((p) => (p.kind === "electrolytic-cap" ? lab.joins(p.id, c, b, "forward") : lab.joins(p.id, c, b)));
+  return joins("Q1.c", "Q2.b") && joins("Q2.c", "Q1.b");
+}
+
+const hz = (lab: LabView) => lab.toneHz("SP1") ?? 0;
+const on = (lab: LabView) => lab.closed("S1");
 
 export default defineLab({
   id: "flasher-to-tone",
   title: "Shrink it to a song",
   bench: {
-    board: "breadboard",
+    board: "full",
+    frame: ["desk:-108,-80", "desk:0,30"],
     parts: [
-      // pins { pos: vcc, neg: gnd }
-      { id: "B1", kind: "battery", at: "rails", props: { emf: 9, internalOhms: 1.5 }, locked: true },
-      // Power switch. pins { a: vcc, b: vp }
-      { id: "S1", kind: "switch", at: "rail+:3-a3", props: { closed: false }, locked: true },
-      // The flasher from lesson 17.
-      { id: "R1", kind: "resistor", at: "e3-e10", props: { ohms: 1000 }, locked: true },
-      { id: "D1", kind: "led", at: "a10-a14", props: { color: "red" }, locked: true },
-      { id: "Q1", kind: "npn", at: "e14", props: { model: "2N3904" }, locked: true },
-      { id: "R2", kind: "resistor", at: "j3-j30", props: { ohms: 1000 }, locked: true },
-      { id: "D2", kind: "led", at: "f30-f34", props: { color: "red" }, locked: true },
-      { id: "Q2", kind: "npn", at: "j34", props: { model: "2N3904" }, locked: true },
-      { id: "R3", kind: "resistor", at: "c3-c15", props: { ohms: 68000 }, locked: true },
-      { id: "R4", kind: "resistor", at: "h3-h35", props: { ohms: 68000 }, locked: true },
-      // Cross-coupling capacitors: c1 to b2 and c2 to b1.
-      { id: "C1", kind: "capacitor", at: "b14-g35", props: { farads: 0.00001, volts: 16, polarized: true } },
-      { id: "C2", kind: "capacitor", at: "g34-b15", props: { farads: 0.00001, volts: 16, polarized: true } },
-      // Speaker driver. pins { c: spb, b: q3b, e: gnd } and { a: c2, b: q3b }
-      { id: "Q3", kind: "npn", at: "e45", props: { model: "2N3904" }, locked: true },
-      { id: "R6", kind: "resistor", at: "i34-i45", props: { ohms: 4700 }, locked: true },
-      // pins { a: vp, b: spa }, 0.5 W, and the speaker { a: spa, b: spb }
-      { id: "R7", kind: "resistor", at: "d3-d50", props: { ohms: 220, watts: 0.5 }, locked: true },
-      { id: "SP1", kind: "speaker", at: "e50-a44", props: { ohms: 8 }, locked: true },
+      { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "a2", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "S1", kind: "slide-switch", at: "b1", params: { to: "a" }, locked: true, label: "Power switch" },
+      // The flasher.
+      { id: "Q1", kind: "npn", at: "d10", locked: true, label: "Q1 (2N3904)" },
+      { id: "D1", kind: "led", at: "c13", rot: 180, params: { color: "red" }, locked: true, label: "Red LED D1" },
+      { id: "R1", kind: "resistor", at: "rail+:13-b13", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor R1" },
+      { id: "R3", kind: "resistor", at: "rail+:11-b11", params: { ohms: 68000 }, locked: true, label: "68 kΩ resistor R3" },
+      { id: "Q2", kind: "npn", at: "g10", locked: true, label: "Q2 (2N3904)" },
+      { id: "D2", kind: "led", at: "h13", rot: 180, params: { color: "red" }, locked: true, label: "Red LED D2" },
+      { id: "R2", kind: "resistor", at: "top+:13-i13", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor R2" },
+      { id: "R4", kind: "resistor", at: "top+:11-i11", params: { ohms: 68000 }, locked: true, label: "68 kΩ resistor R4" },
+      { id: "C1", kind: "electrolytic-cap", at: "e12-f11", params: { farads: 10e-6, volts: 16 }, label: "10 µF capacitor C1" },
+      { id: "C2", kind: "electrolytic-cap", at: "f12-e11", params: { farads: 10e-6, volts: 16 }, label: "10 µF capacitor C2" },
+      // The speaker driver.
+      { id: "Q3", kind: "npn", at: "g16", locked: true, label: "Q3 (2N3904)" },
+      { id: "R6", kind: "resistor", at: "j12-j17", params: { ohms: 4700 }, locked: true, label: "4.7 kΩ resistor R6" },
+      { id: "R7", kind: "resistor", at: "top+:21-i20", params: { ohms: 220, watts: 0.5 }, locked: true, label: "220 Ω resistor R7, 0.5 W" },
+      { id: "SP1", kind: "speaker", at: "desk:-40,-58", holes: { a: "h20", b: "h18" }, params: { ohms: 8 }, locked: true, label: "8 Ω speaker" },
+    ],
+    wires: [
+      { id: "W1", from: "a3", to: "rail+:3", color: "red" },
+      { id: "W2", from: "rail+:5", to: "top+:5", color: "red" },
+      { id: "W3", from: "rail-:6", to: "top-:6", color: "black" },
+      { id: "W4", from: "a10", to: "rail-:10", color: "black" },
+      { id: "W5", from: "j10", to: "top-:10", color: "black" },
+      { id: "W6", from: "i16", to: "top-:16", color: "black" },
     ],
     tray: [
-      // C5 and C6: 1 µF ceramics, marked 105.
-      { kind: "capacitor", props: { farads: 1e-6, polarized: false }, count: 2 },
-      // C7 and C8: 100 nF ceramics, marked 104.
-      { kind: "capacitor", props: { farads: 1e-7, polarized: false }, count: 2 },
-      // C9 and C10: 10 nF ceramics, marked 103.
-      { kind: "capacitor", props: { farads: 1e-8, polarized: false }, count: 2 },
-      // A jumper wire for the optional experiment.
-      { kind: "wire", count: 1 },
+      { id: "C5", kind: "ceramic-cap", params: { farads: 1e-6 }, count: 2, label: "1 µF (105)" },
+      { id: "C7", kind: "ceramic-cap", params: { farads: 100e-9 }, count: 2, label: "100 nF (104)" },
+      { id: "C9", kind: "ceramic-cap", params: { farads: 10e-9 }, count: 2, label: "10 nF (103)" },
     ],
-    instruments: ["meter"],
+    instruments: [{ kind: "scope", traces: [{ label: "Q2 collector", volts: "Q2.c" }], window: 2, range: [-1, 10], pitch: "SP1" }],
   },
+  mascot: {
+    start: "Blink, flicker, hum, sing. Same circuit!",
+    hint: "Swap both capacitors each time: one on each side.",
+    success: "Smaller capacitors, faster flips.",
+    fried: "That transistor sang its last note. Hall of Fried Parts welcomes it.",
+    exit: "A thousand times smaller, a thousand times higher. You made it sing.",
+  },
+  fried: { npn: "2N3904 driving a speaker with no resistor" },
   tasks: [
     {
       id: "tick-tock",
-      prompt: "Switch on and listen.",
-      // GOAL: the speaker produces at least 4 click transients in 2 s (current steps through SP1) while the LEDs alternate.
-      goal: (lab) => closed(lab, "S1") && placed(lab, "C1") && placed(lab, "C2") && lab.isLit("D1", 0.5) !== lab.isLit("D2", 0.5),
-      hints: ["Listen at the moment the LEDs swap."],
-      success: "Tick... tock. The speaker clicks each time `Q3` switches.",
+      prompt: "Slide the power switch on and listen.",
+      goal: (lab) => on(lab) && crossed(lab, 10e-6) && lab.blinkPeriod("D1") !== null && lab.periods("i:SP1", 0.02, 4).length >= 2,
+      hints: ["Listen at the moment the LEDs swap. Turn your sound on."],
+      success: "Tick... tock. The speaker clicks each time Q3 switches.",
     },
     {
       id: "flutter",
-      prompt: "Swap both capacitors for 1 µF.",
-      // GOAL: the oscillation frequency at Q2's collector is 6 to 16 Hz.
-      goal: (lab) => closed(lab, "S1") && placed(lab, "C5") && placed(lab, "C6") && !placed(lab, "C1") && !placed(lab, "C2"),
-      hints: ["Ceramics fit either way round."],
-      success: "A rattle. The LEDs flicker too fast to follow, but you can still see them flicker.",
+      prompt: "Swap both caps for **1 µF** ceramics (105), crossed the same way.",
+      goal: (lab) => on(lab) && crossed(lab, 1e-6) && hz(lab) >= 6 && hz(lab) <= 16,
+      hints: ["Ceramics fit either way round.", "Each goes from a collector (row 12) to the other base."],
+      success: "A rattle. The LEDs flicker too fast to follow.",
     },
     {
       id: "hum",
-      prompt: "Now 100 nF.",
-      // GOAL: the frequency is 60 to 160 Hz, and each LED's glow ripple is below 0.1.
-      goal: (lab) =>
-        closed(lab, "S1") &&
-        placed(lab, "C7") &&
-        placed(lab, "C8") &&
-        between(glow(lab, "D1"), 0.2, 0.85) &&
-        between(glow(lab, "D2"), 0.2, 0.85),
+      prompt: "Now **100 nF** (marked 104).",
+      goal: (lab) => on(lab) && crossed(lab, 100e-9) && hz(lab) >= 60 && hz(lab) <= 160 && (lab.stats("glow:D1", 1)?.span ?? 1) < 0.1 && (lab.stats("glow:D2", 1)?.span ?? 1) < 0.1,
       hints: ["Swap both capacitors, one on each side."],
-      success: "A low hum, and the LEDs look steadily half lit. Your eyes stopped seeing the blinks somewhere around 50 per second.",
+      success: "A low hum. Past 50 blinks a second, your eyes see steady light.",
     },
     {
       id: "song",
-      prompt: "Now 10 nF.",
-      // GOAL: the speaker's tone is 800 to 1,600 Hz.
-      goal: (lab) => closed(lab, "S1") && placed(lab, "C9") && placed(lab, "C10") && !placed(lab, "C7") && !placed(lab, "C8"),
-      hints: ["The smallest ceramics in the tray, marked 103."],
-      success: "A clear tone! A thousand times smaller capacitors, a thousand times higher frequency. Same circuit, new job.",
+      prompt: "Now **10 nF** (marked 103).",
+      goal: (lab) => on(lab) && crossed(lab, 10e-9) && hz(lab) >= 800 && hz(lab) <= 1600,
+      hints: ["The smallest ceramics in the tray."],
+      success: "A clear tone! A thousand times less capacitance, a thousand times higher.",
     },
     {
       id: "no-resistor",
-      prompt: "Optional: put a jumper across `R7`, so the speaker has no current limit. Listen for a moment.",
-      // GOAL: Q3 died from overheating (it lands in the Hall of Fried Parts).
-      goal: (lab) => died(lab, "Q3"),
-      hints: ["The jumper goes from one end of `R7` to the other."],
+      prompt: "Optional: jumper across **R7**, so the speaker has no limit. Listen.",
+      goal: (lab) => lab.died("Q3"),
+      hints: ["Wire tool: from the + rail beside R7 to row 20."],
       success:
-        "With only the speaker's 8 Ω in the way, `Q3` tried to pass far more current than it's built for, with most of the 9 V across itself. Well past its 0.625 W rating, it cooked. That's why the speaker has a series resistor.",
-      optional: true,
+        "With only 8 Ω, Q3 cooked past its 0.625 W. Hence R7.",
+      bonus: true,
     },
   ],
-  // TODO(solution): bench actions that solve every task, once packages/bench defines anchors.
-  solution: [],
+  solution: [
+    { do: "flip", part: "S1", to: "b" },
+    { do: "wait", seconds: 3 },
+    { do: "check", task: "tick-tock" },
+    { do: "remove", part: "C1" },
+    { do: "remove", part: "C2" },
+    { do: "place", part: "C5", kind: "ceramic-cap", at: "e12-f11", params: { farads: 1e-6 } },
+    { do: "place", part: "C6", kind: "ceramic-cap", at: "f12-e11", params: { farads: 1e-6 } },
+    { do: "wait", seconds: 2.5 },
+    { do: "check", task: "flutter" },
+    { do: "remove", part: "C5" },
+    { do: "remove", part: "C6" },
+    { do: "place", part: "C7", kind: "ceramic-cap", at: "e12-f11", params: { farads: 100e-9 } },
+    { do: "place", part: "C8", kind: "ceramic-cap", at: "f12-e11", params: { farads: 100e-9 } },
+    { do: "wait", seconds: 1.5 },
+    { do: "check", task: "hum" },
+    { do: "remove", part: "C7" },
+    { do: "remove", part: "C8" },
+    { do: "place", part: "C9", kind: "ceramic-cap", at: "e12-f11", params: { farads: 10e-9 } },
+    { do: "place", part: "C10", kind: "ceramic-cap", at: "f12-e11", params: { farads: 10e-9 } },
+    { do: "wait", seconds: 1 },
+    { do: "check", task: "song" },
+  ],
 });
