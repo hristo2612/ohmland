@@ -17,6 +17,6 @@ export function loadIsle(): Promise<Runtime> {
 /** Fetches the island code and three.js without drawing anything, so a reveal that follows starts quickly. */
 export function prefetchIsle(): void {
   void loadIsle()
-    .then((rt) => rt.warmRenderer())
+    .then((rt) => rt.preloadIsle())
     .catch(() => undefined);
 }

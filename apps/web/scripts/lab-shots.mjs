@@ -1,5 +1,5 @@
-// Curated screenshots of the lab runtime: the two reference labs, the meter, the scope, a fried part and the
-// free-build bench, desktop and phone, light and dark. Each is quantised to stay well under 400 KB.
+// Curated screenshots of the lab runtime: the two reference labs, the meter, the scope, a fried part, the loading
+// state and the free-build bench, desktop and phone, light and dark. Each is quantised to stay well under 400 KB.
 //
 //   pnpm build && node scripts/lab-shots.mjs                 into ./screenshots (lab-*.png and two page shots)
 //   BASE_URL=http://localhost:4321 node scripts/lab-shots.mjs --out=/tmp/shots
@@ -180,6 +180,15 @@ const SHOTS = [
     await buildFirstGlow(page);
     await page.locator(".lab__grip").click();
     await page.waitForTimeout(500);
+  }],
+  ["lab-loading-desktop-dark", DESKTOP, "dark", async (page, base) => {
+    // the bench chunk never arrives, so its loading state stays on screen
+    await page.route(/BenchView\.[\w-]+\.js$/, () => {});
+    await page.goto(`${base}/learn/basics/welcome-to-the-bench/`);
+    await page.locator("[data-predict-option]").nth(2).click();
+    await page.locator("[data-primary]").click();
+    await page.locator(".lab__skeleton").waitFor();
+    await page.waitForTimeout(600);
   }],
   ["lab-fried-desktop-light", DESKTOP, "light", async (page, base) => {
     await openLab(page, base, "basics/first-glow", 1);

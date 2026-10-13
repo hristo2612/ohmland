@@ -269,8 +269,9 @@ some) is asked whether to add it; a guest signing in to a new account is not ask
 `[A-Za-z0-9_-]{1,64}` to sync.
 
 The lesson player reports to the island through `IsleHooks` (`lesson/isle-hooks.ts`): `prefetch()` once the learner
-moves past the quiz (never on a lesson's first load), `prime()` inside the tap on "Finish lesson" (audio), and
-`reveal({ before, after, outline, muted, signal, onShow })` after a first finish is saved. The reveal is a modal
+moves past the quiz (never on a lesson's first load), `prime()` inside the tap on "Finish lesson" (the isle's
+`primeAudio()`), and `reveal({ before, after, outline, muted, signal, onShow })` after a first finish is saved. The
+reveal frames the island above its caption card (`inset`). The reveal is a modal
 dialog (`isle/reveal.tsx`, loaded on demand) that resolves with what it showed once the learner closes it. Through
 `revealWithin()` the finale waits for it to get on screen for at most `REVEAL_TIMEOUT_MS`; a reveal that fails or is
 late is aborted and never blocks the finale. Every island view loads the isle and three.js through `isle/load.ts`
@@ -432,8 +433,14 @@ each one headlessly (`replay.ts`: bench ops + the in-thread simulator) and fails
 Runtime (`apps/web/src/lab`):
 
 - `LabStepHost` (lesson player) lazy-loads `LabStep` and the lab module (`import.meta.glob`, one chunk per lab);
-  `LabStep` lazy-loads `BenchView`, the only module that imports three.js. `prefetch.ts` warms all three and spawns
-  the simulator worker on the learner's first tap on the step before the lab (or after 4 s), never during first load.
+  `LabStep` lazy-loads `BenchView`, the only module that imports three.js. `prefetch.ts` warms all three, spawns
+  the simulator worker and draws the bench's desk texture (`prepareBench()`, when idle) on the learner's first tap on
+  the step before the lab (or after 4 s), never during first load; a lesson resumed at its lab starts them all at
+  once from `LabStepHost`. `LabStep` and `BenchView` are preloadable components: once warm they render without a
+  Suspense fallback (React would hold a revealed fallback back for 300 ms).
+- `<Bench>` holds its first frame while three's `compileAsync` compiles the scene's shaders in parallel (in the
+  variant post-processing renders, on high quality) and uploads the drawn textures, for at most 2.5 s, and reports
+  ready one frame after the first.
 - `LabRuntime` (`runtime.ts`) owns the bench store, the worker client and a `LabSession` (`session.ts`, pure: task
   order, notebook, fried parts, triggers). Each committed bench change rebuilds the netlist and calls `sim.load`
   (state carries over by part id); bench `input` actions go to `sim.setInput`; snapshots go to the bench store and
@@ -460,6 +467,15 @@ save to `LearnerState.sandbox` (`saveBench`, `deleteBench`), and fried parts go 
 planner, Pitko's fdlibm approach). `mountIsle(el, plan, opts)` renders with vanilla three.js, instanced meshes,
 orthographic isometric camera, flat-shaded vertex colours, voxel style. `view.reveal(from, to)` animates what the
 latest events added. Each unit is its own island in an archipelago, linked by cable bridges.
+
+- `preloadIsle()` fetches the renderer and three.js without drawing, so a mount that follows starts at once.
+- `primeAudio()` (also `@ohmland/isle/audio`, which has no three.js in it) creates and resumes the page's shared isle
+  audio context; call it inside a tap so the reveal's sound plays in Safari. `opts.audio` passes a context of your own.
+- `opts.inset: { bottom }` is screen space (CSS px) covered by, say, a caption card: the isle and its reveals frame
+  above it. `view.setInset()` changes it.
+- `opts.autoRotate` (degrees a second) turns a teaser slowly round instead of swaying, refitting the frame as it turns;
+  at its start angle it frames exactly as a still view does, so a poster drawn still matches it.
+- `view.clearPick()` forgets the tapped thing, so a label the learner closed is not sent again as the camera moves.
 
 Look: a floating circuit board. Matte solder-mask green land, copper trace roads with vias, white silkscreen marks,
 components as buildings (capacitor towers, IC factories, resistor rows, LED street lamps), layered FR4 edges, dangling
@@ -500,6 +516,10 @@ With the Firebase emulators (Java 21+, `docs/ACCOUNTS.md`): `pnpm test:rules` ru
 question, account deletion, a change sent while the tab closes) against an emulator build.
 
 `apps/web/scripts/screenshots.mjs` takes screenshots of every page and lesson step in both themes at 1440x900 and
-390x844 for visual review; a curated set lives in `apps/web/screenshots/`. Headless Chromium gets WebGL from
-SwiftShader (`--use-angle=swiftshader --enable-unsafe-swiftshader`). `apps/web/scripts/isle-poster.mjs` renders the
-landing hero's day and night stills from the live island.
+390x844 for visual review; a curated set lives in `apps/web/screenshots/` (with the lab shots from
+`scripts/lab-shots.mjs`). Headless Chromium gets WebGL from SwiftShader (`--use-angle=swiftshader
+--enable-unsafe-swiftshader`). The island's clock is pinned (`?time=12:00` in light shots, `22:00` in dark ones),
+seeded learners (`scripts/seed.mjs`: one lesson done, the first module done, or one lesson short of it) use fixed
+dates, and shots wait for islands to settle, so islands look the same in every run. `apps/web/scripts/isle-poster.mjs` renders the
+landing hero's day and night stills from the live island (1200 and 640 px wide, plus the tiny blurred copies that
+`tokens.css` inlines so the hero frame is never empty).

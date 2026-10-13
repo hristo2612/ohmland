@@ -3,7 +3,7 @@
  * on phones, in a sheet that expands). Lazy-loaded by the lesson player; the bench itself (three.js) is a further
  * lazy chunk, so the panels appear first.
  */
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { Icon } from "../components/Icon";
 import { MascotSay } from "../components/MascotSay";
@@ -14,15 +14,15 @@ import { buildBench } from "./build";
 import { isOptional, type LabDefinition, type LabTask } from "./define";
 import { ConnectionsPanel, ControlsPanel, MeterPanel, Notebook, ScopePanel } from "./instruments";
 import { friedLabel } from "./labels";
-import { loadLab } from "./labs";
-import { takeSim } from "./prefetch";
+import { loadedLab, loadLab } from "./labs";
+import { BenchViewChunk, takeSim } from "./prefetch";
 import { autoQuality, pickQuality, storeQuality, type Quality } from "./quality";
 import { LabRuntime } from "./runtime";
 import { BenchBoundary, BenchSkeleton, FriedNotice, plain } from "./shell";
 import { TaskList, type HintState } from "./tasks";
 import "./lab.css";
 
-const BenchView = lazy(() => import("./BenchView"));
+const BenchView = BenchViewChunk.Component;
 
 export type LabStepProps = {
   labId: string;
@@ -34,7 +34,7 @@ export type LabStepProps = {
 };
 
 export default function LabStep(props: LabStepProps) {
-  const [lab, setLab] = useState<LabDefinition | null>(null);
+  const [lab, setLab] = useState<LabDefinition | null>(() => loadedLab(props.labId));
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let alive = true;

@@ -1,6 +1,6 @@
 /**
  * The landing page's island: a still poster first (rendered from this very island, day or night by theme), then,
- * once the frame is on screen and the browser is idle, the live 3D island fades in over it and sways gently. No
+ * once the frame is on screen and the browser is idle, the live 3D island fades in over it and turns slowly. No
  * controls, no sound. Under reduced motion or data saving the poster is the whole show, since a still isle needs no
  * three.js. The island is made up (madeUp), the same for everyone.
  */
@@ -11,8 +11,11 @@ import { isDarkTheme, onThemeChange, savesData, themeTime, whenIdle, whenVisible
 import { loadIsle } from "./load";
 import "./isle-frames.css";
 
-/** The demo island: its seed and how much of a course it shows. scripts/isle-poster.mjs renders the posters from it. */
-export const HERO = { seed: 20261013, lessons: 13, modules: 4 } as const;
+/**
+ * The demo island: its seed, how much of a course it shows, and how fast it turns (degrees a second).
+ * scripts/isle-poster.mjs renders the posters from it.
+ */
+export const HERO = { seed: 20261013, lessons: 13, modules: 4, turn: 3 } as const;
 
 export default function IsleHero({ label }: { label: string }) {
   const frame = useRef<HTMLDivElement>(null);
@@ -39,6 +42,8 @@ export default function IsleHero({ label }: { label: string }) {
           quality: "low",
           muted: true,
           reducedMotion: still,
+          // it starts from the poster's angle and frame (the poster is this island, drawn still)
+          autoRotate: HERO.turn,
           time: themeTime(isDarkTheme()),
           messages: rt.isleMessages(),
         });
