@@ -15,7 +15,7 @@ scene.add(new THREE.HemisphereLight("#eaf4ff", "#8a7a62", night ? 0.7 : 2.0));
 const sun = new THREE.DirectionalLight("#fff6e6", night ? 0.45 : 1.6);
 sun.position.set(-2, 5, 4);
 scene.add(sun);
-const bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x6b645a, emissiveIntensity: 0.45 });
+const bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x6b645a, emissiveIntensity: night ? 1 : 0.45 });
 const glowMat = new THREE.ShaderMaterial({
   vertexColors: true,
   uniforms: { uNight: { value: night ? 1 : 0 } },
@@ -30,14 +30,14 @@ iso.group.position.set(1.4, 0, 0);
 iso.group.rotation.y = -Math.PI / 4;
 scene.add(front.group, iso.group);
 const cam = new THREE.OrthographicCamera(-3, 3, 1.8, -1.8, 0.1, 100);
-cam.position.set(0, 0.2, 10);
-cam.lookAt(0, 0.2, 0);
+cam.position.set(0, 0.3, 10);
+cam.lookAt(0, 0.3, 0);
 const fit = () => {
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
   renderer.setSize(w, h, false);
   const a = w / h;
-  const half = Math.max(1.6, 3.2 / a);
+  const half = Math.max(0.95, 2.3 / a);
   Object.assign(cam, { left: -half * a, right: half * a, top: half, bottom: -half });
   cam.updateProjectionMatrix();
   renderer.render(scene, cam);

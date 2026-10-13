@@ -34,9 +34,13 @@ export type IsleStats = {
   dpr: number;
 };
 export type MountOptions = {
+  /** Drag to turn and pinch or scroll to zoom (the /isle page). Without it the camera sways gently (a teaser). */
   interactive: boolean;
+  /** "low" caps the pixel ratio at 1.5 (2 for "high") and halves the shadow map. */
   quality: "high" | "low";
+  /** No reveal sound. */
   muted: boolean;
+  /** No sway, bob, sparks or springs: a reveal shows its result at once, and a still isle is drawn only on change. */
   reducedMotion: boolean;
   /** The learner's local time for day and night (default: the clock, checked every minute). */
   time?: Date;
@@ -44,6 +48,7 @@ export type MountOptions = {
   onPick?: (label: IsleLabel | null) => void;
   /** Show the isle as it stood after this event (default: the last). */
   at?: number;
+  /** The words for labels and reveal captions (default: English, ISLE_EN), so the app can translate them. */
   messages?: IsleMessages;
 };
 export type IsleView = {
@@ -93,7 +98,8 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   let muted = opts.muted;
   const reduced = opts.reducedMotion;
   const canvas = document.createElement("canvas");
-  canvas.style.cssText = "display:block;width:100%;height:100%;touch-action:none;outline:none";
+  // an interactive isle takes touch gestures; a teaser leaves them to the page, so it still scrolls
+  canvas.style.cssText = `display:block;width:100%;height:100%;outline:none;touch-action:${opts.interactive ? "none" : "auto"}`;
   canvas.setAttribute("aria-hidden", "true");
   el.append(canvas);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
@@ -517,7 +523,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     SLOTS.forEach(([side, rel], i) => {
       const lr = side === "l" || side === "r";
       const margin = lr ? vw - ihw : vh - ihh;
-      const k = Math.max(0.5, Math.min(1.6, (margin * 0.55) / 5));
+      const k = Math.max(0.5, Math.min(1.35, (margin * 0.5) / 5));
       const drift = Math.sin(t * 0.05 + i * 1.9) * 0.8 * k;
       let sx: number;
       let sy: number;
@@ -959,7 +965,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
 
     // the robot: over the plaza, or beside the newest thing in a reveal
     const m0 = plan.islands[0]!;
-    const rs = Math.max(1.6, Math.min(3, (half / cam.zoom) * 0.09));
+    const rs = Math.max(1.5, Math.min(2.8, extent.r * 0.085));
     if (rv) robotWant.copy(rv.robot);
     else robotWant.set(m0.x + Math.cos(t * 0.21) * 0.9, m0.y + 2.6 + rs * 0.6, m0.z + Math.sin(t * 0.21) * 0.9);
     robotAt.lerp(robotWant, reduced ? 1 : Math.min(1, dt * (rv ? 2.4 : 1.2)));
