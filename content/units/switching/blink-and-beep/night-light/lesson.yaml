@@ -25,7 +25,7 @@ steps:
 
   - type: lab
     lab: night-light
-    intro: A desk lamp with a shade sets the light level for every phototransistor on the bench.
+    intro: The desk lamp slider sets the light on every phototransistor on the bench, from pitch dark to full bright.
 
   - type: explain
     cards:

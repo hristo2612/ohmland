@@ -109,7 +109,9 @@ describe("leads, LEDs and batteries", () => {
     expect(light.step(1).parts.B1!.v).toBeGreaterThan(9.1);
     const sim = createSimulation();
     sim.load({ parts: parts(true, 15.4) });
-    const v1 = sim.step(1).parts.B1!.v;
+    // Read straight away, half an amp barely polarises it: close to emf minus I times the internal resistance.
+    expect(sim.step(0.3).parts.B1!.v).toBeGreaterThan(8.25);
+    const v1 = sim.step(0.7).parts.B1!.v;
     const v20 = sim.step(19).parts.B1!.v;
     expect(v1 - v20).toBeGreaterThan(0.1);
     expect(v1 - v20).toBeLessThan(0.3);

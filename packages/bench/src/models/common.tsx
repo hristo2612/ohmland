@@ -1,6 +1,6 @@
 // Shared bits for part models: mounting frames, leads, health tints.
 
-import type { ReactNode } from "react";
+import { createContext, type ReactNode } from "react";
 import * as THREE from "three";
 import type { PartState } from "@ohmland/sim";
 import type { Quality } from "../types";
@@ -23,6 +23,9 @@ export type ModelProps<P> = {
   /** Momentary actuator state (pushbutton held). */
   pressed?: boolean;
 };
+
+/** Room lighting, 1 bright to about 0.1 dim. Glowing parts shine harder in a dim room. */
+export const RoomLight = createContext(1);
 
 /** Depth a lead goes into a breadboard hole, below the surface. */
 export const IN_HOLE = -2.3;

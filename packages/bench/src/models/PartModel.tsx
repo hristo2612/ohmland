@@ -8,7 +8,10 @@ import { CeramicCapModel, ElectrolyticModel } from "./Capacitors";
 import { LedModel, PhototransistorModel } from "./Led";
 import { FuseModel, NpnModel, RelayModel, TrimmerModel } from "./Misc";
 import { CupModel, LemonModel, SpeakerModel, speakerExits } from "./Props";
+import { BinModel, CardModel, ChartModel, ClockModel, ElectrodeModel, FruitModel, HolderModel, SampleModel, ShowcaseModel, SkinModel, StationModel, TagModel } from "./LabProps";
 import { PushbuttonModel, SlideSwitchModel, ToggleSwitchModel } from "./Switches";
+import { ButtonBlock, DpdtBlock, KnobBlock, RelayBlock, SlideBlock } from "./Blocks";
+import { TouchPadsModel } from "./Props";
 import type { Mount } from "./common";
 
 export type PartModelProps<K extends BenchPartKind = BenchPartKind> = {
@@ -19,6 +22,10 @@ export type PartModelProps<K extends BenchPartKind = BenchPartKind> = {
   state?: PartState | null;
   quality?: Quality;
   pressed?: boolean;
+  /** Sitting in a holder's seat (an electrode stands up in its lemon slot). */
+  held?: boolean;
+  /** Simulated minutes since the lab started (the desk clock). */
+  minutes?: number;
 };
 
 /** Renders any bench part in its local frame. See `Mount` for what the origin means. */
@@ -41,16 +48,20 @@ export function PartModel(props: PartModelProps) {
     case "electrolytic-cap":
       return <ElectrolyticModel {...p} />;
     case "trimmer":
+      if ((props.params as { base?: boolean }).base && props.mount !== "board") return <KnobBlock params={props.params as never} />;
       return <TrimmerModel {...p} />;
     case "relay":
+      if ((props.params as { base?: boolean }).base && props.mount !== "board") return <RelayBlock params={props.params as never} closed={!!props.state?.closed} quality={props.quality ?? "high"} />;
       return <RelayModel {...p} />;
     case "npn":
       return <NpnModel {...p} />;
     case "fuse":
       return <FuseModel {...p} />;
     case "pushbutton":
+      if ((props.params as { base?: boolean }).base && props.mount !== "board") return <ButtonBlock params={props.params as never} pressed={!!props.pressed} />;
       return <PushbuttonModel {...p} />;
     case "slide-switch":
+      if ((props.params as { base?: boolean }).base && props.mount !== "board") return <SlideBlock params={props.params as never} />;
       return <SlideSwitchModel {...p} />;
     case "toggle-switch":
       return <ToggleSwitchModel {...p} />;
@@ -60,6 +71,34 @@ export function PartModel(props: PartModelProps) {
       return <CupModel {...p} />;
     case "lemon":
       return <LemonModel />;
+    case "dpdt-switch":
+      return <DpdtBlock params={props.params as never} />;
+    case "touch-pads":
+      return <TouchPadsModel {...p} />;
+    case "holder":
+      return <HolderModel />;
+    case "station":
+      return <StationModel {...p} />;
+    case "fruit":
+      return <FruitModel />;
+    case "electrode":
+      return <ElectrodeModel {...p} held={props.held} />;
+    case "skin":
+      return <SkinModel {...p} />;
+    case "sample":
+      return <SampleModel {...p} />;
+    case "card":
+      return <CardModel {...p} />;
+    case "tag":
+      return <TagModel {...p} />;
+    case "bin":
+      return <BinModel {...p} />;
+    case "chart":
+      return <ChartModel />;
+    case "clock":
+      return <ClockModel minutes={props.minutes} />;
+    case "showcase":
+      return <ShowcaseModel quality={props.quality} />;
   }
 }
 

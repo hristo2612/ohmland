@@ -1,0 +1,105 @@
+/* Lab panels and the extra instruments (logger, stopwatch, tapper). Design values come from tokens.css. */
+
+.panel__help { margin: 0; }
+.panel__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.panel__verdict { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; color: var(--bad); font-weight: var(--weight-semibold); }
+.panel__verdict[data-ok] { color: var(--good); }
+.panel__verdict .muted { font-weight: var(--weight-regular); }
+
+.panel__table { width: 100%; border-collapse: collapse; font-size: var(--text-small); }
+.panel__table th,
+.panel__table td { padding: var(--space-1) var(--space-2); border-bottom: var(--border) solid var(--line); text-align: left; }
+.panel__table thead th { color: var(--ink-2); font-weight: var(--weight-semibold); }
+.panel__table tbody th { font-weight: var(--weight-semibold); white-space: nowrap; }
+.panel__table td[data-beep],
+.panel__table td[data-lit] { color: var(--good); font-weight: var(--weight-semibold); }
+.panel__table td[data-open] { color: var(--ink-2); }
+.panel__word { margin-left: var(--space-1); }
+
+.panel__matrices { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.panel__matrix { border-collapse: collapse; font-size: var(--text-small); }
+.panel__matrix caption { text-align: left; color: var(--ink-2); font-weight: var(--weight-semibold); padding-bottom: var(--space-1); }
+.panel__matrix th { min-width: 28px; padding: 2px; color: var(--ink-2); font-weight: var(--weight-semibold); text-align: center; }
+.panel__matrix td { width: 28px; height: 28px; padding: 0; text-align: center; border: var(--border) solid var(--line); color: var(--ink-3); }
+.panel__matrix td[data-beep] { background: var(--good-soft); color: var(--good); font-weight: var(--weight-display); }
+.panel__matrix td[data-open] { color: var(--ink-2); }
+.panel__matrix .panel__blank { border: 0; }
+
+.panel__pins { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2); }
+.panel__pin { display: flex; align-items: center; gap: var(--space-2); }
+.panel__pin .select { flex: 1; min-width: 0; }
+.panel__pin-n {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--primary-soft);
+  color: var(--accent-ink);
+  font-weight: var(--weight-display);
+  font-size: var(--text-small);
+}
+
+.panel__tag { margin: 0; padding: 0; border: 0; display: grid; gap: var(--space-1); }
+.panel__tag legend { padding: 0; font-weight: var(--weight-semibold); color: var(--ink-2); }
+.panel__seg { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.panel__segbtn {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-s);
+  border: var(--border) solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+.panel__segbtn[aria-checked="true"] { background: var(--primary-soft); border-color: var(--primary); font-weight: var(--weight-semibold); }
+.panel__segbtn:focus-visible { outline: var(--focus-ring) solid var(--focus); outline-offset: 1px; }
+
+/* The hole hunt: a little map of the board, far rows on top as on the bench. */
+.hunt { display: grid; gap: 3px; align-items: center; justify-items: center; max-width: 340px; }
+.hunt__col, .hunt__row { color: var(--ink-3); }
+.hunt__channel { justify-self: stretch; text-align: center; color: var(--ink-3); border-top: var(--border) dashed var(--line-strong); border-bottom: var(--border) dashed var(--line-strong); }
+.hunt__hole {
+  width: 100%;
+  max-width: 34px;
+  aspect-ratio: 1;
+  min-height: 26px;
+  border-radius: var(--radius-s);
+  border: var(--border) solid var(--line-strong);
+  background: var(--surface);
+  cursor: pointer;
+  padding: 0;
+}
+.hunt__hole::after { content: ""; display: block; width: 36%; height: 36%; margin: auto; border-radius: 2px; background: var(--ink-3); opacity: 0.5; }
+.hunt__hole[aria-pressed="true"] { background: var(--primary-soft); border-color: var(--primary); }
+.hunt__hole[aria-pressed="true"]::after { background: var(--accent-ink); opacity: 1; }
+.hunt__hole[data-start] { box-shadow: inset 0 0 0 2px var(--primary); }
+.hunt__hole[data-right] { background: var(--good-soft); border-color: var(--good); }
+.hunt__hole:focus-visible { outline: var(--focus-ring) solid var(--focus); outline-offset: 1px; }
+
+/* The symbol builder. */
+.sym { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+.sym__canvas { width: 180px; height: auto; border-radius: var(--radius-m); background: var(--surface); border: var(--border) solid var(--line); }
+.sym__line { fill: none; stroke: var(--ink); stroke-width: 2.2; stroke-linecap: round; }
+.sym__line circle { fill: var(--surface); }
+.sym__empty { fill: none; stroke: var(--line-strong); stroke-dasharray: 3 3; }
+.sym__link { fill: none; stroke: var(--accent-ink); stroke-width: 2; stroke-dasharray: 5 4; }
+.sym__controls { display: grid; gap: var(--space-2); flex: 1; min-width: 180px; }
+.sym__slot { display: grid; gap: var(--space-1); color: var(--ink-2); font-weight: var(--weight-semibold); }
+.sym__check { display: flex; align-items: center; gap: var(--space-2); min-height: 40px; color: var(--ink); }
+.sym__check input { width: 20px; height: 20px; accent-color: var(--primary); }
+
+/* Logger, stopwatch and tapper. */
+.logger__screen { display: block; width: 100%; height: 150px; border-radius: var(--radius-m); background: var(--scope-bg); box-shadow: var(--shadow-inset); touch-action: none; cursor: crosshair; }
+.logger__screen:focus-visible { outline: var(--focus-ring) solid var(--focus); outline-offset: 2px; }
+.logger__read { margin: 0; color: var(--ink); }
+.watch__time { font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; color: var(--lcd-ink); background: var(--lcd); border-radius: var(--radius-m); padding: var(--space-2) var(--space-3); box-shadow: var(--shadow-inset); text-align: right; }
+.watch__runs { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); color: var(--ink-2); }
+.tapper__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.tapper__dot { width: 12px; height: 12px; border-radius: var(--radius-full); background: var(--line-strong); }
+.tapper__dot[data-on] { background: var(--good); }
+.scope-panel__shot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }

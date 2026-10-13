@@ -1,91 +1,164 @@
-// Lab for lesson `touch-switch` (docs/curriculum/unit-2.md, Lesson 14).
-// The lesson 13 circuit with Q1 placed. Netlist pins are noted beside each part; `at` anchors are provisional until
-// packages/bench owns BenchState. Tray comments give the ids the goals expect placed parts to get.
-// Numbers: 470 kΩ leaves Q1 active (Vce about 5 V); 10 kΩ gives about 0.83 mA of base current, plenty to saturate it
-// (Vce under 0.2 V, about 15 mA). The touch pads span 100 kΩ (firm, damp) to 2 MΩ (light, dry). Through R5 and 2 MΩ a
-// single transistor passes under 1 mA; a Darlington pair saturates Q1, though Q1's Vce can't fall below about 0.8 V.
-// BENCH NEEDS: the fingertip prop, whose pressure and moisture sliders drive T1's `ohms` input via setInput.
-// LAB NEEDS: logged readings per base resistor (active-vs-saturated, no-brighter) and glow history (touch-it).
-// Damage moments: removing R5 and bridging the pads with a wire puts the battery across Q2's and Q1's base-emitter
-// junctions in a row with nothing to limit the current: both die. Robot: "That's what R5 is for. Fingers are never
-// zero ohms, but wires are." Fingertips alone are safe at 9 V; one fingertip only.
+// Blueprint: docs/curriculum/unit-2.md, Lesson 14. Lesson 13's circuit with Q1 in place (rows 20 to 22, LED in rows 22
+// and 23, button S1 in rows 14 and 16, base socket from row 16 to row 21). The learner tries 470 kΩ, 10 kΩ and 4.7 kΩ
+// in the socket while measuring Q1's collector-emitter voltage, then swaps the button and base resistor for the touch
+// pads (rows 14 and 16) and R5 (10 kΩ, row 16 to row 21). The fingertip slider sets the pads' resistance, from a
+// light dry touch (2 MΩ) to a firm damp one (100 kΩ). Last, Q2 on the far half (rows 17 to 19) makes a Darlington
+// pair: its emitter jumps to Q1's base, its collector to Q1's collector, and R5 feeds its base.
+//
+// Measured in the simulator: Vce about 5 V with 470 kΩ, 0.09 V with 10 kΩ (15 mA, glow 0.86); 4.7 kΩ gives the same
+// current; the pads at 2 MΩ light one transistor dimly (about 0.8 mA), the Darlington nearly fully (13.5 mA).
 import { defineLab, type LabView } from "@ohmland/lab";
-import { between, closed, extraNum, glow, ohmsOf, placed } from "./lib/goals-switching";
 
-/** Q1's collector-emitter voltage (npn PartState.v is Vce). */
-const vce = (lab: LabView): number | undefined => lab.part("Q1")?.v;
+/** The marked value of the resistor from the button's strip (row 16) to Q1's base, or null. */
+function baseOhms(lab: LabView): number | null {
+  for (const p of lab.bench.parts) if (p.kind === "resistor" && lab.joins(p.id, "c16", "Q1.b")) return Number(lab.prop(p.id)?.["ohms"]);
+  return null;
+}
+
+const vce = (lab: LabView) => lab.part("Q1")?.v ?? 9;
+const glow = (lab: LabView) => lab.part("D1")?.glow ?? 0;
+const meterOnCE = (lab: LabView) =>
+  lab.meter?.mode === "dcv" && lab.connected("probe:red", "Q1.c") && lab.connected("probe:black", "Q1.e");
+
+/** The touch pads and R5 in a row from the + rail to `to` (pads first or R5 first). */
+function padsFeed(lab: LabView, to: string): boolean {
+  const pads = lab.bench.parts.find((p) => p.kind === "touch-pads");
+  if (!pads || !lab.benchPart("R5")) return false;
+  const viaPads = (mid: string) => lab.joins(pads.id, "B1.pos", mid) && lab.joins("R5", mid, to);
+  const viaR5 = (mid: string) => lab.joins("R5", "B1.pos", mid) && lab.joins(pads.id, mid, to);
+  return [`${pads.id}.a`, `${pads.id}.b`].some(viaPads) || ["R5.a", "R5.b"].some(viaR5);
+}
+
+const finger = (lab: LabView) => lab.control("finger") ?? 2e6;
 
 export default defineLab({
   id: "touch-switch",
   title: "All the way on",
   bench: {
-    board: "breadboard",
+    board: "full",
+    frame: ["desk:-90,-30", "desk:-4,30"],
     parts: [
-      // pins { pos: vcc, neg: gnd }
-      { id: "B1", kind: "battery", at: "rails", props: { emf: 9, internalOhms: 1.5 }, locked: true },
-      // pins { a: vcc, b: la } and { anode: la, cathode: lc }
-      { id: "R1", kind: "resistor", at: "rail+:10-a10", props: { ohms: 470 }, locked: true },
-      { id: "D1", kind: "led", at: "e10-e14", props: { color: "red" }, locked: true },
-      // pins { c: lc, b: qb, e: gnd }
-      { id: "Q1", kind: "npn", at: "a14", props: { model: "2N3904" } },
-      // pins { a: vcc, b: sb }. The base resistor socket joins sb and qb.
-      { id: "S1", kind: "pushbutton", at: "rail+:20-a20" },
+      { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "rail+:3", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "R1", kind: "resistor", at: "rail+:23-b23", params: { ohms: 470 }, locked: true, label: "470 Ω resistor R1" },
+      { id: "D1", kind: "led", at: "d23", rot: 180, params: { color: "red" }, locked: true, label: "Red LED D1" },
+      { id: "Q1", kind: "npn", at: "c20", locked: true, label: "Q1 (2N3904)" },
+      { id: "S1", kind: "pushbutton", at: "e14", params: { cap: "red" }, label: "Button S1" },
+    ],
+    wires: [
+      { id: "W1", from: "a14", to: "rail+:15", color: "red" },
+      { id: "W2", from: "a20", to: "rail-:21", color: "black" },
     ],
     tray: [
-      // Base resistors.
-      { kind: "resistor", props: { ohms: 470000 }, count: 1 },
-      { kind: "resistor", props: { ohms: 10000 }, count: 1 },
-      { kind: "resistor", props: { ohms: 4700 }, count: 1 },
-      // R5: 10 kΩ, protects the base when the touch pads are used.
-      { kind: "resistor", props: { ohms: 10000 }, count: 1 },
-      // T1: the touch pads. pins { a: pad1, b: pad2 }. The fingertip prop sets ohms from 100 kΩ to 2 MΩ.
-      { kind: "probe-resistance", props: { ohms: 2000000 }, count: 1 },
-      // Q2: a second 2N3904 for the Darlington pair.
-      { kind: "npn", props: { model: "2N3904" }, count: 1 },
-      { kind: "wire", count: 4 },
+      { id: "R2", kind: "resistor", params: { ohms: 470_000 }, count: 1, label: "470 kΩ" },
+      { id: "R3", kind: "resistor", params: { ohms: 10_000 }, count: 1, label: "10 kΩ" },
+      { id: "R4", kind: "resistor", params: { ohms: 4700 }, count: 1, label: "4.7 kΩ" },
+      { id: "R5", kind: "resistor", params: { ohms: 10_000 }, count: 1, label: "10 kΩ (R5, pads)" },
+      { id: "T1", kind: "touch-pads", count: 1, label: "Touch pads" },
+      { id: "Q2", kind: "npn", count: 1, label: "2N3904 (Q2)" },
     ],
-    instruments: ["meter"],
+    instruments: [{ kind: "meter", at: "desk:-178,22", rot: 16, mode: "dcv", tips: { red: "desk:-52,48", black: "desk:-40,54" } }],
+    controls: [{ id: "finger", label: "Fingertip on the pads", part: "*", key: "ohms", min: 100_000, max: 2_000_000, value: 2_000_000, scale: "log", unit: "Ω" }],
   },
+  mascot: {
+    start: "All the way on, or all the way off. No dithering.",
+    hint: "Black probe on the emitter, red on the collector.",
+    success: "Your fingertip just flipped a switch. With physics.",
+    fried: "That's what R5 is for. Fingers are never zero ohms, but wires are.",
+    exit: "Forty thousand times gain. I feel dizzy.",
+  },
+  fried: { npn: "2N3904, base fed with no resistor" },
   tasks: [
     {
       id: "active-vs-saturated",
       prompt:
-        "With 470 kΩ in the base, hold `S1` and measure the voltage from collector to emitter. Then swap to 10 kΩ and measure again.",
-      // GOAL: the logged Vce is above 2 V with 470 kΩ and below 0.3 V with 10 kΩ.
-      goal: (lab) =>
-        closed(lab, "S1") &&
-        lab.meter?.mode === "dcv" &&
-        between(extraNum(lab, "Q1", "ib"), 0.6e-3, 1.1e-3) &&
-        (vce(lab) ?? 9) < 0.3,
-      hints: ["Black probe on the emitter, red on the collector."],
-      success: "With plenty of base current, `Q1` is fully on, with only about 0.1 V across it. That's saturation.",
+        "Base: **470 kΩ**. Hold S1, measure collector to emitter. Then **10 kΩ**.",
+      goal: (lab) => {
+        const m = lab.memory as { a?: boolean; b?: boolean };
+        if (lab.closed("S1") && meterOnCE(lab)) {
+          if (baseOhms(lab) === 470_000 && vce(lab) > 2) m.a = true;
+          if (baseOhms(lab) === 10_000 && vce(lab) < 0.3) {
+            m.b = true;
+            lab.shared["ic10k"] = lab.amps("Q1");
+            lab.shared["glowSat"] = glow(lab);
+          }
+        }
+        return !!m.a && !!m.b;
+      },
+      hints: ["Black on the emitter (row 20), red on the collector (row 22).", "Bend the resistor's legs from row 16 to row 21."],
+      highlight: ["pin:Q1.c", "pin:Q1.e"],
+      success: "Plenty of base current: Q1 is fully on, 0.1 V across. Saturation.",
     },
     {
       id: "no-brighter",
-      prompt: "Swap to 4.7 kΩ to double the base current again. Does the LED get brighter?",
-      // GOAL: the collector current with 4.7 kΩ is within 5% of the value with 10 kΩ.
-      goal: (lab) => closed(lab, "S1") && (extraNum(lab, "Q1", "ib") ?? 0) > 1.4e-3 && (vce(lab) ?? 9) < 0.3,
-      hints: ["Compare the LED with how it looked on 10 kΩ."],
-      success: "No change. In saturation the LED and its resistor set the current, not the transistor.",
+      prompt: "Swap to **4.7 kΩ**: double the base current. Brighter?",
+      goal: (lab) => {
+        const was = lab.shared["ic10k"];
+        return baseOhms(lab) === 4700 && lab.closed("S1") && typeof was === "number" && Math.abs(lab.amps("Q1") - was) <= was * 0.05;
+      },
+      hints: ["Hold S1; compare with the LED on 10 kΩ."],
+      success: "No change. In saturation, the LED's resistor sets the current.",
     },
     {
       id: "touch-it",
-      prompt: "Replace the base resistor and the button with the touch pads, in series with `R5`. Touch lightly, then firmly.",
-      // GOAL: D1's glow with the touch at 2 MΩ is less than half its glow at 100 kΩ.
-      goal: (lab) =>
-        placed(lab, "T1") && placed(lab, "R5") && !placed(lab, "Q2") && (ohmsOf(lab, "T1") ?? 0) > 1.5e6 && between(glow(lab, "D1"), 0.05, 0.45),
-      hints: ["The fingertip slider sets how firm and damp your touch is."],
-      success: "It works, but only with a firm touch. A single transistor's gain isn't quite enough for a light one.",
+      prompt:
+        "Swap in the **touch pads** and **R5**. Touch lightly, then firmly.",
+      goal: (lab) => {
+        const m = lab.memory as { light?: number; firm?: number };
+        if (!padsFeed(lab, "Q1.b") || lab.benchPart("Q2") && lab.connected("Q2.e", "Q1.b")) return false;
+        if (lab.heldFor(0.4, finger(lab) >= 1.9e6, "light")) m.light = glow(lab);
+        if (lab.heldFor(0.4, finger(lab) <= 1.1e5, "firm")) m.firm = glow(lab);
+        return m.light !== undefined && m.firm !== undefined && m.light < 0.5 * m.firm;
+      },
+      hints: ["Pads in rows 14 and 16, where the button was.", "R5 bends from row 16 to the base, row 21.", "The fingertip slider sets how firm and damp your touch is."],
+      highlight: ["hole:c14", "hole:c16"],
+      success: "It works, but only firmly. One transistor's gain isn't quite enough.",
     },
     {
       id: "darlington",
-      prompt: "Add `Q2`: its emitter drives `Q1`'s base, its collector joins `Q1`'s collector, and the touch pads feed `Q2`'s base.",
-      // GOAL: with the touch at 2 MΩ, D1's glow is at least 85% of its saturated glow from task 1.
-      goal: (lab) => placed(lab, "Q2") && (ohmsOf(lab, "T1") ?? 0) > 1.5e6 && glow(lab, "D1") > 0.73,
-      hints: ["`Q2`'s emitter goes into the strip with `Q1`'s base.", "`R5` stays in series with the pads."],
-      success: "Feather touch, full light. `Q2`'s gain multiplies `Q1`'s: roughly 200 × 200 = 40,000.",
+      prompt:
+        "Add **Q2** in far rows 17 to 19, feeding Q1's base.",
+      goal: (lab) => {
+        const sat = lab.shared["glowSat"];
+        return (
+          lab.connected("Q2.e", "Q1.b") &&
+          lab.connected("Q2.c", "Q1.c") &&
+          padsFeed(lab, "Q2.b") &&
+          finger(lab) >= 1.9e6 &&
+          typeof sat === "number" &&
+          lab.heldFor(0.3, glow(lab) >= 0.85 * sat)
+        );
+      },
+      hints: ["Q2's emitter jumps across the channel to Q1's base.", "Q2's collector to Q1's collector. R5's far end to Q2's base."],
+      success: "Feather touch, full light. Gains multiply: about 200 × 200.",
     },
   ],
-  // TODO(solution): bench actions that solve every task, once packages/bench defines anchors and the fingertip prop.
-  solution: [],
+  solution: [
+    { do: "place", part: "R2", kind: "resistor", at: "b16-b21", params: { ohms: 470_000 } },
+    { do: "probe", red: "Q1.c", black: "Q1.e" },
+    { do: "press", part: "S1", seconds: 0.8 },
+    { do: "remove", part: "R2" },
+    { do: "place", part: "R3", kind: "resistor", at: "b16-b21", params: { ohms: 10_000 } },
+    { do: "press", part: "S1", seconds: 0.8 },
+    { do: "check", task: "active-vs-saturated" },
+    { do: "remove", part: "R3" },
+    { do: "place", part: "R4", kind: "resistor", at: "b16-b21", params: { ohms: 4700 } },
+    { do: "press", part: "S1", seconds: 0.8 },
+    { do: "check", task: "no-brighter" },
+    { do: "remove", part: "R4" },
+    { do: "remove", part: "S1" },
+    { do: "place", part: "T1", kind: "touch-pads", at: "c14" },
+    { do: "place", part: "R5", kind: "resistor", at: "b16-b21", params: { ohms: 10_000 } },
+    { do: "control", id: "finger", value: 2_000_000 },
+    { do: "wait", seconds: 0.6 },
+    { do: "control", id: "finger", value: 100_000 },
+    { do: "wait", seconds: 0.6 },
+    { do: "check", task: "touch-it" },
+    { do: "place", part: "Q2", kind: "npn", at: "h17" },
+    { do: "wire", id: "W3", from: "f17", to: "e21", color: "yellow" },
+    { do: "wire", id: "W4", from: "f19", to: "e22", color: "green" },
+    { do: "move", part: "R5", at: "d16-g18" },
+    { do: "control", id: "finger", value: 2_000_000 },
+    { do: "wait", seconds: 0.8 },
+    { do: "check", task: "darlington" },
+  ],
 });

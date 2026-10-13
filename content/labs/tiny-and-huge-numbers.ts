@@ -1,8 +1,7 @@
-// Blueprint: docs/curriculum/unit-1.md, L3. Conventions and interim helpers: ./lib/goals.ts.
-// Mascot (needs a lab field): hint "OL? Nothing's broken. Turn the dial up one step."
-//   success "Kilo, mega, milli, micro. You speak fluent meter now."
+// Blueprint: docs/curriculum/unit-1.md, L3. A 9 V battery, an AA cell in its cradle and a loose 470 Ω resistor
+// (really 466 Ω), with the meter's leads already in COM and VΩ.
 import { defineLab } from "@ohmland/lab";
-import { meterMode, meterRange, readsBetween, showsOL } from "./lib/goals";
+import { rangeIs, readsIn, showsOL } from "./lib/meter";
 
 export default defineLab({
   id: "tiny-and-huge-numbers",
@@ -10,54 +9,71 @@ export default defineLab({
   bench: {
     board: "none",
     parts: [
-      { id: "B1", kind: "battery", props: { emf: 9.4, internalOhms: 1.7, mAh: 500 } },
-      // An AA cell lying in a small cradle with exposed end caps.
-      { id: "X1", kind: "battery", props: { emf: 1.58, internalOhms: 0.15, mAh: 2500 } },
+      { id: "B1", kind: "battery", at: "desk:-74,4", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
+      // An AA cell lying in a small cradle, end caps showing.
+      { id: "X1", kind: "battery", at: "desk:-14,34", params: { size: "aa", chem: "alkaline", emf: 1.58, internalOhms: 0.15, mAh: 2500 }, locked: true, label: "AA cell" },
       // Lying loose with both leads exposed.
-      { id: "R1", kind: "resistor", props: { ohms: 470, watts: 0.25, actualOhms: 466 } },
-      { id: "M1", kind: "multimeter", props: { mode: "off", red: "vohm", black: "com" } },
+      { id: "R1", kind: "resistor", at: "desk:-10,-36", params: { ohms: 470, watts: 0.25, actualOhms: 466 }, locked: true, label: "470 Ω resistor" },
     ],
     tray: [],
-    instruments: ["meter"],
+    instruments: [{ kind: "meter", at: "desk:76,2", mode: "off" }],
+  },
+  mascot: {
+    start: "Big numbers, tiny numbers. Let's tame them both.",
+    hint: "OL? Nothing's broken. Turn the dial up one step.",
+    success: "Kilo, mega, milli, micro. You speak fluent meter now.",
   },
   tasks: [
     {
       id: "over-the-limit",
-      prompt: "Set DC volts to the **2 V** range and measure the 9 V battery.",
-      // GOAL: meter.mode == "dcv" && meter.range == "2V" && across(B1) && meter.display == "OL"
-      goal: (lab) => meterMode(lab) === "dcv" && meterRange(lab) === "2V" && showsOL(lab),
-      hints: ["Red on the round terminal, black on the six-sided one."],
-      success: "OL means over limit. 9 V is too big for a 2 V range. The meter is fine.",
+      prompt: "DC volts, **2 V** range. Measure the 9 V battery.",
+      goal: (lab) => lab.meter?.mode === "dcv" && rangeIs(lab, "2V") && lab.across("B1") && showsOL(lab),
+      hints: ["Red on the round terminal, black on the six-sided one.", "DC volts on the dial, then 2 V in the range list."],
+      highlight: ["pin:B1.pos", "pin:B1.neg"],
+      success: "OL: over limit. 9 V is too big for 2 V. The meter is fine.",
     },
     {
       id: "climb-a-range",
-      prompt: "Turn up one range at a time. Stop at the first range that shows a real number.",
-      // GOAL: meter.range == "20V" && across(B1) && meter.value >= 9.0 && meter.value <= 9.6
-      goal: (lab) => meterMode(lab) === "dcv" && meterRange(lab) === "20V" && readsBetween(lab, 9.0, 9.6),
+      prompt: "Go up one range at a time until you see a number.",
+      goal: (lab) => lab.meter?.mode === "dcv" && rangeIs(lab, "20V") && lab.across("B1") && readsIn(lab, 9.0, 9.6),
       hints: ["The next range up from 2 V is 20 V."],
-      // NOTICE: on 200 V the same battery shows only one decimal place.
-      success: "20 V is the smallest range above 9 V, so it gives you the most useful digits.",
+      success: "20 V: the smallest range above 9 V gives the most digits.",
+      notice: "On 200 V the same battery shows one decimal place.",
     },
     {
       id: "aa-cell",
-      prompt: "Now measure the AA cell. Find the range that shows the most digits without OL.",
-      // GOAL: meter.range == "2V" && across(X1) && meter.value >= 1.40 && meter.value <= 1.65
-      goal: (lab) => meterMode(lab) === "dcv" && meterRange(lab) === "2V" && readsBetween(lab, 1.4, 1.65),
-      hints: ["An AA cell is about 1.5 V.", "The smallest range bigger than 1.5 V wins."],
-      success: "About 1.58 V. That's also 1,580 millivolts, if you like big numbers.",
+      prompt: "Measure the AA cell. Most digits, no OL.",
+      goal: (lab) => lab.meter?.mode === "dcv" && rangeIs(lab, "2V") && lab.across("X1") && readsIn(lab, 1.4, 1.65),
+      hints: ["An AA cell is about 1.5 V.", "The smallest range above 1.5 V wins."],
+      highlight: ["pin:X1.pos", "pin:X1.neg"],
+      success: "About 1.58 V. That's 1,580 millivolts too.",
     },
     {
-      // NOTEBOOK task (N2): the learner types the value in plain ohms; it is checked against the sim.
       id: "kilo-ohms",
-      prompt:
-        "Turn the dial to **Ω, 2k range** and touch the probes to the resistor's two wire ends. The screen is in kilohms. Type the value in plain ohms into your notebook.",
-      // GOAL: meter.mode == "ohm" && meter.range == "2k" && across(R1) && note("ohms") >= 455 && note("ohms") <= 480
-      goal: (lab) => meterMode(lab) === "ohm" && meterRange(lab) === "2k" && readsBetween(lab, 0.455, 0.48),
+      prompt: "**Ω, 2k range**. Probe the resistor's ends. Type its value in plain ohms.",
+      goal: (lab) => {
+        const n = lab.note("ohms");
+        return lab.meter?.mode === "ohm" && rangeIs(lab, "2k") && lab.across("R1", "either") && n !== null && n >= 455 && n <= 480;
+      },
+      note: { id: "ohms", label: "The resistor, in ohms", unit: "Ω" },
       hints: ["k means a thousand.", "0.466 thousand ohms is 466 ohms."],
-      // NOTICE: resistors don't care which probe is which, so either way round works.
-      success: "466 Ω. Same resistor, two ways to write it: 0.466 kΩ or 466 Ω.",
+      highlight: ["pin:R1.a", "pin:R1.b"],
+      success: "466 Ω. Same as 0.466 kΩ.",
+      notice: "Resistors don't care which probe is which.",
     },
   ],
-  // TODO(solution): bench actions that solve every task, once packages/bench owns BenchState.
-  solution: [],
+  solution: [
+    { do: "dial", mode: "dcv", range: "2V" },
+    { do: "probe", red: "B1.pos", black: "B1.neg" },
+    { do: "check", task: "over-the-limit" },
+    { do: "dial", mode: "dcv", range: "20V" },
+    { do: "check", task: "climb-a-range" },
+    { do: "dial", mode: "dcv", range: "2V" },
+    { do: "probe", red: "X1.pos", black: "X1.neg" },
+    { do: "check", task: "aa-cell" },
+    { do: "dial", mode: "ohm", range: "2k" },
+    { do: "probe", red: "R1.a", black: "R1.b" },
+    { do: "note", id: "ohms", value: "466" },
+    { do: "check", task: "kilo-ohms" },
+  ],
 });

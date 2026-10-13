@@ -297,19 +297,38 @@ function zincTexture(): THREE.Texture {
   });
 }
 
+let zincMat: THREE.Material | null = null;
+/** Galvanised steel (zinc spangle), shared by the lemon cell's strip and the zinc electrode. */
+export function zincMaterial(): THREE.Material {
+  zincMat ??= new THREE.MeshStandardMaterial({ map: zincTexture(), metalness: 0.85, roughness: 0.38 });
+  return zincMat;
+}
+
 export function LemonModel() {
+  const H = LEMON.height;
+  const strip = memoGeo("lemon-strip", () => roundedBox(0.7, 30, LEMON.stripW, 0.25, 2));
+  const stripY = H + LEMON.stripUp - 15;
+  return (
+    <group>
+      <LemonHalf />
+      <mesh geometry={strip} material={mat.copperBright()} position={[-10, stripY, 0]} castShadow />
+      <mesh geometry={strip} material={zincMaterial()} position={[10, stripY, 0]} castShadow />
+    </group>
+  );
+}
+
+/** Half a lemon, cut face up (the fruit cell prop, with or without electrodes). `slots` marks two cuts in the face. */
+export function LemonHalf({ slots = false }: { slots?: boolean }) {
   const R = LEMON.dia / 2;
   const H = LEMON.height;
   const face = useMemo(() => new THREE.MeshPhysicalMaterial({ map: lemonFaceTexture(), roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.15 }), []);
   const peel = useMemo(() => new THREE.MeshStandardMaterial({ color: "#f3d23a", roughness: 0.5, bumpMap: peelBump(), bumpScale: 0.8 }), []);
-  const zinc = useMemo(() => new THREE.MeshStandardMaterial({ map: zincTexture(), metalness: 0.85, roughness: 0.38 }), []);
   useLayoutEffect(
     () => () => {
       face.dispose();
       peel.dispose();
-      zinc.dispose();
     },
-    [face, peel, zinc],
+    [face, peel],
   );
   const rind = memoGeo("lemon-rind", () => {
     const pts: [number, number][] = [[0.001, 0.2], [2.2, 0.25], [3.2, 0.9]];
@@ -320,16 +339,59 @@ export function LemonModel() {
     pts.push([R - 0.2, H + 0.25], [R - 1.2, H + 0.35]);
     return latheY(pts, 56);
   });
-  const strip = memoGeo("lemon-strip", () => roundedBox(0.7, 30, LEMON.stripW, 0.25, 2));
-  const stripY = H + LEMON.stripUp - 15;
   return (
     <group>
       <mesh geometry={rind} material={peel} castShadow receiveShadow />
       <mesh material={face} position={[0, H + 0.3, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[R - 1.0, 64]} />
       </mesh>
-      <mesh geometry={strip} material={mat.copperBright()} position={[-10, stripY, 0]} castShadow />
-      <mesh geometry={strip} material={zinc} position={[10, stripY, 0]} castShadow />
+      {slots &&
+        [-11, 11].map((x) => (
+          <mesh key={x} geometry={memoGeo("lemon-slot", () => new THREE.PlaneGeometry(12, 2))} material={mat.basic("#c9a91f")} position={[x, H + 0.36, 0]} rotation={[-Math.PI / 2, 0, 0]} />
+        ))}
+    </group>
+  );
+}
+
+// Touch pads --------------------------------------------------------------------------------------------------------
+
+/** Gold interleaved fingers on a small green board: a fingertip resting across them bridges the gap. */
+function padsTexture(): THREE.Texture {
+  return canvasTexture("touch-pads", 256, 256, (ctx, w, h) => {
+    ctx.fillStyle = "#1f6b3f";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#e3b34c";
+    const m = w * 0.1;
+    ctx.fillRect(m, m, w - 2 * m, h * 0.09);
+    ctx.fillRect(m, h - m - h * 0.09, w - 2 * m, h * 0.09);
+    const n = 5;
+    const step = (w - 2 * m) / (2 * n);
+    for (let i = 0; i < 2 * n; i++) {
+      const x = m + i * step + step * 0.18;
+      const top = i % 2 === 0;
+      ctx.fillRect(x, top ? m : m + h * 0.16, step * 0.64, h - 2 * m - h * 0.16);
+    }
+  });
+}
+
+/** Two copper touch pads on a little board held up on two pins (2 holes apart), tilted toward the viewer. */
+export function TouchPadsModel({ mount }: ModelProps<PartParamsMap["touch-pads"]>) {
+  const pitch = 2.54;
+  const decal = useMemo(() => new THREE.MeshStandardMaterial({ map: padsTexture(), metalness: 0.3, roughness: 0.45 }), []);
+  useLayoutEffect(() => () => decal.dispose(), [decal]);
+  const lift = mount === "desk" ? 2.3 : 0;
+  const board = 11;
+  return (
+    <group position={[pitch, lift, 0]}>
+      {[-1, 1].map((s) => (
+        <mesh key={s} geometry={memoGeo("tp-pin", () => new THREE.CylinderGeometry(0.32, 0.32, 6.6, 8))} material={mat.lead()} position={[s * pitch, 1.0, 0]} />
+      ))}
+      <group position={[0, 4.6, 1.8]} rotation={[-0.62, 0, 0]}>
+        <mesh geometry={memoGeo("tp-board", () => roundedBox(board, 1.2, board, 0.4, 2))} material={mat.plastic("#1f6b3f", 0.5)} castShadow receiveShadow />
+        <mesh material={decal} position={[0, 0.62, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[board - 0.6, board - 0.6]} />
+        </mesh>
+      </group>
     </group>
   );
 }

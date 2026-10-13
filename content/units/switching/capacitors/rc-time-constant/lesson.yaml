@@ -26,7 +26,7 @@ steps:
 
   - type: lab
     lab: rc-time-constant
-    intro: The data logger plots C1's voltage 20 times a second. Use its cursor to read times off the curve.
+    intro: The data logger plots C1's voltage from the moment you slide S1. Drag its cursor to read times off the curve.
 
   - type: explain
     cards:

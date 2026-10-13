@@ -16,11 +16,14 @@ export function StudioEnvironment({ intensity = 0.5 }: { intensity?: number }) {
   const scene = useThree((s) => s.scene);
   const invalidate = useThree((s) => s.invalidate);
   useLayoutEffect(() => {
+    scene.environmentIntensity = intensity;
+    invalidate();
+  }, [scene, intensity, invalidate]);
+  useLayoutEffect(() => {
     const pmrem = new THREE.PMREMGenerator(gl);
     const room = new RoomEnvironment();
     const env = pmrem.fromScene(room, 0.035).texture;
     scene.environment = env;
-    scene.environmentIntensity = intensity;
     invalidate();
     return () => {
       scene.environment = null;
@@ -33,11 +36,13 @@ export function StudioEnvironment({ intensity = 0.5 }: { intensity?: number }) {
         mat?.dispose?.();
       });
     };
-  }, [gl, scene, intensity, invalidate]);
+  }, [gl, scene, invalidate]);
   return null;
 }
 
-export function StudioLights({ quality, shadowSpan = 420, center = [0, 0] }: { quality: Quality; shadowSpan?: number; center?: [number, number] }) {
+/** Key, fill and sky light. `dim` (0..1) turns the room lights down. */
+export function StudioLights({ quality, shadowSpan = 420, center = [0, 0], dim = 1 }: { quality: Quality; shadowSpan?: number; center?: [number, number]; dim?: number }) {
+  const k = Math.max(0.05, Math.min(1, dim));
   const shadows = quality === "high";
   const size = quality === "high" ? 4096 : 1024;
   const target = useMemo(() => {
@@ -47,12 +52,12 @@ export function StudioLights({ quality, shadowSpan = 420, center = [0, 0] }: { q
   }, [center[0], center[1]]);
   return (
     <>
-      <hemisphereLight args={["#fff7ec", "#8b6a48", 0.5]} />
+      <hemisphereLight args={["#fff7ec", "#8b6a48", 0.5 * k]} />
       <primitive object={target} />
       <directionalLight
         position={[center[0] - 260, 560, center[1] + 300]}
         target={target}
-        intensity={1.75}
+        intensity={1.75 * k}
         color="#fff0de"
         castShadow={shadows}
         shadow-mapSize={[size, size]}
@@ -66,7 +71,7 @@ export function StudioLights({ quality, shadowSpan = 420, center = [0, 0] }: { q
         shadow-normalBias={0.18}
         shadow-radius={4}
       />
-      <directionalLight position={[center[0] + 380, 260, center[1] - 260]} target={target} intensity={0.5} color="#dfe7ff" />
+      <directionalLight position={[center[0] + 380, 260, center[1] - 260]} target={target} intensity={0.5 * k} color="#dfe7ff" />
     </>
   );
 }

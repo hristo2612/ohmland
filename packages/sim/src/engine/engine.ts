@@ -17,6 +17,8 @@ export type EngineOptions = {
 };
 
 /** Newton convergence: relative and absolute (volts) tolerance on the update (SPICE defaults). */
+/** Conductance tying each isolated circuit to the reference (one node each, so no current flows through it). */
+const TIE_G = 1e-3;
 const RELTOL = 1e-3;
 const VNTOL = 1e-6;
 const H_BREAK = 1e-6;
@@ -79,6 +81,12 @@ export class Engine implements Ctx {
   private lu!: SparseLU;
   private nlPos!: Int32Array;
   private Alin!: Float64Array;
+  /**
+   * One node of every circuit that shares nothing with the reference (a battery lying alone, a second circuit on the
+   * same bench). Each is tied to the reference: a single tie carries no current, it only fixes the island's level,
+   * which otherwise hangs on gmin alone and can make long time-lapse runs ill-conditioned.
+   */
+  private ties: number[] = [];
   private bstep!: Float64Array;
   private bwork!: Float64Array;
   /** Last accepted solution. */
@@ -231,8 +239,13 @@ export class Engine implements Ctx {
     let touched: number[] = [];
     let declared: number[][] = [];
     const deviceGroups: number[][][] = [];
+    /** Every unknown each device touches (for islands), whatever its coupling groups. */
+    const touchedBy: number[][] = [];
+    let touchesRef = false;
+    const refDevices: boolean[] = [];
     const recordId = (id: number) => {
       if (id >= 0) touched.push(id);
+      else touchesRef = true;
       return id;
     };
     const probe: Binder = {
@@ -253,14 +266,43 @@ export class Engine implements Ctx {
     for (const d of e.devices) {
       touched = [];
       declared = [];
+      touchesRef = false;
       d.bind(probe);
       deviceGroups.push(declared.length > 0 ? declared : [touched]);
+      touchedBy.push(touched);
+      refDevices.push(touchesRef);
     }
     const incidence = deviceGroups.flat();
     const total = groups + extra.length;
     const order = minimumDegreeOrder(total, incidence);
     const finalOf = new Int32Array(total);
     order.forEach((pid, k) => (finalOf[pid] = k));
+
+    // Islands: unknowns linked through devices. Each island that never reaches the reference gets one tie (at a
+    // source's minus terminal when it has one).
+    const up = Array.from({ length: total }, (_, k) => k);
+    const root = (k: number): number => {
+      while (up[k] !== k) k = up[k] = up[up[k]!]!;
+      return k;
+    };
+    const grounded = new Set<number>();
+    for (const ids of touchedBy) for (let j = 1; j < ids.length; j++) up[root(ids[j]!)] = root(ids[0]!);
+    touchedBy.forEach((ids, k) => {
+      if (refDevices[k] && ids.length) grounded.add(root(ids[0]!));
+    });
+    const tieOf = new Map<number, number>();
+    for (const sourcesFirst of [true, false]) {
+      e.devices.forEach((d, k) => {
+        const ids = touchedBy[k]!;
+        const isSource = d.kind === "battery" || d.kind === "cell";
+        if (!ids.length || (sourcesFirst && !isSource)) return;
+        const r = root(ids[0]!);
+        if (grounded.has(r) || tieOf.has(r)) return;
+        const neg = isSource && parent.has(d.pin("neg")) ? groupId.get(find(d.pin("neg"))) : undefined;
+        tieOf.set(r, neg !== undefined && neg >= 0 ? neg : ids[0]!);
+      });
+    }
+    e.ties = [...tieOf.values()].map((pid) => finalOf[pid]!);
 
     for (const nm of names) {
       const g = groupId.get(find(nm))!;
@@ -532,6 +574,7 @@ export class Engine implements Ctx {
       const A = this.Alin;
       A.fill(0);
       for (let i = 0; i < n; i++) A[i * n + i] = GMIN;
+      for (const k of this.ties) A[k * n + k] = GMIN + TIE_G;
       for (const d of this.devices) d.stampLinear(A, n, this);
       for (const r of this.reactives) r.stampLinear(A, n);
       this.linearDirty = false;
