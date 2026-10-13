@@ -92,6 +92,14 @@ describe("DC operating points", () => {
     expect(allEvents(s).some((e) => e.type === "reversed")).toBe(true);
   });
 
+  test("into about 0.6 Ω a 9 V battery starts above 3 A and settles between 1.6 and 2.4 A within 2 s", () => {
+    const s = simulateFor({ parts: [battery9("B1", "vcc", "gnd", 9.4), resistor("W", "vcc", "gnd", 0.6, 50)] }, 2, { sampleEvery: 0.05 });
+    const out = (k: number) => Number(s[k]!.parts.B1!.extra!.out);
+    expect(out(0)).toBeGreaterThan(3);
+    expect(out(s.length - 1)).toBeGreaterThan(1.6);
+    expect(out(s.length - 1)).toBeLessThan(2.4);
+  });
+
   test("a shorted 9 V battery sags to about 2 A, heats, and partly recovers", () => {
     const short = { parts: [battery9("B1", "vcc", "gnd", 9.5), resistor("W", "vcc", "gnd", 0.05, 50)] };
     const s = simulateFor(short, 3, { sampleEvery: 0.5 });

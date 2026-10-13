@@ -211,11 +211,11 @@ Ambient is 25 °C. Thermal models are first order (`dT/dt` towards `25 + P x Rth
 ### Battery (`emf`, `internalOhms`, `mAh` optional) and cell (`emf`, `internalOhms`)
 
 - Norton source with internal resistance. Batteries add two polarisation states that pull the terminal voltage down
-  under load: a fast one (up to 2 x `internalOhms`, 0.3 s) that only matters at amps (it fades below about 0.5 A),
-  and a slow one (0.35 x `internalOhms`, builds in 5 s, recovers in 20 s). A 9.4 V, 1.7 Ω battery reads about
-  9.2 V on 100 Ω; into 0.55 Ω it gives about 4 A for an instant and 1.8 A after 2 s; at 0.55 A it sags a further
-  0.2 V over 20 s and gets nearly all of it back within 30 s of rest. A 9.5 V one into a short gives about 5 A for an
-  instant and about 2 A after a few seconds.
+  under load: a fast one (up to 2 x `internalOhms`, 0.3 s) that only matters at amps (it fades steeply below about
+  1 A), and a slow one (0.35 x `internalOhms`, builds in 5 s, recovers in 20 s). A 9.4 V, 1.7 Ω battery reads about
+  9.2 V on 100 Ω; into 0.55 Ω it gives about 3.4 A at first and 1.9 A after 2 s; on 15 Ω (0.55 A) it reads about
+  8.3 V at once, sags a further 0.2 V over 20 s and gets nearly all of it back within 30 s of rest. A 9.5 V one into
+  a short gives about 5 A for an instant and about 2 A after a few seconds.
 - `mAh` (batteries only) drains; open-circuit voltage falls gently with charge then drops near empty, and internal
   resistance rises. A 500 mAh battery runs a 15 mA LED (470 Ω, red) for about 35 hours, slowly dimming, then fades
   out within a few hours. Without `mAh` the battery never drains.
