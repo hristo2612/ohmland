@@ -1,109 +1,135 @@
-// Lab for lesson `breadboard-inside` (docs/curriculum/unit-2.md, Lesson 7).
-// Board: an 830-point breadboard (63 rows x 2 sides x 5 holes, plus 4 rails), in a variant whose rails are split at
-// row 32. Anchors use holes ("a12") and rail points ("rail+:5"); a two-leg part spans "from-to". All anchors are
-// provisional until packages/bench owns BenchState. Tray comments give the ids the goals expect placed parts to get.
-// BENCH NEEDS: an x-ray toggle showing the clips, hover highlight of a hole's whole net, the split-rail board variant,
-// and a relay footprint that straddles the channel.
-// LAB NEEDS: an x-ray hole picker that checks the learner's selection (xray-hunt).
-// Damage moments: a relay placed along a strip instead of across the channel shorts COM, NC and NO together (both
-// LEDs on) and may join the coil straight to plus. A part bridging the + and - rails directly gives `shorted`.
-// Notice: the length of the path through strips doesn't matter. The strips have almost no resistance.
-import { defineLab } from "@ohmland/lab";
-import { closed, pullIns } from "./lib/goals-switching";
+// Blueprint: docs/curriculum/unit-2.md, Lesson 7. An 830-point board whose power rails are split in the middle
+// (between rows 31 and 33); the battery feeds the left half. Station A (row 5) is a working LED for reference.
+// Station B (row 13): the LED stands with both legs in one strip, so it is shorted and dark. Station C (row 57) is
+// dark because the right half of the rails is not fed. A hole hunt panel asks which holes are joined to 12a. Then
+// the learner rebuilds the relay changeover from lesson 5 on the right half: relay K1 straddling the channel.
+import { defineLab, type LabView } from "@ohmland/lab";
+
+/** Every leg of the part sits in a hole, and no two legs share a strip. */
+function straddles(lab: LabView, id: string): boolean {
+  const p = lab.benchPart(id);
+  if (!p) return false;
+  const legs = lab.legs(id);
+  if (!legs.every((l) => p.holes?.[l])) return false;
+  for (let i = 0; i < legs.length; i++) for (let j = i + 1; j < legs.length; j++) if (lab.connected(`${id}.${legs[i]}`, `${id}.${legs[j]}`)) return false;
+  return true;
+}
 
 export default defineLab({
   id: "breadboard-inside",
   title: "X-ray the breadboard",
   bench: {
-    board: "breadboard",
+    board: "full",
+    splitRails: true,
     parts: [
-      // pins { pos: vcc, neg: gnd }, clipped to the top-left rails with two short jumpers.
-      { id: "B1", kind: "battery", at: "rails", props: { emf: 9, internalOhms: 1.5 }, locked: true },
-      { id: "W1", kind: "wire", at: "B1.pos-rail+:1", locked: true },
-      { id: "W2", kind: "wire", at: "B1.neg-rail-:1", locked: true },
-      // Station A: a correct reference circuit (lit).
-      { id: "R1", kind: "resistor", at: "rail+:5-a5", props: { ohms: 470 }, locked: true },
-      { id: "D1", kind: "led", at: "e5-e6", props: { color: "red" }, locked: true },
-      { id: "W3", kind: "wire", at: "a6-rail-:6", locked: true },
-      // Station B: the LED has both legs in strip 20 (anode 20b, cathode 20d), so it is shorted and dark.
-      { id: "R2", kind: "resistor", at: "rail+:20-a20", props: { ohms: 470 }, locked: true },
-      { id: "D2", kind: "led", at: "b20-d20", props: { color: "red" } },
-      { id: "W4", kind: "wire", at: "e21-rail-:21", locked: true },
-      // Station C: lower half, fed only by the lower rails, which are cut off at row 32.
-      { id: "R3", kind: "resistor", at: "rail+:45-a45", props: { ohms: 470 }, locked: true },
-      { id: "D3", kind: "led", at: "c45-c47", props: { color: "red" }, locked: true },
-      { id: "W5", kind: "wire", at: "a47-rail-:47", locked: true },
+      { id: "B1", kind: "battery", at: "rails", params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      // Station A: a working reference.
+      { id: "R1", kind: "resistor", at: "rail+:5-b5", params: { ohms: 470 }, locked: true, label: "470 Ω resistor R1" },
+      { id: "D1", kind: "led", at: "c5", params: { color: "red" }, locked: true, label: "Red LED D1" },
+      // Station B: both of the LED's legs in strip 13.
+      { id: "R2", kind: "resistor", at: "rail+:13-b13", params: { ohms: 470 }, locked: true, label: "470 Ω resistor R2" },
+      { id: "D2", kind: "led", at: "c13", rot: 90, params: { color: "red" }, label: "Red LED D2" },
+      // Station C: on the unfed right half.
+      { id: "R3", kind: "resistor", at: "rail+:57-b57", params: { ohms: 470 }, locked: true, label: "470 Ω resistor R3" },
+      { id: "D3", kind: "led", at: "c57", params: { color: "red" }, locked: true, label: "Red LED D3" },
+    ],
+    wires: [
+      { id: "W1", from: "a6", to: "rail-:6", color: "black" },
+      { id: "W2", from: "a14", to: "rail-:14", color: "black" },
+      { id: "W3", from: "a58", to: "rail-:58", color: "black" },
     ],
     tray: [
-      // Jumper wires in red, blue, green and yellow.
-      { kind: "wire", count: 12 },
-      // K1: a relay in a breadboard footprint. pins { coilA, coilB, com, no, nc }
-      { kind: "relay", props: { coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, count: 1 },
-      // S1
-      { kind: "pushbutton", count: 1 },
-      // D4
-      { kind: "diode", props: { model: "1N4001" }, count: 1 },
-      // R4 and R5
-      { kind: "resistor", props: { ohms: 470 }, count: 2 },
-      // D5
-      { kind: "led", props: { color: "yellow" }, count: 1 },
-      // D6
-      { kind: "led", props: { color: "green" }, count: 1 },
+      { id: "K1", kind: "relay", params: { coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, count: 1, label: "Relay" },
+      { id: "S1", kind: "pushbutton", params: { cap: "red" }, count: 1, label: "Button" },
+      { id: "D4", kind: "diode", params: { model: "1N4001" }, count: 1, label: "1N4001" },
+      { id: "R4", kind: "resistor", params: { ohms: 470 }, count: 2, label: "470 Ω" },
+      { id: "D5", kind: "led", params: { color: "yellow" }, count: 1, label: "Yellow LED" },
+      { id: "D6", kind: "led", params: { color: "green" }, count: 1, label: "Green LED" },
     ],
-    instruments: ["meter"],
+    instruments: [{ kind: "meter", at: "desk:150,4", mode: "dcv" }],
   },
+  panels: [{ kind: "hole-hunt", id: "hunt", start: "a12", cols: [9, 15], show: ["xray-hunt"] }],
+  mascot: {
+    start: "X-ray on. Now the breadboard has no secrets.",
+    hint: "Hover a hole: everything joined to it lights up.",
+    success: "Same strip, same node. The board is starting to make sense.",
+    fried: "Something got a straight path from plus to minus. Look at which strips it bridged.",
+    exit: "Your first proper breadboard build. Neat, solid and ready to change.",
+  },
+  fried: { led: "LED on the breadboard", relay: "Relay laid along a strip" },
   tasks: [
     {
       id: "xray-hunt",
-      prompt: "Switch on x-ray. Tap hole 12a, then tap every hole you think is connected to it. Check your guess.",
-      // GOAL: the learner's selection equals the true net of 12a (12a to 12e).
-      // TODO(lab-panel): needs the x-ray hole picker.
-      goal: () => false,
-      hints: ["Look at the metal clip under row 12 on this side of the channel.", "The channel down the middle is a wall."],
+      prompt: "Turn on **X-ray** (top bar) to see the metal clips. Then, in the hole hunt, tap every hole joined to hole 12a and check.",
+      goal: (lab) => lab.panel("hunt").correct,
+      hints: ["Look at the metal clip under row 12 on this side of the channel.", "The channel down the middle is a wall: nothing crosses it."],
       success: "Five holes per clip, and the clip stops at the channel.",
     },
     {
       id: "fix-dark-led",
-      prompt: "The LED at station B is dark. Fix it by moving one leg.",
-      // GOAL: D2 is lit, with its anode and cathode in different nets.
-      goal: (lab) => lab.isLit("D2"),
-      hints: [
-        "Both of `D2`'s legs are in row 20. What does that clip do to them?",
-        "Move the cathode to row 21, where the jumper to the minus rail starts.",
-      ],
+      prompt: "The LED at station B (row 13) is dark. Move it so it lights.",
+      goal: (lab) => lab.isLit("D2") && !lab.connected("D2.anode", "D2.cathode"),
+      hints: ["Both of D2's legs are in row 13. What does that row's clip do to them?", "Turn it sideways: long leg in row 13, short leg in row 14, where the jumper to the minus rail starts."],
+      highlight: ["D2"],
       success: "Both legs in one strip means the strip shorts the LED. Every part needs its legs in different strips.",
+      mascot: { success: "Same strip, same node. The LED never stood a chance." },
     },
     {
       id: "bus-gap",
-      prompt: "Station C is dead. The meter will tell you why.",
-      // GOAL: two jumpers bridge the rail gap at row 32 (red to red, blue to blue), and D3 lights.
-      goal: (lab) => lab.isLit("D3"),
+      prompt: "Station C (row 57) is dark too. Use the meter to find out why, then fix it.",
+      goal: (lab) => lab.isLit("D3") && lab.connected("rail+:10", "rail+:50") && lab.connected("rail-:10", "rail-:50"),
       hints: [
         "Measure the voltage between the plus and minus rails at row 10, then at row 50.",
-        "Some boards split each rail halfway. Look for a gap in the printed stripe.",
+        "This board splits each rail halfway: see the gap in the printed stripes? Bridge each rail across it with a jumper (Wire tool).",
       ],
-      success: "Split rails are a classic trap. A bridge jumper, and the lower half wakes up.",
+      success: "Split rails are a classic trap. A bridge jumper on each rail, and the right half wakes up.",
+      mascot: { success: "Bridge the gap and the lower half wakes up." },
     },
     {
       id: "relay-on-board",
       prompt:
-        "Rebuild the relay changeover on the board, with one battery: COM to plus, the yellow LED on NC, the green LED on NO, the button feeding the coil, and the diode across the coil.",
-      // GOAL: K1 straddles the channel (no two relay pins in one net), D5 is lit at rest, D6 is lit while S1 is held,
-      // and D4's band faces the coil's positive end.
-      goal: (lab) =>
-        pullIns(lab, "K1").length > 0 &&
-        closed(lab, "K1") &&
-        lab.isLit("D6") &&
-        !lab.isLit("D5") &&
-        lab.part("D4")?.health === "ok" &&
-        (lab.part("D4")?.v ?? 0) < -1,
+        "Rebuild the relay changeover on the right half, with this one battery: COM to plus, the yellow LED (through 470 Ω) on NC, the green LED (through 470 Ω) on NO, the button feeding the coil, and the diode across the coil.",
+      goal: (lab) => {
+        if (!straddles(lab, "K1") || !lab.joins("D4", "K1.coil1", "K1.coil2")) return false;
+        if (!lab.closed("S1") && lab.isLit("D5") && !lab.isLit("D6")) lab.memory["rest"] = true;
+        if (lab.closed("S1") && lab.isLit("D6") && !lab.isLit("D5") && (lab.part("D4")?.v ?? 0) < -1) lab.memory["held"] = true;
+        return lab.memory["rest"] === true && lab.memory["held"] === true;
+      },
       hints: [
-        "The relay's pins sit on both sides of the channel, so each pin gets its own strip.",
-        "Build it from the schematic one wire at a time, ticking off each connection.",
+        "The relay's pins sit on both sides of the channel, so each pin gets its own strip. Its coil pins are the ones at the end with one pin per side.",
+        "Build it one wire at a time: COM strip to the + rail, each contact strip through its resistor to an LED, each LED's short leg to the minus rail.",
+        "The diode's band goes to the coil end the button feeds.",
       ],
       success: "Your first proper breadboard build. Neat, solid and ready to be modified.",
+      notice: "The length of a path through strips doesn't matter: the strips have almost no resistance.",
     },
   ],
-  // TODO(solution): bench actions that solve every task, once packages/bench defines anchors.
-  solution: [],
+  solution: [
+    { do: "panel", id: "hunt", value: ["a12", "b12", "c12", "d12", "e12"] },
+    { do: "check", task: "xray-hunt" },
+    { do: "move", part: "D2", at: "c13", rot: 0 },
+    { do: "check", task: "fix-dark-led" },
+    { do: "probe", red: "rail+:10", black: "rail-:10" },
+    { do: "probe", red: "rail+:50", black: "rail-:50" },
+    { do: "wire", id: "W4", from: "rail+:31", to: "rail+:33", color: "red" },
+    { do: "wire", id: "W5", from: "rail-:31", to: "rail-:33", color: "black" },
+    { do: "check", task: "bus-gap" },
+    // The relay straddles the channel at row 38: coil 38 (near grounded, far fed), COM 41, NC 43, NO 45.
+    { do: "place", part: "K1", kind: "relay", at: "e38", params: { coilOhms: 540, pullIn: 6.0, dropOut: 1.8 } },
+    { do: "wire", id: "W6", from: "a38", to: "rail-:37", color: "black" },
+    { do: "wire", id: "W7", from: "a41", to: "rail+:41", color: "red" },
+    { do: "place", part: "S1", kind: "pushbutton", at: "e34", params: { cap: "red" } },
+    { do: "wire", id: "W8", from: "a34", to: "rail+:34", color: "red" },
+    { do: "wire", id: "W9", from: "g36", to: "g38", color: "yellow" },
+    { do: "place", part: "D4", kind: "diode", at: "d38-h38", params: { model: "1N4001" } },
+    { do: "place", part: "R4", kind: "resistor", at: "c43-c48", params: { ohms: 470 } },
+    { do: "place", part: "D5", kind: "led", at: "d48", params: { color: "yellow" } },
+    { do: "wire", id: "W10", from: "a49", to: "rail-:49", color: "black" },
+    { do: "place", part: "R5", kind: "resistor", at: "b45-b51", params: { ohms: 470 } },
+    { do: "place", part: "D6", kind: "led", at: "d51", params: { color: "green" } },
+    { do: "wire", id: "W11", from: "a52", to: "rail-:52", color: "black" },
+    { do: "wait", seconds: 0.3 },
+    { do: "press", part: "S1", seconds: 0.8 },
+    { do: "check", task: "relay-on-board" },
+  ],
 });

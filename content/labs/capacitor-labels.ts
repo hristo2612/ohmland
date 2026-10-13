@@ -1,80 +1,113 @@
-// Lab for lesson `capacitor-labels` (docs/curriculum/unit-2.md, Lesson 10).
-// Station A: the meter in series (DC mA, 2 mA range) with 10 kΩ and an empty capacitor socket between x and gnd.
-// Station B, "the blast box" (a clear lid prop): a switch and an empty socket from bb to gnd, with no resistor.
-// Netlist pins are noted beside each part; `at` anchors are provisional until packages/bench owns BenchState. Tray
-// comments give the ids the goals expect placed parts to get.
-// BENCH NEEDS: the blast box prop with a vent animation.
-// SIM NEEDS: overvoltage against `volts` (a 6.3 V part on 9 V leaks more and more, then dies) and `died` events that
-// carry data.cause ("reverse" or "overvoltage"), so the Hall of Fried Parts and `wrong-way-round` can tell them apart.
-// Damage moments: task 4 by design. A correctly oriented 6.3 V part in the blast box also fails slowly from overvoltage.
-// Notice: real ones do this too, sometimes with a bang and a smelly puff.
+// Blueprint: docs/curriculum/unit-2.md, Lesson 10. Station A: R1 (10 kΩ) from the + rail into row 6, the meter in
+// series on the 2 mA range (red probe in row 6, black in row 8), and an empty capacitor socket from row 8 to row 10
+// (row 10 jumps to the minus rail). Station B, the blast corner: slide switch S1 feeds row 22 straight from the +
+// rail, and its socket runs from row 22 to row 24 (minus), with no resistor at all.
+//
+// Measured in the simulator: the 104 ceramic settles below 2 µA within a second either way round; the 100 µF
+// electrolytic gulps about 0.9 mA and settles near 9 µA (its leakage) within about 4 s; backwards it keeps passing
+// about 0.6 mA and reports `reversed`; the 6.3 V part backwards across 9 V with no resistor vents within seconds.
 import { defineLab, type LabView } from "@ohmland/lab";
-import { closed, died, happened, placed } from "./lib/goals-switching";
 
-/** Station A's current, in amps, as the series meter sees it. */
-const amps = (lab: LabView): number => Math.abs(lab.part("M1")?.i ?? 1);
+const socketA = (lab: LabView, id: string, dir?: "forward") => lab.joins(id, "d8", "d10", dir);
+const current = (lab: LabView) => lab.amps("M1");
 
 export default defineLab({
   id: "capacitor-labels",
   title: "Reading the fine print",
   bench: {
-    board: "breadboard",
+    board: "full",
+    frame: ["desk:-90,-30", "desk:30,70"],
     parts: [
-      // pins { pos: vcc, neg: gnd }
-      { id: "B1", kind: "battery", at: "rails", props: { emf: 9, internalOhms: 1.5 }, locked: true },
-      // Station A. pins { a: vcc, b: r }
-      { id: "R1", kind: "resistor", at: "rail+:5-a5", props: { ohms: 10000 }, locked: true },
-      // Station A meter, in series. pins { com: x, vohm: mv, ma: r, a10: ma10 }. The socket runs from x to gnd.
-      { id: "M1", kind: "multimeter", at: "e5-a12", props: { mode: "dca-ma", range: "2mA" }, locked: true },
-      // Station B, inside the blast box. pins { a: vcc, b: bb }. The socket runs from bb to gnd.
-      { id: "S1", kind: "switch", at: "rail+:40-a40", props: { closed: false }, locked: true },
+      { id: "B1", kind: "battery", at: "rails", params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "R1", kind: "resistor", at: "rail+:6-b6", params: { ohms: 10000 }, locked: true, label: "10 kΩ resistor R1" },
+      { id: "S1", kind: "slide-switch", at: "b20", params: { to: "a" }, locked: true, label: "Blast corner switch S1" },
+    ],
+    wires: [
+      { id: "W1", from: "a10", to: "rail-:10", color: "black" },
+      { id: "W2", from: "a21", to: "rail+:21", color: "red" },
+      { id: "W3", from: "a24", to: "rail-:24", color: "black" },
     ],
     tray: [
-      // CA: ceramic, 100 nF, marked "104"
-      { kind: "capacitor", props: { farads: 1e-7, polarized: false }, count: 1 },
-      // CB: electrolytic, 100 µF, 16 V
-      { kind: "capacitor", props: { farads: 1e-4, volts: 16, polarized: true }, count: 1 },
-      // CC: electrolytic, 100 µF, 6.3 V
-      { kind: "capacitor", props: { farads: 1e-4, volts: 6.3, polarized: true }, count: 1 },
+      { id: "CA", kind: "ceramic-cap", params: { farads: 100e-9 }, count: 1, label: "104 ceramic" },
+      { id: "CB", kind: "electrolytic-cap", params: { farads: 100e-6, volts: 16 }, count: 1, label: "100 µF 16 V" },
+      { id: "CC", kind: "electrolytic-cap", params: { farads: 100e-6, volts: 6.3 }, count: 1, label: "100 µF 6.3 V" },
     ],
-    // The only meter is M1, wired into station A above.
-    instruments: [],
+    instruments: [{ kind: "meter", at: "desk:-8,72", rot: 0, mode: "dca-ma", range: "2mA", red: "ma", black: "com", probes: { red: "c6", black: "c8" } }],
   },
+  mascot: {
+    start: "104 is a code, not a price.",
+    hint: "Watch what the current settles to, not the first jump.",
+    success: "Blocked. Once it's charged, a capacitor stops the steady current.",
+    fried: "That pop goes straight to the Hall of Fried Parts. Bravo, scientist.",
+    exit: "Value, tolerance, polarity, voltage. You can read the fine print now.",
+  },
+  fried: { CC: "100 µF 6.3 V electrolytic, backwards on 9 V", CB: "100 µF electrolytic, backwards", capacitor: "Electrolytic capacitor, backwards" },
   tasks: [
     {
       id: "ceramic-blocks",
-      prompt: "Plug the 104 ceramic into station A. Watch the meter. Then turn it round and try again.",
-      // GOAL: in both orientations, |I(M1)| is below 2 µA one second after insertion.
-      goal: (lab) => placed(lab, "CA") && amps(lab) < 2e-6,
-      hints: ["The meter may twitch at the start. Watch what it settles to."],
+      prompt: "Plug the **104** ceramic into station A's socket (rows 8 and 10). Watch the meter. Then turn it round and try again.",
+      goal: (lab) => {
+        const m = lab.memory as { fwd?: boolean; rev?: boolean };
+        const inA = socketA(lab, "CA");
+        const fwd = socketA(lab, "CA", "forward");
+        if (lab.heldFor(1, inA && current(lab) < 2e-6, fwd ? "f" : "r")) m[fwd ? "fwd" : "rev"] = true;
+        return !!m.fwd && !!m.rev;
+      },
+      hints: ["The meter may twitch at the start. Watch what it settles to.", "Rotate it (select it, then Rotate) or drag it out and back in the other way round."],
+      highlight: ["hole:d8", "hole:d10"],
       success: "A blip, then nothing. Once it's charged, no steady current gets through. And ceramics don't care which way round they go.",
     },
     {
       id: "electrolytic-right-way",
-      prompt: "Now plug in the 100 µF, 16 V electrolytic the right way round: stripe toward ground.",
-      // GOAL: the initial current is above 0.5 mA, then falls below 20 µA within 10 s.
-      goal: (lab) => placed(lab, "CB") && (lab.part("CB")?.v ?? 0) > 8 && amps(lab) < 20e-6,
-      hints: ["The stripe of minus signs marks the leg that goes toward ground."],
+      prompt: "Now plug in the **100 µF, 16 V** electrolytic the right way round: stripe toward ground (row 10).",
+      goal: (lab) => {
+        const m = lab.memory as { at?: number; peak?: number };
+        if (!socketA(lab, "CB", "forward")) {
+          delete m.at;
+          delete m.peak;
+          return false;
+        }
+        m.at ??= lab.t;
+        m.peak = Math.max(m.peak ?? 0, current(lab));
+        return m.peak > 0.5e-3 && current(lab) < 20e-6 && lab.t - m.at <= 10;
+      },
+      hints: ["The stripe of minus signs marks the leg that goes toward ground.", "Take the ceramic out first."],
       success: "Bigger capacitor, bigger gulp, slower settle. Then it blocks too, apart from a tiny leak.",
     },
     {
       id: "electrolytic-backwards",
-      prompt: "Flip the electrolytic so the stripe faces the positive side.",
-      // GOAL: after 8 s the current is still above 100 µA, and a `reversed` event fired on CB.
-      goal: (lab) => happened(lab, "CB", "reversed") && amps(lab) > 100e-6,
-      hints: ["Just watch the meter. Does it settle this time?"],
+      prompt: "Flip the electrolytic so the stripe faces the positive side (row 8).",
+      goal: (lab) => socketA(lab, "CB") && !socketA(lab, "CB", "forward") && lab.event("reversed", "CB") && lab.heldFor(8, socketA(lab, "CB") && current(lab) > 100e-6),
+      hints: ["Just watch the meter. Does it settle this time?", "Give it eight seconds."],
       success: "It never settles. Backwards, the insulating layer breaks down and the capacitor leaks like a sieve.",
+      notice: "Take it out soon: backwards, it is slowly cooking, and left there it fails for good.",
     },
     {
       id: "blast-box",
-      prompt: "Optional, and it's loud. Put the 6.3 V capacitor in the blast box backwards and close `S1`.",
-      // GOAL: CC died with reason reverse voltage (it lands in the Hall of Fried Parts).
-      goal: (lab) => closed(lab, "S1") && happened(lab, "CC", "reversed") && died(lab, "CC"),
-      hints: ["There's no resistor in the blast box. That's the point."],
+      prompt: "Optional, and it's loud. Put the **6.3 V** capacitor in the blast corner's socket (rows 22 and 24) backwards, and slide S1 on.",
+      goal: (lab) => lab.died("CC") && lab.events.some((e) => e.type === "died" && e.partId === "CC" && e.data?.["cause"] === "reverse"),
+      hints: ["There's no resistor in the blast corner. That's the point.", "Backwards: the stripe to row 22, the long leg to row 24."],
       success: "It heated, bulged and vented. That's why polarity and voltage ratings matter. It's in the Hall of Fried Parts now.",
-      optional: true,
+      notice: "Real ones do this too, sometimes with a bang and a smelly puff.",
+      bonus: true,
     },
   ],
-  // TODO(solution): bench actions that solve every task, once packages/bench defines anchors.
-  solution: [],
+  solution: [
+    { do: "place", part: "CA", kind: "ceramic-cap", at: "d8-d10", params: { farads: 100e-9 } },
+    { do: "wait", seconds: 1.5 },
+    { do: "move", part: "CA", at: "d10-d8" },
+    { do: "wait", seconds: 1.5 },
+    { do: "check", task: "ceramic-blocks" },
+    { do: "remove", part: "CA" },
+    { do: "place", part: "CB", kind: "electrolytic-cap", at: "d8-d10", params: { farads: 100e-6, volts: 16 } },
+    { do: "wait", seconds: 6 },
+    { do: "check", task: "electrolytic-right-way" },
+    { do: "move", part: "CB", at: "d10-d8" },
+    { do: "wait", seconds: 9 },
+    { do: "check", task: "electrolytic-backwards" },
+    { do: "place", part: "CC", kind: "electrolytic-cap", at: "d24-d22", params: { farads: 100e-6, volts: 6.3 } },
+    { do: "flip", part: "S1", to: "b" },
+    { do: "wait", seconds: 6 },
+    { do: "check", task: "blast-box" },
+  ],
 });
