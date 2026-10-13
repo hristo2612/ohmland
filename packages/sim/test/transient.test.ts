@@ -5,7 +5,7 @@ import { allEvents, battery9, last, relayBuzzer, resistor } from "./circuits";
 const stiffSource: PartSpec = { id: "S", kind: "cell", pins: { pos: "vcc", neg: "gnd" }, emf: 9, internalOhms: 0.001 };
 const rc = (R: number, C: number): PartSpec[] => [
   resistor("R1", "vcc", "c", R),
-  { id: "C1", kind: "capacitor", pins: { pos: "c", neg: "gnd" }, farads: C },
+  { id: "C1", kind: "capacitor", pins: { pos: "c", neg: "gnd" }, farads: C, tolerance: 0 },
 ];
 
 /** Contact changes per second, from the relay's click counter. */
@@ -35,7 +35,7 @@ describe("transients", () => {
     sim.load({ parts: rc(1000, 1e-3) });
     expect(sim.step(0.5).nodes.c).toBeCloseTo(v1, 4);
     // A 1 kΩ across it: one time constant later about 37% is left.
-    sim.load({ parts: [{ id: "C1", kind: "capacitor", pins: { pos: "c", neg: "gnd" }, farads: 1e-3 }, resistor("R2", "c", "gnd", 1000)] });
+    sim.load({ parts: [{ id: "C1", kind: "capacitor", pins: { pos: "c", neg: "gnd" }, farads: 1e-3, tolerance: 0 }, resistor("R2", "c", "gnd", 1000)] });
     const v2 = sim.step(1).nodes.c!;
     expect(v2 / v1).toBeGreaterThan(0.36);
     expect(v2 / v1).toBeLessThan(0.375);

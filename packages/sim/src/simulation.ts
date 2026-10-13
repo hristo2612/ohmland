@@ -8,7 +8,13 @@ import type { InputKey, InputValue, Netlist, SimEvent, Snapshot } from "./types"
 const now = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
 
 /** Events that can repeat many times a second are merged per part within one snapshot, with data.count. */
-const COALESCE = new Set(["clicked"]);
+const COALESCE = new Set(["clicked", "spark"]);
+/** Fastest run() speed (time-lapse, for example a battery draining over a day). */
+export const MAX_SPEED = 3600;
+/** Above this speed the audio stream is muted (fast-forwarded sound is useless and would flood the player). */
+const AUDIO_MAX_SPEED = 4;
+/** Above this speed the largest solver step grows in proportion (time-lapse). */
+const STEP_SCALE_FROM = 10;
 
 export class SimulationImpl implements Simulation {
   private engine: Engine;
@@ -53,7 +59,7 @@ export class SimulationImpl implements Simulation {
 
   run(opts: RunOptions = {}): void {
     const sp = opts.speed ?? 1;
-    this.speed = Number.isFinite(sp) && sp > 0 ? Math.min(sp, 1000) : 1;
+    this.speed = Number.isFinite(sp) && sp > 0 ? Math.min(sp, MAX_SPEED) : 1;
     if (this.runFlag || this.disposed) return;
     this.runFlag = true;
     this.lastTick = now();
@@ -69,6 +75,8 @@ export class SimulationImpl implements Simulation {
   }
 
   step(dt: number): Snapshot {
+    this.engine.stepScale = 1;
+    this.setMuted(false);
     if (dt > 0 && Number.isFinite(dt)) this.engine.advance(this.engine.t + dt);
     const s = this.snapshot();
     this.audio?.flush();
@@ -146,7 +154,20 @@ export class SimulationImpl implements Simulation {
       });
     }
     const audio = this.audio;
-    this.engine.onAccept = (e) => audio.push(e.t, e.speakerVolts());
+    this.engine.onAccept = (e) => {
+      if (!this.muted) audio.push(e.t, e.speakerVolts());
+    };
+  }
+
+  private muted = false;
+  /** Mutes or unmutes the audio stream; unmuting restarts it at the current time (no burst for the gap). */
+  private setMuted(m: boolean): void {
+    if (m === this.muted) return;
+    this.muted = m;
+    if (this.audio) {
+      this.audio.flush();
+      this.audio.reset();
+    }
   }
 
   private schedule(delay: number): void {
@@ -163,6 +184,8 @@ export class SimulationImpl implements Simulation {
     const e = this.engine;
     const t0 = e.t;
     const deadline = start + (this.opts.budgetMs ?? 10);
+    e.stepScale = Math.max(1, this.speed / STEP_SCALE_FROM);
+    this.setMuted(this.speed > AUDIO_MAX_SPEED);
     try {
       if (want > 0) e.advance(t0 + want, () => now() > deadline);
     } catch (err) {

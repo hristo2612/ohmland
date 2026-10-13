@@ -22,7 +22,21 @@ export function seededRandom(seed: string): () => number {
   };
 }
 
-/** A value in [-1, 1) that depends only on the id and a salt. */
-export function spread(id: string, salt: string): number {
-  return seededRandom(`${salt}:${id}`)() * 2 - 1;
+/** A value in [-1, 1) that depends only on the id, a salt and the netlist seed (if any). */
+export function spread(id: string, salt: string, seed?: string): number {
+  return seededRandom(seed ? `${salt}:${seed}:${id}` : `${salt}:${id}`)() * 2 - 1;
+}
+
+/**
+ * A bell-shaped value in (-1, 1) (the mean of three uniform draws, standard deviation 1/3): most parts sit near
+ * their nominal value, a few near the edge of their tolerance, as in a real bag of parts.
+ */
+export function bell(id: string, salt: string, seed?: string): number {
+  const r = seededRandom(seed ? `${salt}:${seed}:${id}` : `${salt}:${id}`);
+  return ((r() + r() + r()) / 3) * 2 - 1;
+}
+
+/** Actual value of a toleranced part: nominal x (1 + 0.9 x tolerance x bell), so it is always within spec. */
+export function toleranced(nominal: number, tolerance: number, id: string, salt: string, seed?: string): number {
+  return nominal * (1 + 0.9 * tolerance * bell(id, salt, seed));
 }

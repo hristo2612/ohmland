@@ -24,6 +24,7 @@ import {
   type Ctx,
 } from "../engine/device";
 import { fmtA, fmtV, fmtW } from "../util/format";
+import { spread } from "../util/rng";
 
 type Spec<K extends PartSpec["kind"]> = Extract<PartSpec, { kind: K }>;
 
@@ -103,6 +104,12 @@ export const LED_FITS: Record<LedColor, { v20: number; nVt: number; rs: number }
 
 const GLOW_I0 = 2e-4;
 const GLOW_FULL = 0.03;
+/** The eye averages light over about 30 ms: fast switching looks steady and partly lit. */
+const EYE_TAU = 0.03;
+/** A brief flash of this much current or more still shows as a blip of FLASH_GLOW, fading over FLASH_TAU. */
+const FLASH_AMPS = 0.01;
+const FLASH_GLOW = 0.25;
+const FLASH_TAU = 0.08;
 /** Perceived brightness 0..1 for a current: roughly logarithmic, 0.85 near 15 mA, faint but visible at 0.5 mA. */
 export function ledGlow(i: number): number {
   if (!(i > 1e-6)) return 0;
@@ -115,6 +122,8 @@ export class LedDevice extends JunctionDevice {
   readonly v20: number;
   damage = 0;
   iAvg = 0;
+  /** Held glow of a recent brief flash (decays over FLASH_TAU). */
+  flash = 0;
   thermal = new Thermal(300, 0.5);
   private peak = 0;
   private damagedSent = false;
@@ -133,8 +142,12 @@ export class LedDevice extends JunctionDevice {
     const h = ctx.h;
     const i = this.current(x);
     const v = volt(x, this.an) - volt(x, this.ca);
-    // The eye integrates light over roughly 15 ms, so fast flicker looks like steady, dimmer light.
-    this.iAvg += (Math.max(0, i) - this.iAvg) * (1 - Math.exp(-h / 0.015));
+    // The eye integrates light over roughly 30 ms, so fast flicker looks like steady, dimmer light. A brief strong
+    // pulse (a coil's kickback through an LED) is far too short to register in that average, yet a real eye
+    // catches the blip: hold a small glow for it.
+    this.iAvg += (Math.max(0, i) - this.iAvg) * (1 - Math.exp(-h / EYE_TAU));
+    const blip = this.dead ? 0 : FLASH_GLOW * clamp((i - 0.2 * FLASH_AMPS) / (0.8 * FLASH_AMPS), 0, 1);
+    this.flash = Math.max(blip, this.flash * Math.exp(-h / FLASH_TAU));
     this.thermal.update(Math.max(0, v * i), h);
     if (this.dead) return;
 
@@ -195,12 +208,13 @@ export class LedDevice extends JunctionDevice {
     const i = this.current(x);
     const v = volt(x, this.an) - volt(x, this.ca);
     const s = baseState(i, v, v * i, this.thermal.temp, this.health(i));
-    s.glow = this.dead ? 0 : ledGlow(this.iAvg) * (1 - 0.6 * this.damage);
-    s.extra = { damage: this.damage, color: this.color };
+    s.glow = this.dead ? 0 : Math.max(ledGlow(this.iAvg), this.flash) * (1 - 0.6 * this.damage);
+    // stress: current as a share of the rated maximum (1 = at maxmA).
+    s.extra = { damage: this.damage, color: this.color, stress: Math.max(0, i) / this.maxA };
     return s;
   }
   override save(): Record<string, unknown> {
-    return { damage: this.damage, dead: this.dead, temp: this.thermal.temp, iAvg: this.iAvg, peak: this.peak };
+    return { damage: this.damage, dead: this.dead, temp: this.thermal.temp, iAvg: this.iAvg, flash: this.flash, peak: this.peak };
   }
   override restore(s: Record<string, unknown>): void {
     this.damage = finiteOr(s.damage as number, 0);
@@ -208,6 +222,7 @@ export class LedDevice extends JunctionDevice {
     this.damagedSent = this.damage >= 0.1;
     this.thermal.temp = finiteOr(s.temp as number, AMBIENT);
     this.iAvg = finiteOr(s.iAvg as number, 0);
+    this.flash = finiteOr(s.flash as number, 0);
     this.peak = finiteOr(s.peak as number, 0);
   }
   override replace(): void {
@@ -220,43 +235,63 @@ export class LedDevice extends JunctionDevice {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Rectifier and signal diodes with standard SPICE-like parameters.
+// Rectifier and signal diodes with standard SPICE-like parameters. They fail by heat (junction above about 175 C)
+// or by a current far beyond their surge rating. So a 1N4001 straight across a battery carries amps, heats up
+// over a second or so (while the battery reports `shorted`) and then fails; a 1N4148 fails almost at once.
 
 const DIODES = {
-  "1N4148": { Is: 2.52e-9, n: 1.752, rs: 0.568, bv: 100, rated: 0.2, rth: 350 },
-  "1N4001": { Is: 14.11e-9, n: 1.984, rs: 0.0339, bv: 75, rated: 1, rth: 100 },
+  "1N4148": { Is: 2.52e-9, n: 1.752, rs: 0.568, bv: 100, rated: 0.2, surge: 2, rth: 350, tau: 0.5 },
+  "1N4001": { Is: 14.11e-9, n: 1.984, rs: 0.0339, bv: 75, rated: 1, surge: 30, rth: 100, tau: 2 },
 } as const;
+
+const DIODE_MAX_C = 175;
 
 export class DiodeDevice extends JunctionDevice {
   readonly model: keyof typeof DIODES;
   damage = 0;
   thermal: Thermal;
   private peak = 0;
+  private damagedSent = false;
   constructor(spec: Spec<"diode">) {
     const model = spec.model && spec.model in DIODES ? spec.model : "1N4148";
     const m = DIODES[model];
     super(spec, { Is: m.Is, nVt: m.n * VT, rs: m.rs, bv: m.bv, gbd: 1 / 10, vs: 0.05 });
     this.model = model;
-    this.thermal = new Thermal(m.rth, 1);
+    this.thermal = new Thermal(m.rth, m.tau);
   }
   override accept(x: Float64Array, ctx: Ctx): void {
     const i = this.current(x);
     const v = volt(x, this.an) - volt(x, this.ca);
     this.thermal.update(Math.abs(v * i), ctx.h);
     if (this.dead) return;
-    const rated = DIODES[this.model].rated;
-    const iMax = 2 * rated;
-    if (Math.abs(i) > iMax) {
-      this.peak = Math.max(this.peak, Math.abs(i));
-      const k = Math.abs(i) / iMax;
-      this.damage += (k * k - 1) * 0.5 * ctx.h;
+    const m = DIODES[this.model];
+    this.peak = Math.max(this.peak, Math.abs(i));
+    let rate = 0;
+    if (Math.abs(i) > m.surge) {
+      const k = Math.abs(i) / m.surge;
+      rate += (k * k - 1) * 5;
     }
-    if (this.thermal.temp > 200) this.damage += ((this.thermal.temp - 200) / 100) * ctx.h;
+    const T = this.thermal.temp;
+    if (T > DIODE_MAX_C) rate += (T - DIODE_MAX_C) / 50;
+    if (rate <= 0) return;
+    this.damage += rate * ctx.h;
     if (this.damage >= 1) {
       this.dead = true;
       ctx.markDirty();
       ctx.markBreak();
-      ctx.emit(this.id, "died", `The ${this.model} diode failed after carrying up to ${fmtA(this.peak)}; it is rated for about ${fmtA(rated)}. It is now open.`, { amps: this.peak, ratedAmps: rated });
+      ctx.emit(
+        this.id,
+        "died",
+        `The ${this.model} diode failed after carrying up to ${fmtA(this.peak)}; it is rated for about ${fmtA(m.rated)}. It is now open.`,
+        { amps: this.peak, ratedAmps: m.rated, cause: T > DIODE_MAX_C ? "overheat" : "overcurrent" },
+      );
+    } else if (this.damage > 0.1 && !this.damagedSent && rate < 5) {
+      this.damagedSent = true;
+      ctx.emit(this.id, "damaged", `The ${this.model} diode is overheating: it is carrying ${fmtA(Math.abs(i))} and is rated for about ${fmtA(m.rated)}.`, {
+        amps: Math.abs(i),
+        ratedAmps: m.rated,
+        cause: "overheat",
+      });
     }
   }
   state(x: Float64Array): PartState {
@@ -265,7 +300,7 @@ export class DiodeDevice extends JunctionDevice {
     const T = this.thermal.temp;
     const health: Health = this.dead ? "dead" : T > 150 ? "smoking" : T > 100 ? "hot" : "ok";
     const s = baseState(i, v, v * i, T, health);
-    s.extra = { model: this.model };
+    s.extra = { model: this.model, damage: this.damage };
     return s;
   }
   override save(): Record<string, unknown> {
@@ -274,11 +309,14 @@ export class DiodeDevice extends JunctionDevice {
   override restore(s: Record<string, unknown>): void {
     this.damage = finiteOr(s.damage as number, 0);
     this.dead = s.dead === true;
+    this.damagedSent = this.damage > 0.1;
     this.thermal.temp = finiteOr(s.temp as number, AMBIENT);
   }
   override replace(): void {
     this.damage = 0;
     this.dead = false;
+    this.damagedSent = false;
+    this.peak = 0;
     this.thermal.temp = AMBIENT;
   }
 }
@@ -290,6 +328,8 @@ export class DiodeDevice extends JunctionDevice {
 const Q = {
   IS: 6.734e-15,
   BF: 416.4,
+  // Reverse gain (emitter and collector swapped), as in the SPICE model. Higher values make astables with a low
+  // base to collector resistor ratio latch with both transistors on at power-up.
   BR: 0.7371,
   NE: 1.259,
   ISE: 6.734e-15,
@@ -321,7 +361,16 @@ export class NpnDevice extends Device {
   dead = false;
   damage = 0;
   thermal = new Thermal(Q.RTH, 3);
+  /**
+   * This transistor's base current scale: its forward gain BF and base leakage ISE are spread together (fixed by
+   * its id) so that hFE at 10 mA lies between about 150 and 250.
+   */
+  readonly bf: number;
+  readonly ise: number;
   private readonly vcrit = vcritOf(Q.IS, VT);
+  private cause: "overcurrent" | "overheat" = "overcurrent";
+  private reverseTime = 0;
+  private reversedSent = false;
   private peakIc = 0;
   private peakP = 0;
   private smoked = false;
@@ -334,9 +383,12 @@ export class NpnDevice extends Device {
   gbbe = 0;
   gbbc = 0;
 
-  constructor(spec: Spec<"npn">) {
+  constructor(spec: Spec<"npn">, seed?: string) {
     super(spec);
     this.nonlinear = true;
+    const f = 1.12 + 0.27 * spread(spec.id, "npn-beta", seed);
+    this.bf = Q.BF * f;
+    this.ise = Q.ISE / f;
   }
   bind(bd: Binder): void {
     this.c = bd.node(this.pin("c"));
@@ -359,8 +411,8 @@ export class NpnDevice extends Device {
     const Ir = Q.IS * (er - 1);
     const gir = (Q.IS * dexpLin(xr)) / vt;
     const xe = vbe / (Q.NE * vt);
-    const Ile = Q.ISE * (expLin(xe) - 1);
-    const gle = (Q.ISE * dexpLin(xe)) / (Q.NE * vt);
+    const Ile = this.ise * (expLin(xe) - 1);
+    const gle = (this.ise * dexpLin(xe)) / (Q.NE * vt);
     const den = Math.max(0.05, 1 - vbc / Q.VAF);
     const q1 = 1 / den;
     const dq1 = 1 - vbc / Q.VAF > 0.05 ? (q1 * q1) / Q.VAF : 0;
@@ -375,8 +427,8 @@ export class NpnDevice extends Device {
     this.ic = icc - Ir / Q.BR - GMIN * vbc;
     this.gcbe = dIccVbe;
     this.gcbc = dIccVbc - gir / Q.BR - GMIN;
-    this.ib = If / Q.BF + Ile + Ir / Q.BR + GMIN * (vbe + vbc);
-    this.gbbe = gif / Q.BF + gle + GMIN;
+    this.ib = If / this.bf + Ile + Ir / Q.BR + GMIN * (vbe + vbc);
+    this.gbbe = gif / this.bf + gle + GMIN;
     this.gbbc = gir / Q.BR + GMIN;
   }
   override initIter(x: Float64Array): void {
@@ -432,26 +484,53 @@ export class NpnDevice extends Device {
   override accept(x: Float64Array, ctx: Ctx): void {
     const [ic, ib, ie] = this.terminal(x);
     const vce = volt(x, this.c) - volt(x, this.e);
-    const vbe = volt(x, this.b) - volt(x, this.e);
-    const p = Math.max(0, vce * ic + vbe * ib);
+    const p = Math.max(0, vce * ic + (volt(x, this.b) - volt(x, this.e)) * ib);
     this.thermal.update(p, ctx.h);
     if (this.dead) return;
     const iMax = Math.max(Math.abs(ic), Math.abs(ie));
+    let byCurrent = 0;
+    let byHeat = 0;
     if (iMax > Q.ICMAX) {
       const k = iMax / Q.ICMAX;
-      this.damage += (k * k - 1) * 0.5 * ctx.h;
+      byCurrent = (k * k - 1) * 0.5;
     }
     this.peakIc = Math.max(this.peakIc, iMax);
     this.peakP = Math.max(this.peakP, p);
     const T = this.thermal.temp;
-    if (T > 150) this.damage += ((T - 150) / 100) * ctx.h;
+    if (T > 150) byHeat = (T - 150) / 100;
+    if (byCurrent + byHeat > 0) {
+      this.cause = byCurrent >= byHeat ? "overcurrent" : "overheat";
+      this.damage += (byCurrent + byHeat) * ctx.h;
+    }
+    // Collector and emitter swapped: the transistor works backwards with a gain of only a few.
+    const vbe = volt(x, this.b) - volt(x, this.e);
+    const vbcx = volt(x, this.b) - volt(x, this.c);
+    if (vbcx > 0.5 && vbe < 0.3 && ie > 1e-6) {
+      this.reverseTime += ctx.h;
+      if (this.reverseTime > 0.05 && !this.reversedSent) {
+        this.reversedSent = true;
+        ctx.emit(
+          this.id,
+          "reversed",
+          "This transistor is in backwards: collector and emitter are swapped. Backwards it has almost no gain, so only a trickle flows. With the flat face toward you the legs are E, B, C from left to right.",
+          { cause: "reverse", amps: ie },
+        );
+      }
+    } else this.reverseTime = 0;
     if (T > 200 && !this.smoked) {
       this.smoked = true;
-      ctx.emit(this.id, "smoke", `The transistor is overheating (${fmtW(p)}; its limit is ${fmtW(Q.PMAX)}). It needs less current or a lower voltage across it.`, { watts: p });
+      ctx.emit(this.id, "smoke", `The transistor is overheating (${fmtW(p)}; its limit is ${fmtW(Q.PMAX)}). It needs less current or a lower voltage across it.`, {
+        watts: p,
+        cause: "overheat",
+      });
     }
     if (this.damage >= 0.15 && !this.damagedSent && this.damage < 1) {
       this.damagedSent = true;
-      ctx.emit(this.id, "damaged", `The transistor is being pushed past its limits: ${fmtA(iMax)} (the 2N3904 handles ${fmtA(Q.ICMAX)}) and ${fmtW(p)} of heat. It is getting damaged.`, { amps: iMax, watts: p });
+      ctx.emit(this.id, "damaged", `The transistor is being pushed past its limits: ${fmtA(iMax)} (the 2N3904 handles ${fmtA(Q.ICMAX)}) and ${fmtW(p)} of heat. It is getting damaged.`, {
+        amps: iMax,
+        watts: p,
+        cause: this.cause,
+      });
     }
     if (this.damage >= 1) {
       this.dead = true;
@@ -462,7 +541,7 @@ export class NpnDevice extends Device {
         this.id,
         "died",
         `The transistor failed. It carried up to ${fmtA(this.peakIc)} and ${fmtW(this.peakP)}, beyond the 2N3904's ${fmtA(Q.ICMAX)} and ${fmtW(Q.PMAX)} limits.${base}`,
-        { amps: this.peakIc, watts: this.peakP },
+        { amps: this.peakIc, watts: this.peakP, cause: this.cause },
       );
     }
   }
@@ -488,17 +567,18 @@ export class NpnDevice extends Device {
             : "reverse";
     // For transistors, i is the collector current and v is Vce.
     const s = baseState(ic, vce, p, T, health);
-    s.extra = { ib, ie, vbe, vbc, region, beta: Math.abs(ib) > 1e-12 ? ic / ib : 0 };
+    s.extra = { ib, ie, vbe, vbc, region, beta: Math.abs(ib) > 1e-12 ? ic / ib : 0, bf: this.bf };
     return s;
   }
   override save(): Record<string, unknown> {
-    return { damage: this.damage, dead: this.dead, temp: this.thermal.temp };
+    return { damage: this.damage, dead: this.dead, temp: this.thermal.temp, cause: this.cause };
   }
   override restore(s: Record<string, unknown>): void {
     this.damage = finiteOr(s.damage as number, 0);
     this.dead = s.dead === true;
     this.thermal.temp = finiteOr(s.temp as number, AMBIENT);
     this.damagedSent = this.damage >= 0.15;
+    if (s.cause === "overheat") this.cause = "overheat";
   }
   override replace(): void {
     this.damage = 0;
@@ -508,26 +588,33 @@ export class NpnDevice extends Device {
     this.damagedSent = false;
     this.peakIc = 0;
     this.peakP = 0;
+    this.reversedSent = false;
+    this.cause = "overcurrent";
   }
 }
 
 // ---------------------------------------------------------------------------------------------------------------
 // Phototransistor (two leads): behaves like an NPN whose base current comes from light. Collector current is set by
-// the light (about 1.5 mA at full light) until the load saturates it.
+// the light (about 2 mA at full light, 100 nA dark) until the load saturates it near 0.2 V. Connected backwards it
+// passes almost nothing (and says so).
 
-const PT_IMAX = 1.5e-3;
-const PT_DARK = 1e-8;
-const PT_VK = 0.1;
+const PT_IMAX = 2e-3;
+const PT_DARK = 1e-7;
+/** Saturation: the current reaches about 75% of the photo current at 0.2 V. */
+const PT_VK = 0.2;
 const PT_VA = 50;
+/** Reverse conduction as a fraction of the forward photo current. */
+const PT_REV = 0.01;
 
 export class PhototransistorDevice extends Device {
   c = -1;
   e = -1;
   light: number;
+  private reverseTime = 0;
+  private reversedSent = false;
   constructor(spec: Spec<"phototransistor">) {
     super(spec);
     this.nonlinear = true;
-    this.accepts = false;
     this.light = clamp(finiteOr(spec.light, 0), 0, 1);
   }
   bind(b: Binder): void {
@@ -537,9 +624,15 @@ export class PhototransistorDevice extends Device {
   private ig(v: number, out: { i: number; g: number }): void {
     const iph = this.light * PT_IMAX + PT_DARK;
     const th = Math.tanh(v / PT_VK);
-    const early = v > 0 ? 1 + v / PT_VA : 1;
-    out.i = iph * th * early + GMIN * v;
-    out.g = ((iph * (1 - th * th)) / PT_VK) * early + (v > 0 ? (iph * th) / PT_VA : 0) + GMIN;
+    const dth = (1 - th * th) / PT_VK;
+    if (v >= 0) {
+      const early = 1 + v / PT_VA;
+      out.i = iph * th * early + GMIN * v;
+      out.g = iph * dth * early + (iph * th) / PT_VA + GMIN;
+    } else {
+      out.i = PT_REV * iph * th + GMIN * v;
+      out.g = PT_REV * iph * dth + GMIN;
+    }
   }
   override stampNonlinear(A: Float64Array, b: Float64Array, n: number, x: Float64Array): void {
     const v = volt(x, this.c) - volt(x, this.e);
@@ -549,6 +642,24 @@ export class PhototransistorDevice extends Device {
   pinCurrents(x: Float64Array): number[] {
     this.ig(volt(x, this.c) - volt(x, this.e), o1);
     return [o1.i, -o1.i];
+  }
+  override accept(x: Float64Array, ctx: Ctx): void {
+    const v = volt(x, this.c) - volt(x, this.e);
+    if (v < -0.3) {
+      this.reverseTime += ctx.h;
+      if (this.reverseTime > 0.05 && !this.reversedSent) {
+        this.reversedSent = true;
+        ctx.emit(
+          this.id,
+          "reversed",
+          "The phototransistor is in backwards, so it passes almost nothing whatever the light. Its collector (usually the shorter leg, by the flat side) goes to the more positive side.",
+          { volts: -v, cause: "reverse" },
+        );
+      }
+    } else if (v > 0) {
+      this.reverseTime = 0;
+      this.reversedSent = false;
+    }
   }
   state(x: Float64Array): PartState {
     const v = volt(x, this.c) - volt(x, this.e);

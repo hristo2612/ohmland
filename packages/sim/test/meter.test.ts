@@ -92,6 +92,17 @@ describe("multimeter", () => {
     expect(allEvents(s).some((e) => e.type === "shorted")).toBe(true);
   });
 
+  test("the 10 A input warns (without damage) after carrying amps for more than 10 s", () => {
+    const s = simulateFor({ parts: [battery9(), resistor("R1", "vcc", "m", 3, 50), meter("M1", { com: "gnd", a10: "m" }, "dca-10a")] }, 12, {
+      sampleEvery: 0.5,
+    });
+    const warn = allEvents(s).find((e) => e.type === "warning");
+    expect(warn?.data?.cause).toBe("a10-heat");
+    expect(warn!.t).toBeGreaterThan(10);
+    expect(last(s).parts.M1!.health).toBe("hot");
+    expect(Number(last(s).parts.M1!.display)).toBeGreaterThan(1);
+  });
+
   test("the reading stays on screen when the bench is edited", () => {
     const sim = createSimulation();
     const parts = [battery9(), meter("M1", { com: "gnd", vohm: "vcc" }, "dcv")];

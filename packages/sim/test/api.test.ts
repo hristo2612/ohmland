@@ -84,6 +84,29 @@ describe("API", () => {
     expect(s[3]!.parts.D1!.glow!).toBeGreaterThan(0.8);
   });
 
+  test("time-lapse: run({ speed: 3600 }) drains a battery about an hour per wall second without lagging", async () => {
+    const sim = createSimulation();
+    sim.load({
+      parts: [
+        { id: "B1", kind: "battery", pins: { pos: "vcc", neg: "gnd" }, emf: 9.4, internalOhms: 1.7, mAh: 500 },
+        resistor("R1", "vcc", "a", 470),
+        led("D1", "a", "gnd"),
+      ],
+    });
+    const snaps: Snapshot[] = [];
+    sim.onSnapshot((s) => snaps.push(s));
+    sim.run({ speed: 3600 });
+    await wait(300);
+    sim.pause();
+    expect(sim.time).toBeGreaterThan(600);
+    const s = snaps[snaps.length - 1]!;
+    expect(s.lag).toBeLessThan(0.2);
+    // About 15 mA from 500 mAh: 3% an hour.
+    const soc = Number(s.parts.B1!.extra!.soc);
+    expect(1 - soc).toBeCloseTo((0.0155 * s.t) / 1800, 2);
+    sim.dispose();
+  });
+
   test("live inputs survive a rebuild unless the netlist changes them", () => {
     const sim = createSimulation();
     const parts = [battery9(), { id: "S1", kind: "switch" as const, pins: { a: "vcc", b: "x" }, closed: false }, resistor("R1", "x", "a", 470), led("D1", "a", "gnd")];

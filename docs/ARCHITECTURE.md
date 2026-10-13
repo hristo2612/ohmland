@@ -242,33 +242,42 @@ saved; the finale waits for the reveal (at most a few seconds). Today the hooks 
 ## Simulator (`packages/sim`)
 
 A Modified Nodal Analysis engine with Newton-Raphson for nonlinear parts and companion models for capacitors and
-inductors, run in a Web Worker. Small circuits (under about 60 nodes) must run in real time.
+inductors, run in a Web Worker. Small circuits (under about 60 nodes) must run in real time; the heaviest Unit 2
+circuit (the five-transistor siren) runs at about 4 x real time. Models, defaults and numbers: `packages/sim/README.md`.
 
 Netlist contract (stable; `packages/bench` and `content/labs` depend on it):
 
 ```ts
 type NodeId = string;                      // "gnd" is the reference node
-type Netlist = { parts: PartSpec[] };
+type Netlist = { parts: PartSpec[]; seed?: string };   // seed: mixed into per-part spreads (tolerances etc.)
 type PartSpec =                            // discriminated by kind; pins map pin name -> node
-  | { id: string; kind: "resistor"; pins: { a: NodeId; b: NodeId }; ohms: number; watts?: number }
+  | { id: string; kind: "resistor"; pins: { a: NodeId; b: NodeId }; ohms: number; watts?: number;
+      tolerance?: number; actualOhms?: number }        // tolerance default 0.05; actualOhms forces the real value
   | { id: string; kind: "battery"; pins: { pos: NodeId; neg: NodeId }; emf: number; internalOhms: number; mAh?: number }
   | { id: string; kind: "led"; pins: { anode: NodeId; cathode: NodeId }; color: LedColor; maxmA?: number }
   | { id: string; kind: "switch"; pins: { a: NodeId; b: NodeId }; closed: boolean }        // input: closed
-  | { id: string; kind: "pushbutton"; pins: { a: NodeId; b: NodeId } }                      // input: pressed
-  | { id: string; kind: "spdt"; pins: { com: NodeId; a: NodeId; b: NodeId }; to: "a" | "b" }
+  | { id: string; kind: "pushbutton"; pins: { a: NodeId; b: NodeId }; pressed?: boolean;
+      normallyClosed?: boolean }                                                            // input: pressed
+  | { id: string; kind: "spdt"; pins: { com: NodeId; a: NodeId; b: NodeId }; to: "a" | "b" }  // input: to
+  | { id: string; kind: "dpdt"; pins: { com1: NodeId; a1: NodeId; b1: NodeId; com2: NodeId; a2: NodeId; b2: NodeId };
+      to: "a" | "b" }                                       // two SPDT poles on one actuator; input: to
   | { id: string; kind: "fuse"; pins: { a: NodeId; b: NodeId }; amps: number }
-  | { id: string; kind: "capacitor"; pins: { pos: NodeId; neg: NodeId }; farads: number; volts?: number; polarized?: boolean }
+  | { id: string; kind: "capacitor"; pins: { pos: NodeId; neg: NodeId }; farads: number; volts?: number; polarized?: boolean;
+      leakOhms?: number; esrOhms?: number; tolerance?: number; actualFarads?: number }
   | { id: string; kind: "pot"; pins: { a: NodeId; wiper: NodeId; b: NodeId }; ohms: number; position: number }
-  | { id: string; kind: "relay"; pins: { coilA: NodeId; coilB: NodeId; com: NodeId; no: NodeId; nc: NodeId }; coilOhms: number; pullIn: number; dropOut: number }
+  | { id: string; kind: "relay"; pins: { coilA: NodeId; coilB: NodeId; com: NodeId; no: NodeId; nc: NodeId;
+      com2?: NodeId; no2?: NodeId; nc2?: NodeId }; coilOhms: number; pullIn: number; dropOut: number;
+      coilHenries?: number; operateMs?: number; releaseMs?: number; tolerance?: number }
   | { id: string; kind: "npn"; pins: { c: NodeId; b: NodeId; e: NodeId }; model?: "2N3904" }
-  | { id: string; kind: "phototransistor"; pins: { c: NodeId; e: NodeId } }               // input: light 0..1
+  | { id: string; kind: "phototransistor"; pins: { c: NodeId; e: NodeId }; light?: number }  // input: light 0..1
   | { id: string; kind: "diode"; pins: { anode: NodeId; cathode: NodeId }; model?: "1N4001" | "1N4148" }
-  | { id: string; kind: "speaker"; pins: { a: NodeId; b: NodeId }; ohms: number }
+  | { id: string; kind: "speaker"; pins: { a: NodeId; b: NodeId }; ohms: number; henries?: number; watts?: number;
+      enclosure?: boolean }
   | { id: string; kind: "multimeter"; pins: { com: NodeId; vohm: NodeId; ma: NodeId; a10: NodeId };
-      mode: MeterMode; range?: string }                                                     // input: mode, range
-  | { id: string; kind: "probe-resistance"; pins: { a: NodeId; b: NodeId }; ohms: number }  // skin, water, etc.
+      mode: MeterMode; range?: string }                     // input: mode, range, replaceFuse
+  | { id: string; kind: "probe-resistance"; pins: { a: NodeId; b: NodeId }; ohms: number }  // skin, water; input: ohms
   | { id: string; kind: "cell"; pins: { pos: NodeId; neg: NodeId }; emf: number; internalOhms: number }  // fruit cell etc.
-  | { id: string; kind: "wire"; pins: { a: NodeId; b: NodeId } };
+  | { id: string; kind: "wire"; pins: { a: NodeId; b: NodeId }; ohms?: number };  // ohms: clip and test leads
 type MeterMode = "off" | "dcv" | "acv" | "dca-ma" | "dca-10a" | "ohm" | "continuity" | "diode";
 ```
 
@@ -278,32 +287,47 @@ not rename existing fields.
 Runtime API:
 
 ```ts
-const sim = await createSimClient();            // spawns the worker; createSimulation() is the same API in-thread
-sim.load(netlist);                               // full rebuild; keeps state (charge, damage, heat) of parts whose id survives
-sim.setInput(partId, key, value);                // pressed, closed, position, light, mode, range
-sim.run({ speed: 1 });                           // real time; speed < 1 for slow motion
+import { createSimClient } from "@ohmland/sim/client"; // main thread: no engine code, spawns the worker
+// In-thread (tests, Node, lab solution checks): import { createSimulation, simulateFor } from "@ohmland/sim"
+
+const sim = await createSimClient();            // createSimulation() is the same API in-thread
+sim.load(netlist);                               // full rebuild; keeps state (charge, damage, heat, wear) of parts whose id survives
+sim.setInput(partId, key, value);                // pressed, closed, to, position, light, ohms, mode, range,
+                                                 // replaceFuse (meter: fit a new mA fuse), replace (any part: fresh part, same id)
+sim.run({ speed: 1 });                           // real time; below 1 slow motion; up to 3600 time-lapse (audio muted above 4)
 sim.onSnapshot((s: Snapshot) => ...);            // about 30 per second
 type Snapshot = {
   t: number;                                     // simulated seconds
   nodes: Record<NodeId, number>;                 // volts
   parts: Record<string, PartState>;
-  events: SimEvent[];                            // since last snapshot: damaged, blown, clicked, shorted, reversed
+  events: SimEvent[];                            // since last snapshot
+  lag?: number;                                  // 0..1, how far behind real time x speed the sim is
 };
 type PartState = {
-  i: number; v: number; p: number;               // current through (pin order a->b), voltage across, power
+  i: number; v: number; p: number;               // current through (first pin to second), voltage across, power
   temp: number;                                  // degrees C
-  health: "ok" | "hot" | "smoking" | "dead";     // dead parts become open (or short, per kind)
-  glow?: number;                                 // LEDs: 0..1 perceived brightness
+  health: "ok" | "hot" | "smoking" | "dead";     // dead parts become open
+  glow?: number;                                 // LEDs: 0..1 perceived brightness (30 ms average, brief flashes held)
   closed?: boolean;                              // relays, switches
   display?: string;                              // multimeter: "9.12", "OL", "-0.42", " .000"
   unit?: string;                                 // multimeter annunciator
+  extra?: Record<string, number | string | boolean>;  // per-kind detail (actual values, wear, armature, ...)
 };
+type SimEventType = "damaged" | "died" | "blown" | "clicked" | "shorted" | "reversed" | "smoke" | "meter-fuse"
+  | "spark" | "warning";                        // data.cause on damage events: reverse, overvoltage, overcurrent,
+                                                 // overheat, overpower, worn; clicked has data.to ("no" | "nc")
 ```
 
-Audio: speakers expose an audio-rate sample stream (`sim.onAudio`) for an AudioWorklet.
+Sign conventions worth knowing: a battery's `i` flows from `pos` to `neg` through the part, so it is negative while
+the battery discharges; `extra.out` is the current it delivers from its + terminal. For transistors `i` is the
+collector current and `v` is Vce (collector minus emitter), not the first-pin-to-second-pin rule.
+
+Audio: speakers expose an audio-rate sample stream (`sim.onAudio`, 44.1 kHz with the rate passed along) for an
+AudioWorklet.
 
 Damage is part of the lesson design: LEDs die above their current rating, resistors smoke above their power rating,
-fuses blow on I squared t, the meter's mA input fuse blows, batteries heat when shorted. Every damage event carries
+fuses blow on I squared t, the meter's mA input fuse blows, batteries heat when shorted, electrolytics vent when
+reversed or over-volted, speakers cook above their rating, contacts spark and wear out. Every damage event carries
 enough context for the lab to explain what happened.
 
 ## Workbench (`packages/bench`)

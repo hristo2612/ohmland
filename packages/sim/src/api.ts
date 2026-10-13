@@ -3,7 +3,10 @@
 import type { InputKey, InputValue, Netlist, Snapshot } from "./types";
 
 export type RunOptions = {
-  /** Simulated seconds per wall second. 1 is real time, below 1 is slow motion. Default 1. */
+  /**
+   * Simulated seconds per wall second. 1 is real time, below 1 is slow motion, up to 3600 for time-lapse (an hour
+   * per second: a battery draining over a day). Above 4 the audio stream is muted. Default 1.
+   */
   speed?: number;
 };
 
