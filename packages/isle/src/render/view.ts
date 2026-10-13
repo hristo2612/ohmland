@@ -802,7 +802,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     shade: new THREE.Color(NOTEBOOK.shade),
     shadeNight: new THREE.Color(NOTEBOOK.shadeNight),
   };
-  const levels = { ink: new THREE.Color(), line: 0.8, crease: 0.4, paper: new THREE.Color(), grid: new THREE.Color() };
+  const levels = { ink: new THREE.Color(), contour: 0.85, line: 0.8, crease: 0.4, paper: new THREE.Color(), grid: new THREE.Color() };
   /** The notebook by day, at dusk and at night: a page in daylight, then the night page under a warm desk lamp. */
   const applyPage = (n: number, w: number) => {
     // the night page is lit like a desk at night: a dim room and a warm lamp, so the isle still reads as a drawing
@@ -815,7 +815,9 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     glowU.uNight.value = n;
     halos.fade.value = n;
     levels.ink.copy(PAGE.ink).lerp(PAGE.inkNight, n);
-    levels.line = 0.78 - 0.3 * n;
+    // by night the lines are light graphite on the dark page: the contour clear, the lines inside it faint
+    levels.contour = 0.85 - 0.25 * n;
+    levels.line = 0.78 - 0.43 * n;
     levels.crease = 0.36 * (1 - n);
     levels.paper.copy(PAGE.paper).lerp(PAGE.paperNight, n);
     levels.grid.copy(PAGE.grid).lerp(PAGE.gridNight, n);

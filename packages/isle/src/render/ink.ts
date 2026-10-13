@@ -28,6 +28,7 @@ uniform float uWpp;
 uniform float uMinStep;
 uniform vec3 uInk;
 uniform float uLineA;
+uniform float uContourA;
 uniform float uCreaseA;
 uniform vec3 uPaper;
 uniform vec3 uGrid;
@@ -62,11 +63,12 @@ void main() {
   float crease = smoothstep(creaseT, creaseT * 1.8, lap) * (1.0 - step(stepT, max(far, near)));
   // the outer contour, where the isle meets the paper, is drawn twice as wide
   float paperZ = uSpan * 0.9999;
+  float contour = 0.0;
   if (d0 < paperZ) {
     float o = max(max(D(vec2(-2.0 * r, 0.0)), D(vec2(2.0 * r, 0.0))), max(D(vec2(0.0, 2.0 * r)), D(vec2(0.0, -2.0 * r))));
-    line = max(line, step(paperZ, o));
+    contour = max(step(paperZ, o), step(paperZ, far + d0));
   }
-  float ink = max(line * uLineA, crease * uCreaseA);
+  float ink = max(max(line * uLineA, contour * uContourA), crease * uCreaseA);
 
   // the paper under the scene (premultiplied colour over it), with the grid's hairlines from the top left
   vec4 base = c;
@@ -86,8 +88,9 @@ void main() {
 }`;
 
 export type InkLevels = {
-  /** Ink colour (linear) and how dark outlines and creases are drawn. */
+  /** Ink colour (linear), and how dark the contour, the lines inside the isle and its creases are drawn. */
   ink: THREE.Color;
+  contour: number;
   line: number;
   crease: number;
   paper: THREE.Color;
@@ -101,8 +104,8 @@ export class InkPass {
   private readonly cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private readonly u: Record<string, THREE.IUniform>;
   private dpr = 1;
-  /** How dark creases are when the isle is close (they fade as it gets small). */
-  private creaseA = 0.4;
+  /** How dark lines inside the isle and creases are when it is close (they fade as it gets small). */
+  private readonly levels = { line: 0.8, crease: 0.4 };
 
   constructor(
     readonly paper: Paper,
@@ -124,6 +127,7 @@ export class InkPass {
       uMinStep: { value: 0.09 },
       uInk: { value: new THREE.Color(NOTEBOOK.ink) },
       uLineA: { value: 0.8 },
+      uContourA: { value: 0.85 },
       uCreaseA: { value: 0.4 },
       uPaper: { value: new THREE.Color(NOTEBOOK.paper) },
       uGrid: { value: new THREE.Color(NOTEBOOK.grid) },
@@ -149,11 +153,12 @@ export class InkPass {
     this.u.uGridW!.value = Math.max(1, Math.round(dpr));
   }
 
-  /** Sets the colours for the time of day. */
+  /** Sets the colours and line strengths for the time of day. */
   setLevels(l: InkLevels): void {
     (this.u.uInk!.value as THREE.Color).copy(l.ink);
-    this.u.uLineA!.value = l.line;
-    this.creaseA = l.crease;
+    this.levels.line = l.line;
+    this.levels.crease = l.crease;
+    this.u.uContourA!.value = l.contour;
     (this.u.uPaper!.value as THREE.Color).copy(l.paper);
     (this.u.uGrid!.value as THREE.Color).copy(l.grid);
   }
@@ -167,9 +172,11 @@ export class InkPass {
     const wpp = (cam.top - cam.bottom) / cam.zoom / h;
     this.u.uSpan!.value = cam.far - cam.near;
     this.u.uWpp!.value = wpp;
-    // creases fade as the isle gets small (a pixel worth more than about a tenth of a cell), outlines stay
+    // as the isle gets small (a CSS pixel worth more than about a tenth of a cell) creases fade out and the lines
+    // inside it lighten, while the contour stays: a drawing of a far thing has fewer lines
     const k = THREE.MathUtils.clamp((0.075 - wpp * this.dpr) / 0.04, 0, 1);
-    this.u.uCreaseA!.value = this.creaseA * k;
+    this.u.uCreaseA!.value = this.levels.crease * k;
+    this.u.uLineA!.value = this.levels.line * (0.65 + 0.35 * k);
     renderer.render(this.quad, this.cam);
   }
 
