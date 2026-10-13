@@ -89,13 +89,15 @@ content/
   units/<unit-id>/<module-id>/module.yaml     id, title, summary, landmark {id, name}, lesson order
   units/<unit-id>/<module-id>/<lesson-id>/lesson.yaml
   labs/<lab-id>.ts                    lab definitions (typed TS, default export defineLab(...))
+  labs/lib/                           goal helpers shared by labs (not labs themselves)
 ```
 
 Every file is validated by zod (`apps/web/src/content/schema.ts`) when the site builds (`apps/web/src/content/load.ts`);
 any problem fails the build with a list of every issue, file by file and field by field. The loader also checks
 cross-references: folder names match ids, lesson ids are unique across the course, every `lab` step has its
-`content/labs/<lab>.ts`, every `unlocks.parts` id and hook `visual.part` exists in `parts.yaml`, landmark and island
-piece ids are unique. Unknown fields are errors (typos never pass silently).
+`content/labs/<lab>.ts`, every `unlocks.parts` id and hook `visual.part` exists in `parts.yaml`, landmark ids are
+unique (island pieces may repeat: several lessons can place the same kind of piece). Unknown fields are errors (typos
+never pass silently).
 
 `course.yaml`:
 

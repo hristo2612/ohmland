@@ -1,0 +1,141 @@
+# Blueprint: docs/curriculum/unit-1.md, L9.
+id: measure-the-flow
+version: 1
+title: Measuring the flow
+summary: Put the meter in series to measure current, prove it's the same everywhere, and blow a meter fuse once.
+minutes: 13
+unlocks:
+  parts: []
+  isle: test-lead-arch
+steps:
+  - type: hook
+    body: |
+      So far you've judged current by brightness. Time to measure it. There's a catch: current flows through things,
+      so the meter has to become part of the loop. You break the circuit and let the current pass through the meter
+      itself. Get it right and you can count the flow anywhere. Get it wrong and the meter's own little fuse pops.
+      Today you'll do both.
+    visual: { kind: part, part: multimeter }
+    predict:
+      prompt: You measure the current just before the LED, then just after it. The second reading is...
+      options:
+        - Lower, because the LED used some up
+        - The same
+        - Higher
+    mascot: Brightness is a guess. Let's count the current.
+
+  - type: lab
+    lab: measure-the-flow
+
+  - type: explain
+    cards:
+      - title: Through, not across
+        body: |
+          Current is a flow, so to measure it the flow must pass through the meter. You open the loop and let the meter
+          close the gap. That is called connecting it **in series**. On mA, the meter's input is almost a plain wire,
+          so it barely changes the circuit. The setup: red lead in mA, dial on mA, loop broken, meter in the gap.
+        # widget (planned): flow-dots. Dots stream around the loop and through the meter; a counter ticks with the
+        # reading.
+      - title: The same all the way round
+        body: |
+          In a single loop the current is the same at every point. The LED doesn't use up current. It uses up energy:
+          charge enters with a higher voltage and leaves with a lower one, and the difference becomes light and heat.
+          Every bit of charge that enters a part leaves it again. That's why your meter read the same on both sides.
+      - title: Why the meter has a fuse
+        body: |
+          On mA, the meter is close to a short circuit. Put it straight across a battery and nothing limits the
+          current except the battery itself, so amps flow. A small fuse inside gives its life to protect the meter.
+          Many low-cost meters leave the 10A input unfused, so that socket deserves extra care.
+      - title: Amps, milliamps, microamps
+        body: |
+          1 A is 1,000 mA, and 1 mA is 1,000 µA. One amp means about 6.24 × 10¹⁸ electrons pass a point every second,
+          a number with nineteen digits. An indicator LED needs a few milliamps. A phone charger supplies an amp or
+          two. A quartz wristwatch ticks along on about a microamp.
+
+  - type: quiz
+    items:
+      - id: amps-across-led
+        type: choice
+        prompt: Jo sets the meter to mA and touches the probes to the two legs of a glowing LED. What happens?
+        options:
+          - text: The LED goes out, because the meter becomes a shortcut around it
+            correct: true
+            why: On mA the meter is nearly a wire, so current bypasses the LED. The resistor still limits the current, so the fuse survives here.
+          - text: The meter shows the LED's current
+            why: To measure current the meter must be in series, not across.
+          - text: The LED gets brighter
+            why: Current now flows through the meter instead of the LED.
+        explain: An ammeter goes in the loop, never across a part.
+
+      - id: same-current
+        type: choice
+        prompt: In a battery, resistor and LED loop you read 12.0 mA between the battery and the resistor. What will you read between the LED and battery minus?
+        options:
+          - text: 12.0 mA
+            correct: true
+            why: In a single loop the current is the same everywhere.
+          - text: Less than 12.0 mA
+            why: The LED doesn't use up current, only energy.
+          - text: 0 mA
+            why: Current flows all the way around the loop, or not at all.
+        explain: One loop, one current.
+
+      - id: ma-to-amps
+        type: numeric
+        prompt: Write 15.7 mA in amps.
+        answer: 0.0157
+        unit: A
+        tolerance: 0.5
+        hint: Move the decimal point three places left.
+        explain: "Divide by 1,000: move the decimal point three places left. 15.7 mA is 0.0157 A."
+
+      - id: zero-reading
+        type: choice
+        prompt: After an accident, your meter reads 0.0 on every mA range, even in a working circuit, but it still measures volts perfectly. What's the likely cause?
+        options:
+          - text: The mA fuse has blown
+            correct: true
+            why: A blown fuse opens the mA path, so no current can reach the meter's measuring circuit.
+          - text: The meter's battery is flat
+            why: Then the volts setting wouldn't work either.
+          - text: The circuit has no current
+            why: You said the circuit is working, so current is flowing.
+        explain: If volts work but mA reads zero everywhere, check the mA fuse.
+
+      - id: round-it
+        type: numeric
+        prompt: Your meter shows 7.46 mA. Round it to one decimal place.
+        answer: 7.5
+        unit: mA
+        tolerance: 0
+        hint: Look at the digit you are dropping.
+        explain: The digit you drop is 6. Five or more rounds up, so 7.46 becomes 7.5.
+
+      - id: two-amps
+        type: choice
+        prompt: You expect a current of about 2 A. Which socket should the red lead use?
+        options:
+          - text: 10A
+            correct: true
+            why: 2 A is ten times what the 200 mA fuse can take.
+          - text: mA
+            why: 2 A would blow the 200 mA fuse instantly.
+          - text: VΩ
+            why: That socket is for volts and ohms. In series it would block almost all the current.
+        explain: Big currents go through the 10A socket, briefly.
+
+  - type: wrap
+    rules:
+      - To measure current, break the loop and put the meter in the gap.
+      - Current is the same everywhere in a single loop.
+      - Never put a meter set to amps across a battery.
+      - Check the red lead's socket before every measurement.
+    realWorld:
+      parts:
+        - A multimeter with a fused mA input
+        - A 9 V battery
+        - A 470 Ω resistor
+        - A red LED
+        - Clip leads
+      safety:
+        - "Don't blow your real meter's fuse on purpose: it is cheap but fiddly to replace."
+        - Use the 10A input only for a few seconds at a time. Many meters don't fuse it.

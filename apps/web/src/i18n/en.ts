@@ -426,6 +426,23 @@ export const en = {
       "smoke-signals": { title: "Smoke signals", description: "Burn out five parts." },
       "tiny-graves": { title: "LED graveyard", description: "Burn out three LEDs." },
       "fuse-whisperer": { title: "Fuse whisperer", description: "Blow a fuse." },
+      // Unit 1: Basics (docs/curriculum/unit-1.md, section 10).
+      "first-reading": { title: "First reading", description: "Measure a battery's voltage with your own meter." },
+      "stripe-sharp": { title: "Stripe sharp", description: "Finish Reading the stripes with every quiz answer right first time." },
+      "glow-getter": { title: "Glow getter", description: "Light an LED in a loop you wired yourself." },
+      "meter-bites-back": { title: "The meter bites back", description: "Blow your meter's own fuse." },
+      curator: { title: "Curator of crispy things", description: "Fill the Hall with an LED, a resistor, a fuse and a meter fuse." },
+      lawmaker: {
+        title: "Lawmaker",
+        description: "Find Ohm's law with every product within 5% of your battery, then predict a current within 5%.",
+      },
+      "smoke-tester": { title: "Smoke tester", description: "Smoke a 1/4 W resistor and a 1 W resistor." },
+      bracketed: { title: "Bracketed", description: "Blow the 1 A fuse, keep the 3 A fuse alive, and measure the current in between." },
+      "sour-power": { title: "Sour power", description: "Light an LED using nothing but fruit." },
+      "upside-down": { title: "Upside down", description: "Flip one cell in a four-cell stack and measure what's left." },
+      "curious-mind": { title: "Curious mind", description: "Complete 8 bonus tasks in Basics." },
+      "spotless-module": { title: "Spotless module", description: "Finish a whole Basics module with every quiz answer right first time." },
+      "island-founder": { title: "Island founder", description: "Complete all 18 lessons of Basics and bring Bareboard Isle to life." },
     },
     hall: {
       title: "Hall of Fried Parts",

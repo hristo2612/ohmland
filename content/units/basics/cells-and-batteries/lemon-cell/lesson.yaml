@@ -1,0 +1,148 @@
+# Blueprint: docs/curriculum/unit-1.md, L16.
+id: lemon-cell
+version: 1
+title: A battery from the fruit bowl
+summary: Build a copper and zinc fruit cell, find its plus side, and learn what happens inside.
+minutes: 12
+unlocks:
+  parts: [fruit-cell]
+  isle: lemon-tree
+steps:
+  - type: hook
+    body: |
+      Every battery you've used so far came from a factory. Now you'll make one from a lemon. Push two different
+      metals into the fruit, a copper coin and a strip of zinc-coated steel, and a chemical reaction starts pushing
+      charge from one to the other. The robot has a basket of lemons and a little box of metal bits. Let's find out how
+      much push a piece of fruit can give.
+    visual: { kind: part, part: fruit-cell }
+    predict:
+      prompt: One lemon, with a copper coin and a zinc strip pushed into it. What voltage do you expect?
+      options:
+        - About 0.001 V
+        - About 1 V
+        - About 9 V
+    mascot: Lunch or laboratory? Today a lemon is both.
+
+  - type: lab
+    lab: lemon-cell
+
+  - type: explain
+    cards:
+      - title: Two metals and a juice
+        body: |
+          A cell needs three things: two different metals, called **electrodes**, and something between them that
+          conducts using ions, called the **electrolyte**. In your lemon cell the electrodes are copper and zinc, and
+          the lemon juice is the electrolyte. One cell like this gives about 0.9 V. Strictly speaking, a battery is
+          several cells joined together, though people use the word for single cells too.
+      - title: What happens inside
+        body: |
+          Zinc gives up electrons easily. At the zinc strip, atoms leave the metal as positive zinc ions and dissolve
+          into the juice, leaving their electrons behind. Those electrons travel out through your wire to the copper.
+          There, hydrogen ions from the acidic juice collect them and pair up into hydrogen gas, sometimes visible as
+          tiny bubbles on the coin. Slowly, the zinc is used up.
+        # widget (planned): cell-cutaway. A zoomed animation of zinc ions leaving the strip, electrons moving through
+        # the wire and bubbles forming on the copper; a toggle shows conventional current arrows going the other way.
+      - title: Atoms in one card
+        body: |
+          An atom has a tiny nucleus of positive protons, surrounded by negative electrons. Normally the charges
+          balance. An atom that loses electrons becomes a positive **ion**, and one that gains electrons becomes a
+          negative ion. Opposite charges attract and like charges repel. That push and pull between separated charges
+          is what a voltmeter measures.
+      - title: Electrons go the other way
+        body: |
+          In your wire, electrons drift from the zinc (minus) toward the copper (plus). Diagrams still show current
+          flowing from plus to minus. Benjamin Franklin picked which kind of charge to call positive in the 1740s, long
+          before anyone knew about electrons. When J. J. Thomson discovered the electron in 1897, it turned out to be
+          negative. The convention stayed, and the maths works either way.
+
+  - type: quiz
+    items:
+      - id: plus-electrode
+        type: choice
+        prompt: In a copper and zinc fruit cell, which electrode is the positive terminal?
+        options:
+          - text: The copper
+            correct: true
+            why: Electrons arrive at the copper from the zinc, so copper is the plus side.
+          - text: The zinc
+            why: Zinc gives up electrons and is the negative side.
+          - text: Whichever one is bigger
+            why: The metals decide the polarity, not their size.
+        explain: Copper is plus, zinc is minus. Your meter showed it when you swapped the probes.
+
+      - id: bubbles
+        type: choice
+        prompt: While the cell delivers current, a gas forms at the copper coin. What is it?
+        options:
+          - text: Hydrogen
+            correct: true
+            why: Hydrogen ions from the juice collect electrons at the copper and pair up as hydrogen gas.
+          - text: Oxygen
+            why: No oxygen is released at the copper in this cell.
+          - text: Air escaping from the lemon
+            why: The gas is made by the reaction at the copper, not trapped air.
+        explain: The gas is a sign of the reaction at work. With the tiny currents of a fruit cell, its bubbles are often too small to see.
+
+      - id: energy-source
+        type: choice
+        prompt: Where does the fruit cell's energy actually come from?
+        options:
+          - text: The chemical reaction of the zinc, which slowly gets used up
+            correct: true
+            why: Zinc dissolving and hydrogen forming releases the energy.
+          - text: The lemon juice itself
+            why: The juice is the electrolyte that lets the reaction happen. Vinegar or salty water can do the same job.
+          - text: The copper coin
+            why: The copper is where electrons are collected. It isn't consumed.
+        explain: The juice is the go-between. The zinc is the fuel.
+
+      - id: two-coins
+        type: choice
+        prompt: You build a cell with two copper coins in the lemon. What will the meter read?
+        options:
+          - text: About 0 V
+            correct: true
+            why: Identical electrodes push equally, so there is no difference between them.
+          - text: About 0.9 V
+            why: That needs two different metals.
+          - text: About 1.8 V
+            why: Two coins don't double anything. With the same metal, the voltage cancels.
+        explain: Voltage comes from the difference between two metals.
+
+      - id: electron-drift
+        type: choice
+        prompt: In the wire from the zinc to the copper, which way do electrons drift?
+        options:
+          - text: From the zinc to the copper, minus to plus
+            correct: true
+            why: Electrons are negative and move toward plus.
+          - text: From the copper to the zinc
+            why: That is the direction of conventional current, the opposite way.
+          - text: Both ways equally
+            why: Then there would be no current.
+        explain: Electrons go minus to plus. Conventional current is drawn plus to minus.
+
+      - id: cell-mv
+        type: numeric
+        prompt: A fruit cell gives 0.92 V. How many millivolts is that?
+        answer: 920
+        unit: mV
+        tolerance: 0
+        hint: Move the decimal point three places right.
+        explain: "Multiply by 1,000: 0.92 V is 920 mV."
+
+  - type: wrap
+    rules:
+      - A cell is two different metals in an electrolyte.
+      - In a copper and zinc cell, copper is plus and zinc is minus.
+      - The electrodes must never touch.
+      - Electrons drift minus to plus. We draw current plus to minus.
+    realWorld:
+      parts:
+        - A lemon, or lemon juice in a small cup
+        - A clean copper coin or copper strip
+        - A galvanized (zinc-plated) nail or bracket
+        - A multimeter
+      safety:
+        - "Don't eat the lemon afterwards: metal dissolves into the juice."
+        - Wash your hands, and keep coins and small parts away from young children.

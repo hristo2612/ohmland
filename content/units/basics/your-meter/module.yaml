@@ -1,0 +1,13 @@
+id: your-meter
+title: Your meter
+summary: How the lab works, what electricity is in one minute, and the tool you will use in every lesson.
+landmark:
+  id: meter-tower
+  name: the Meter Tower
+  # The module schema has no fields for these yet (blueprint section 8):
+  # caption: A tower with a glowing display rises by the bridge. Now the island can measure itself.
+  # mascot: Now we can see what we're doing. Finally.
+lessons:
+  - welcome-to-the-bench
+  - meet-the-meter
+  - tiny-and-huge-numbers

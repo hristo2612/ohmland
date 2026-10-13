@@ -105,6 +105,43 @@ describe("achievements", () => {
     const r = evaluateAchievements({ state: { ...emptyLearner(), fried }, outline, events: [] }, "2026-02-02T00:00:00.000Z");
     expect(r.earned.map((a) => a.id).sort()).toEqual(["magic-smoke", "tiny-graves"]);
   });
+
+  it("checks the Basics achievements against tasks, perfect modules and the whole unit", () => {
+    const basics: CourseOutline = {
+      units: [{ id: "basics", number: 1, title: "Basics", modules: ["m1", "m2"] }],
+      modules: [
+        { id: "m1", unit: "basics", title: "M1", landmark: { id: "l1", name: "L1" }, lessons: ["meet-the-meter", "first-glow"] },
+        { id: "m2", unit: "basics", title: "M2", landmark: { id: "l2", name: "L2" }, lessons: ["lemon-cell"] },
+      ],
+      lessons: {},
+      order: ["meet-the-meter", "first-glow", "lemon-cell"],
+    };
+    const earned = (s: LearnerState) => evaluateAchievements({ state: s, outline: basics, events: [] }, "2026-02-02T00:00:00.000Z").earned.map((a) => a.id);
+
+    let s = done(emptyLearner(), "meet-the-meter", 6, 6, ["read-battery", "tired-battery"]);
+    expect(earned(s)).toContain("first-reading");
+    expect(earned(s)).not.toContain("spotless-module");
+    s = done(s, "first-glow", 6, 6, ["build-loop", "match-symbols"]);
+    expect(earned(s)).toEqual(expect.arrayContaining(["glow-getter", "spotless-module"]));
+    expect(earned(s)).not.toContain("island-founder");
+    s = done(s, "lemon-cell", 3, 6, ["one-lemon-led"]);
+    expect(earned(s)).toContain("island-founder");
+
+    // Eight of the ten bonus tasks unlock "curious-mind"; seven do not.
+    const bonus: [string, string][] = [
+      ["welcome-to-the-bench", "swap-battery-leads"],
+      ["meet-the-meter", "tired-battery"],
+      ["what-resists", "extremes"],
+      ["draw-a-resistor", "slide-along"],
+      ["first-glow", "match-symbols"],
+      ["watts-and-heat", "one-watt-too"],
+      ["fuse-guard", "battery-check"],
+      ["inside-the-battery", "watch-it-sag"],
+    ];
+    const withBonus = (n: number) => bonus.slice(0, n).reduce((acc, [lesson, task]) => done(acc, lesson, 1, 1, [task]), emptyLearner());
+    expect(earned(withBonus(7))).not.toContain("curious-mind");
+    expect(earned(withBonus(8))).toContain("curious-mind");
+  });
 });
 
 describe("course map states", () => {

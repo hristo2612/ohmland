@@ -1,0 +1,137 @@
+# Blueprint: docs/curriculum/unit-1.md, L15.
+id: inside-the-battery
+version: 1
+title: The battery's hidden resistor
+summary: Catch a battery's internal resistance by measuring its voltage at rest and under load.
+minutes: 11
+unlocks:
+  parts: []
+  isle: battery
+steps:
+  - type: hook
+    body: |
+      On paper, a 9 V battery across a fraction of an ohm should push well over 10 A. In the last lesson, yours
+      managed about 2 A. Something inside the battery was holding the current back. Every real battery hides a
+      resistance in its chemistry. You can't measure it with the ohms setting, but you can catch it in the act with a
+      voltmeter and a load.
+    visual: { kind: part, part: battery-9v }
+    predict:
+      prompt: You measure a battery with nothing connected, then again while it powers a heavy load. The second reading is...
+      options:
+        - Exactly the same
+        - Lower
+        - Higher
+    mascot: Batteries have secrets. Let's catch one in the act.
+
+  - type: lab
+    lab: inside-the-battery
+
+  - type: explain
+    cards:
+      - title: A resistor inside every battery
+        body: |
+          A real battery behaves like a perfect voltage source with a small resistor in series, hidden inside. That
+          **internal resistance** comes from the chemicals, the electrodes and the joins between them. A fresh 9 V
+          alkaline battery has roughly 1.5 to 2 Ω. A fresh AA cell has much less, around 0.1 to 0.2 Ω. As batteries
+          age, their internal resistance climbs.
+        # widget (planned): battery-model. An ideal source and a resistor inside a dashed battery outline; drag a load
+        # slider and watch the terminal voltage and the internal drop change.
+      - title: Why the voltage sags
+        body: |
+          When current flows, the hidden resistance takes its share of the voltage, just like any resistor in a loop:
+          V = I × r. With 0.56 A flowing through 1.7 Ω, about 0.95 V is lost inside the battery, so the terminals only
+          offer about 8.45 V. No current, no loss: that's why a battery at rest reads its full voltage.
+      - title: No infinite current
+        body: |
+          On paper, a 9 V battery shorted by a 0.01 Ω wire would push 900 A. It can't. The internal resistance caps the
+          current at a few amps, and the chemistry can't react fast enough to keep even that up for long. Ohm's law
+          isn't broken. You just have to count the battery's own resistance as part of the loop.
+      - title: Test batteries under load
+        body: |
+          An old battery can read almost normal on a meter, because the meter draws next to no current. Put it to work
+          and its high internal resistance drags the voltage down. That's why a battery that "measures fine" can still
+          fail to run a gadget. For a fair test, measure while it's powering something.
+
+  - type: quiz
+    items:
+      - id: internal-r
+        type: numeric
+        prompt: A battery reads 9.5 V with nothing connected and 9.0 V while 0.5 A flows. What is its internal resistance?
+        answer: 1
+        unit: Ω
+        tolerance: 2
+        hint: How much voltage went missing, and how much current was flowing?
+        explain: 0.5 V is lost inside while 0.5 A flows, so r = 0.5 ÷ 0.5 = 1 Ω.
+
+      - id: short-max
+        type: numeric
+        prompt: A 9 V battery with 1.5 Ω of internal resistance is shorted by a perfect wire. What is the most current it could push?
+        answer: 6
+        unit: A
+        tolerance: 2
+        hint: With a perfect wire, the only resistance left is inside the battery.
+        explain: "Only the internal resistance limits it: 9 ÷ 1.5 = 6 A. Real chemistry sags, so you'd see less."
+
+      - id: fine-but-flat
+        type: choice
+        prompt: A battery reads 9.1 V on your meter, but your gadget won't run on it. Most likely cause?
+        options:
+          - text: "High internal resistance: under load its voltage collapses"
+            correct: true
+            why: The meter draws almost no current, so it can't reveal a weak battery.
+          - text: The meter is wrong
+            why: The reading is right for an unloaded battery. It just isn't the whole story.
+          - text: The gadget needs exactly 9.0 V
+            why: Devices work over a range of voltages. 9.1 V would be fine if it held up.
+        explain: Test batteries under load to see how they really perform.
+
+      - id: aa-or-9v
+        type: choice
+        prompt: "Which usually has lower internal resistance: a fresh AA alkaline cell or a fresh 9 V alkaline battery?"
+        options:
+          - text: The AA cell
+            correct: true
+            why: About 0.1 to 0.2 Ω, versus about 1.5 to 2 Ω. A 9 V battery is six small cells in series, and their resistances add.
+          - text: The 9 V battery
+            why: Higher voltage doesn't mean lower resistance. Its small cells add up their resistance.
+          - text: They're the same
+            why: Size and construction make a big difference.
+        explain: Bigger electrodes and fewer cells in series mean less internal resistance.
+
+      - id: law-broken
+        type: choice
+        prompt: Lena says Ohm's law fails at high current, because her battery gave 2 A when the maths said 15 A. What's the better explanation?
+        options:
+          - text: The battery's internal resistance and sagging chemistry were left out of the maths
+            correct: true
+            why: Include the battery's own resistance and the numbers line up much better.
+          - text: Ohm's law only works below 1 A
+            why: It holds for resistors at any current.
+          - text: The meter must be faulty
+            why: The meter was fine. The model of the battery was too simple.
+        explain: When theory and measurement disagree, check what the model left out.
+
+      - id: terminal-v
+        type: numeric
+        prompt: A 9.4 V battery with 2 Ω inside drives a 45 Ω load. What voltage appears at its terminals?
+        answer: 9.0
+        unit: V
+        tolerance: 1
+        hint: Find the current first, using the total resistance.
+        explain: I = 9.4 ÷ (45 + 2) = 0.2 A, so the load gets 0.2 × 45 = 9.0 V and 0.4 V is lost inside.
+
+  - type: wrap
+    rules:
+      - Every battery has internal resistance.
+      - Under load a battery's voltage sags. More current, more sag.
+      - Test batteries while they work, not just at rest.
+      - Count the battery's own resistance and Ohm's law still holds.
+    realWorld:
+      parts:
+        - A fresh and an old 9 V battery
+        - A 15 Ω resistor rated 5 W or more
+        - A clip lead to act as a switch
+        - A multimeter
+      safety:
+        - "The load draws about half an amp and gets hot: use a 5 W resistor and don't touch it while it's on."
+        - Run the load for short spells only.

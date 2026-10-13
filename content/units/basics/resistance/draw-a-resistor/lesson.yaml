@@ -1,0 +1,125 @@
+# Blueprint: docs/curriculum/unit-1.md, L5.
+id: draw-a-resistor
+version: 1
+title: Draw a resistor
+summary: Draw graphite lines, measure them, and discover how length and thickness set resistance.
+minutes: 10
+unlocks:
+  parts: [pencil-line]
+  isle: pot
+steps:
+  - type: hook
+    body: |
+      The "lead" in a pencil isn't lead at all. It's graphite, a form of carbon that conducts electricity, just not
+      very well. That makes a pencil line a resistor you can draw. The robot has slid a card and a very soft pencil
+      across the bench. Draw a line, put your probes on it, and find out what length and thickness do to resistance.
+    visual: { kind: part, part: pencil-line }
+    predict:
+      prompt: You measure a pencil line end to end. Then you move one probe to the middle. The reading...
+      options:
+        - halves
+        - doubles
+        - stays the same
+    mascot: Grab the pencil. Today we draw electronics.
+
+  - type: lab
+    lab: draw-a-resistor
+
+  - type: explain
+    cards:
+      - title: Longer means more
+        body: |
+          A longer path gives current more material to push through, so resistance rises in step with length. Double
+          the length, double the resistance. That is why your reading halved when you measured half the line. Wires
+          work the same way: a very long, thin wire has noticeable resistance, even though copper is a great conductor.
+      - title: Thicker means less
+        body: |
+          A wider or thicker path gives current more room, like extra lanes on a road. Double the cross-section and you
+          halve the resistance. Shading the line again added more graphite, so the reading dropped. That is why cables
+          for big currents are thick, while the wires inside a phone charger can be thin.
+        # widget (planned): strip-resistance. Sliders for the length and width of a strip, with a live ohms readout.
+      - title: Sliding contacts
+        body: |
+          Real resistors use the same ideas: a thin film of carbon or metal, with its length and thickness chosen to
+          hit a value. A **potentiometer** is a resistor with a sliding contact. Move it, and the resistance between
+          the contact and either end changes smoothly, exactly like your probe gliding along the pencil line. Many
+          volume knobs work this way.
+
+  - type: quiz
+    items:
+      - id: quarter-line
+        type: numeric
+        prompt: A 10 cm pencil line measures 200 kΩ end to end. Ignoring the contacts, what will you read with the probes 2.5 cm apart?
+        answer: 50
+        unit: kΩ
+        tolerance: 5
+        hint: What fraction of the line is between the probes?
+        explain: "2.5 cm is a quarter of the line, so you read a quarter of the resistance: 50 kΩ."
+
+      - id: double-both
+        type: choice
+        prompt: You draw a new line twice as long and twice as wide as the old one. Its resistance is...
+        options:
+          - text: About the same
+            correct: true
+            why: Doubling the length doubles it, doubling the width halves it. They cancel.
+          - text: Double
+            why: That only counts the extra length and forgets the extra width.
+          - text: Four times as much
+            why: Extra width lowers resistance, it doesn't raise it.
+        explain: Length pushes resistance up, width pulls it down, in equal proportion.
+
+      - id: lowest-line
+        type: choice
+        prompt: Which pencil line has the lowest resistance?
+        options:
+          - text: Short, wide and dark
+            correct: true
+            why: Short means less length, and wide and dark both mean more material.
+          - text: Long, thin and light
+            why: That is the highest-resistance combination.
+          - text: Long, wide and light
+            why: The width helps, but the length and light shading push resistance up.
+        explain: For low resistance you want a short path with lots of conducting material.
+
+      - id: thick-cable
+        type: choice
+        prompt: Why are the cables to a car's starter motor so thick?
+        options:
+          - text: So they can carry a big current with very little resistance
+            correct: true
+            why: Thick copper has low resistance, so little energy is wasted as heat.
+          - text: So they are strong enough to pull on
+            why: Strength is a bonus, not the reason for all that copper.
+          - text: Thick insulation stops shocks
+            why: Most of the thickness is copper, not insulation. The car runs at only 12 V.
+        explain: Big currents need low-resistance paths, which means lots of copper.
+
+      # Blueprint item quarter-hotspot needs a pencil-line hotspot figure, which does not exist yet, and as a choice it
+      # would repeat quarter-line. This item checks the sliding-contact objective instead.
+      - id: sliding-contact
+        type: choice
+        prompt: A potentiometer's sliding contact starts at one end of its track and moves toward the other end. The resistance between the contact and the starting end...
+        options:
+          - text: Rises smoothly
+            correct: true
+            why: More track lies between them with every step, just like a probe gliding along a pencil line.
+          - text: Falls smoothly
+            why: That happens between the contact and the other end, which it is getting closer to.
+          - text: Stays the same
+            why: Moving the contact changes how much track is in the path. That is the whole point of a potentiometer.
+        explain: A potentiometer is a resistor with a sliding contact. Moving the contact shifts resistance from one side of it to the other.
+
+  - type: wrap
+    rules:
+      - Longer path, more resistance.
+      - Wider or thicker path, less resistance.
+      - A resistor with a sliding contact is a potentiometer.
+    realWorld:
+      parts:
+        - A very soft pencil (6B or softer)
+        - Plain paper or card
+        - A multimeter
+      safety:
+        - Completely safe.
+        - "Real pencil lines vary a lot: expect anything from tens of kilohms to several megohms."

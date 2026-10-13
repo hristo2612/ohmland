@@ -1,0 +1,140 @@
+# Blueprint: docs/curriculum/unit-1.md, L4.
+id: what-resists
+version: 1
+title: What resists?
+summary: Measure skin, water, copper and plastic, and meet conductors, insulators and fair tests.
+minutes: 13
+unlocks:
+  parts: []
+  isle: wire-spool
+steps:
+  - type: hook
+    body: |
+      Is your finger a wire? Sort of. Almost everything lets a little current through, and almost everything holds
+      some back. That holding back is called resistance, and your meter can measure it with a tiny, harmless test
+      current. The robot has set out a patch of skin, three cups of water, a copper wire and a plastic ruler. Let's
+      find out who resists the most.
+    visual: { kind: none }
+    predict:
+      prompt: Which of these do you think resists current the most?
+      options:
+        - Salty water
+        - Tap water
+        - Distilled water
+        - Dry skin
+    mascot: Everything resists a little. Let's find out who resists a lot.
+
+  - type: lab
+    lab: what-resists
+
+  - type: explain
+    cards:
+      - title: Everything resists
+        body: |
+          Resistance is how strongly something opposes current, measured in ohms (Ω). Metals like copper and silver
+          have very low resistance: they are **conductors**. Plastic, rubber and glass have huge resistance: they are
+          **insulators**. Plenty of things sit in between, like skin, damp wood and graphite. An ordinary wire is both
+          at once: a copper conductor wrapped in a plastic insulator.
+      - title: How the meter measures ohms
+        body: |
+          On the Ω setting, the meter sends a tiny current from its own battery through whatever the probes touch, then
+          works out the resistance from the voltage that appears. That is why you never measure resistance in a powered
+          circuit: the circuit's own voltage confuses the meter, and can damage it. Measure parts on their own, with
+          the power off.
+      - title: Why skin readings wobble
+        body: |
+          Your skin readings drifted because things you didn't control kept changing: how wet the skin was, how hard
+          the probes pressed, exactly where they landed. Scientists call these uncontrolled variables. To compare two
+          measurements fairly, change only one thing at a time. That is why you kept moisture and pressure the same
+          when you changed the spacing.
+      - title: It's what's in the water
+        body: |
+          Pure water conducts poorly. Tap water and sea water conduct because of what is dissolved in them: salts and
+          minerals split into charged particles called **ions**, and the ions carry the current. More salt means more
+          ions and less resistance. It is also why wet hands and electrical equipment are a bad mix.
+        # widget (planned): salt-shaker. Add pinches of salt to a cup and watch the ohms fall, on a log scale.
+
+  - type: quiz
+    items:
+      - id: ol-next
+        type: choice
+        prompt: You measure dry skin on the 200k range and the meter shows OL. What do you do next?
+        options:
+          - text: Switch up to the 2M range
+            correct: true
+            why: OL means the value is over 200 kΩ, so you need a bigger range.
+          - text: Press the probes harder
+            why: That would lower the reading, but it changes the experiment instead of fixing the range.
+          - text: Replace the meter's battery
+            why: OL is not a fault. It just means over limit.
+        explain: 'OL always means "too big for this range". Step up until you get a number.'
+
+      - id: spacing-double
+        type: choice
+        prompt: On wet skin the meter reads 46 kΩ with the probes 2 cm apart. You move them to 4 cm. Roughly what will it read?
+        options:
+          - text: About 56 kΩ
+            correct: true
+            why: The contact resistance at each probe stays the same. Only the small part from distance grows.
+          - text: About 92 kΩ
+            why: It would double only if all the resistance came from distance. Most comes from the contacts.
+          - text: About 23 kΩ
+            why: A longer path never lowers the resistance here.
+        explain: Contact resistance dominates skin readings, so doubling the distance adds only a little.
+
+      - id: material-match
+        type: match
+        prompt: Match each material to the best description.
+        pairs:
+          - { left: copper wire, right: "conductor, very low resistance" }
+          - { left: plastic ruler, right: "insulator, OL on every range" }
+          - { left: salty water, right: conducts because of dissolved ions }
+          - { left: distilled water, right: "conducts poorly, few ions" }
+        explain: Metals conduct, plastics insulate, and water conducts only as well as its dissolved ions allow.
+
+      - id: to-kilo
+        type: numeric
+        prompt: Write 68,000 Ω in kilohms.
+        answer: 68
+        unit: kΩ
+        tolerance: 0
+        hint: A kilohm is a thousand ohms.
+        explain: Divide by 1,000 to go from ohms to kilohms. 68,000 Ω is 68 kΩ.
+
+      - id: letter-notation
+        type: match
+        prompt: Match each printed code to its value.
+        pairs:
+          - { left: 4k7, right: 4.7 kΩ }
+          - { left: 1R0, right: 1.0 Ω }
+          - { left: 2M2, right: 2.2 MΩ }
+          - { left: 680R, right: 680 Ω }
+        explain: The letter sits where the decimal point goes, and also tells you the prefix. R means plain ohms.
+
+      - id: fair-test
+        type: choice
+        prompt: You want to know whether probe spacing changes skin resistance. Which test is fair?
+        options:
+          - text: Change the spacing and keep moisture and pressure the same
+            correct: true
+            why: With only one change, any difference must come from the spacing.
+          - text: Change the spacing and wet the skin for a clearer reading
+            why: With two changes you can't tell which one caused the difference.
+          - text: Measure each spacing on a different day
+            why: Moisture and pressure will change between days too.
+        explain: A fair test changes one variable and holds the rest steady.
+
+  - type: wrap
+    rules:
+      - Resistance is measured in ohms (Ω).
+      - Conductors have low resistance. Insulators have very high resistance.
+      - Measure resistance with the power off.
+      - Change one thing at a time.
+    realWorld:
+      parts:
+        - A multimeter
+        - Two glasses of water
+        - A pinch of salt
+      safety:
+        - "Measuring your own skin on the Ω setting is safe: the test current is tiny."
+        - Never hold probes that touch anything powered, and never go near mains.

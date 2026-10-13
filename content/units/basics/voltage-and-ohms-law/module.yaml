@@ -1,0 +1,13 @@
+id: voltage-and-ohms-law
+title: Voltage and Ohm's law
+summary: Measure the push, watch voltage drops add up, discover V = I × R from your own data, and combine resistors.
+landmark:
+  id: observatory
+  name: the Observatory
+  # The module schema has no fields for these yet (blueprint section 8):
+  # caption: A dome on the highest layer of the board, where you found the law every circuit obeys.
+  # mascot: V equals I times R. From up here, it's everywhere.
+lessons:
+  - volts-across
+  - find-the-law
+  - series-and-parallel

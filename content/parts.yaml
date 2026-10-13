@@ -1,158 +1,186 @@
 # The parts bin catalog. Lessons unlock parts by id (lesson.yaml: unlocks.parts).
 # `icon` picks the 2D drawing; a 3D preview comes later from packages/bench.
+# Each part's longer description from the unit blueprints is kept as a comment until the schema has a field for it.
 parts:
+  # Unit 1: Basics (docs/curriculum/unit-1.md, section 11), in the order lessons unlock them.
+
+  # description: The rectangular battery with two snap terminals on top. It's the workhorse power source of this
+  # unit: safe, cheap and just strong enough to teach every lesson about current, heat and fuses.
   - id: battery-9v
     name: 9 V battery
     icon: battery
-    blurb: A small box of stored energy with both terminals on top.
+    blurb: The workhorse power source of Unit 1, with two snap terminals on top.
     facts:
-      - Gives about 9 V when fresh, sagging toward 7 V as it runs down.
-      - Holds roughly 500 mAh, enough to supply 20 mA for about a day.
-      - The smaller, round snap is the positive terminal.
-      - Shorting the terminals makes it hot. Never carry one loose next to coins or keys.
+      - "Nominal 9 V. A fresh alkaline one reads about 9.4 to 9.6 V at rest."
+      - "Six 1.5 V alkaline cells in series inside."
+      - "Capacity about 500 mAh at light loads. Internal resistance about 1.5 to 2 Ω when fresh."
+      - "Terminals: the small round snap is plus, the larger six-sided snap is minus."
+      - "Symbol: several pairs of long and short parallel lines. The long line is plus."
+      - "Safety: don't carry it loose with coins or keys. A shorted 9 V battery gets hot."
 
-  - id: resistor
-    name: Resistor
-    icon: resistor
-    blurb: Limits current. The most common part in electronics.
+  # description: Short wires with a sprung, toothed clip at each end. Clip one to a battery terminal and the other to
+  # a part's leg and you have a connection, no soldering needed. All of Unit 1 is built with them.
+  - id: alligator-clips
+    name: Clip leads
+    icon: jumper-wire
+    blurb: Short wires with a sprung clip at each end. Connections with no soldering.
     facts:
-      - Resistance is measured in ohms (Ω). Everyday values run from 10 Ω to 1 MΩ.
-      - Coloured bands give its value. Yellow, violet, brown is 470 Ω.
-      - A typical small resistor is rated for 0.25 W. Past that it overheats and can burn.
-      - It has no polarity, so it works either way round.
+      - "About 0.1 to 0.2 Ω each, including the clip contacts."
+      - "Colours are labels, not rules. By habit, red goes to plus and black to minus."
+      - "Every clip is a possible loose connection: check them first when a circuit misbehaves."
+      - "Symbol: a plain line, like any wire."
+      - "Safety: none at battery voltages."
 
-  - id: led
-    name: LED
-    icon: led
-    blurb: A light-emitting diode. A tiny, efficient light that only works one way round.
-    facts:
-      - Current flows in at the anode (the longer leg) and out at the cathode (the shorter leg).
-      - A red LED drops about 2 V. Blue and white ones drop about 3 V.
-      - A typical 5 mm LED is rated around 20 mA. Always limit its current.
-
+  # description: Your measuring tool for the whole course. A rotary dial chooses what to measure (volts, amps, ohms or
+  # continuity) and how big a value to expect. The screen shows up to 1999 counts, OL when a value is too big for the
+  # range, and a minus sign when the probes are the other way round. A meter can't fix a circuit, but it will always
+  # tell you the truth about one.
   - id: multimeter
     name: Multimeter
     icon: multimeter
-    blurb: Measures voltage, current and resistance. Your eyes for electricity.
+    blurb: Your measuring tool for the whole course. Volts, amps, ohms and continuity.
     facts:
-      - Measure voltage across a part, and current by putting the meter in the loop.
-      - The black lead goes in COM. The red lead moves to match what you measure.
-      - The mA socket has a fuse inside. Too much current blows it.
+      - "DC volts input resistance: 10 MΩ, so it barely disturbs a circuit."
+      - "mA input protected by a 200 mA fuse. 10A input unfused, for about 10 s at a time."
+      - "Ohms ranges from 200 Ω to 2 MΩ. Continuity beeps below about 30 Ω."
+      - "Black lead in COM always. The red lead moves between VΩ, mA and 10A."
+      - "Symbol: a circle with a letter inside: V for a voltmeter, A for an ammeter, Ω for an ohmmeter."
+      - "Safety: check the red lead's socket before every measurement. Never probe a wall socket."
 
+  # description: A red and a black lead, each with a shrouded plug at one end and a sharp steel tip at the other.
+  # Insulated handles with finger guards keep your fingers away from the metal. Swap the tips for small hook grabbers
+  # when you want both hands free.
   - id: test-leads
-    name: Test leads
+    name: Meter probes
     icon: test-leads
-    blurb: Probes and clip leads that connect the meter to a circuit.
+    blurb: A red and a black lead that connect the meter to whatever you measure.
     facts:
-      - By convention black is the common (negative) lead and red the positive one.
-      - Alligator clips hold on by themselves, so your hands stay free.
+      - "About 0.1 Ω each, which only matters when measuring tiny resistances."
+      - "Black plugs into COM. Red plugs into VΩ, mA or 10A, depending on the job."
+      - "Touching both tips together on the ohms range shows the leads' own resistance."
+      - "Symbol: drawn as plain lines to the meter symbol."
+      - "Safety: hold probes behind the finger guards."
 
-  - id: breadboard
-    name: Breadboard
-    icon: breadboard
-    blurb: Build circuits without soldering by pushing leads into holes.
+  # description: The everyday cylindrical cell in remotes, toys and torches. Bigger electrodes than a 9 V battery give
+  # it far more capacity and much lower internal resistance.
+  - id: battery-aa
+    name: AA cell
+    icon: battery
+    blurb: The everyday cylindrical cell in remotes, toys and torches.
     facts:
-      - Each short row of five holes is joined inside by a metal strip.
-      - The long rails along the edges carry power, usually marked red for plus and blue for minus.
-      - The gap down the middle lets a chip straddle it, each pin on its own strip.
+      - "Nominal 1.5 V (alkaline). A fresh one reads about 1.55 to 1.65 V."
+      - "Capacity about 2,000 to 2,800 mAh at light loads."
+      - "Internal resistance about 0.1 to 0.2 Ω when fresh."
+      - "The end with the raised button is plus. The flat end is minus."
+      - "Symbol: one long and one short parallel line. The long line is plus."
+      - "Safety: don't try to recharge alkaline cells, and don't mix old and new cells in one device."
 
-  - id: jumper-wire
-    name: Jumper wires
-    icon: jumper-wire
-    blurb: Short wires with stiff ends, made for breadboards.
-    facts:
-      - Their resistance is tiny, a small fraction of an ohm.
-      - Colours mean nothing electrically, but red for plus and black for minus keeps you sane.
-
-  - id: pushbutton
-    name: Pushbutton
-    icon: pushbutton
-    blurb: A switch that is on only while you press it.
-    facts:
-      - It is momentary. A spring pushes it back when you let go.
-      - Most small tactile buttons have four legs, joined inside in two pairs.
-
-  - id: slide-switch
-    name: Slide switch
-    icon: switch
-    blurb: Stays where you put it, on or off.
-    facts:
-      - SPDT means single pole, double throw. One input connects to one of two outputs.
-      - Small slide switches are usually rated for half an amp or less.
-
-  - id: fuse
-    name: Fuse
-    icon: fuse
-    blurb: A thin wire that melts on purpose to protect a circuit.
-    facts:
-      - When too much current flows, the wire inside melts and the circuit opens.
-      - A blown fuse must be replaced, always with the same rating.
-      - Fast-blow fuses react in milliseconds. Slow-blow fuses ride out short surges.
-
-  - id: capacitor
-    name: Capacitor
-    icon: capacitor
-    blurb: Stores charge, then lets it go.
-    facts:
-      - Capacitance is measured in farads. Everyday values are in µF, nF and pF.
-      - Electrolytic capacitors have polarity. The stripe marks the negative leg.
-      - Never exceed a capacitor's voltage rating.
-
-  - id: potentiometer
-    name: Potentiometer
+  # description: A line of graphite drawn on card. Graphite is carbon that conducts, just not very well, so a pencil
+  # line is a resistor you can draw, shade and reshape. Slide a probe along it and you have a homemade potentiometer.
+  - id: pencil-line
+    name: Pencil-line resistor
     icon: pot
-    blurb: A resistor with a knob.
+    blurb: A resistor you can draw. Graphite conducts, just not very well.
     facts:
-      - Three legs. The outer two are the ends of a track, the middle one is a wiper that slides along it.
-      - Turning the knob changes the resistance between the wiper and each end.
+      - "Typical values: tens of kilohms to a few megohms, depending on the pencil, paper and line."
+      - "Resistance grows with length and falls with width and darkness."
+      - "A sliding contact turns it into a variable resistor."
+      - "Symbol: a resistor symbol. Add a diagonal arrow through it when it is used as a variable resistor."
+      - "Safety: none."
 
-  - id: relay
-    name: Relay
-    icon: relay
-    blurb: A switch flipped by an electromagnet.
+  # description: The most common part in electronics. A small cylinder with a wire at each end and coloured stripes
+  # that tell you its value. It sets how much current flows in a circuit, and it doesn't care which way round it goes.
+  - id: resistor
+    name: Resistor (1/4 W)
+    icon: resistor
+    blurb: The most common part in electronics. Its stripes tell you its value.
     facts:
-      - A small current through the coil can switch a much bigger current.
-      - You can hear it click when it switches.
-      - A diode across the coil soaks up the voltage spike when it turns off.
+      - "Power rating 1/4 W (0.25 W)."
+      - "Gold stripe: ±5% tolerance. Silver: ±10%. Brown, on 5-stripe parts: ±1%."
+      - "Common values follow the E6 and E12 series: 10, 15, 22, 33, 47, 68 (E6), plus 12, 18, 27, 39, 56, 82 (E12)."
+      - "Colour code: black 0, brown 1, red 2, orange 3, yellow 4, green 5, blue 6, violet 7, grey 8, white 9."
+      - "Symbol: a zigzag line, or a small rectangle in IEC style."
+      - "Safety: wear glasses when trimming leads. The clipped ends can fly."
 
-  - id: npn-transistor
-    name: NPN transistor
-    icon: transistor
-    blurb: A small current at the base controls a bigger one.
+  # description: A light-emitting diode in a red 5 mm dome. It glows when current flows from its anode to its cathode,
+  # and blocks current the other way. It always needs something, usually a resistor, to limit its current.
+  - id: led-red
+    name: Red LED (5 mm)
+    icon: led
+    blurb: A light that only works one way round, and always needs its current limited.
     facts:
-      - The 2N3904 has three legs. Collector, base and emitter.
-      - A small base current lets a current about 100 times bigger flow from collector to emitter.
-      - The 2N3904 handles up to 200 mA of collector current.
+      - "Forward voltage about 1.8 to 2.2 V (around 2 V at 20 mA)."
+      - "Typical current 20 mA. Absolute maximum 50 mA for the bench LED; many small LEDs are rated lower, so check the datasheet."
+      - "Maximum reverse voltage about 5 V."
+      - "Longer leg is the anode (plus). Shorter leg, by the flat spot on the rim, is the cathode (minus)."
+      - "Symbol: a triangle pointing into a bar, with two small arrows pointing away for the light."
+      - "Safety: never connect it straight across a battery without a resistor."
 
-  - id: phototransistor
-    name: Phototransistor
-    icon: phototransistor
-    blurb: A transistor switched by light.
+  # description: The same idea as the red LED, with different crystals for different colours. The colour sets the
+  # forward voltage, so a resistor that suits a red LED gives a blue one less current.
+  - id: led-color
+    name: Coloured LEDs
+    icon: led
+    blurb: Different crystals, different colours, different forward voltages.
     facts:
-      - More light lets more current flow.
-      - Light falling on it does the job of a base current.
+      - "Orange and yellow: about 2.0 to 2.2 V."
+      - "Yellow-green indicator types: about 2.1 V. Bright (true) green: about 3.0 to 3.4 V."
+      - "Blue and white: about 2.8 to 3.4 V."
+      - "Same current limits as the red LED: design for 5 to 15 mA."
+      - "Symbol: the LED symbol. The colour is written beside it."
+      - "Safety: don't stare into bright blue or white LEDs at close range."
 
-  - id: diode
-    name: Diode
-    icon: diode
-    blurb: A one-way valve for current.
+  # description: A chunky resistor in a white ceramic body. It does the same job as a small resistor, but its size lets
+  # it shed far more heat, so it survives loads that would burn a 1/4 W part in seconds.
+  - id: resistor-power
+    name: Power resistor (5 W)
+    icon: resistor
+    blurb: A chunky ceramic resistor that sheds far more heat than a small one.
     facts:
-      - The stripe marks the cathode.
-      - A silicon diode drops about 0.7 V while it conducts.
-      - The 1N4001 handles up to 1 A.
+      - "Power rating 5 W. The value and rating are printed on the body instead of stripes."
+      - "Runs well above 100 °C near its full rating, and that's normal for this type."
+      - "Used in Unit 1 as a 15 Ω load across a 9 V battery (about 4.5 W)."
+      - "Symbol: the resistor symbol, with the wattage written beside it."
+      - "Safety: it gets hot enough to burn. Let it cool, and keep it clear of anything that can melt."
 
-  - id: speaker
-    name: Speaker
-    icon: speaker
-    blurb: Turns a changing current into sound.
+  # description: A thin metal wire sealed in a glass tube with metal caps. Too much current for too long melts the wire
+  # and breaks the circuit, protecting everything else. It is the one part designed to fail.
+  - id: fuse
+    name: Glass fuse
+    icon: fuse
+    blurb: A thin wire in a glass tube. The one part designed to fail.
     facts:
-      - Small speakers are often 8 Ω.
-      - A steady current makes no sound. The current has to change to move the cone.
+      - "Common size 5 × 20 mm. Unit 1 uses fast-acting 1 A and 3 A fuses."
+      - "The rating is what it carries indefinitely. Bigger overloads blow it faster."
+      - "No polarity."
+      - "A blown fuse reads OL on continuity, and often shows a visible gap."
+      - "Symbol: a small rectangle with a line running through it lengthwise (IEC), or an S-shaped line (older US style)."
+      - "Safety: always replace a fuse with the same rating, never a bigger one or a bit of wire."
 
+  # description: A lemon with a copper coin and a zinc-plated strip pushed into it. The zinc reacts with the acidic
+  # juice, and a small voltage appears between the two metals. Weak, slow and wonderful.
   - id: fruit-cell
     name: Fruit cell
     icon: cell
-    blurb: Two different metals in a lemon make a weak battery.
+    blurb: A lemon, a copper coin and a zinc strip. Weak, slow and wonderful.
     facts:
-      - A zinc and copper pair in a lemon gives about 0.9 V.
-      - It supplies only a tiny current, too little to light most LEDs on its own.
+      - "About 0.9 V per cell. Copper is plus, zinc is minus."
+      - "Internal resistance around a thousand ohms, so the current stays well under 1 mA."
+      - "Cells in series add voltage: four make about 3.6 V, enough for a faint red glow."
+      - "The electrodes must not touch. Two of the same metal give about 0 V."
+      - "Symbol: a single cell: one long and one short parallel line."
+      - "Safety: don't eat the fruit afterwards. Wash your hands."
+
+  # description: A flat, round lithium cell like the ones in watches and key fobs. It holds its voltage for years at
+  # tiny currents, but its high internal resistance means it sags quickly under a heavy load.
+  - id: coin-cell
+    name: 3 V coin cell
+    icon: battery
+    blurb: A flat lithium cell for watches and key fobs. A sipper, not a gulper.
+    facts:
+      - "Nominal 3 V. A fresh one reads about 3.0 to 3.3 V."
+      - "The common 20 mm size (often marked 2032) holds about 220 mAh."
+      - "Internal resistance about 10 to 20 Ω when fresh, rising with age and cold."
+      - "The flat face with the printing is plus."
+      - "Symbol: a single cell: one long and one short parallel line."
+      - "Safety: keep coin cells away from small children. A swallowed one can cause serious internal burns. Never recharge one."

@@ -1,0 +1,13 @@
+id: power-and-heat
+title: Power and heat
+summary: Watts and heat, power ratings, fuses that fail on purpose, and the resistance hiding inside every battery.
+landmark:
+  id: power-station
+  name: the Power Station
+  # The module schema has no fields for these yet (blueprint section 8):
+  # caption: Fuses on guard, heatsinks cooling, batteries treated with respect. The island has power, safely.
+  # mascot: Nothing smoking. Well, nothing that shouldn't be.
+lessons:
+  - watts-and-heat
+  - fuse-guard
+  - inside-the-battery

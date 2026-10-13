@@ -1,0 +1,13 @@
+id: cells-and-batteries
+title: Cells and batteries
+summary: Make a cell from fruit and two metals, stack cells in series, and learn to choose and handle real batteries.
+landmark:
+  id: lemon-grove
+  name: the Lemon Grove
+  # The module schema has no fields for these yet (blueprint section 8):
+  # caption: A grove of lemon trees wired in series lights the robot's face, and the bridge to the next island.
+  # mascot: Full brightness! Next stop: switches, relays and more.
+lessons:
+  - lemon-cell
+  - stack-the-cells
+  - battery-field-guide

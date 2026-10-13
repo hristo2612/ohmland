@@ -1,0 +1,13 @@
+id: current-and-leds
+title: Current and LEDs
+summary: Build your first LED circuit, push an LED past its limit on purpose, and measure current properly.
+landmark:
+  id: lighthouse
+  name: the Lighthouse
+  # The module schema has no fields for these yet (blueprint section 8):
+  # caption: A lighthouse with one red LED at the top, wired with the right resistor, so it shines for years.
+  # mascot: Sensible current, steady light. That's how lighthouses last.
+lessons:
+  - first-glow
+  - led-burnout
+  - measure-the-flow
