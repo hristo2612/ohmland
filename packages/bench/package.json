@@ -1,0 +1,41 @@
+{
+  "name": "@ohmland/bench",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ohmland 3D lab workbench: procedural part models, breadboard, multimeter, interaction and bench-to-netlist.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "vite playground",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "shots": "playwright test -c e2e/playwright.config.ts"
+  },
+  "dependencies": {
+    "@ohmland/sim": "workspace:*",
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.1",
+    "@react-three/postprocessing": "3.2.0",
+    "postprocessing": "6.39.5",
+    "zustand": "5.0.15"
+  },
+  "peerDependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/three": "0.186.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "three": "0.186.1",
+    "vite": "8.3.4",
+    "vitest": "5.0.4"
+  }
+}
