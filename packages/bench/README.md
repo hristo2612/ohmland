@@ -42,7 +42,7 @@ function Lab({ sim }) {
 | `store` | `BenchStore` | Drive the bench from your own store (`createBenchStore`). |
 | `tray` | `TrayItem[]` | Parts the learner can drag in. `count` limits how many may be placed. |
 | `snapshot` | `Snapshot \| null` | Latest simulator snapshot. Reads `glow`, `health`, `closed`, `display`, `unit` per part id. |
-| `onChange` | `(bench) => void` | After every committed change (not during a drag). Rebuild the netlist here. |
+| `onChange` | `(bench) => void` | After every committed change (not during a drag, and not for the initial bench). Rebuild the netlist here. |
 | `onAction` | `(action: BenchAction) => void` | Every user action. `type: "input"` actions (pushbutton `pressed`, switch `to`, trimmer `position`, meter `mode`) are meant for `sim.setInput`. |
 | `quality` | `"high" \| "low"` | High: soft shadows, bloom, outline, glass transmission, DPR up to 2. Low: no shadows or post-processing, sprite halos for glow, DPR up to 1.5. |
 | `readOnly` | `boolean` | Camera only; no tray, no edits. |
