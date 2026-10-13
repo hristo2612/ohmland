@@ -150,7 +150,6 @@ export default defineLab({
       hints: ["R10 and C5 make an RC filter, like the smoothing in the capacitor module.", "R8 and R9 keep their base ends; only their other ends move to row 17."],
       highlight: ["hole:c17", "hole:d17"],
       success: "Now it swoops up and down. The capacitor turns sudden steps into slopes.",
-      trigger: "siren-wail",
     },
     {
       id: "trill",

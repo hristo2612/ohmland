@@ -1,10 +1,10 @@
 // Blueprint: docs/curriculum/unit-2.md, Lesson 17. A two-transistor astable on the breadboard.
 //
-// Layout: the battery snap feeds a slide switch at the left end (com in column 2, b in column 3); column 3 jumps to
+// Layout: the battery snap feeds a slide switch at the left end (com in row 2, b in row 3); row 3 jumps to
 // the near + rail, which is bridged to the far + rail, so both rails carry the switched supply. Q1 sits on the near
-// half (E B C in columns 10 to 12, flat face toward you) and Q2 faces it on the far half, in the same columns. Each
-// collector has its LED (columns 12 and 13) and a 1 kΩ from its + rail. The learner adds the 68 kΩ base resistors
-// (rail to column 11, both halves) and then the two 10 µF capacitors, which cross the channel: + on one collector,
+// half (E B C in rows 10 to 12, flat face toward you) and Q2 faces it on the far half, in the same rows. Each
+// collector has its LED (rows 12 and 13) and a 1 kΩ from its + rail. The learner adds the 68 kΩ base resistors
+// (rail to row 11, both halves) and then the two 10 µF capacitors, which cross the channel: + on one collector,
 // stripe on the other transistor's base.
 //
 // Measured in the simulator: 10 µF blinks every 0.84 s (each LED lit about half the time); 22 µF every 1.8 s; Q2's
@@ -91,7 +91,7 @@ export default defineLab({
         return !!a && !!b && a.min > 0.5 && b.min > 0.5 && a.span < 0.05 && b.span < 0.05;
       },
       hints: [
-        "Q1's base is column 11 on the near half; Q2's base is column 11 on the far half. Each needs its own 68 kΩ from the + rail beside it.",
+        "Q1's base is in row 11 on the near half; Q2's base is in row 11 on the far half. Each needs its own 68 kΩ from the + rail beside it.",
         "Then slide the switch at the left end of the board toward the board's middle.",
       ],
       highlight: ["pin:Q1.b", "pin:Q2.b", "S1"],
@@ -104,7 +104,7 @@ export default defineLab({
       goal: (lab) => lab.closed("S1") && crossed(lab, 10e-6) && takingTurns(lab, 0.6, 1.3),
       hints: [
         "Each capacitor crosses the channel: a collector on one side, the other transistor's base on the other.",
-        "Stripe (negative) toward the base. Bend the legs to reach: put the + leg in column 12 on one half and the stripe in column 11 on the other half.",
+        "Stripe (negative) toward the base. Bend the legs to reach: put the + leg in row 12 on one half and the stripe in row 11 on the other half.",
       ],
       highlight: ["pin:Q1.c", "pin:Q2.b", "pin:Q2.c", "pin:Q1.b"],
       success: "They take turns! No moving parts, no wear, no clicks.",
