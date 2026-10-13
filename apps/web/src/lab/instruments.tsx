@@ -184,9 +184,9 @@ export function ScopePanel({ runtime, config }: { runtime: LabRuntime; config: S
       if (shot) {
         // A single shot: times in seconds after the switch, drawn across the capture window.
         const span = (config.capture?.ms ?? 2) / 1000;
-        const series: Series[] = shot.series.map((s, i) => ({ label: s.label, unit: "V", points: s.points.map(([t, v]) => [t - span, v] as [number, number]) }));
+        const series: Series[] = shot.series.map((s) => ({ label: s.label, unit: "V", points: s.points.map(([t, v]) => [t - span, v] as [number, number]) }));
         paint(c, series, span, config.range);
-        setLatest(series.map((s, i) => {
+        setLatest(series.map((_, i) => {
           const lo = Math.min(...shot.series[i]!.points.map((p) => p[1]));
           return Number.isFinite(lo) ? m.lab.capture.min(`${lo.toFixed(Math.abs(lo) < 10 ? 2 : 0)} V`) : "";
         }));
