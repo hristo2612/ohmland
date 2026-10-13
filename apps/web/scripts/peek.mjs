@@ -1,6 +1,6 @@
 // Dev helper: screenshot one URL (optionally a clip region) for a quick visual check.
 //   node scripts/peek.mjs <url> <out.png> [--w=1440] [--h=900] [--theme=light] [--clip=x,y,w,h] [--scale=2] [--full]
-//   [--motion=reduce|no-preference] [--wait=300] [--seed=one|module]
+//   [--motion=reduce|no-preference] [--wait=300] [--seed=one|module|wrap]
 import { chromium } from "@playwright/test";
 import { WEBGL_ARGS, seedLearner } from "./seed.mjs";
 

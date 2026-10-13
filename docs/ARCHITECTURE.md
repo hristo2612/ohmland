@@ -516,7 +516,10 @@ With the Firebase emulators (Java 21+, `docs/ACCOUNTS.md`): `pnpm test:rules` ru
 question, account deletion, a change sent while the tab closes) against an emulator build.
 
 `apps/web/scripts/screenshots.mjs` takes screenshots of every page and lesson step in both themes at 1440x900 and
-390x844 for visual review; a curated set lives in `apps/web/screenshots/`. Headless Chromium gets WebGL from
-SwiftShader (`--use-angle=swiftshader --enable-unsafe-swiftshader`). `apps/web/scripts/isle-poster.mjs` renders the
+390x844 for visual review; a curated set lives in `apps/web/screenshots/` (with the lab shots from
+`scripts/lab-shots.mjs`). Headless Chromium gets WebGL from SwiftShader (`--use-angle=swiftshader
+--enable-unsafe-swiftshader`). The island's clock is pinned (`?time=12:00` in light shots, `22:00` in dark ones),
+seeded learners (`scripts/seed.mjs`: one lesson done, the first module done, or one lesson short of it) use fixed
+dates, and shots wait for islands to settle, so islands look the same in every run. `apps/web/scripts/isle-poster.mjs` renders the
 landing hero's day and night stills from the live island (1200 and 640 px wide, plus the tiny blurred copies that
 `tokens.css` inlines so the hero frame is never empty).
