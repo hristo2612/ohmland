@@ -20,6 +20,7 @@
   --line: #E6DDCF;
   --line-strong: #D3C5B1;
   --bar: color-mix(in srgb, #F7F3EB 86%, transparent);
+  --nav-surface: #FFFFFF;
   --scrim: rgb(28 25 21 / 0.55);
 
   /* Copper and amber. Primary fills carry dark ink, never white text. */
@@ -49,6 +50,7 @@
   --shadow-glow: 0 0 0 6px rgb(238 154 69 / 0.22), 0 6px 20px rgb(238 154 69 / 0.35);
   --shadow-button: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 1px 2px rgb(120 60 10 / 0.18), 0 4px 12px rgb(238 154 69 / 0.25);
   --shadow-inset: inset 0 1px 2px rgb(60 40 20 / 0.08);
+  --shadow-nav: 0 -6px 18px rgb(60 40 20 / 0.06);
   --highlight: rgb(255 255 255 / 0.6);
   --dot-grid: rgb(60 40 20 / 0.07);
 
@@ -240,6 +242,7 @@
     --line: #243045;
     --line-strong: #33415A;
     --bar: color-mix(in srgb, #0D131D 84%, transparent);
+    --nav-surface: #121A26;
     --scrim: rgb(3 6 12 / 0.7);
     --primary: #F5A652;
     --primary-hover: #FFB466;
@@ -263,6 +266,7 @@
     --shadow-glow: 0 0 0 6px rgb(255 181 71 / 0.16), 0 0 28px rgb(255 181 71 / 0.38);
     --shadow-button: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 0 0 1px rgb(255 190 110 / 0.2), 0 6px 18px rgb(245 166 82 / 0.22);
     --shadow-inset: inset 0 1px 2px rgb(0 0 0 / 0.3);
+    --shadow-nav: 0 -8px 24px rgb(0 0 0 / 0.35);
     --highlight: rgb(255 255 255 / 0.06);
     --dot-grid: rgb(170 190 220 / 0.07);
   }
@@ -281,6 +285,7 @@
   --line: #243045;
   --line-strong: #33415A;
   --bar: color-mix(in srgb, #0D131D 84%, transparent);
+  --nav-surface: #121A26;
   --scrim: rgb(3 6 12 / 0.7);
   --primary: #F5A652;
   --primary-hover: #FFB466;
@@ -304,6 +309,7 @@
   --shadow-glow: 0 0 0 6px rgb(255 181 71 / 0.16), 0 0 28px rgb(255 181 71 / 0.38);
   --shadow-button: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 0 0 1px rgb(255 190 110 / 0.2), 0 6px 18px rgb(245 166 82 / 0.22);
   --shadow-inset: inset 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-nav: 0 -8px 24px rgb(0 0 0 / 0.35);
   --highlight: rgb(255 255 255 / 0.06);
   --dot-grid: rgb(170 190 220 / 0.07);
 }
