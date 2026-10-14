@@ -490,28 +490,3 @@ export function boxNets(bench: BenchState, box: PlacedPart): Map<string, Vec3[]>
   }
   return out;
 }
-
-/** The pieces of a box's inside wiring, for drawing: each terminal or junction joined to the held leads on it. */
-export function boxWires(bench: BenchState, box: PlacedPart): [Vec3, Vec3][] {
-  if (box.kind !== "box") return [];
-  const wiring = box.params.wiring ?? {};
-  const held = heldOf(box);
-  const pose = partPose(bench, box);
-  const groups = new Map<string, Vec3[]>();
-  for (const [key, net] of Object.entries(wiring)) {
-    const dot = key.indexOf(".");
-    const id = held[key.slice(0, dot)];
-    const part = id ? bench.parts.find((p) => p.id === id) : undefined;
-    const p = part ? partPose(bench, part).legs[key.slice(dot + 1)] : undefined;
-    if (!p) continue;
-    let g = groups.get(net);
-    if (!g) {
-      g = net in pose.legs ? [pose.legs[net]!] : [];
-      groups.set(net, g);
-    }
-    g.push(p);
-  }
-  const out: [Vec3, Vec3][] = [];
-  for (const g of groups.values()) for (let i = 1; i < g.length; i++) out.push([g[0]!, g[i]!]);
-  return out;
-}
