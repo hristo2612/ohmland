@@ -24,11 +24,13 @@ beats:
 
   - say: Still dark. Tap the battery's minus snap.
     tap: { answer: B1.neg, among: [B1.pos, B1.neg] }
+    trace: B1.neg
     wrong: { B1.pos: "That's plus. Minus is the other snap." }
     note: { at: TL1.a, text: "plastic: a gap" }
 
   - say: Move that clip onto the metal snap.
     do: find-the-gap
+    trace: B1.neg
     note: { at: D1, text: "loop: metal all the way round" }
     rule: Flow needs a closed loop.
 

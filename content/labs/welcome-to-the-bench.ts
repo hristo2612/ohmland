@@ -19,7 +19,7 @@ export default defineLab({
   title: "Welcome to the bench",
   bench: {
     board: "none",
-    frame: ["desk:-92,-58", "desk:80,56"],
+    frame: ["desk:-112,-60", "desk:84,58"],
     parts: [
       { id: "B1", kind: "battery", at: "desk:-72,2", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
       // A big toggle switch on a small wooden block, wired between com and b, so "on" is thrown to b.
@@ -71,7 +71,8 @@ export default defineLab({
     {
       id: "mend-the-loop",
       prompt: "Clip the lead back on.",
-      goal: relit,
+      // Every clip back on metal (a loose clip still lying there would be a fresh break).
+      goal: (lab) => lab.bench.detachedLeadEnds === 0 && lab.isLit("D1"),
       hints: ["Drag the loose clip back onto the metal it came from."],
       success: "Light's back.",
     },
@@ -80,7 +81,7 @@ export default defineLab({
       prompt: "The switch is on, but no light. Fix it.",
       setup: ON_THE_WOOD,
       goal: relit,
-      hints: ["Tap a snap. Watch where the ink stops.", "One clip bites wood, not metal. Move it onto the screw."],
+      hints: ["Follow the clips round. One bites wood, not metal.", "Move that clip onto the screw terminal."],
       highlight: ["TL2", "S1"],
       success: "Wood is a gap too. Fixed.",
     },
