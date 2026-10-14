@@ -8,11 +8,12 @@ test("a guest finishes the first lesson and sees XP on the signed-off page", asy
 
   await playFirstLesson(page);
 
-  // 30 for the lesson + 3 checks first try x 10 + 2 bench tasks x 15, plus "First spark" (20) and "Clean sweep" (25)
-  // = 135 XP.
+  // 30 for the lesson + 1 check first try x 10 + 4 bench tasks x 15, plus 100 for the First cases module and its
+  // landmark achievement (30), "First spark" (20) and "Clean sweep" (25) = 275 XP. (The module and its landmark only
+  // while First cases holds this one lesson: once its other cases land, 145 XP.)
   const finale = page.locator("[data-finale]");
-  await expect(finale.getByRole("heading", { name: "How a breadboard works, done" })).toBeVisible();
-  await expect(page.locator(".finale__xp")).toHaveText("+135 XP");
+  await expect(finale.getByRole("heading", { name: "Welcome to the bench, done" })).toBeVisible();
+  await expect(page.locator(".finale__xp")).toHaveText("+275 XP");
 
   // The XP survives a reload: the header's notebook chip (a tally on phones) on the course map shows level 2.
   await page.goto("/learn");
@@ -24,7 +25,7 @@ test("a lesson's first load carries no three.js", async ({ page }) => {
   page.on("response", (res) => {
     if (res.request().resourceType() === "script") scripts.push(res.text().catch(() => ""));
   });
-  await page.goto("/learn/basics/first-glow", { waitUntil: "networkidle" });
+  await page.goto("/learn/start-here/first-glow", { waitUntil: "networkidle" });
   // The start screen is up and ready to tap; the bench loads after the learner's first gesture.
   await expect(page.locator('.bl[data-phase="start"] [data-primary]')).toBeVisible();
   const bodies = await Promise.all(scripts);

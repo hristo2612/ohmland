@@ -49,27 +49,9 @@ function quantise(path) {
 const project = (page, t) => page.evaluate((x) => window.ohmlandLab.project(x), t);
 const benchState = (page) => page.evaluate(() => window.ohmlandLab.bench());
 
-async function drag(page, from, to) {
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  for (let i = 1; i <= 14; i++) await page.mouse.move(from.x + ((to.x - from.x) * i) / 14, from.y + ((to.y - from.y) * i) / 14);
-  await page.mouse.up();
-  await page.waitForTimeout(200);
-}
-async function leadFromTray(page, color, anchor) {
-  const before = new Set((await benchState(page)).leads.map((l) => l.id));
-  const box = await page.locator(".ohb-tray .ohb-item, .ohi-tray .ohi-item", { hasText: color }).first().boundingBox();
-  await drag(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, await project(page, anchor));
-  return (await benchState(page)).leads.find((l) => !before.has(l.id)).id;
-}
-async function clipTo(page, lead, end, anchor) {
-  const e = (await benchState(page)).leads.find((x) => x.id === lead)[end];
-  const from = e.to ? await project(page, e.to) : await project(page, [e.pos[0], 4, e.pos[1]]);
-  await drag(page, from, await project(page, anchor));
-}
 /**
  * Opens a lesson at its lab. A stepper lesson: make the guess, then Continue to the lab step. A bench lesson: tap the
- * start button, then play the first beat when it only names a part (first-glow's "This is an LED"), so the bench is
+ * start button, then play the first beat when it only names a part (a meet beat), so the bench is
  * ready for work.
  */
 async function openLab(page, base, lesson, option = 0) {
@@ -93,16 +75,21 @@ async function flipBlockSwitch(page, id) {
   const at = (await page.evaluate(() => window.ohmlandLab.view?.() ?? "3d")) === "ink" ? await project(page, `part:${id}`) : await project(page, [p.pos[0], 24, p.pos[1] - 5.5]);
   await page.mouse.click(at.x, at.y);
 }
+/**
+ * The torn blueprint (first-glow): mends the drawing and builds it on the breadboard through the lab hook, so the bench
+ * shows a lit LED on the board beside its drawing.
+ */
 async function buildFirstGlow(page) {
-  const red = await leadFromTray(page, "Red", "pin:B1.pos");
-  await clipTo(page, red, "a", "pin:R1.a");
-  const green = await leadFromTray(page, "Green", "pin:R1.b");
-  await clipTo(page, green, "a", "pin:D1.anode");
-  const black = await leadFromTray(page, "Black", "pin:D1.cathode");
-  await clipTo(page, black, "a", "pin:B1.neg");
+  const step = (s) => page.evaluate((x) => window.ohmlandLab.step(x), s);
+  await step({ do: "move", part: "PC", at: "in:CARD" });
+  await step({ do: "param", part: "PC", params: { turn: 90 } });
+  await page.locator('.bl[data-moment="b0"][data-phase="done"]').waitFor();
+  await page.locator("[data-primary]").click();
+  await page.locator('.bl[data-moment="b1"]').waitFor();
+  await step({ do: "place", part: "R1", kind: "resistor", at: "c5", params: { ohms: 1000 } });
+  await step({ do: "place", part: "D1", kind: "led", at: "d9", params: { color: "red", maxmA: 50 } });
   await page.mouse.click(5, 300); // deselect
   await page.waitForTimeout(1200);
-  return red;
 }
 const deselect = async (page) => {
   await page.keyboard.press("Escape");
@@ -173,38 +160,38 @@ function rcBuild(meter = true) {
 // ---- Shots ------------------------------------------------------------------------------------------------------
 
 const SHOTS = [
-  ["lesson-lab-desktop-light", DESKTOP, "light", async (page, base) => openLab(page, base, "basics/welcome-to-the-bench", 2)],
+  ["lesson-lab-desktop-light", DESKTOP, "light", async (page, base) => openLab(page, base, "start-here/welcome-to-the-bench", 2)],
   ["lab-desktop-light", DESKTOP, "light", async (page, base) => {
-    await openLab(page, base, "basics/welcome-to-the-bench", 2);
+    await openLab(page, base, "start-here/welcome-to-the-bench", 2);
     await flipBlockSwitch(page, "S1");
     await page.waitForTimeout(1500);
   }],
   ["lab-phone-light", PHONE, "light", async (page, base) => {
-    await openLab(page, base, "basics/welcome-to-the-bench", 2);
+    await openLab(page, base, "start-here/welcome-to-the-bench", 2);
     await flipBlockSwitch(page, "S1");
     await page.waitForTimeout(1500);
   }],
   ["lab-desktop-dark", DESKTOP, "dark", async (page, base) => {
-    await openLab(page, base, "basics/first-glow", 1);
+    await openLab(page, base, "start-here/first-glow");
     await buildFirstGlow(page);
   }],
   ["lab-phone-dark", PHONE, "dark", async (page, base) => {
-    await openLab(page, base, "basics/first-glow", 1);
+    await openLab(page, base, "start-here/first-glow");
     await buildFirstGlow(page);
     await page.waitForTimeout(500);
   }],
   ["lab-loading-desktop-dark", DESKTOP, "dark", async (page, base) => {
     // the bench chunks never arrive, so the lesson's loading state stays on screen
     await page.route(/(Stage|BenchSurface)\.[\w-]+\.js$/, () => {});
-    await page.goto(`${base}/learn/basics/welcome-to-the-bench/`);
+    await page.goto(`${base}/learn/start-here/welcome-to-the-bench/`);
     await page.locator("[data-primary]").click();
     await page.locator(".bl-skeleton").waitFor();
     await page.waitForTimeout(600);
   }],
   ["lab-fried-desktop-light", DESKTOP, "light", async (page, base) => {
-    await openLab(page, base, "basics/first-glow", 1);
-    const red = await buildFirstGlow(page);
-    await clipTo(page, red, "a", "pin:D1.anode");
+    // One LED, too much current: the 15 Ω resistor dropped into the holder, so the LED burns out.
+    await openLab(page, base, "basics/led-burnout");
+    await page.evaluate(() => window.ohmlandLab.step({ do: "place", part: "R4", kind: "resistor", at: "in:H1", params: { ohms: 15, watts: 0.25 } }));
     await deselect(page);
     await page.waitForTimeout(1500);
   }],
