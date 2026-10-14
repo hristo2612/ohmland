@@ -1,0 +1,60 @@
+# Blueprint: docs/curriculum/unit-1.md, L3. A bench lesson (docs/LESSONS.md), trimmed per
+# docs/curriculum/conversion-guide.md, B3. One idea: a range is the biggest number the meter can show; OL means go up.
+# Lab: content/labs/tiny-and-huge-numbers.ts. Prefixes moved to Start here (milli-and-kilo); kilo-ohms was dropped.
+format: bench
+id: tiny-and-huge-numbers
+version: 2
+title: Pick the right range
+summary: Find out what OL means, climb to a range that fits, and pick the one that shows the most digits.
+minutes: 6
+lab: tiny-and-huge-numbers
+unlocks:
+  parts: []
+  isle: header-fence
+
+start:
+  title: Tame the OL
+  say: OL? Nothing's broken. Let's find out why.
+  go: Show me
+
+beats:
+  - say: "Range: 2 V. Turn the dial to volts. Guess first."
+    objective: Meet OL
+    tool: meter
+    guess: { options: ["9.40", "2.00", OL], answer: OL }
+    do: over-the-limit
+    done: OL. 9 V won't fit in 2 V.
+    note: { at: part:M1, text: "OL: over limit, go up" }
+
+  - say: Up one range at a time. Stop at a number.
+    objective: Climb a range
+    tool: meter
+    do: climb-a-range
+    done: 9.40 V. The first range that fits.
+    note: { at: part:M1, text: "20 V: most digits that fit" }
+    rule: Pick the smallest range above your reading.
+
+  - say: Quick one. 12 V is coming. Which range?
+    pick: { options: [2 V, 20 V, 200 V], answer: 20 V }
+    wrong: { "2 V": "12 V won't fit. That's an OL.", "200 V": "It fits, but shows fewer digits." }
+
+  - say: "Your turn: the AA cell. Most digits, no OL."
+    objective: Your call
+    tool: meter
+    do: aa-cell
+    done: 1.580 V. Three decimals!
+    note: { at: X1, text: "2 V range: 1.580 V" }
+
+secret:
+  task: two-hundred
+  say: Curious? Try 200 V on the 9 V battery.
+  done: Still works.
+  note: { at: part:M1, text: "200 V: works, fewer digits" }
+
+fixit:
+  say: Fix-it time. My AA shows just 1.6. More digits?
+  tasks:
+    - task: fix-aa
+
+end:
+  say: OL tamed. Smallest range that fits, every time.
