@@ -39,15 +39,17 @@ const mA = (lab: LabView, id: string): number => {
   return r && r.mode === "dca-ma" ? si(r) * 1000 : Number.NaN;
 };
 
-/** The logged battery voltage. */
+/** The logged battery voltage (a resumed lesson has none: then the battery's own push, as the meter would read it). */
 const battery = (lab: LabView): number => {
-  const r = lab.readings("across:B1").filter((x) => x.mode === "dcv").at(-1);
-  return si(r);
+  const r = si(lab.readings("across:B1").filter((x) => x.mode === "dcv").at(-1));
+  return Number.isFinite(r) ? r : (lab.volts("B1.pos", "B1.neg") ?? Number.NaN);
 };
 
-/** The learner's I × R for each row is within `tol` of the logged current times the nominal resistance. */
-const products = (lab: LabView, tol: number): boolean =>
-  ROWS.every(([id, k], i) => near(lab.note(`p${i + 1}`), mA(lab, id) * k, tol));
+/** The current the learner typed for a row is the one the meter logged for that resistor (within 2%). */
+const typed = (lab: LabView, row: number): boolean => {
+  const [id] = ROWS[row - 1]!;
+  return Number.isFinite(mA(lab, id)) && near(lab.note(`i${row}`), mA(lab, id), 0.02);
+};
 
 /** On mA, in series, but the red plug sits in VΩ: the meter reads nothing. */
 const plugInVohm = (lab: LabView) => lab.meter?.mode === "dca-ma" && lab.meter.red === "vohm" && lab.meter.redAt !== null && lab.meter.blackAt !== null;
@@ -68,9 +70,21 @@ export default defineLab({
     tray: ROWS.map(([id, k]) => ({ id, kind: "resistor" as const, params: PARTS[id]!, label: `${k} kΩ resistor`, count: 1 })),
     instruments: [{ kind: "meter", at: "desk:4,84", rot: 0, mode: "off" }],
   },
+  // The readings slip, docked from the first row on: each current the learner types lands in its row, and on the
+  // pattern beat a third column grows for multiplying. The law is never written down before the learner finds it.
+  panels: [
+    {
+      kind: "readings",
+      id: "data",
+      show: ["first-row", "fill-the-table", "spot-the-pattern", "predict-4k7"],
+      rows: ROWS.map(([, k], i) => ({ label: `${k} kΩ`, note: `i${i + 1}`, by: k })),
+      heads: ["Resistor", "mA", "mA × kΩ"],
+      multiply: "spot-the-pattern",
+    },
+  ],
   mascot: {
     start: "Measure first, formula later. Let's find a law.",
-    hint: "Multiply mA by kΩ. What number keeps turning up?",
+    hint: "Measure first. The pattern comes later.",
     success: "You just rediscovered Ohm's law. With your own data!",
   },
   // The Lawmaker achievement: every product within 5% of the battery, and the 4.7 kΩ prediction within 5% of the measurement.
@@ -97,35 +111,37 @@ export default defineLab({
     },
     {
       id: "first-row",
-      prompt: "Meter on **mA**, in series. Drop the 1 kΩ in the holder, then type mA × kΩ.",
-      // Each row's product is typed while its reading is on the display, so nothing has to be remembered.
-      goal: (lab) => Number.isFinite(mA(lab, "R1")) && near(lab.note("p1"), mA(lab, "R1"), 0.02),
-      note: { id: "p1", label: "1 kΩ: mA × kΩ", unit: "V" },
-      hints: ["Red plug in mA, dial on mA, probes on plus and holder.", "Then type the meter's mA times 1."],
+      prompt: "Meter on **mA**, in series. Drop the 1 kΩ in the holder, then type the mA.",
+      // Each row's current is typed while its reading is on the display; the readings slip writes it down.
+      goal: (lab) => typed(lab, 1),
+      note: { id: "i1", label: "1 kΩ: current", unit: "mA" },
+      hints: ["Red plug in mA, dial on mA, probes on plus and holder.", "Then type the number on the meter."],
       highlight: ["pin:B1.pos", "pin:H1.a", "H1"],
       nudges: [{ when: plugInVohm, say: "Reading zero? The red plug belongs in mA." }],
       success: "First row.",
     },
     {
       id: "fill-the-table",
-      prompt: "Now 1.5, 2.2 and 3.3 kΩ, one at a time. Type mA × kΩ for each.",
-      goal: (lab) => ROWS.every(([id]) => Number.isFinite(mA(lab, id))) && products(lab, 0.02),
+      prompt: "Now 1.5, 2.2 and 3.3 kΩ, one at a time. Type the mA for each.",
+      // The first row was checked on its own beat (and a resumed lesson no longer has it).
+      goal: (lab) => typed(lab, 2) && typed(lab, 3) && typed(lab, 4),
       note: [
-        { id: "p2", label: "1.5 kΩ: mA × kΩ", unit: "V" },
-        { id: "p3", label: "2.2 kΩ: mA × kΩ", unit: "V" },
-        { id: "p4", label: "3.3 kΩ: mA × kΩ", unit: "V" },
+        { id: "i2", label: "1.5 kΩ: current", unit: "mA" },
+        { id: "i3", label: "2.2 kΩ: current", unit: "mA" },
+        { id: "i4", label: "3.3 kΩ: current", unit: "mA" },
       ],
-      hints: ["Drop each resistor onto the holder. The last one pops out.", "Multiply the meter's mA by the resistor's kΩ."],
+      hints: ["Drop each resistor onto the holder. The last one pops out.", "Type each number while it is on the meter."],
       highlight: ["H1"],
       nudges: [{ when: plugInVohm, say: "Reading zero? The red plug belongs in mA." }],
       success: "Four rows of real data.",
     },
     {
       id: "spot-the-pattern",
-      prompt: "Look at your four answers. What number keeps turning up?",
-      goal: (lab) => products(lab, 0.02) && near(lab.note("pattern"), battery(lab), 0.03),
-      note: { id: "pattern", label: "Every row lands near", unit: "V" },
-      hints: ["Your four answers are all about the same.", "Compare them with the battery's push."],
+      prompt: "Multiply each row on the slip: mA times kΩ. What number keeps turning up?",
+      // Every row multiplied on the readings slip, and the number they share typed.
+      goal: (lab) => ROWS.every((_, i) => lab.panel("data")?.cells[`r${i + 1}`] === true) && near(lab.note("pattern"), battery(lab), 0.03),
+      note: { id: "pattern", label: "Every row lands near" },
+      hints: ["Tap Multiply on each row of the slip.", "The four answers are about the same. Seen it before?"],
       success: "All four land near your battery.",
     },
     {
@@ -142,7 +158,9 @@ export default defineLab({
       prompt: "Drop the 4.7 kΩ in the holder. Was your prediction right?",
       goal: (lab) => {
         const p = lab.note("prediction");
-        return near(p, battery(lab) / 4.7, 0.1) && near(mA(lab, "R5"), p ?? Number.NaN, 0.05);
+        // A resumed lesson no longer has the prediction (it was checked on its own beat): the reading alone counts.
+        if (p === null) return near(mA(lab, "R5"), battery(lab) / 4.7, 0.1);
+        return near(p, battery(lab) / 4.7, 0.1) && near(mA(lab, "R5"), p, 0.05);
       },
       hints: ["Drop the 4.7 kΩ resistor onto the holder.", "Hold the reading steady for a moment."],
       highlight: ["R5", "H1"],
@@ -173,16 +191,17 @@ export default defineLab({
     { do: "probe", red: "B1.pos", black: "H1.a" },
     { do: "place", part: "R1", kind: "resistor", params: PARTS.R1, at: "in:H1" },
     { do: "wait", seconds: 0.8 },
-    { do: "note", id: "p1", value: "9.19" },
+    { do: "note", id: "i1", value: "9.19" },
     { do: "check", task: "first-row" },
     ...ROWS.slice(1).flatMap(([id]) => [
       { do: "place" as const, part: id, kind: "resistor" as const, params: PARTS[id], at: "in:H1" },
       { do: "wait" as const, seconds: 0.8 },
     ]),
-    { do: "note", id: "p2", value: "9.38" },
-    { do: "note", id: "p3", value: "9.31" },
-    { do: "note", id: "p4", value: "9.41" },
+    { do: "note", id: "i2", value: "6.25" },
+    { do: "note", id: "i3", value: "4.23" },
+    { do: "note", id: "i4", value: "2.85" },
     { do: "check", task: "fill-the-table" },
+    ...ROWS.map((_, i) => ({ do: "panel" as const, id: "data", value: { row: i + 1 } })),
     { do: "note", id: "pattern", value: "9.4" },
     { do: "check", task: "spot-the-pattern" },
     ...FIFTH_RESISTOR,
