@@ -1,6 +1,8 @@
 # Blueprint: docs/curriculum/unit-1.md, L4. A bench lesson (docs/LESSONS.md), split per
 # docs/curriculum/conversion-guide.md, B3: this is the kept half (skin); the cups are in salt-and-water.
 # One idea: the Ω setting measures squeeze, even your skin's. Lab: content/labs/what-resists.ts.
+# A reference lesson for the voice (docs/LESSONS.md, "Writing beats"; docs/curriculum/voice-rewrite.md): why first on
+# the first beat of each objective, the secret and the fix-it; one clear instruction on every other beat.
 format: bench
 id: what-resists
 version: 2
@@ -14,48 +16,49 @@ unlocks:
 
 start:
   title: Your skin resists
-  say: Even you resist a little. Let's measure.
+  say: Everything squeezes the flow a little, even your own skin. Let's measure how much.
   go: Let's measure
 
 beats:
-  - say: Probes on the skin. Turn the dial to Ω.
+  - say: "Let's measure dry skin. The probes, the meter's two pointed tips, already touch the skin patch: turn the dial to Ω, ohms."
     objective: Dry skin
     tool: meter
     do: dry-skin
-    done: Almost a million ohms!
+    done: "The screen says 0.840 MΩ: almost a million ohms, because dry skin is a poor path for flow."
     note: { at: P1, text: "Ω: meter sends a tiny flow" }
-    rule: Measure squeeze with the power off.
+    rule: Measure ohms with no battery connected.
 
-  - say: It says 0.840 MΩ. How many kΩ is that?
+  - say: The screen says 0.840 MΩ, which is 0.840 million ohms. How many kΩ, thousands of ohms, is that?
     tool: meter
     number: { answer: 840, unit: kΩ, tolerance: 1 }
-    hint: M is a million. k is a thousand.
+    hint: One MΩ is 1,000 kΩ, so multiply 0.840 by 1,000.
+    done: Right, 840 kΩ, because one MΩ is a thousand kΩ.
     note: { at: part:M1/display, text: "M: mega, a million" }
 
-  - say: Tap Wet on the patch. Guess first.
+  - say: Let's see what water does to the ohms. Guess, then tap WET, one of the tabs along the skin patch.
     objective: Wet skin
     tool: meter
     guess: { options: [more ohms, about the same, fewer ohms], answer: fewer ohms }
     do: wet-skin
-    done: About 46 kΩ. Water lets the flow in.
+    done: "About 46 kΩ, or 0.046 MΩ: far fewer ohms, because water lets the flow into your skin."
     note: { at: P1, text: "dry 840 kΩ, wet 46 kΩ" }
 
-  - say: Quick one. What does Ω measure?
+  - say: Look at the meter's dial, circled on the bench. What does the Ω setting measure?
     pick: { options: [push, flow, squeeze], answer: squeeze, on: part:M1/dial }
-    wrong: { push: "Push is V, volts. Try again.", flow: "Flow is A, amps. Try again." }
+    wrong: { push: "Push is measured in V, volts. Try another.", flow: "Flow is measured in A, amps. Try another." }
 
 secret:
   task: double-spacing
-  say: Curious? Move one probe to 4 cm. Double the ohms?
+  say: "Bonus: does twice the distance give twice the ohms? Drag the black probe from the 2 mark to the 4 mark."
   tool: meter
-  done: Up a little. Nowhere near double.
-  note: { at: P1, text: contacts do most of it }
+  done: The ohms barely go up, because most of them are where the tips touch your skin.
+  note: { at: P1, text: "most ohms: where the tips touch" }
 
 fixit:
-  say: Fix-it time. Dry skin reads OL. Fix it.
+  say: "Fix-it time. OL means over the limit: the skin's ohms are too big for the meter's range. Get a real number."
   tool: meter
   tasks:
     - task: fix-dry
 
 end:
-  say: You resist. Now you can prove it.
+  say: You resist a little, and now you can measure how much.
