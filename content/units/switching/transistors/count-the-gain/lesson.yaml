@@ -1,0 +1,55 @@
+# Blueprint: docs/curriculum/unit-2.md, Lesson 13; docs/curriculum/conversion-guide.md, 13b (split, the new half).
+# A bench lesson (docs/LESSONS.md). One idea: the collector flow is about β times the base flow.
+# Lab: content/labs/count-the-gain.ts (measure-gain and double-it moved here from meet-the-transistor).
+format: bench
+id: count-the-gain
+version: 1
+title: Count the gain
+summary: Measure a transistor's base and collector currents and find its gain.
+minutes: 7
+lab: count-the-gain
+unlocks:
+  parts: []
+  isle: transistor
+
+start:
+  title: Count the gain
+  say: How much bigger is the river? Let's count.
+  go: Start counting
+
+beats:
+  - say: Pull the yellow link. Bridge the gap with the probes.
+    objective: Count both flows
+    tool: meter
+    do: measure-base
+    note: { at: R3, text: "base: about 18 µA" }
+
+  - say: Link's back. Now the green link, on 20 mA.
+    tool: meter
+    do: measure-collector
+    note: { at: D1, text: "collector: about 3.6 mA" }
+
+  - say: Collector ÷ base. Type the gain.
+    do: measure-gain
+    done: Every 2N3904 differs a little. Yours is a strong one.
+    note: { at: Q1, text: "β, its gain: about 200" }
+    rule: "Collector flow ≈ β × base flow."
+
+  - say: Swap in 220 kΩ, twice the base flow. Guess first.
+    objective: Double it
+    tool: meter
+    guess: { options: [About the same, About double, Ten times more], answer: About double }
+    do: double-it
+    note: { at: D1, text: "7.8 mA: about double" }
+
+  - say: A β of 200, and 20 µA into the base. Collector?
+    pick: { options: ["20 µA", "4 mA", "200 mA"], answer: "4 mA" }
+    wrong: { "20 µA": "That's the base flow. Times β, please.", "200 mA": "Check the units. 200 × 20 µA." }
+
+fixit:
+  say: Fix-it time. My base meter reads zero. Why?
+  tasks:
+    - task: fix-plug
+
+end:
+  say: About 200 times. Your transistor has a number now.
