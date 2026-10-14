@@ -47,7 +47,7 @@ beats:
 secret:
   task: one-throw
   say: Curious? S1 has only two legs. Probe it both ways.
-  done: Beep, then silence. Just on or off.
+  done: Silence, then a beep. Just on or off.
   note: { at: S1, text: "SPST: one pole, one throw" }
 
 fixit:

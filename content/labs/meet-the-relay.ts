@@ -18,8 +18,8 @@ const pressed = (lab: LabView) => lab.part("S1")?.extra?.["pressed"] === true;
 const LAMP_ON_NC: SolutionStep[] = [
   { do: "probe", red: null, black: null, mode: "off" },
   { do: "param", part: "K1", params: { peek: true } },
-  { do: "place", part: "R2", kind: "resistor", at: "desk:40,46", params: { ohms: 1000 } },
-  { do: "place", part: "D2", kind: "led", at: "desk:92,40", rot: 180, params: { color: "green" } },
+  { do: "place", part: "R2", kind: "resistor", at: "desk:-14,56", params: { ohms: 1000 } },
+  { do: "place", part: "D2", kind: "led", at: "desk:32,52", rot: 180, params: { color: "green" } },
   { do: "lead", id: "TL4", from: "B1.pos", to: "wired:K1.com1", color: "red" },
   { do: "lead", id: "TL5", from: "wired:K1.nc1", to: "R2.a", color: "green" },
   { do: "lead", id: "TL6", from: "R2.b", to: "D2.anode", color: "green" },
