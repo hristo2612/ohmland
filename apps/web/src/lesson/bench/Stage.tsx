@@ -16,7 +16,7 @@ import { prefersReducedMotion } from "../../progress/prefs";
 import { LabAudio } from "../../lab/audio";
 import { buildBench } from "../../lab/build";
 import { BenchSurfaceChunk, type BenchController, type BenchViewKind } from "../../lab/bench-view";
-import { ConnectionsPanel, ControlsPanel, MeterPanel, ScopePanel } from "../../lab/instruments";
+import { ConnectionsPanel, ControlsPanel, MeterPanel, ScopePanel, ViewsPanel } from "../../lab/instruments";
 import { LabPanels } from "../../lab/panels-ui";
 import { LoggerPanel, StopwatchPanel, TapperPanel } from "../../lab/timing";
 import { friedLabel } from "../../lab/labels";
@@ -79,8 +79,8 @@ export type StageProps = {
   marks: Mark[];
   check: StageCheck;
   popup: Popup | null;
-  /** The one instrument or panel the beat needs ("meter", "scope", "logger", "stopwatch", "tapper", "controls" or a
-   * lab panel id). Null: the panel the lab ties to the current task, if any. */
+  /** The one instrument or panel the beat needs ("meter", "scope", "logger", "stopwatch", "tapper", "controls", "views"
+   * or a lab panel id). Null: the panel the lab ties to the current task, if any. */
   tool: string | null;
   keyboardOpen: boolean;
   onApi(api: StageApi | null): void;
@@ -431,6 +431,7 @@ function ToolDock({ runtime, built, tool }: { runtime: LabRuntime; built: Return
   else if (tool === "stopwatch" && built.stopwatch) body = <StopwatchPanel runtime={runtime} config={built.stopwatch} />;
   else if (tool === "tapper" && built.tapper) body = <TapperPanel runtime={runtime} config={built.tapper} />;
   else if (tool === "controls" && built.controls.length) body = <ControlsPanel runtime={runtime} controls={built.controls} />;
+  else if (tool === "views" && built.overlays?.offer?.length) body = <ViewsPanel runtime={runtime} offer={built.overlays.offer} />;
   else if (runtime.lab.panels?.some((p) => p.id === tool)) body = <LabPanels runtime={runtime} only={tool} />;
   if (!body) return null;
   return (

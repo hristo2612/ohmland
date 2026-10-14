@@ -77,6 +77,7 @@ describe("bench lessons", () => {
         if (built.stopwatch) have.add("stopwatch");
         if (built.tapper) have.add("tapper");
         if (built.controls.length) have.add("controls");
+        if (built.overlays?.offer?.length) have.add("views");
         const tools = [...lesson.beats.map((b) => b.tool), lesson.fixit?.tool, lesson.secret?.tool];
         for (const tool of tools) if (tool) expect(have.has(tool), `tool "${tool}"`).toBe(true);
       });
