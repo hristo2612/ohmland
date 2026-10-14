@@ -34,6 +34,7 @@ import {
   isMomentDone,
   momentsOf,
   noteText,
+  pinNamesBefore,
   progressOf,
   recordTry,
   rulesFound,
@@ -508,12 +509,14 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
         addMark({ id: `tick-${mo.key}`, kind: "tick", at: anchor, tone: "blue" });
         complete(mo, { tapped: anchor });
       } else {
-        // Not marked wrong: the tapped thing shows its own name (the three-period lesson's second period).
-        addMark({ id: `miss-${anchor}`, kind: "label", at: anchor, text: st.nameOf(anchor), tone: "ink" });
+        // Not marked wrong: the tapped thing shows its own name (the three-period lesson's second period); a chip's pin
+        // by the word the lesson has given it so far ("pin 2, trigger").
+        const named = pinNamesBefore(moments, state.current.index);
+        addMark({ id: `miss-${anchor}`, kind: "label", at: anchor, text: st.nameOf(anchor, named), tone: "ink" });
         say(mo.beat?.wrong?.[anchor] ?? mo.beat?.hint ?? m.lessonBench.wrongTap, "thinking");
       }
     },
-    [addMark, complete, say, setAnswer],
+    [addMark, complete, say, setAnswer, moments],
   );
 
   const onPick = (i: number) => {

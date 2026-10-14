@@ -227,6 +227,9 @@ export const en = {
     noBench: "The bench can't start in this browser. Read along and skip ahead.",
     failed: "This bench could not be loaded. You can still skip ahead.",
     tapHere: (label: string) => `Tap: ${label}`,
+    /** A chip's pin, tapped by mistake: by number, and by the word the lesson gave it once it has. */
+    pinNumbered: (n: number) => `pin ${n}`,
+    pinNamed: (n: number, word: string) => `pin ${n}, ${word}`,
     legs: { anode: "anode, the long leg", cathode: "cathode, the short leg", pos: "plus terminal", neg: "minus terminal", a: "one end", b: "other end", com: "middle terminal" } as Record<string, string>,
     /** Leg names that depend on the kind of part (a diode's band, an electrolytic's stripe); other parts use `legs`. */
     legsByKind: {
