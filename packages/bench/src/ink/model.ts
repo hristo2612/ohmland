@@ -16,6 +16,7 @@ import { rectOfPoints, unionRect, type Rect } from "./camera";
 import { INK, boxCorners, toLocal, toWorld, type Box, type Frame } from "./frame";
 import { inkKind } from "./kinds";
 import { parseTarget } from "../view/targets";
+import { perfMount } from "../solder/perfboard";
 
 export { INK, boxCorners, frameTransform, toLocal, toWorld, type Box, type Frame } from "./frame";
 
@@ -147,6 +148,24 @@ function holderMap(bench: BenchState): Map<string, PlacedPart> {
   for (const h of bench.parts) {
     const held = (h.params as { held?: Record<string, string | undefined> }).held;
     if (held) for (const id of Object.values(held)) if (id) out.set(id, h);
+  }
+  // A part through a perfboard's holes follows the board (its pose changes when the board moves or flips).
+  for (const p of bench.parts) {
+    const board = perfMount(bench, p);
+    if (board) out.set(p.id, board);
+  }
+  // A clip on a lead or a tube on a wire follows its host.
+  for (const p of bench.parts) {
+    const host =
+      p.kind === "heat-sink-clip" && p.params.on
+        ? p.params.on.slice(0, p.params.on.lastIndexOf("."))
+        : p.kind === "heat-shrink" && p.params.on
+          ? p.params.on
+          : p.kind === "wall-adapter" && p.params.into
+            ? p.params.into
+            : null;
+    const h = host ? bench.parts.find((x) => x.id === host) : undefined;
+    if (h) out.set(p.id, h);
   }
   return out;
 }
@@ -442,6 +461,8 @@ export function buildModel(bench: BenchState): InkModel {
   for (const pi of parts.values()) {
     const id = pi.part.id;
     const kind = inkKind(pi.part.kind);
+    // Under a flipped perfboard: out of reach until the board is turned back.
+    if (pi.pose.under) continue;
     push({ type: "part", id }, { t: "box", f: pi.f, b: pi.box });
     for (const h of hotspotsOf(pi.part, pi.mount)) {
       const box: Box = [h.at[0] - h.size[0] / 2, h.at[2] - h.size[2] / 2, h.at[0] + h.size[0] / 2, h.at[2] + h.size[2] / 2];

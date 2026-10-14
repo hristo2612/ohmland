@@ -75,6 +75,8 @@ export function anchorName(bench: BenchState, a: Anchor, labels: BenchLabels): s
       return `${labels.colors[p.color]} probe`;
     case "socket":
       return p.socket.toUpperCase();
+    case "spot":
+      return labels.solder.spot(p.spot);
   }
 }
 

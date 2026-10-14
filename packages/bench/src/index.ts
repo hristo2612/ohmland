@@ -26,7 +26,10 @@ export { CHIP_MODELS, CHIP_PINOUTS, CHIP_PRINT, SEVENSEG_LEGS, SEGMENTS, chipLeg
 export { resolveLeg, canonicalAnchor, perches } from "./parts";
 export { logicProbeReading, useProbeState, PULSE_HOLD, type ProbeLevel, type ProbeReading } from "./probe";
 export { resistorBands, bandsToOhms, formatOhms, formatFarads, ceramicCode, isPreferredValue, BAND_HEX, type BandColor } from "./colorCode";
-export { DEFAULT_LABELS, mergeLabels, type BenchLabels } from "./labels";
+export { DEFAULT_LABELS, DEFAULT_SOLDER_LABELS, mergeLabels, type BenchLabels, type SolderLabels } from "./labels";
+export * from "./solder";
+export { spotAnchor } from "./anchors";
+export { SolderOverlay, hasSolderWork, type SolderViewApi } from "./solder/overlay/SolderOverlay";
 
 // Model components, for custom scenes inside an R3F <Canvas>.
 export { PartModel, type PartModelProps } from "./models/PartModel";
