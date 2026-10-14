@@ -146,6 +146,11 @@ for a moment:
 nudges: [{ when: (lab) => backwards(lab), say: "Dark? Turn the LED around. Long leg to plus." }],
 ```
 
+A simulator warning (a shorted battery, a part running hot) never prints its long explanation in a lesson. The part
+that raised it gets a short note in red pencil and the robot says a kind line, both from `lessonBench.notices` in
+`apps/web/src/i18n/en.ts` (keyed by the warning's kind or cause); the note leaves after a few seconds. In a fix-it round
+warnings say nothing at all: the bench shows the evidence, and the learner finds the fault.
+
 After a `setup` puts a broken bench down (a fix-it), its task's nudges wait for the learner's first move on the bench:
 the broken bench matches them from the start, and a nudge before the learner has tried would give the fix away.
 

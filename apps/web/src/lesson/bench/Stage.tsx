@@ -38,6 +38,9 @@ const Surface = BenchSurfaceChunk.Component;
 /** The microcontroller board's tools (code drawer, serial monitor, millis): a chunk of their own, for labs with a board. */
 const CodeTools = lazy(() => import("../../lab/code/CodeTools"));
 
+/** A simulator warning (a short, a part running hot): what happened and to which part, for the lesson to draw. */
+export type StageNotice = { type: string; partId: string; cause?: string };
+
 export type StageCheck = { kind: "targets"; targets: string[] } | { kind: "meet"; part: string } | { kind: "holes"; hover?: boolean } | null;
 
 /** What the player may ask of the bench once it is up. */
@@ -99,7 +102,7 @@ export type StageProps = {
   onTaskDone(id: string): void;
   onFried(card: FriedCard): void;
   onNudge(line: string): void;
-  onNotice(text: string): void;
+  onNotice(notice: StageNotice): void;
   onTap(anchor: string): void;
   onPopupDone(): void;
 };
@@ -246,9 +249,9 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   const ui = useStore(runtime.ui);
   const bench = useStore(runtime.store, (s) => s.bench);
 
-  // Simulator notices (a short, a warning): the margin says them.
+  // Simulator warnings (a short, a part running hot): the lesson draws a short note on the part, never the long words.
   useEffect(() => {
-    if (ui.notice) cb.current.onNotice(ui.notice.message);
+    if (ui.notice) cb.current.onNotice({ type: ui.notice.type, partId: ui.notice.partId, ...(ui.notice.cause ? { cause: ui.notice.cause } : {}) });
   }, [ui.notice]);
 
   // X-ray of the breadboard's strips.

@@ -183,7 +183,6 @@
 .bl-guess { margin: 0; color: var(--bl-ink-2); font-size: var(--bl-text-sm); }
 .bl-guess__k { font-size: var(--bl-text-xs); font-weight: 600; letter-spacing: var(--tracking-caps); text-transform: uppercase; }
 .bl-guess__verdict { display: block; margin-top: var(--bl-s-1); color: var(--bl-blue); font-family: var(--bl-hand); font-size: var(--bl-text-md); }
-.bl-notice { margin: 0; color: var(--bl-ink-2); font-size: var(--bl-text-sm); line-height: 1.4; animation: bl-fade var(--bl-dur-write) var(--bl-ease-out); }
 
 .bl-act { display: flex; flex-direction: column; align-items: flex-start; gap: var(--bl-s-3); }
 .bl-go, .bl-next { animation: bl-fade var(--bl-dur-write) var(--bl-ease-out) backwards; }

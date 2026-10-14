@@ -44,7 +44,7 @@ import {
 import { judgeJoined, type Mark } from "./marks";
 import { NotebookPage } from "./NotebookPage";
 import { Robot, type RobotMood } from "./Robot";
-import type { StageApi, StageCheck, StageProps } from "./Stage";
+import type { StageApi, StageCheck, StageNotice, StageProps } from "./Stage";
 import "@fontsource/kalam/400.css";
 import "@fontsource/kalam/700.css";
 import "./bench-lesson.css";
@@ -108,7 +108,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const [answers, setAnswers] = useState<Answers>({});
   const [marks, setMarks] = useState<Mark[]>([]);
   const [line, setLine] = useState<Line | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  /** When the last bench warning was drawn (its note leaves a few seconds later). */
+  const [notice, setNotice] = useState<number | null>(null);
   const [fried, setFried] = useState<FriedCard[]>([]);
   const [hints, setHints] = useState(0);
   const [stamp, setStamp] = useState<string | null>(null);
@@ -228,8 +229,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       setNumberText("");
       setHoleText("");
       setNotebookText({});
-      // The last moment's notes fade to small marks; pencil rings go.
-      setMarks((ms) => ms.filter((k) => k.kind !== "ring" && k.kind !== "strip").map((k) => (k.kind === "note" || k.kind === "label" ? { ...k, faded: true } : k)));
+      // The last moment's notes fade to small marks; pencil rings and warnings go.
+      setMarks((ms) => ms.filter((k) => k.kind !== "ring" && k.kind !== "strip" && !k.id.startsWith("notice-")).map((k) => (k.kind === "note" || k.kind === "label" ? { ...k, faded: true } : k)));
       const done = isMomentDone(mo, a, t);
       if (done) setPhase("done");
       else if (mo.beat?.guess && typeof a[answerKeys.guess(mo.key)] !== "number") setPhase("guess");
@@ -439,10 +440,36 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
     [say],
   );
 
-  const onNotice = useCallback((text: string) => setNotice(text), []);
+  /**
+   * A bench warning (a short, a part running hot) is never printed in the margin. Known ones write a short note in red
+   * pencil on the part that raised it and the robot says a kind line; in a fix-it round they say nothing at all (the
+   * warning would name the fault the learner is there to find).
+   */
+  const onNotice = useCallback(
+    (n: StageNotice) => {
+      const { moment: mo, phase: ph } = state.current;
+      if (mo.kind === "fix") return;
+      const spec = m.lessonBench.notices[n.type === "shorted" ? "shorted" : (n.cause ?? "")] ?? m.lessonBench.notices["other"]!;
+      const id = `notice-${n.partId}`;
+      setMarks((ms) => {
+        // The discovery of the moment wins when it is already written on that part.
+        const taken = ms.some((k) => k.kind === "note" && !k.faded && !k.id.startsWith("notice-") && k.at.replace(/^(pin|part):/, "").split(/[./]/)[0] === n.partId);
+        return taken ? ms : [...ms.filter((k) => k.id !== id), { id, kind: "note", at: n.partId, text: spec.note, tone: "red" }];
+      });
+      setNotice(Date.now());
+      // The beat's own result line (and a secret just found) keeps the margin; otherwise the robot says it kindly.
+      if (ph === "act" && Date.now() - lastSecret.current > 1500) say(spec.line, "thinking");
+      announce(spec.line);
+    },
+    [say, announce],
+  );
+  // The note has had its moment after a few seconds: the bench shows the rest.
   useEffect(() => {
     if (!notice) return;
-    const t = window.setTimeout(() => setNotice(null), 6000);
+    const t = window.setTimeout(() => {
+      setMarks((ms) => ms.filter((k) => !k.id.startsWith("notice-")));
+      setNotice(null);
+    }, 8000);
     return () => window.clearTimeout(t);
   }, [notice]);
 
@@ -903,7 +930,6 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
                 )}
               </p>
             )}
-            {notice && <p className="bl-notice">{notice}</p>}
             {fix && phase === "act" && fix.index === 0 && (
               <button type="button" className="bl-clock" aria-pressed={!!clock} onClick={() => setClock((c) => (c ? null : { end: Date.now() + fix.timer * 1000, left: fix.timer }))}>
                 <Icon name="clock" size={18} />

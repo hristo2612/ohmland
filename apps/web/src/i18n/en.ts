@@ -257,6 +257,27 @@ export const en = {
     } as Record<string, string>,
     markWheel: (n: number) => `wheel ${n}`,
     markSymbol: (part: string) => `${part} symbol`,
+    /**
+     * A bench warning in a lesson, by its kind (`shorted`) or cause: a short note written on the part that raised it,
+     * and the robot's line. Never the simulator's long explanation. `other` covers any warning not listed.
+     */
+    notices: {
+      shorted: { note: "short: a hot battery", line: "Ouch. That battery is getting hot." },
+      "current-limit": { note: "giving all it can", line: "The adapter is straining. Something draws too much." },
+      "thermal-shutdown": { note: "too hot: switched itself off", line: "It got too hot, so it switched off." },
+      "a10-heat": { note: "10 A input: running hot", line: "The meter is getting warm. Keep it short." },
+      oscillating: { note: "flickering too fast to see", line: "It's flickering far too fast to see." },
+      overvoltage: { note: "too much push", line: "Too many volts for that chip." },
+      undervoltage: { note: "not enough push", line: "That chip wants more volts." },
+      overload: { note: "too much flow", line: "That output is working far too hard." },
+      program: { note: "program stopped", line: "My program stopped. Look at the code." },
+      "serial-pins": { note: "pins 0 and 1 are busy", line: "Pins 0 and 1 are taken. Use 2 or up." },
+      "usb-fuse": { note: "USB fuse tripped", line: "The board's fuse tripped. Something draws too much." },
+      serial: { note: "start Serial first", line: "Start Serial before printing." },
+      divide: { note: "divided by zero", line: "The program divided by zero." },
+      pin: { note: "no such pin", line: "The board has no pin like that." },
+      other: { note: "something's wrong here", line: "Hmm. Look at that part." },
+    } as Record<string, { note: string; line: string }>,
     wrongTap: "Not that one. Look again.",
     right: ["Yep.", "Spot on.", "Right.", "That's it."],
     wrongPick: "Not quite. Try another.",
