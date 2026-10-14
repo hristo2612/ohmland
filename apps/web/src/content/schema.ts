@@ -527,6 +527,8 @@ const benchLessonObject = z.strictObject({
       done: line.optional(),
       note: noteSchema.optional(),
       rule: ruleLine.optional(),
+      /** Parts in play, as on a beat: spotlit and framed while the secret is offered. */
+      spot: z.array(anchor).min(1).optional(),
       /** The one instrument or panel the secret needs, as on a beat. */
       tool: toolSchema.optional(),
     })

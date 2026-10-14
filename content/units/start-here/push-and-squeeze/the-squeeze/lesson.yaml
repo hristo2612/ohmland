@@ -1,0 +1,67 @@
+# Blueprint: docs/curriculum/start-here.md, SH6 "The stubborn knob". A bench lesson (docs/LESSONS.md).
+# One idea: squeeze anywhere slows the whole loop. New part: the resistor. Lab: content/labs/the-squeeze.ts.
+format: bench
+id: the-squeeze
+version: 1
+title: The squeeze
+summary: A box with a knob dims the lamp. Count the flow on both sides, then find the resistor inside.
+minutes: 6
+lab: the-squeeze
+unlocks:
+  parts: [resistor]
+  isle: pot
+
+start:
+  title: The stubborn knob
+  say: This box has a knob. What does it do?
+  go: Turn it
+
+beats:
+  - say: Turn the knob up. Watch my lamp.
+    objective: Turn the knob
+    do: turn-the-knob
+    note: { at: D1, text: "dimmer, and the dots slow" }
+
+  - say: Clip a gate on each side of the box.
+    objective: Gates both sides
+    do: gates-on
+
+  - say: Turn the knob again. Which gate changes?
+    guess: { options: [the one after, the one before, both], answer: both }
+    do: both-gates
+    note: { at: KB, text: both change at once }
+    rule: Squeeze anywhere slows the whole loop.
+
+  - say: Open the box.
+    objective: Meet the resistor
+    do: open-the-box
+
+  - say: This is a resistor. It squeezes the flow.
+    meet: KR
+    spot: [KB]
+    note: { at: KR, text: "resistor: a set squeeze" }
+
+  - say: Show me a resistor.
+    tap: { answer: [RS, RB, KR], among: [RS, RB, KR, D1] }
+
+  - say: Big squeeze in. Swap the box for it.
+    guess: { options: [bright, dim], answer: dim }
+    do: big-squeeze
+    note: { at: RB, text: "big squeeze: dim" }
+
+  - say: What is this?
+    pick: { on: RS, options: [a resistor, a gate, a lamp], answer: a resistor }
+
+secret:
+  task: squeeze-after
+  say: Curious? Move the big squeeze after my lamp.
+  done: Just as dim.
+  note: { at: RB, text: "after the lamp: just as dim" }
+
+fixit:
+  say: Fix-it time. Too dim to read by.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. A resistor hid in there.

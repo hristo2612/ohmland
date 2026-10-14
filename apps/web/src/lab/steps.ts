@@ -1,10 +1,10 @@
 /**
  * Solution steps -> bench changes and simulator inputs. Pure: the headless replay test and "Show me" both use it.
  */
-import { benchOps, chargeable, defaultParams, isThrowSwitch, type BenchState, type LeadColor, type PlacedPart, type WireColor } from "@ohmland/bench/core";
+import { benchOps, chargeable, defaultParams, isFlying, isThrowSwitch, partLegs, type BenchState, type LeadColor, type PlacedPart, type WireColor } from "@ohmland/bench/core";
 import { deskSpot, resolveAttach, resolveHole } from "./anchors";
 import type { Diagnostic } from "@ohmland/code";
-import { addLeadBetween, placePart, seatSpot, type SimInput } from "./build";
+import { addLeadBetween, placePart, replugLeads, seatSpot, type SimInput } from "./build";
 import { isPanelView, type PanelViewName, type SolutionStep } from "./define";
 import { boardPart, uploadError, uploadTo } from "./mcu";
 
@@ -65,6 +65,18 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
     case "move": {
       const cur = bench.parts.find((p) => p.id === step.part);
       if (!cur) return done(bench, { problem: `no part ${step.part}` });
+      if (step.holes) {
+        // Only the named flying leads move; the others stay in their holes (a probe's tip, not its supply leads).
+        if (!isFlying(cur)) return done(bench, { problem: `move: ${step.part} has no flying leads for "holes"` });
+        const moves: Record<string, string | null> = {};
+        for (const [leg, spot] of Object.entries(step.holes)) {
+          if (!partLegs(cur).includes(leg)) return done(bench, { problem: `move: ${step.part} has no lead "${leg}"` });
+          const h = spot === null ? null : resolveHole(bench.board, spot);
+          if (spot !== null && !h) return done(bench, { problem: `move: no hole ${spot}` });
+          moves[leg] = h;
+        }
+        return done({ ...bench, parts: bench.parts.map((p) => (p.id === step.part ? replugLeads(bench, cur, moves) : p)) });
+      }
       const seat = seatSpot(step.at);
       if (seat) return seated(bench, step.part, seat, done);
       if (step.at.startsWith("on:")) {

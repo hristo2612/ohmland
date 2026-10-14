@@ -1,0 +1,59 @@
+# Blueprint: docs/curriculum/start-here.md, SH2 "The junk drawer". A bench lesson (docs/LESSONS.md).
+# One idea: conductors let flow through, insulators stop it. Lab: content/labs/will-it-light.ts.
+format: bench
+id: will-it-light
+version: 1
+title: Will it light?
+summary: A clip lead went missing. Test the junk drawer to find what lets flow through.
+minutes: 6
+lab: will-it-light
+unlocks:
+  parts: []
+  isle: test-lead-arch
+
+start:
+  title: The junk drawer
+  say: My lamp's loop has a gap. Raid the drawer?
+  go: Open the drawer
+
+beats:
+  - say: This is a clip lead. One went missing.
+    objective: Find a stand-in
+    meet: TL2
+    spot: [TL2, TL3]
+    note: { at: TL2, text: clip lead }
+
+  - say: Find a stand-in. Clip the key across the gap.
+    do: try-the-key
+    note: { at: K1, text: "metal: lets flow through" }
+
+  - say: Now the plastic spoon. Lit or dark?
+    guess: { options: [Lit, Dark], answer: Dark }
+    do: try-the-spoon
+    note: { at: SP1, text: "plastic: stops flow" }
+
+  - say: Flow-lovers are conductors. Flow-stoppers are insulators. File them.
+    objective: Sort the drawer
+    do: name-the-trays
+
+  - say: Sort the rest. Guess a tray, then test it.
+    do: sort-the-drawer
+    rule: "Metals conduct. Plastic, rubber, glass and wood don't."
+
+  - say: What is this?
+    pick: { on: E1, options: [a conductor, an insulator], answer: an insulator }
+    wrong: { a conductor: "Across the gap, the eraser left my lamp dark." }
+
+secret:
+  task: pencil-lead
+  say: Curious? Try the pencil lead.
+  done: It glows! Graphite isn't even a metal.
+  note: { at: P1, text: graphite conducts }
+
+fixit:
+  say: Fix-it time. This paper clip is coated. Make it work.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. The key gets the job.

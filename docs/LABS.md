@@ -448,7 +448,8 @@ An empty solution is reported as skipped.
 |---|---|
 | `{ do: "lead", id?, from, to, color? }` | A clip lead from the tray between two attach points (either may be null) |
 | `{ do: "clip", lead, end: "a" \| "b", to }` | Move one clip (`to: null` unclips it) |
-| `{ do: "place", part, kind, at, params? }`, `{ do: "move", part, at }`, `rotate`, `remove` | Parts |
+| `{ do: "place", part, kind, at, params? }`, `{ do: "move", part, at }`, `rotate`, `remove` | Parts. For a part on flying leads, `at` lists a hole per lead in order (a lead left out comes out of its hole): `"a22-top+:57-top-:58"` |
+| `{ do: "move", part, holes: { tip: "a22" } }` | Move only the named flying leads (null takes one out), keeping the rest: the logic probe's tip from hole to hole with its supply leads left on the rails. A probe pen always stands at its tip, as a drag puts it |
 | `{ do: "wire", from, to }`, `{ do: "unwire", wire }` | Breadboard jumpers |
 | `{ do: "probe", red?, black?, mode?, range? }`, `{ do: "plug", probe, socket }`, `{ do: "dial", mode, range? }` | The meter |
 | `{ do: "flip", part, to? }`, `{ do: "press", part, seconds? }`, `{ do: "set", part, key, value }` | Switches, buttons, raw inputs |

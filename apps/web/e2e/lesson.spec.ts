@@ -8,12 +8,11 @@ test("a guest finishes the first lesson and sees XP on the signed-off page", asy
 
   await playFirstLesson(page);
 
-  // 30 for the lesson + 1 check first try x 10 + 4 bench tasks x 15, plus 100 for the First cases module and its
-  // landmark achievement (30), "First spark" (20) and "Clean sweep" (25) = 275 XP. (The module and its landmark only
-  // while First cases holds this one lesson: once its other cases land, 145 XP.)
+  // 30 for the lesson + 2 checks first try x 10 + 5 bench tasks x 15, plus "First spark" (20), "Clean sweep" (25) and
+  // "Bench hand" (25, five lab tasks) = 195 XP. (First cases has more cases after this one, so no module bonus yet.)
   const finale = page.locator("[data-finale]");
   await expect(finale.getByRole("heading", { name: "Welcome to the bench, done" })).toBeVisible();
-  await expect(page.locator(".finale__xp")).toHaveText("+275 XP");
+  await expect(page.locator(".finale__xp")).toHaveText("+195 XP");
 
   // The XP survives a reload: the header's notebook chip (a tally on phones) on the course map shows level 2.
   await page.goto("/learn");

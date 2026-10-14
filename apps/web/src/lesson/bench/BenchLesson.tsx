@@ -76,12 +76,12 @@ function warmBench(labId: string): void {
 type Phase = "guess" | "act" | "done";
 
 /**
- * The parts in play for a moment: the beat's own `spot`, or the part a meet, tap or pick is about (the whole part, so
- * the spotlight never gives away which leg is right). Null frames the whole bench.
+ * The parts in play for a moment: the beat's or the secret's own `spot`, or the part a meet, tap or pick is about (the
+ * whole part, so the spotlight never gives away which leg is right). Null frames the whole bench.
  */
 function spotOf(mo: Moment): string[] | null {
   const b = mo.beat;
-  if (b?.spot) return b.spot;
+  if (mo.spot) return mo.spot;
   if (mo.part) return [mo.part];
   // The part a leg (D1.anode) or a mark (part:M1/dial) belongs to.
   const partOf = (a: string) => a.replace(/^(pin|part):/, "").split(/[./]/)[0]!;
@@ -658,6 +658,10 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   // A hole check brings the marked hole's corner of the board close, without veiling the holes around it.
   const frame = started && moment.beat?.tap?.joinedTo ? [moment.beat.tap.joinedTo] : null;
   const popup = started && phase === "act" && moment.action === "popup" ? (moment.beat?.popup ?? null) : null;
+  // The beat's tool. A tool new to this beat waits for its guess (it could give the answer away); one the beat before
+  // named too stays docked through it, so it never closes and opens again between two beats that both use it.
+  const kept = !!moment.tool && moments[index - 1]?.tool === moment.tool;
+  const tool = started && (phase !== "guess" || kept) ? (moment.tool ?? null) : null;
   const friedHere = friedAll.filter((f) => f.lessonId === lesson.id).map((f) => f.label);
   const fixedCount = moments.filter((mo) => mo.kind === "fix" && mo.task && tasks.includes(mo.task)).length;
 
@@ -982,7 +986,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               marks={marks}
               check={check}
               popup={popup}
-              tool={started && phase !== "guess" ? (moment.tool ?? null) : null}
+              tool={tool}
               code={started ? { key: moment.key, ...moment.code } : null}
               keyboardOpen={keyboard}
               onApi={setApi}
