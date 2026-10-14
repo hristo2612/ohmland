@@ -69,7 +69,7 @@ export default defineLab({
     },
     {
       id: "fix-short",
-      prompt: "A short, and the 10 A fuse won't blow. Fix it.",
+      prompt: "Something here is hot. Fix it.",
       setup: TEN_AMP,
       // The 10 A fuse across the battery first (the setup), then the 1 A fuse in its place, blown by the short.
       goal: (lab) => {
