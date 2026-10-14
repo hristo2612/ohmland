@@ -55,7 +55,7 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
         const added = { ...bench, parts: [...bench.parts.filter((p) => p.id !== step.part), part] };
         return done(benchOps.dropOnto(added, step.part, target.id, [target.pos[0], target.pos[1] + 34]));
       }
-      const r = placePart({ ...bench, parts: bench.parts.filter((p) => p.id !== step.part) }, part, step.at, undefined, () => [0, 60]);
+      const r = placePart({ ...bench, parts: bench.parts.filter((p) => p.id !== step.part) }, part, step.at, step.holes, () => [0, 60]);
       return done({ ...bench, parts: [...bench.parts.filter((p) => p.id !== step.part), r.part] }, r.warning ? { problem: r.warning } : {});
     }
     case "move": {
@@ -74,7 +74,7 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
       const free = benchOps.unseat(bench, step.part);
       const others = { ...free, parts: free.parts.filter((p) => p.id !== step.part) };
       const { holes: _h, ...rest } = cur;
-      const r = placePart(others, { ...rest, rot: step.rot ?? cur.rot } as PlacedPart, step.at, undefined, () => cur.pos);
+      const r = placePart(others, { ...rest, rot: step.rot ?? cur.rot } as PlacedPart, step.at, step.holes, () => cur.pos);
       return done({ ...free, parts: free.parts.map((p) => (p.id === step.part ? r.part : p)) }, r.warning ? { problem: r.warning } : {});
     }
     case "rotate":
@@ -152,7 +152,8 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
     case "action": {
       const p = benchOps.actionParams(bench, step.part, step.action);
       if (!p) return done(bench, { problem: `action: ${step.part} has no "${step.action}"` });
-      return done(benchOps.setPartParams(bench, step.part, p as never));
+      // As the part's selection bar does it: some actions change other parts (a stripper strips the wire in its jaws).
+      return done(benchOps.runAction(bench, step.part, step.action));
     }
     case "press": {
       const s = step.seconds ?? 0.3;

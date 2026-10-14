@@ -432,8 +432,9 @@ export type Nudge = { when: (lab: LabView) => boolean; say: string };
 // Solutions: bench actions as data. A test replays them headlessly; "Show me" plays them on the bench.
 
 export type SolutionStep =
-  | { do: "place"; part: string; kind: BenchPartKind; at: Spot; params?: Record<string, unknown>; rot?: number }
-  | { do: "move"; part: string; at: Spot; rot?: number }
+  /** `holes` puts the legs in those holes one by one (a perfboard's "PB1:C7"; flying leads), as a bench config's do. */
+  | { do: "place"; part: string; kind: BenchPartKind; at: Spot; params?: Record<string, unknown>; rot?: number; holes?: Record<string, string> }
+  | { do: "move"; part: string; at: Spot; rot?: number; holes?: Record<string, string> }
   | { do: "rotate"; part: string }
   | { do: "remove"; part: string }
   /** Add a clip lead (from the tray) between two points; either end may be null (lying on the desk). */
