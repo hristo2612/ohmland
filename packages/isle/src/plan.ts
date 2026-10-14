@@ -13,7 +13,7 @@
  * Every item keeps its history (the event at which it appeared and at which it reached each tier), so the isle at any
  * earlier moment is a filter, and a reveal knows exactly what the latest events brought.
  */
-import { DECK, DOCK, footOf, isPiece, landmarkFor, tiersOf, unitOf, variantsOf } from "./catalog";
+import { DECK, DOCK, UNITS, footOf, isPiece, landmarkFor, tiersOf, unitOf, variantsOf } from "./catalog";
 import type { IsleEvent } from "./events";
 import { cos, fnv1a, hypot, rng, sin } from "./math";
 
@@ -455,8 +455,9 @@ export function makeIsle(seed: number, events: IsleEvent[]): IslePlan {
     return isl;
   };
 
-  // The main island is the unit the learner started in: it never changes, whatever units come later.
-  const main = isleFor(events[0]?.unit ?? "basics", -1);
+  // The main island is the unit the learner started in: it never changes, whatever units come later. Before any lesson
+  // it is the course's first unit (Start here), where every new learner starts; only its name changes, not its plot.
+  const main = isleFor(events[0]?.unit ?? UNITS[0], -1);
 
   // Before any lesson: the robot's charging dock by the plaza, and a few tufts on the plot. Fixed by the seed.
   {
