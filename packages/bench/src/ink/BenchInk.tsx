@@ -1,14 +1,13 @@
 // <BenchInk />: the 2D ink view of the workbench. A top-down SVG drawing of the same BenchState as the 3D <Bench>,
 // driven by the same store, actions and simulator snapshots. See docs/BENCH-VIEWS.md.
 
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useStore } from "zustand";
-import type { Snapshot } from "@ohmland/sim";
 import { boardGeometry } from "../board";
 import { LabelsContext } from "../labels";
 import { connectivity } from "../netlist";
-import { BenchStoreContext, createBenchStore, type BenchStore } from "../store";
-import type { BenchAction, BenchState, Quality, TrayItem } from "../types";
+import { BenchStoreContext, createBenchStore } from "../store";
+import type { BenchAction } from "../types";
 import type { BenchController, ScreenPoint } from "../view/controller";
 import type { BenchRendererProps } from "../view/types";
 import { fitRect, growRect, rectOfPoints, type Pad, type Rect } from "./camera";

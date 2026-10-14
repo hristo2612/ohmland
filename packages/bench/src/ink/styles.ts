@@ -251,6 +251,9 @@ const DARK = `
   --k-room: #000000;
 `;
 
+/** The palette without the host's tokens: for a bench forced to one theme whatever the page does. */
+const own = (block: string) => block.replace(/var\(--[a-z0-9-]+, (#[0-9A-Fa-f]{3,8})\)/g, "$1");
+
 export const INK_CSS = `
 .ohi-root{${LIGHT}
   position:relative;width:100%;height:100%;overflow:hidden;touch-action:none;outline:none;
@@ -416,6 +419,9 @@ export const INK_CSS = `
 .ohi-compact .ohi-hint{top:58px;white-space:normal;width:calc(100% - 32px);text-align:center;font-size:17px}
 .ohi-compact .ohi-label{display:none}
 .ohi-notray .ohi-tray{display:none}
+/* The theme prop forces a page, whatever the host page shows. */
+.ohi-root.ohi-root[data-theme="light"]{${own(LIGHT)}}
+.ohi-root.ohi-root[data-theme="dark"]{${own(DARK)}}
 `;
 
 /** Colour tokens by name, for inline fills and gradient stops. */

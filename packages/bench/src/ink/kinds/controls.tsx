@@ -1,7 +1,6 @@
 // Parts you work with your fingers, and the ones that switch by themselves: trimmer, slide and toggle switches (and
 // the big toggle on its wooden block), pushbutton, the relay with its visible changeover contacts, and the fuse.
 
-import type { PartState } from "@ohmland/sim";
 import { PITCH as P } from "../../board";
 import { FUSE, PUSHBUTTON, RELAY, SLIDE, TOGGLE, TOGGLE_BASE, TRIMMER } from "../../dims";
 import type { Vec2 } from "../../types";
@@ -188,7 +187,6 @@ function Relay({ pi, st }: DrawProps<"relay">) {
   const cz = oz - 1.5 * P;
   const arm = relayArmature(st);
   const dead = health(st) === "dead";
-  const rot = pi.f.rot;
   // One changeover per row of pins (com at 3 pitches, nc at 5, no at 7). The blade pivots over com and rests on the
   // NC contact; pulled in, it swings across to NO.
   const pole = (row: 0 | 1) => {
