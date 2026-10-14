@@ -81,6 +81,7 @@
   transition: background-color var(--dur-ui) var(--ease-out);
 }
 .xp-chip:hover, .xp-chip[aria-expanded="true"] { background: var(--paper-sunk); }
+.xp-chip__name { font-size: var(--text-sm); line-height: var(--lh-sm); }
 .xp-chip__lvl { font-weight: var(--weight-strong); font-variant-numeric: tabular-nums lining-nums; }
 .xp-chip__pts { color: var(--blue); font-family: var(--font-hand); font-size: var(--text-md); line-height: 1; }
 .xp-chip__more { color: var(--ink-3); }
