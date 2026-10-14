@@ -8,11 +8,11 @@ import { NotebookMenu } from "./NotebookMenu";
 
 const NOTICE_KEY = "ohmland:memory-notice";
 
-/** The level as a handwritten tally, for a phone's header (the bottom bar holds the menu there). */
+/** The level as a handwritten tally, for a phone's header (the bottom bar holds the menu there). Nothing before the first XP. */
 function XpTally({ outline }: { outline: CourseOutline }) {
   const ready = useLearnerReady(outline);
   const { level } = useDerived(outline);
-  if (!ready) return <span className="xp-tally" aria-hidden="true" />;
+  if (!ready || level.xp <= 0) return <span className="xp-tally" aria-hidden="true" />;
   return (
     <span className="xp-tally" data-level={level.level}>
       <span className="sr-only">{m.level.chipLabel(level.level, level.title, level.xp)}</span>

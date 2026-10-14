@@ -66,6 +66,8 @@
   background-size: var(--bl-cell) var(--bl-cell);
   font-family: var(--bl-sans);
 }
+/* The lesson is one screen: the page itself never scrolls (a panel scrolls inside its dock). The signed-off page does. */
+html:has(.bl:not(.bl--finale)) { overflow: hidden; }
 
 /* ---- The bar ---------------------------------------------------------------------------------------------------- */
 .bl-bar {
@@ -330,10 +332,14 @@
   font: inherit;
   font-size: var(--bl-text-sm);
 }
+/* Hidden until focused: truly 1 px (no tap height or padding), so it never reaches past the page and scrolls it. */
 .bl-keyboard-btn:not(:focus-visible):not([aria-expanded="true"]) {
   position: absolute;
   width: 1px;
   height: 1px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
@@ -456,7 +462,7 @@
 .bl-slider__stops [data-on] { color: var(--bl-blue); font-weight: 600; }
 .bl-slider__caption { margin: 0 0 var(--bl-s-2); color: var(--bl-ink-2); font-size: var(--bl-text-sm); }
 
-/* One instrument at a time, on the bench's lower edge. */
+/* One instrument at a time, on the bench's lower edge. A tall one scrolls inside, never the page. */
 .bl-tool {
   position: absolute;
   right: var(--bl-s-3);
@@ -464,6 +470,7 @@
   width: min(360px, calc(100% - 24px));
   max-height: 55%;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: var(--bl-s-3);
   border: 1px solid var(--bl-rule);
   background: var(--bl-slip);

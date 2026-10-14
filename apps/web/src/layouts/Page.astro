@@ -1,7 +1,8 @@
 ---
 /**
  * The shell for regular pages: a header with the wordmark, the two places (Learn, Isle) and your notebook (level, XP
- * and the one menu for the rest); the page; one quiet footer line; on phones a bottom bar; and the toast region.
+ * and the one menu for the rest); the page; one quiet footer line; on phones a bottom bar (not on the landing, whose
+ * poster is the whole screen); and the toast region.
  */
 import Base from "./Base.astro";
 import Logo from "../components/Logo.astro";
@@ -22,12 +23,14 @@ type Props = {
   bare?: boolean;
   /** Leave out the footer (full-window pages such as the bench). */
   footer?: boolean;
+  /** The phone's bottom bar (left out on the landing, as on lesson pages). */
+  bar?: boolean;
 };
-const { title, description, active, bodyClass, bare = false, footer = true } = Astro.props;
+const { title, description, active, bodyClass, bare = false, footer = true, bar = true } = Astro.props;
 const { outline } = getCourse();
 ---
 
-<Base title={title} description={description} bodyClass={["has-bottom-nav", bodyClass].filter(Boolean).join(" ")}>
+<Base title={title} description={description} bodyClass={[bar && "has-bottom-nav", bodyClass].filter(Boolean).join(" ")}>
   <a class="skip-link" href="#main">{m.common.skipToContent}</a>
   <div class="leaf">
   <header class:list={["site-header", { "site-header--bare": bare }]}>
@@ -71,7 +74,7 @@ const { outline } = getCourse();
   }
   </div>
 
-  <BottomNav client:idle outline={outline} active={active} />
+  {bar && <BottomNav client:idle outline={outline} active={active} />}
 
   <ToastRegion client:idle />
 </Base>

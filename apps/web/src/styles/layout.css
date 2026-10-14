@@ -68,7 +68,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
-  height: 40px;
+  height: var(--tap);
   padding: 0 var(--s-2) 2px var(--s-3);
   border: var(--border-1) solid var(--rule);
   border-radius: var(--radius-0);
@@ -81,6 +81,7 @@
   transition: background-color var(--dur-ui) var(--ease-out);
 }
 .xp-chip:hover, .xp-chip[aria-expanded="true"] { background: var(--paper-sunk); }
+.xp-chip__name { font-size: var(--text-sm); line-height: var(--lh-sm); }
 .xp-chip__lvl { font-weight: var(--weight-strong); font-variant-numeric: tabular-nums lining-nums; }
 .xp-chip__pts { color: var(--blue); font-family: var(--font-hand); font-size: var(--text-md); line-height: 1; }
 .xp-chip__more { color: var(--ink-3); }
@@ -138,7 +139,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--s-1);
-  min-height: 40px;
+  min-height: var(--tap);
   padding: 0 var(--s-1);
   border: 0;
   background: transparent;
@@ -185,8 +186,9 @@ main:focus { outline: none; }
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
 }
-.site-footer__links { display: flex; flex-wrap: wrap; gap: var(--s-6); list-style: none; }
-.site-footer a { color: var(--ink-2); text-underline-offset: 4px; }
+.site-footer__links { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s-6); list-style: none; }
+/* the link's box, not just its words, is the target */
+.site-footer a { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--ink-2); text-underline-offset: 4px; }
 .site-footer a:hover { color: var(--ink); }
 
 /* The phone's bottom bar: Learn, Isle, your notebook */
@@ -238,6 +240,8 @@ main:focus { outline: none; }
   .wordmark__mark { width: 28px; height: 28px; }
   .site-nav, .header-tools .nb { display: none; }
   .xp-tally { display: inline-flex; }
+  /* the landing's poster is the whole screen: the wordmark, and nothing else above it */
+  .site-header--bare .xp-tally { display: none; }
 
   /* room for the bottom bar, so the end of every page scrolls clear of it */
   body.has-bottom-nav { padding-bottom: calc(var(--bar-h) + env(safe-area-inset-bottom)); }

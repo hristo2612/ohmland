@@ -82,6 +82,24 @@
 }
 .isle-card-float__list li { display: grid; }
 
+/* A new learner's one line and button, under the island (which frames itself above them). */
+.isle-start {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--s-6) + env(safe-area-inset-bottom));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3) var(--s-6);
+  width: max-content;
+  max-width: calc(100% - 2 * var(--gutter));
+  transform: translateX(-50%);
+  color: var(--ink-2);
+  text-align: center;
+}
+:root[data-motion="full"] .isle-start { animation: fade-in var(--dur-fade) var(--ease-out) both; }
+
 /* A hint until the first touch. */
 .isle-hint {
   position: absolute;
@@ -137,8 +155,7 @@
 @media (max-width: 720px) {
   .isle-bar { gap: var(--s-2); min-height: 64px; }
   .isle-bar__title h1 { font-size: var(--text-md); line-height: var(--lh-sm); }
-  .isle-bar__counts { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .isle-bar__tools .icon-btn { width: 40px; }
   .isle-bar__sep { display: none; }
-  .isle-hint { display: none; }
+  .isle-start { flex-direction: column; width: calc(100% - 2 * var(--gutter)); }
+  .isle-start .btn { width: 100%; }
 }

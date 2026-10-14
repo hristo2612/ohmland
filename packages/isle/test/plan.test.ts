@@ -50,6 +50,13 @@ describe("the isle plan", () => {
     expect(marks.every(isLandmark)).toBe(true);
   });
 
+  it("gives a learner with no lessons yet the first unit's island, with the same starting plot", () => {
+    const empty = makeIsle(5, []);
+    expect(empty.islands.map((i) => i.unit)).toEqual(["start-here"]);
+    const first = makeIsle(5, [{ type: "lesson", unit: "start-here", piece: "led-lamp", title: "", id: "a" }]);
+    expect(first.items.filter((i) => i.tiers[0] === -1)).toEqual(empty.items);
+  });
+
   it("deals the fallback deck without the same piece twice in a row", () => {
     const events: IsleEvent[] = Array.from({ length: 200 }, (_, i) => ({ type: "lesson", unit: "basics", piece: "", title: "", id: `l${i}` }));
     const placed = makeIsle(3, events).items.filter((i) => i.story[0]!.type === "lesson");

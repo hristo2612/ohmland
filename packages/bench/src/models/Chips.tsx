@@ -198,8 +198,9 @@ function dipMarks(n: number): PinMark[] {
 }
 
 /**
- * Pin numbers printed over a body that fade in when the camera comes close, or while the part is in a spotlight.
- * Placed in the part's board frame (pin 1 at the origin).
+ * Pin numbers printed over a body that fade in when the camera comes close, or while the part is in a spotlight;
+ * never while a spotlight hushes them (`hushed`, a check that asks for a pin). Placed in the part's board frame (pin 1
+ * at the origin).
  */
 function PinNumbers({ marks, len, w, cx, cz, y }: { marks: readonly PinMark[]; len: number; w: number; cx: number; cz: number; y: number }) {
   const material = useMemo(
@@ -219,12 +220,12 @@ function PinNumbers({ marks, len, w, cx, cz, y }: { marks: readonly PinMark[]; l
     const d = camera.position.distanceTo(at);
     const near = Math.max(0, Math.min(1, (165 - d) / 45));
     const spot = m.layers.isEnabled(SPOT_LAYER) ? 1 : 0;
-    const o = Math.max(near, spot);
+    const o = m.userData.hushed ? 0 : Math.max(near, spot);
     material.opacity = o;
     m.visible = o > 0.02;
   });
   return (
-    <mesh ref={ref} material={material} position={[cx, y + 0.03, cz]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={6} userData={{ fx: true }}>
+    <mesh ref={ref} name="pinno" material={material} position={[cx, y + 0.03, cz]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={6} userData={{ fx: true }}>
       <planeGeometry args={[len, w]} />
     </mesh>
   );
