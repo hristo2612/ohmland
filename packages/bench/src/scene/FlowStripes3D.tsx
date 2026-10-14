@@ -1,7 +1,7 @@
 // The striped flow styles in 3D (docs/BENCH-VIEWS.md, "Overlays"): a thin sleeve over every cable, jumper and part
 // lead that carries current, drawn by one shader per style (barber stripes, marching dashes, pulses, chevrons) in the
 // flow tint. The pattern scrolls by a uniform each frame: no geometry or React work while it moves. The tracer's run
-// uses the same sleeve and shader along the loop, in red pencil's colour on the flow tint, revealed up to its head.
+// uses the same sleeve and shader along the loop, its units red with a light rim, revealed up to its head.
 
 import { memo, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";

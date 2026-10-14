@@ -2,7 +2,7 @@
 // carries current, in the flow tint: barber stripes and chevrons as shapes laid along the path as the lead draws it
 // (one `d` per conductor per frame), dashes and pulses as dash patterns on that path (one offset per layer per frame).
 // No React work while they move; they stand still under reduced motion. The tracer's run lays the same units along
-// the loop in red on the flow tint, up to its head, and ends in a red disc with a light cross at a gap.
+// the loop in red with a light rim, up to its head, and ends in a red disc with a light cross at a gap.
 
 import { memo, useEffect, useMemo, useRef } from "react";
 import { useStore } from "zustand";

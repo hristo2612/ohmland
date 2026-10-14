@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { createSimulation, type Snapshot } from "@ohmland/sim";
-import { advanceGates, dotRate, dotSpeed, expandPrefix, flowMap, formatGate, gateAmps, hatchSpacing, pushMap, tagText, traceLoop } from "../src/flow";
+import { FLOW_STYLES, advanceGates, dotRate, dotSpeed, expandPrefix, flowMap, formatGate, gateAmps, hatchSpacing, pushMap, tagText, traceLoop, unitRate, unitSpacing } from "../src/flow";
 import { anchorPosition, clipTargets } from "../src/layout";
 import { benchToNetlist } from "../src/netlist";
 import { addPart, emptyBench, movePart, removeLead, seatPart, setPartParams, swapTarget } from "../src/ops";
@@ -244,6 +244,27 @@ describe("gates", () => {
     expect(dotSpeed(0.7e-3)).toBeLessThan(dotSpeed(16e-3) / 2.5);
     expect(dotSpeed(0)).toBe(0);
     expect(dotSpeed(10)).toBe(40);
+  });
+
+  it("count the units of the flow style the learner sees: stripes, dashes, bands or arrowheads", () => {
+    let b = lampLoop();
+    [b] = addPart(b, "gate", { on: "TL3", at: 0.5 }, { pos: [0, 0] }, "G1");
+    [b] = addPart(b, "gate", { on: "TL4", at: 0.5 }, { pos: [0, 0] }, "G2");
+    const s = run(b);
+    const amps = Math.abs(gateAmps(b, s, "G1"));
+    for (const style of FLOW_STYLES) {
+      let counts: Record<string, number> = {};
+      for (let k = 0; k < 30; k++) counts = advanceGates(counts, b, s, 1 / 30, style);
+      // A unit passes each time the pattern moves one spacing along: speed over spacing.
+      expect(counts.G1).toBeCloseTo(dotSpeed(amps) / unitSpacing(style, amps), 6);
+      expect(counts.G1).toBeCloseTo(counts.G2!, 6);
+    }
+    expect(unitRate(amps, "dots")).toBeCloseTo(dotRate(amps), 9);
+    // Pulses crowd closer with more current (and so do the stripes standing still); nothing under 1 µA.
+    expect(unitSpacing("pulses", 16e-3)).toBeLessThan(unitSpacing("pulses", 0.7e-3) / 2);
+    expect(unitSpacing("barber", 16e-3, true)).toBeLessThan(unitSpacing("barber", 0.7e-3, true));
+    expect(unitSpacing("barber", 16e-3)).toBe(unitSpacing("barber", 0.7e-3));
+    expect(unitRate(5e-7, "pulses")).toBe(0);
   });
 
   it("the store counts as snapshots arrive", () => {
