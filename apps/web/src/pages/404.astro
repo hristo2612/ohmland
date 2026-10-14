@@ -9,22 +9,21 @@ import { m } from "../i18n";
 <Page title={m.notFound.title}>
   <section class="nf container">
     <div class="nf__art" aria-hidden="true">
-      <Mascot pose="oops" size={128} />
-      <PartIcon kind="led" size={96} state="burned" />
+      <PartIcon kind="led" size={160} state="burned" />
+      <Mascot pose="oops" size={112} />
     </div>
     <h1>{m.notFound.title}</h1>
     <p class="lead">{m.notFound.body}</p>
-    <div class="nf__actions">
-      <Button variant="primary" size="large" href="/learn" iconEnd="arrow-right">{m.notFound.cta}</Button>
-      <Button variant="tertiary" href="/">{m.notFound.home}</Button>
-    </div>
+    <Button variant="primary" size="large" href="/learn" iconEnd="arrow-right">{m.notFound.cta}</Button>
   </section>
 </Page>
 
 <style>
-  .nf { display: grid; justify-items: center; gap: var(--space-4); padding-top: var(--space-16); text-align: center; }
-  .nf__art { display: flex; align-items: flex-end; gap: var(--space-2); margin-bottom: var(--space-4); }
-  .nf h1 { font-size: var(--text-hero); line-height: var(--leading-hero); }
-  .nf .lead { margin-inline: auto; }
-  .nf__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); margin-top: var(--space-4); }
+  .nf { display: grid; justify-items: center; gap: var(--s-4); padding-top: var(--s-16); text-align: center; }
+  .nf__art { display: flex; align-items: flex-end; gap: var(--s-6); margin-bottom: var(--s-4); }
+  .nf h1 { font-size: var(--text-3xl); line-height: var(--lh-3xl); letter-spacing: var(--track-title); }
+  .nf .lead { margin-inline: auto; margin-bottom: var(--s-4); }
+  @media (max-width: 720px) {
+    .nf h1 { font-size: var(--text-2xl); line-height: var(--lh-2xl); }
+  }
 </style>

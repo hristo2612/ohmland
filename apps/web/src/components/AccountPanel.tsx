@@ -70,7 +70,7 @@ export default function AccountPanel({ outline }: { outline: CourseOutline }) {
     <div className="account">
       <AccountCard onSignedIn={setSynced} />
 
-      <section className="card account__storage" aria-labelledby="storage-title">
+      <section className="account__section account__storage" aria-labelledby="storage-title">
         <h2 id="storage-title" className="account__title">
           {m.account.storageTitle}
         </h2>
@@ -92,7 +92,7 @@ export default function AccountPanel({ outline }: { outline: CourseOutline }) {
         )}
       </section>
 
-      <section className="card account__data" aria-labelledby="data-title">
+      <section className="account__section account__data" aria-labelledby="data-title">
         <h2 id="data-title" className="account__title">
           {m.account.dataTitle}
         </h2>
@@ -126,7 +126,7 @@ export default function AccountPanel({ outline }: { outline: CourseOutline }) {
         </div>
       </section>
 
-      <section className="card account__settings" aria-labelledby="settings-title">
+      <section className="account__section account__settings" aria-labelledby="settings-title">
         <h2 id="settings-title" className="account__title">
           {m.account.settingsTitle}
         </h2>

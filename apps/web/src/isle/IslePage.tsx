@@ -6,7 +6,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { IsleLabel, IsleView } from "@ohmland/isle";
 import { Button } from "../components/Button";
-import { Icon } from "../components/Icon";
 import { IconButton } from "../components/IconButton";
 import { IsleArt } from "../components/IsleArt";
 import type { CourseOutline } from "../content/outline";
@@ -143,21 +142,10 @@ export default function IslePage({ outline }: { outline: CourseOutline }) {
     <div className="isle-screen" data-status={status}>
       <header className="isle-bar">
         <div className="isle-bar__group isle-bar__group--title">
-          <IconButton label={m.isle.close} icon="close" href="/learn" variant="outline" />
+          <IconButton label={m.isle.close} icon="arrow-left" href="/learn" />
           <div className="isle-bar__title">
             <h1>{m.isle.title}</h1>
-            {ready && !empty && (
-              <p className="isle-bar__counts">
-                <span>
-                  <Icon name="isle" size={14} />
-                  {m.isle.lessons(lessons)}
-                </span>
-                <span>
-                  <Icon name="landmark" size={14} />
-                  {m.isle.modules(modules)}
-                </span>
-              </p>
-            )}
+            {ready && !empty && <p className="isle-bar__counts">{m.isle.cardCounts(lessons, modules)}</p>}
           </div>
         </div>
         <div className="isle-bar__group isle-bar__tools">
@@ -179,7 +167,6 @@ export default function IslePage({ outline }: { outline: CourseOutline }) {
 
         {status === "loading" && (
           <p className="isle-stage__loading" role="status">
-            <span className="isle-spinner" aria-hidden="true" />
             {m.isle.loading}
           </p>
         )}

@@ -1,169 +1,144 @@
-/* The /isle page: a full-screen island under a floating top bar. */
+/* The /isle page: the island taped into the notebook, filling the page under a quiet top line. Tokens only. */
 
 .isle-body { overflow: hidden; overscroll-behavior: none; }
 
 .isle-screen {
   position: fixed;
   inset: 0;
-  background: linear-gradient(to bottom, var(--isle-sky-top), var(--isle-sky-bottom));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: 0 var(--gutter) calc(var(--gutter) + env(safe-area-inset-bottom));
 }
 
-/* Top bar: two floating groups, so the island shows between them. */
+/* Top line: back to the course, the title and counts; the view's tools on the right. */
 .isle-bar {
-  position: absolute;
-  z-index: var(--z-nav);
-  inset: 0 0 auto 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: calc(var(--space-4) + env(safe-area-inset-top)) var(--gutter) 0;
-  pointer-events: none;
-}
-.isle-bar__group {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1);
-  border: var(--border) solid var(--line);
-  border-radius: var(--radius-full);
-  background: var(--surface);
-  box-shadow: var(--shadow-1);
-  pointer-events: auto;
+  justify-content: space-between;
+  gap: var(--s-4);
+  min-height: var(--header-h);
+  padding-top: env(safe-area-inset-top);
 }
-.isle-bar__group--title { gap: var(--space-3); padding-right: var(--space-5); min-width: 0; }
-.isle-bar__group--title .icon-btn--outline { border-color: transparent; background: var(--surface-sunk); }
-.isle-bar__title { display: grid; gap: var(--space-1); min-width: 0; }
-.isle-bar__title h1 { font-size: var(--text-subheading); line-height: var(--leading-subheading); }
-.isle-bar__counts { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); color: var(--ink-2); font-size: var(--text-small); line-height: 1; }
-.isle-bar__counts span { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
-.isle-bar__counts svg { color: var(--accent-ink); }
-.isle-bar__sep { width: var(--border); height: 24px; margin-inline: var(--space-1); background: var(--line); }
+.isle-bar__group { display: flex; align-items: center; gap: var(--s-1); min-width: 0; }
+.isle-bar__group--title { gap: var(--s-3); }
+.isle-bar__title { display: grid; min-width: 0; }
+.isle-bar__title h1 { font-size: var(--text-lg); line-height: var(--lh-lg); }
+.isle-bar__counts { display: flex; flex-wrap: wrap; gap: 0 var(--s-3); color: var(--ink-2); font-size: var(--text-xs); line-height: var(--lh-xs); }
+.isle-bar__counts span { display: inline-flex; align-items: center; gap: var(--s-1); white-space: nowrap; }
+.isle-bar__tools { border: var(--border-1) solid var(--rule-soft); background: var(--paper-slip); }
+.isle-bar__sep { width: var(--border-1); height: 24px; margin-inline: var(--s-1); background: var(--rule-soft); }
 
-/* Stage: the canvas fills the screen. */
-.isle-stage { position: absolute; inset: 0; min-height: 0; padding: 0; }
+/* The stage: a photograph taped in, the live island inside its edge. */
+.isle-stage {
+  position: relative;
+  min-height: 0;
+  padding: 0;
+  border: var(--border-1) solid var(--rule);
+  box-shadow: var(--slip-shadow);
+  background: linear-gradient(to bottom, var(--isle-sky-top), var(--isle-sky-bottom));
+  overflow: hidden;
+}
 .isle-stage:focus { outline: none; }
-.isle-stage__canvas { position: absolute; inset: 0; opacity: 0; transition: opacity var(--dur-3) var(--ease-out); }
+.isle-stage__canvas { position: absolute; inset: 0; opacity: 0; transition: opacity var(--dur-write) var(--ease-out); }
 .isle-screen[data-status="ready"] .isle-stage__canvas { opacity: 1; }
 
 .isle-stage__loading {
   position: absolute;
   left: 50%;
   top: 50%;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3);
-  border-radius: var(--radius-full);
-  background: var(--surface);
+  padding: var(--s-2) var(--s-4);
+  border: var(--border-1) solid var(--rule);
+  background: var(--paper-slip);
   color: var(--ink-2);
-  font-size: var(--text-callout);
-  box-shadow: var(--shadow-1);
+  font-size: var(--text-sm);
+  box-shadow: var(--slip-shadow);
   transform: translate(-50%, -50%);
 }
-.isle-spinner {
-  width: 18px;
-  height: 18px;
-  border: var(--border-thick) solid var(--line-strong);
-  border-top-color: var(--primary);
-  border-radius: var(--radius-full);
-  animation: isle-spin var(--dur-slow) linear infinite;
-}
-@keyframes isle-spin { to { transform: rotate(360deg); } }
 
-/* Cards floating over the island: the empty state and the fallback. */
+/* Slips over the island: the empty state and the fallback. */
 .isle-card-float {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--space-8) + env(safe-area-inset-bottom));
+  bottom: var(--s-6);
   display: grid;
-  gap: var(--space-3);
-  width: min(440px, calc(100% - 2 * var(--gutter)));
+  gap: var(--s-3);
+  width: min(420px, calc(100% - 2 * var(--s-4)));
   transform: translateX(-50%);
-  animation: rise var(--dur-2) var(--ease-out) both;
 }
-.isle-card-float .btn { margin-top: var(--space-2); }
-.isle-card-float__title { font-size: var(--text-heading); line-height: var(--leading-heading); }
-.isle-card-float--center { top: 50%; bottom: auto; justify-items: center; text-align: center; transform: translate(-50%, -50%); animation: none; }
-.isle-card-float__art { width: 200px; height: auto; }
+:root[data-motion="full"] .isle-card-float { animation: slip-in var(--dur-fade) var(--ease-out) both; }
+.isle-card-float .btn { margin-top: var(--s-2); }
+.isle-card-float__title { font-size: var(--text-xl); line-height: var(--lh-xl); }
+.isle-card-float--center { top: 50%; bottom: auto; max-height: calc(100% - 2 * var(--s-4)); overflow: auto; justify-items: center; text-align: center; transform: translate(-50%, -50%); }
+.isle-card-float__art { width: 240px; }
 .isle-card-float__list {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--s-2);
   width: 100%;
   max-height: 40dvh;
-  margin-top: var(--space-2);
-  padding: var(--space-4) 0 0;
-  border-top: var(--border) solid var(--line);
+  margin-top: var(--s-2);
+  padding: var(--s-4) 0 0;
+  border-top: var(--border-1) solid var(--rule-soft);
   overflow: auto;
   list-style: none;
   text-align: left;
 }
 .isle-card-float__list li { display: grid; }
-@keyframes rise { from { opacity: 0; translate: 0 12px; } to { opacity: 1; translate: 0 0; } }
 
 /* A hint until the first touch. */
 .isle-hint {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--space-6) + env(safe-area-inset-bottom));
-  max-width: calc(100% - 2 * var(--gutter));
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-full);
-  background: var(--surface);
+  bottom: var(--s-4);
+  max-width: calc(100% - 2 * var(--s-4));
+  padding: var(--s-1) var(--s-3);
+  background: var(--paper-slip);
+  border: var(--border-1) solid var(--rule-soft);
   color: var(--ink-2);
-  font-size: var(--text-small);
-  line-height: var(--leading-small);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
   text-align: center;
-  box-shadow: var(--shadow-1);
   transform: translateX(-50%);
   pointer-events: none;
-  animation: fade-in var(--dur-3) var(--ease-out) var(--delay-2) both;
 }
+:root[data-motion="full"] .isle-hint { animation: fade-in var(--dur-fade) var(--ease-out) var(--delay-2) both; }
 
-/* The tap label: a bubble pointing at what was tapped. */
+/* The tap label: a slip pointing at what was tapped. */
 .isle-bubble {
   position: absolute;
-  z-index: var(--z-sticky);
+  z-index: var(--z-header);
   left: var(--x);
   top: var(--y);
   display: flex;
   align-items: flex-start;
-  gap: var(--space-2);
+  gap: var(--s-2);
   width: max-content;
-  max-width: min(280px, calc(100% - 2 * var(--gutter)));
-  padding: var(--space-3) var(--space-2) var(--space-3) var(--space-4);
-  border: var(--border) solid var(--line);
-  border-radius: var(--radius-l);
-  background: var(--surface);
+  max-width: min(280px, calc(100% - 2 * var(--s-4)));
+  padding: var(--s-3) var(--s-2) var(--s-3) var(--s-4);
+  border: var(--border-1) solid var(--rule);
+  background: var(--paper-slip);
   color: var(--ink);
-  box-shadow: var(--shadow-2);
-  transform: translate(-50%, calc(-100% - var(--space-4)));
+  box-shadow: var(--slip-shadow);
+  transform: translate(-50%, calc(-100% - var(--s-4)));
 }
 .isle-bubble::after {
   content: "";
   position: absolute;
   left: calc(50% + var(--arrow));
-  top: 100%;
-  border: var(--space-2) solid transparent;
-  border-top-color: var(--surface);
-  transform: translateX(-50%);
+  top: calc(100% + var(--border-1));
+  width: var(--border-1);
+  height: var(--s-3);
+  background: var(--rule);
 }
-.isle-bubble[data-below] { transform: translate(-50%, var(--space-4)); }
-.isle-bubble[data-below]::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--surface); }
-.isle-bubble__text { display: grid; gap: var(--space-1); padding-top: var(--space-1); }
-.isle-bubble__title { font-family: var(--font-display); font-weight: var(--weight-display); font-size: var(--text-callout); line-height: var(--leading-callout); }
-.isle-bubble__detail { color: var(--ink-2); font-size: var(--text-small); line-height: var(--leading-small); }
+.isle-bubble[data-below] { transform: translate(-50%, var(--s-4)); }
+.isle-bubble[data-below]::after { top: auto; bottom: calc(100% + var(--border-1)); }
+.isle-bubble__text { display: grid; gap: var(--s-1); padding-top: var(--s-1); }
+.isle-bubble__title { font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: var(--weight-strong); }
+.isle-bubble__detail { color: var(--ink-2); font-size: var(--text-xs); line-height: var(--lh-xs); }
 
-@media (max-width: 640px) {
-  .isle-bar { gap: var(--space-2); }
-  .isle-bar__group--title { padding-right: var(--space-4); }
-  .isle-bar__counts { font-size: var(--text-caption); flex-wrap: nowrap; }
-  /* the tools stand as a column at the right edge, like map controls, so the title keeps the width */
-  .isle-bar__tools { flex-direction: column; border-radius: var(--radius-xl); }
-  .isle-bar__tools > :nth-child(4) { order: 1; }
-  .isle-bar__tools > :nth-child(3) { order: 2; }
-  .isle-bar__tools > :nth-child(2) { order: 3; }
-  .isle-bar__tools > :nth-child(1) { order: 4; }
-  .isle-bar__sep { width: 24px; height: var(--border); margin: var(--space-1) auto; }
+@media (max-width: 720px) {
+  .isle-screen { padding: 0 var(--s-2) calc(var(--s-2) + env(safe-area-inset-bottom)); }
+  .isle-bar { gap: var(--s-2); min-height: 64px; }
+  .isle-bar__counts { flex-wrap: nowrap; }
+  .isle-bar__sep { display: none; }
   .isle-hint { display: none; }
 }

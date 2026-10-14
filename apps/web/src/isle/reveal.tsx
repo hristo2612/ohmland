@@ -173,7 +173,7 @@ function RevealDialog({ rt, plan, from, to, big, muted, outline, onShow, onDone 
       <div className="reveal__stage" ref={stage} />
       {status === "loading" && <span className="reveal__spinner" aria-hidden="true" />}
       <div className="reveal__panel" ref={panel}>
-        <p className="eyebrow">{big ? m.reveal.module : m.reveal.lesson}</p>
+        <p className="kicker">{big ? m.reveal.module : m.reveal.lesson}</p>
         <h2 id="reveal-title" className="reveal__title" ref={heading} tabIndex={-1}>
           {caption?.title ?? m.reveal.growing}
         </h2>
