@@ -1,5 +1,6 @@
 // Pointer, touch and keyboard handling for the bench. One controller per <Bench>; it raycasts the hit proxies,
-// drives drags through the store (inside an undo transaction) and leaves empty-space drags to the camera.
+// drives drags through the store (inside an undo transaction) and leaves empty-space drags to the camera. Drag and
+// drop feel and feedback (lift, marks, magnet, glide back, edge pan) are shared with the ink view through view/drag.ts.
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -8,18 +9,37 @@ import type { CameraControls as CameraControlsImpl } from "@react-three/drei";
 import { parseAnchor } from "../anchors";
 import { BOARD_PRINT, boardGeometry, boardOrigin, nearestHole } from "../board";
 import { BOARD_TOP } from "../dims";
-import { DIAL_MODES, METER, anchorPosition, clipTargets, fitCamera, meterLocalToWorld, nearestSocket, partPose, workCenter } from "../layout";
+import { DIAL_MODES, METER, anchorPosition, clipTargets, fitCamera, meterLocalToWorld, nearestSocket, partPose, socketWorld, workCenter } from "../layout";
 import { BOX, CARD } from "../dims";
 import * as ops from "../ops";
 import { penStroke, settingParams } from "../ops";
-import { canMountOnBoard, footprintOf, isThrowSwitch, partDef, rotateXZ } from "../parts";
+import { footprintOf, isThrowSwitch, partDef, rotateXZ } from "../parts";
 import { holderOf } from "../seats";
 import type { BenchStore } from "../store";
 import type { Anchor, BenchAction, BenchState, MeterMode, Selection, TestLead, TrayItem, Vec2 } from "../types";
 import { leadCable, makeFloor } from "./views";
 import { PICK_LAYER, pickOf, type Pick } from "./pick";
 import type { BenchLabels } from "../labels";
-import { TOUCH_SNAP, dragName, type LoupeFeed } from "../view/Loupe";
+import { dragName, type LoupeFeed } from "../view/Loupe";
+import {
+  DRAG,
+  LiftAnimator,
+  NO_LIFT,
+  dragMarks,
+  easeOut,
+  edgeVelocity,
+  haptic,
+  isHole,
+  landed,
+  partMisfit,
+  reducedMotion,
+  ringFor,
+  type Covered,
+  type DragMarksState,
+  type Feed,
+  type Lift,
+  type Pt,
+} from "../view/drag";
 
 export type InteractionApi = {
   /** Start dragging a tray item from a DOM pointer event. */
@@ -47,7 +67,7 @@ type Drag =
   | { kind: "leg"; id: string; leg: string; flying: boolean }
   | { kind: "wireEnd"; id: string; end: "a" | "b" }
   | { kind: "wireNew"; from: string }
-  | { kind: "clip"; id: string; end: "a" | "b" }
+  | { kind: "clip"; id: string; end: "a" | "b"; spawned?: boolean }
   | { kind: "probe"; color: "red" | "black" }
   | { kind: "plug"; color: "red" | "black" }
   | { kind: "meter"; offset: Vec2 }
@@ -68,9 +88,33 @@ type Gesture = {
   longPress: number | null;
   /** Wire start chosen by this press (click-click wiring). */
   hole: string | null;
+  /** CSS px from the pointer to the dragged item's hot point (where it lands): kept from where it was grabbed. */
+  off: [number, number];
+  /** When the drag began (ms): the lift eases in from here (and, on touch, the rise above the finger). */
+  dragAt: number;
+  /** The last pointer position (client px), to run the drag again as the view pans or the item rises. */
+  last: [number, number] | null;
+  /** The drop would not take where the item is now (a part over the board where it fits nowhere, the tray). */
+  invalid: boolean;
+  /** Escape (or a glide back) ended it: the pointer is ignored until it lifts. */
+  done: boolean;
+  /** When the pointer came into the edge band (ms), for edge auto-pan. */
+  edgeAt: number | null;
+  /** A press on a switch already flipped it (a short drag on its lever). */
+  flipped?: boolean;
+  /** A tray item being taken out: where it sits on screen (client px), and the take-out still waiting to happen. */
+  home?: [number, number];
+  spawn?: (() => boolean) | null;
 };
 
 const UP = new THREE.Vector3(0, 1, 0);
+
+/** Drags that carry something to a new place (they lift, show where they land, glide back, pan at the edge). */
+const carries = (d: Drag | null): boolean =>
+  !!d && (d.kind === "part" || d.kind === "leg" || d.kind === "wireEnd" || d.kind === "clip" || d.kind === "probe" || d.kind === "plug" || d.kind === "meter" || d.kind === "wireNew");
+
+/** Drags a finger lifts above itself (small things it would hide; not the meter, a dial or a knob). */
+const rises = (d: Drag | null): boolean => !!d && carries(d) && d.kind !== "meter" && d.kind !== "wireNew";
 
 export function useInteraction({
   store,
@@ -81,18 +125,21 @@ export function useInteraction({
   viewPad,
   view,
   loupe,
+  marks,
 }: {
   store: BenchStore;
   element: HTMLElement | null;
   readOnly: boolean;
   api: React.MutableRefObject<InteractionApi | null>;
   emit: (a: BenchAction) => void;
-  /** Pixels covered by overlay panels, so camera fits avoid them. */
+  /** Pixels covered by overlay panels, so camera fits avoid them (and edge auto-pan keeps off the tray). */
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
   /** Camera framing from the view rig (home view, focus on targets). */
   view?: React.MutableRefObject<{ home(top: boolean, smooth?: boolean): void; focus(targets: string[]): void } | null>;
   /** The touch loupe (view/Loupe.tsx): fed while a finger drags, cleared when it lifts. */
   loupe?: { feed: LoupeFeed; labels: () => BenchLabels };
+  /** Where a drag would land (view/DragMarks.tsx): fed while something is dragged. */
+  marks?: Feed<DragMarksState>;
 }) {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as unknown as CameraControlsImpl | null;
@@ -152,9 +199,17 @@ export function useInteraction({
       wire: 1,
       meter: 0,
     };
-    const hit = (cx: number, cy: number): Pick | null => {
+    /** The hit proxies, gathered once per pick (several rays then test only them). */
+    const proxies = (): THREE.Object3D[] => {
+      const out: THREE.Object3D[] = [];
+      scene.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh && o.layers.test(rc.layers) && (o.userData as { pick?: Pick }).pick) out.push(o);
+      });
+      return out;
+    };
+    const hitIn = (cx: number, cy: number, list: THREE.Object3D[]): Pick | null => {
       rc.setFromCamera(ndc(cx, cy), camera);
-      const hits = rc.intersectObjects(scene.children, true);
+      const hits = rc.intersectObjects(list, false);
       let best: Pick | null = null;
       let bestScore = -Infinity;
       const nearest = hits[0]?.distance ?? 0;
@@ -181,6 +236,31 @@ export function useInteraction({
       }
       return best;
     };
+    /**
+     * What the pointer would grab. Nothing right under it: the nearest thing within the grab padding (rings of rays
+     * round the pointer), so every handle has a comfortable target without being drawn bigger.
+     */
+    const hit = (cx: number, cy: number, touch = false): Pick | null => {
+      const list = proxies();
+      const direct = hitIn(cx, cy, list);
+      if (direct) return direct;
+      const R = touch ? DRAG.grabTouch : DRAG.grabMouse;
+      for (const r of [R * 0.4, R * 0.7, R]) {
+        let best: Pick | null = null;
+        let bestRank = -Infinity;
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * Math.PI * 2;
+          const p = hitIn(cx + r * Math.cos(a), cy + r * Math.sin(a), list);
+          const rank = p ? PRIORITY[p.type] : -Infinity;
+          if (p && rank > bestRank) {
+            bestRank = rank;
+            best = p;
+          }
+        }
+        if (best) return best;
+      }
+      return null;
+    };
     const holeAt = (cx: number, cy: number): string | null => {
       const b = bench();
       if (!b.board) return null;
@@ -192,29 +272,33 @@ export function useInteraction({
       const r = element.getBoundingClientRect();
       return { x: ((v.x + 1) / 2) * r.width + r.left, y: ((1 - v.y) / 2) * r.height + r.top, behind: v.z > 1 };
     };
-    /** Nearest attach point to the pointer in screen space. */
-    const snapTarget = (cx: number, cy: number, touch: boolean, opts: { probes?: boolean; leads?: boolean; exclude?: string }): Anchor | null => {
+    /** The drop point nearest the hot point (a magnet), and the other drop points near it that glow. */
+    const snapTarget = (cx: number, cy: number, touch: boolean, opts: { probes?: boolean; leads?: boolean; exclude?: string }): { to: Anchor | null; near: Pt[] } => {
       const b = bench();
       const targets = clipTargets(b, { holes: true, probes: opts.probes, leads: opts.leads }).filter(
         // Never onto something that already hangs off the thing being dragged (a probe touching this clip, say).
         (t) => !opts.exclude || !(t.kind === "probe" || t.kind === "lead") || !hangsOn(b, t.anchor, opts.exclude),
       );
-      const radius = touch ? TOUCH_SNAP : 26;
+      const radius = touch ? DRAG.touchSnap : DRAG.mouseSnap;
+      const r = element.getBoundingClientRect();
       let best: Anchor | null = null;
-      let bestD = radius;
+      let bestD: number = radius;
+      const near: { p: Pt; d: number; a: Anchor }[] = [];
       for (const t of targets) {
         if (opts.exclude && t.anchor.startsWith(opts.exclude)) continue;
         const s = toScreen(t.pos);
         if (s.behind) continue;
+        const raw = Math.hypot(s.x - cx, s.y - cy);
         // Leads and wire ends win over the hole underneath them.
         const bonus = t.kind === "hole" ? 0 : 9;
-        const d = Math.hypot(s.x - cx, s.y - cy) - bonus;
+        const d = raw - bonus;
         if (d < bestD) {
           bestD = d;
           best = t.anchor;
         }
+        if (t.kind !== "hole" && raw < DRAG.near) near.push({ p: { x: s.x - r.left, y: s.y - r.top }, d: raw, a: t.anchor });
       }
-      return best;
+      return { to: best, near: near.filter((n) => n.a !== best && !isHole(n.a)).sort((a, b) => a.d - b.d).slice(0, 8).map((n) => n.p) };
     };
     const setUi = store.getState().setUi;
     const lockCamera = (lock: boolean) => {
@@ -225,6 +309,102 @@ export function useInteraction({
       const b = bench();
       const p = b.parts.find((x) => x.id === id);
       return p ? ops.partCenter(b, p) : null;
+    };
+    /** A client point the bench does not take a drop at: off the bench, or over its chrome (the tray, the toolbar). */
+    const offBench = (cx: number, cy: number): boolean => {
+      const r = element.getBoundingClientRect();
+      if (cx < r.left || cx > r.right || cy < r.top || cy > r.bottom) return true;
+      return !!(document.elementFromPoint(cx, cy) as HTMLElement | null)?.closest?.("[data-bench-ui]");
+    };
+
+    // ---- A part lifted off the bench ---------------------------------------------------------------------------
+    /** The model a dragged part draws with, while it is in hand (looked up again if React remounts it). */
+    let liftObj: { id: string; o: THREE.Object3D } | null = null;
+    const applyLift = (id: string, l: Lift | null) => {
+      if (!liftObj || liftObj.id !== id || !liftObj.o.parent) {
+        const o = scene.getObjectByName(`part:${id}`);
+        liftObj = o ? { id, o } : null;
+      }
+      const o = liftObj?.o;
+      if (!o) return;
+      if (!l) {
+        o.position.set(0, 0, 0);
+        o.scale.set(1, 1, 1);
+        liftObj = null;
+      } else {
+        // The part's own frame is the desk's: scale it round its middle, and raise it a few mm off the bench.
+        const c = partCenter(id) ?? [0, 0];
+        o.scale.setScalar(l.k);
+        o.position.set(l.dx + c[0] * (1 - l.k), l.h * 3, l.dz + c[1] * (1 - l.k));
+      }
+      invalidate();
+    };
+    const lifter = new LiftAnimator(applyLift);
+
+    let active: Gesture | null = null;
+    let tickFrame = 0;
+    /** A glide back running through the store (a clip or probe going home): finished at once by the next press. */
+    let glide: { frame: number; end: () => void } | null = null;
+
+    const newGesture = (e: { pointerId: number; clientX: number; clientY: number }, touch: boolean, pick: Pick | null): Gesture => ({
+      pointerId: e.pointerId,
+      x0: e.clientX,
+      y0: e.clientY,
+      pick,
+      drag: null,
+      moved: false,
+      touch,
+      longPress: null,
+      hole: null,
+      off: [0, 0],
+      dragAt: 0,
+      last: null,
+      invalid: false,
+      done: false,
+      edgeAt: null,
+    });
+
+    /** 0 to 1: how far the lift has come since the drag began (all the way at once under reduced motion). */
+    const liftT = (g: Gesture) => (reducedMotion() ? 1 : easeOut(Math.min(1, (performance.now() - g.dragAt) / DRAG.liftMs)));
+    /** The dragged item's hot point (client px): the pointer, plus where it was grabbed, raised above a finger. */
+    const hotOf = (g: Gesture, cx: number, cy: number): [number, number] => {
+      if (!rises(g.drag)) return [cx, cy];
+      return [cx + g.off[0], cy + g.off[1] - (g.touch ? DRAG.touchLift * liftT(g) : 0)];
+    };
+
+    const finishGlide = () => {
+      if (glide) {
+        cancelAnimationFrame(glide.frame);
+        const end = glide.end;
+        glide = null;
+        end();
+      }
+      lifter.finish();
+    };
+
+    /** Runs `step(t)` for t from 0 to 1 over `ms` (once, at 1, under reduced motion), then `end`. */
+    const animate = (ms: number, step: (t: number) => void, end: () => void) => {
+      finishGlide();
+      if (reducedMotion()) {
+        step(1);
+        end();
+        return;
+      }
+      const t0 = performance.now();
+      const g = { frame: 0, end };
+      const frame = () => {
+        const t = Math.min(1, (performance.now() - t0) / ms);
+        step(easeOut(t));
+        invalidate();
+        if (t >= 1) {
+          glide = null;
+          end();
+          return;
+        }
+        g.frame = requestAnimationFrame(frame);
+      };
+      glide = g;
+      g.frame = requestAnimationFrame(frame);
     };
 
     const beginDrag = (g: Gesture, cx: number, cy: number): Drag | null => {
@@ -275,6 +455,16 @@ export function useInteraction({
         case "dialMode":
           return { kind: "dial" };
       }
+    };
+
+    /** Where the dragged thing is on screen now (client px), so a grab keeps its hold on it instead of jumping. */
+    const itemAt = (d: Drag): [number, number] | null => {
+      const anchor =
+        d.kind === "clip" ? `lead:${d.id}.${d.end}` : d.kind === "probe" ? `probe:${d.color}` : d.kind === "wireEnd" ? `wire:${d.id}.${d.end}` : d.kind === "leg" ? `pin:${d.id}.${d.leg}` : null;
+      const p = anchor ? anchorPosition(bench(), anchor) : null;
+      if (!p) return null;
+      const s = toScreen(p);
+      return s.behind ? null : [s.x, s.y];
     };
 
     const dialModeAt = (cx: number, cy: number): MeterMode | null => {
@@ -342,12 +532,76 @@ export function useInteraction({
       return best;
     };
 
+    /** Draws a dragged part where the pointer holds it, off the place the state gives it (a magnet near it, with a mouse). */
+    const liftPart = (g: Gesture, id: string, to: Vec2) => {
+      const c = partCenter(id) ?? to;
+      let dx = to[0] - c[0];
+      let dz = to[1] - c[1];
+      if (!g.touch) {
+        const a = toScreen([to[0], BOARD_TOP, to[1]]);
+        const b = toScreen([c[0], BOARD_TOP, c[1]]);
+        if (Math.hypot(a.x - b.x, a.y - b.y) < DRAG.mouseSnap) dx = dz = 0;
+      }
+      const t = liftT(g);
+      lifter.set(id, { dx, dz, k: 1 + (DRAG.liftScale - 1) * t, h: t });
+    };
+
+    /** CSS px between neighbouring holes (2.54 mm) on the desk under a client point. */
+    const pitchAt = (cx: number, cy: number): number => {
+      const p = workPoint(cx, cy);
+      if (!p) return 10;
+      const a = toScreen([p.x, p.y, p.z]);
+      const b = toScreen([p.x + 2.54, p.y, p.z]);
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    };
+
+    /** Feeds the marks (and the loupe, on touch) for the drag at hot point (hx, hy). */
+    const feedback = (g: Gesture, hx: number, hy: number, near: Pt[] = []) => {
+      const d = g.drag;
+      if (!d) return;
+      const st = store.getState();
+      const r = element.getBoundingClientRect();
+      const [lx, ly] = [hx - r.left, hy - r.top];
+      if (marks && loupe && carries(d) && d.kind !== "meter" && d.kind !== "wireNew" && d.kind !== "lead") {
+        const m = dragMarks(st.bench, { kind: d.kind, id: "id" in d ? d.id : undefined, leg: d.kind === "leg" ? d.leg : undefined, end: "end" in d ? d.end : undefined, color: "color" in d ? d.color : undefined }, {
+          snap: st.ui.snapTarget,
+          hot: { x: lx, y: ly },
+          invalid: g.invalid,
+          near,
+          labels: loupe.labels(),
+          r: ringFor(pitchAt(hx, hy)),
+          project: (a) => {
+            const p = anchorPosition(st.bench, a);
+            if (!p) return null;
+            const s = toScreen(p);
+            return s.behind ? null : { x: s.x - r.left, y: s.y - r.top };
+          },
+        });
+        // Under a finger the loupe names the drop point.
+        if (g.touch) m.name = null;
+        marks.set(m);
+      }
+      // A finger hides what it touches: the loupe shows it, and names where a drop would land.
+      if (g.touch && loupe && (d.kind === "clip" || d.kind === "probe" || d.kind === "part" || d.kind === "leg" || d.kind === "wireEnd")) {
+        loupe.feed.set({ x: lx, y: ly, name: dragName(st.bench, d as Parameters<typeof dragName>[1], st.ui.snapTarget, loupe.labels()) });
+      }
+    };
+    const clearFeedback = () => {
+      loupe?.feed.set(null);
+      marks?.set(null);
+    };
+
     const dragMove = (g: Gesture, cx: number, cy: number) => {
       const d = g.drag!;
+      g.last = [cx, cy];
+      if (g.done) return;
       const s = store.getState();
+      const [hx, hy] = hotOf(g, cx, cy);
+      let near: Pt[] = [];
+      g.invalid = carries(d) && d.kind !== "wireNew" && offBench(hx, hy);
       switch (d.kind) {
         case "part": {
-          const wp = workPoint(cx, cy);
+          const wp = workPoint(hx, hy);
           if (!wp) return;
           // On its way it never sits in a holder: passing over a full bin must not push a part out of it. A gate
           // clips onto the cable drawn under the pointer (else the straight-line test in ops decides).
@@ -356,16 +610,18 @@ export function useInteraction({
           d.cable = cableAt(d.id, to, g.touch);
           const cable = d.cable;
           s.apply((b) => (cable ? ops.clipGate(b, d.id, to, cable) : ops.movePart(b, d.id, to, { seat: false })));
+          g.invalid ||= partMisfit(bench(), d.id, to);
+          liftPart(g, d.id, to);
           break;
         }
         case "leg": {
-          const wp = workPoint(cx, cy);
+          const wp = workPoint(hx, hy);
           if (!wp) return;
           s.apply((b) => (d.flying ? ops.moveFlyingLeg(b, d.id, d.leg, [wp.x, wp.z]) : ops.moveSpanLeg(b, d.id, d.leg, [wp.x, wp.z])));
           break;
         }
         case "wireEnd": {
-          const wp = workPoint(cx, cy);
+          const wp = workPoint(hx, hy);
           if (!wp) return;
           s.apply((b) => ops.moveWireEnd(b, d.id, d.end, [wp.x, wp.z]));
           break;
@@ -377,28 +633,30 @@ export function useInteraction({
           break;
         }
         case "clip": {
-          const t = snapTarget(cx, cy, g.touch, { probes: true, exclude: `lead:${d.id}.` });
-          const wp = planePoint(cx, cy, 0);
-          setUi({ snapTarget: t });
-          s.apply((b) => ops.clipLead(b, d.id, d.end, t, wp ? [wp.x, wp.z] : undefined));
+          const t = snapTarget(hx, hy, g.touch, { probes: true, exclude: `lead:${d.id}.` });
+          near = t.near;
+          const wp = planePoint(hx, hy, 0);
+          setUi({ snapTarget: t.to });
+          s.apply((b) => ops.clipLead(b, d.id, d.end, t.to, wp ? [wp.x, wp.z] : undefined));
           break;
         }
         case "probe": {
           // Probe tips land on leads, holes, clips (even one lying loose) or the other probe's tip.
-          const t = snapTarget(cx, cy, g.touch, { leads: true, probes: true, exclude: `probe:${d.color}` });
-          const wp = planePoint(cx, cy, 0);
-          setUi({ snapTarget: t });
-          s.apply((b) => ops.touchProbe(b, d.color, t, wp ? [wp.x, wp.z] : undefined));
+          const t = snapTarget(hx, hy, g.touch, { leads: true, probes: true, exclude: `probe:${d.color}` });
+          near = t.near;
+          const wp = planePoint(hx, hy, 0);
+          setUi({ snapTarget: t.to });
+          s.apply((b) => ops.touchProbe(b, d.color, t.to, wp ? [wp.x, wp.z] : undefined));
           break;
         }
         case "plug": {
           const m = s.bench.meter;
-          const wp = planePoint(cx, cy, m ? METER.face : 0) ?? planePoint(cx, cy, 0);
+          const wp = planePoint(hx, hy, m ? METER.face : 0) ?? planePoint(hx, hy, 0);
           if (!m || !wp) return;
           let sock = nearestSocket(m, wp.x, wp.z, 10);
           // Passing over the other plug's socket must not knock it out.
           if (sock && m.probes[d.color === "red" ? "black" : "red"].socket === sock) sock = null;
-          const desk = planePoint(cx, cy, 0);
+          const desk = planePoint(hx, hy, 0);
           s.apply((b) => ops.plugProbe(b, d.color, sock, desk ? [desk.x, desk.z] : undefined));
           break;
         }
@@ -447,20 +705,156 @@ export function useInteraction({
         default:
           break;
       }
-      // A finger hides what it touches: the loupe shows it, and names where a drop would land.
-      if (g.touch && loupe && (d.kind === "clip" || d.kind === "probe" || d.kind === "part" || d.kind === "leg" || d.kind === "wireEnd")) {
-        const r = element.getBoundingClientRect();
-        const st = store.getState();
-        loupe.feed.set({ x: cx - r.left, y: cy - r.top, name: dragName(st.bench, d as Parameters<typeof dragName>[1], st.ui.snapTarget, loupe.labels()) });
-      }
+      feedback(g, hx, hy, near);
       invalidate();
     };
 
-    const endDrag = (g: Gesture) => {
-      loupe?.feed.set(null);
+    /** Pans the camera along the desk by (vx, vy) CSS px (edge auto-pan): the desk point under the middle follows. */
+    const panBy = (vx: number, vy: number) => {
+      if (!controls) return;
+      const r = element.getBoundingClientRect();
+      const mx = r.left + r.width / 2;
+      const my = r.top + r.height / 2;
+      const a = planePoint(mx, my, 0);
+      const b = planePoint(mx + vx, my + vy, 0);
+      if (!a || !b) return;
+      const t = controls.getTarget(new THREE.Vector3(), false);
+      void controls.moveTo(t.x + (b.x - a.x), t.y, t.z + (b.z - a.z), false);
+      invalidate();
+    };
+
+    /** Each frame while something is carried: the item rises into place, and near an edge the view pans toward it. */
+    const startTick = () => {
+      if (tickFrame) return;
+      const tick = () => {
+        tickFrame = 0;
+        const g = active;
+        if (!g || g.done || !carries(g.drag) || !g.last) {
+          if (g && !g.done && g.spawn) tickFrame = requestAnimationFrame(tick);
+          if (g?.spawn && g.last) g.spawn();
+          return;
+        }
+        const now = performance.now();
+        let again = now - g.dragAt < DRAG.liftMs + 40;
+        const r = element.getBoundingClientRect();
+        const [vx, vy] = edgeVelocity(g.last[0] - r.left, g.last[1] - r.top, r.width, r.height, viewPad.current as Covered);
+        if (vx || vy) {
+          g.edgeAt ??= now;
+          if (now - g.edgeAt > DRAG.edgeDwell) {
+            panBy(vx, vy);
+            again = true;
+          }
+        } else g.edgeAt = null;
+        if (again) dragMove(g, g.last[0], g.last[1]);
+        tickFrame = requestAnimationFrame(tick);
+      };
+      tickFrame = requestAnimationFrame(tick);
+    };
+    const stopTick = () => {
+      if (tickFrame) cancelAnimationFrame(tickFrame);
+      tickFrame = 0;
+    };
+
+    /** The desk point (x, z) under a client point, for glides. */
+    const deskUnder = (cx: number, cy: number): Vec2 | null => {
+      const p = planePoint(cx, cy, 0);
+      return p ? [p.x, p.z] : null;
+    };
+
+    /** A drag that does not take (or Escape): the item glides back to where it came from, and nothing changes. */
+    const glideBack = (g: Gesture) => {
       const d = g.drag;
       const s = store.getState();
+      g.done = true;
+      clearFeedback();
+      stopTick();
+      lockCamera(false);
+      setUi({ snapTarget: null, dragging: false });
+      element.style.cursor = "";
+      if (!d || !s.txBase) {
+        if (s.txBase) s.cancel();
+        invalidate();
+        return;
+      }
+      const base = s.txBase;
+      const homeAt = (fallback: Vec2): Vec2 => (g.home ? (deskUnder(g.home[0], g.home[1]) ?? fallback) : fallback);
+      if (d.kind === "part") {
+        const now = partCenter(d.id) ?? [0, 0];
+        const free = d.to ?? now;
+        const cur = lifter.cur;
+        if (d.spawned) {
+          // Back into the tray: it glides to its slot there and is gone.
+          const home = homeAt(free);
+          lifter.set(d.id, { dx: free[0] - now[0], dz: free[1] - now[1], k: cur.k, h: cur.h });
+          lifter.to(d.id, { dx: home[0] - now[0], dz: home[1] - now[1], k: 0.6, h: 0 }, DRAG.glideMs, () => {
+            lifter.clear();
+            if (store.getState().txBase) store.getState().cancel();
+            invalidate();
+          });
+          return;
+        }
+        s.cancel();
+        const back = partCenter(d.id) ?? free;
+        lifter.set(d.id, { dx: free[0] - back[0], dz: free[1] - back[1], k: cur.k, h: cur.h });
+        lifter.to(d.id, NO_LIFT, DRAG.glideMs);
+        return;
+      }
+      // Clips, probe tips and plugs glide through the store, then the drag's transaction is dropped.
+      const from = g.last ? deskUnder(...hotOf(g, g.last[0], g.last[1])) : null;
+      let path: ((t: number) => void) | null = null;
+      if (from && d.kind === "clip") {
+        const e = base.leads.find((x) => x.id === d.id)?.[d.end];
+        let to: Vec2 | null = null;
+        if (d.spawned) to = homeAt(from);
+        else if (e?.to) {
+          const p = anchorPosition(base, e.to);
+          to = p ? [p[0], p[2]] : null;
+        } else if (e) to = e.pos;
+        if (to) {
+          const end = to;
+          path = (t) => store.getState().apply((b) => ops.clipLead(b, d.id, d.end, null, [from[0] + (end[0] - from[0]) * t, from[1] + (end[1] - from[1]) * t]));
+        }
+      } else if (from && d.kind === "probe") {
+        const at = anchorPosition(base, `probe:${d.color}`);
+        if (at) path = (t) => store.getState().apply((b) => ops.touchProbe(b, d.color, null, [from[0] + (at[0] - from[0]) * t, from[1] + (at[2] - from[1]) * t]));
+      } else if (from && d.kind === "plug" && base.meter) {
+        const pr = base.meter.probes[d.color];
+        const at: Vec2 = pr.socket ? (([x, , z]) => [x, z] as Vec2)(socketWorld(base.meter, pr.socket)) : pr.plugPos;
+        path = (t) => store.getState().apply((b) => ops.plugProbe(b, d.color, null, [from[0] + (at[0] - from[0]) * t, from[1] + (at[1] - from[1]) * t]));
+      }
+      if (!path) {
+        s.cancel();
+        invalidate();
+        return;
+      }
+      animate(DRAG.glideMs, path, () => {
+        if (store.getState().txBase) store.getState().cancel();
+        invalidate();
+      });
+    };
+
+    /** A drop that took: the lifted part settles into its place, with a tick under the finger. */
+    const settle = (g: Gesture) => {
+      const d = g.drag;
       if (!d) return;
+      if (d.kind === "part" && lifter.id === d.id) {
+        const c = partCenter(d.id);
+        const free = d.to;
+        const cur = lifter.cur;
+        if (c && free) lifter.set(d.id, { dx: free[0] - c[0], dz: free[1] - c[1], k: cur.k, h: cur.h });
+        lifter.to(d.id, NO_LIFT, DRAG.settleMs);
+      }
+      const st = store.getState();
+      if (landed(st.bench, { kind: d.kind, id: "id" in d ? d.id : undefined, color: "color" in d ? d.color : undefined }, st.ui.snapTarget)) haptic(g.touch);
+    };
+
+    const endDrag = (g: Gesture) => {
+      clearFeedback();
+      stopTick();
+      element.style.cursor = "";
+      const d = g.drag;
+      const s = store.getState();
+      if (!d || g.done) return;
       if (d.kind === "press") {
         s.press(d.id, false);
         return;
@@ -472,6 +866,10 @@ export function useInteraction({
           s.addWire(draft.from, draft.target);
           setUi({ wireDraft: null });
         }
+        return;
+      }
+      if (carries(d) && g.invalid) {
+        glideBack(g);
         return;
       }
       if (d.kind === "part") {
@@ -492,7 +890,10 @@ export function useInteraction({
       }
       const before = s.txBase;
       s.commit();
+      settle(g);
       setUi({ snapTarget: null, dragging: false });
+      // A clip, probe tip or plug put somewhere is done with: no selection bar over the bench under the next thing to grab.
+      if (d.kind === "clip" || d.kind === "probe" || d.kind === "plug") s.select(null);
       if (!before) return;
       const b = s.bench;
       switch (d.kind) {
@@ -547,6 +948,13 @@ export function useInteraction({
       return true;
     };
 
+    /** Flips a toggle or slide switch (a tap on it, or a short drag on its lever). */
+    const flip = (id: string) => {
+      const s = store.getState();
+      const part = s.bench.parts.find((x) => x.id === id);
+      if (part && isThrowSwitch(part.kind)) s.setParams<"slide-switch">(id, { to: (part.params as { to: string }).to === "a" ? "b" : "a" });
+    };
+
     const click = (g: Gesture, cx: number, cy: number) => {
       const s = store.getState();
       const p = g.pick;
@@ -587,15 +995,10 @@ export function useInteraction({
         case "press":
           s.select({ type: "part", id: p.id });
           break;
-        case "flip": {
-          if (readOnly) break;
-          const part = s.bench.parts.find((x) => x.id === p.id);
-          if (part && isThrowSwitch(part.kind)) {
-            s.setParams<"slide-switch">(p.id, { to: (part.params as { to: string }).to === "a" ? "b" : "a" });
-          }
+        case "flip":
           // Flipping is the whole action: no selection bar popping up over what the switch just turned on.
+          if (!readOnly) flip(p.id);
           break;
-        }
         case "wire":
         case "wireEnd":
           s.select({ type: "wire", id: p.id });
@@ -612,8 +1015,9 @@ export function useInteraction({
           if (readOnly) break;
           const m = s.bench.meter;
           if (m) {
+            // A tap on the knob turns it to the position tapped; a tap on its middle, one step on.
             const i = DIAL_MODES.indexOf(m.mode as (typeof DIAL_MODES)[number]);
-            s.setMeterMode(DIAL_MODES[(i + 1) % DIAL_MODES.length]!);
+            s.setMeterMode(dialModeAt(cx, cy) ?? DIAL_MODES[(i + 1) % DIAL_MODES.length]!);
           }
           break;
         }
@@ -648,7 +1052,7 @@ export function useInteraction({
             e.preventDefault();
             e.stopPropagation();
             lockCamera(true);
-            openMenu({ pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, pick: p, drag: null, moved: false, touch: false, longPress: null, hole: null }, e.clientX, e.clientY);
+            openMenu(newGesture(e, false, p), e.clientX, e.clientY);
             setTimeout(() => lockCamera(false), 0);
           }
         }
@@ -657,10 +1061,12 @@ export function useInteraction({
       // Overlay controls (buttons, tray) handle themselves.
       if ((e.target as HTMLElement | null)?.closest?.("[data-bench-ui]")) return;
       if (gesture.current) return; // second finger: leave pinch/zoom to the camera
+      // A glide back still running ends now, where it was going.
+      finishGlide();
       const touch = e.pointerType !== "mouse";
-      const pick = hit(e.clientX, e.clientY);
+      const pick = hit(e.clientX, e.clientY, touch);
       const s = store.getState();
-      const g: Gesture = { pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, pick, drag: null, moved: false, touch, longPress: null, hole: null };
+      const g = newGesture(e, touch, pick);
       gesture.current = g;
       if (readOnly) {
         // Read-only benches still allow turning the meter dial off? No: only the camera moves.
@@ -685,7 +1091,7 @@ export function useInteraction({
           g.drag = { kind: "press", id: pick.id };
         }
         g.longPress = window.setTimeout(() => {
-          if (gesture.current === g && !g.moved && pick.type !== "press") {
+          if (gesture.current === g && !g.moved && !g.flipped && pick.type !== "press") {
             openMenu(g, g.x0, g.y0);
             gesture.current = null;
             lockCamera(false);
@@ -697,11 +1103,28 @@ export function useInteraction({
     const onMove = (e: PointerEvent) => {
       const g = gesture.current;
       if (!g || g.pointerId !== e.pointerId) {
-        if (e.pointerType === "mouse" && !g) scheduleHover(e.clientX, e.clientY);
+        // No hover x-ray while a part from the tray is in hand: the marks show where it lands.
+        if (e.pointerType === "mouse" && !g && !active) scheduleHover(e.clientX, e.clientY);
         return;
       }
+      if (g.done) return;
       if (!g.moved) {
-        if (Math.hypot(e.clientX - g.x0, e.clientY - g.y0) < (g.touch ? 8 : 4)) return;
+        const travel = Math.hypot(e.clientX - g.x0, e.clientY - g.y0);
+        const slop = g.touch ? DRAG.slopTouch : DRAG.slopMouse;
+        // A switch flips on a tap or a short drag of its lever; only a longer drag moves it (when it may move).
+        if (g.pick?.type === "flip" && !g.hole && !g.drag && !readOnly) {
+          const pinned = store.getState().locked.includes(g.pick.id);
+          if (pinned) {
+            if (!g.flipped && travel >= slop) {
+              g.flipped = true;
+              if (g.longPress) clearTimeout(g.longPress);
+              flip(g.pick.id);
+            }
+            return;
+          }
+          if (travel < DRAG.flipDrag) return;
+        }
+        if (travel < slop) return;
         g.moved = true;
         if (g.longPress) clearTimeout(g.longPress);
         const s = store.getState();
@@ -712,8 +1135,17 @@ export function useInteraction({
           g.drag = beginDrag(g, g.x0, g.y0);
           if (g.drag) {
             s.begin();
-            setUi({ dragging: true, menu: null });
+            g.dragAt = performance.now();
+            const at = itemAt(g.drag);
+            if (at) g.off = [at[0] - g.x0, at[1] - g.y0];
+            // Picked up: the hand closes and the hover x-ray goes.
+            setUi({ dragging: true, menu: null, hover: null });
             if (g.drag.kind !== "dial") s.select(selectionFor(g.pick, s.bench));
+            if (carries(g.drag)) {
+              element.style.cursor = "grabbing";
+              active = g;
+              startTick();
+            }
           } else {
             lockCamera(false);
           }
@@ -726,15 +1158,20 @@ export function useInteraction({
       const g = gesture.current;
       if (!g || g.pointerId !== e.pointerId) return;
       gesture.current = null;
+      if (active === g) active = null;
       if (g.longPress) clearTimeout(g.longPress);
       if (element.hasPointerCapture(e.pointerId)) element.releasePointerCapture(e.pointerId);
       lockCamera(false);
+      if (g.done) {
+        invalidate();
+        return;
+      }
       if (g.drag && g.moved) {
         endDrag(g);
       } else if (g.drag?.kind === "press") {
         store.getState().press(g.drag.id, false);
         click(g, e.clientX, e.clientY);
-      } else if (!g.moved) {
+      } else if (!g.moved && !g.flipped) {
         if (g.hole && store.getState().ui.mode === "wire") {
           const s = store.getState();
           const draft = s.ui.wireDraft;
@@ -752,16 +1189,34 @@ export function useInteraction({
     };
 
     const onCancel = (e: PointerEvent) => {
-      loupe?.feed.set(null);
+      clearFeedback();
       const g = gesture.current;
       if (!g || g.pointerId !== e.pointerId) return;
       gesture.current = null;
+      if (active === g) active = null;
+      stopTick();
       if (g.longPress) clearTimeout(g.longPress);
       const s = store.getState();
       if (g.drag?.kind === "press") s.press(g.drag.id, false);
-      if (s.txBase) s.cancel();
-      setUi({ dragging: false, snapTarget: null });
+      element.style.cursor = "";
       lockCamera(false);
+      if (carries(g.drag) && !g.done && s.txBase) {
+        glideBack(g);
+        return;
+      }
+      if (s.txBase) s.cancel();
+      lifter.clear();
+      setUi({ dragging: false, snapTarget: null });
+    };
+
+    /** Escape puts down what is being dragged: it glides back and nothing changes. */
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const g = active;
+      if (!g || g.done || !carries(g.drag)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      glideBack(g);
     };
 
     const scheduleHover = (cx: number, cy: number) => {
@@ -784,12 +1239,15 @@ export function useInteraction({
           if (target !== s.ui.wireDraft.target) setUi({ wireDraft: { ...s.ui.wireDraft, target } });
         }
         if (hover !== s.ui.hover) setUi({ hover });
+        const fixed = p && (p.type === "part" || p.type === "leg") && s.locked.includes(p.id);
         element.style.cursor = p
-          ? p.type === "press" || p.type === "flip" || p.type === "dialMode" || p.type === "setting"
+          ? p.type === "press" || p.type === "flip" || p.type === "dialMode" || p.type === "setting" || p.type === "dial"
             ? "pointer"
             : p.type === "draw"
               ? "crosshair"
-              : "grab"
+              : p.type === "wire" || fixed
+                ? ""
+                : "grab"
           : hover && s.ui.mode === "wire"
             ? "crosshair"
             : "";
@@ -819,6 +1277,7 @@ export function useInteraction({
     element.addEventListener("pointercancel", onCancel);
     element.addEventListener("pointerleave", onLeave);
     element.addEventListener("contextmenu", onContext);
+    window.addEventListener("keydown", onKey, { capture: true });
 
     // ---- API for the overlay -----------------------------------------------------------------------------------
     const placeItem = (item: TrayItem, at: THREE.Vector3): string | null => {
@@ -839,77 +1298,112 @@ export function useInteraction({
     api.current = {
       startSpawn: (item, e) => {
         if (readOnly) return;
+        finishGlide();
         const s = store.getState();
-        const g: Gesture = { pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, pick: null, drag: null, moved: false, touch: e.pointerType !== "mouse", longPress: null, hole: null };
+        const touch = e.pointerType !== "mouse";
+        const src = (e.currentTarget ?? e.target) as Element | null;
+        const sr = src?.getBoundingClientRect?.();
+        const g: Gesture = { ...newGesture(e, touch, null), home: sr ? [sr.left + sr.width / 2, sr.top + sr.height / 2] : [e.clientX, e.clientY] };
         let spawned = false;
+        let lifting = false;
+        active = g;
+        /** Takes the item out once its hot point is over the bench (on touch it rises above the finger first). */
+        const spawnNow = (): boolean => {
+          if (spawned || !g.last || g.done) return spawned;
+          const [hx, hy] = touch ? [g.last[0], g.last[1] - DRAG.touchLift * liftT(g)] : g.last;
+          if (offBench(hx, hy)) return false;
+          const wp = workPoint(hx, hy);
+          if (!wp) return false;
+          s.begin();
+          const id = placeItem(item, wp);
+          spawned = true;
+          g.spawn = null;
+          g.moved = true;
+          if (id && item.kind !== "lead") {
+            g.drag = { kind: "part", id, offset: [0, 0], spawned: true };
+            s.select({ type: "part", id });
+          } else if (id) {
+            g.drag = { kind: "clip", id, end: "b", spawned: true };
+          }
+          setUi({ dragging: true, armed: null, hover: null });
+          lockCamera(true);
+          element.style.cursor = "grabbing";
+          if (g.drag) dragMove(g, g.last[0], g.last[1]);
+          return true;
+        };
         const move = (ev: PointerEvent) => {
-          if (ev.pointerId !== g.pointerId) return;
+          if (ev.pointerId !== g.pointerId || g.done) return;
+          g.last = [ev.clientX, ev.clientY];
           if (!spawned) {
-            if (Math.hypot(ev.clientX - g.x0, ev.clientY - g.y0) < 6) return;
-            const r = element.getBoundingClientRect();
-            if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) return;
-            const wp = workPoint(ev.clientX, ev.clientY);
-            if (!wp) return;
-            s.begin();
-            const id = placeItem(item, wp);
-            spawned = true;
-            g.moved = true;
-            if (id && item.kind !== "lead") {
-              g.drag = { kind: "part", id, offset: [0, 0], spawned: true };
-              s.select({ type: "part", id });
-            } else if (id) {
-              g.drag = { kind: "clip", id, end: "b" };
+            const dx = ev.clientX - g.x0;
+            const dy = ev.clientY - g.y0;
+            if (!lifting) {
+              if (Math.hypot(dx, dy) < 6) return;
+              // A sideways swipe along the phone's tray strip scrolls it; a take-out goes up, off the strip.
+              if (touch && -dy < Math.abs(dx) * 0.6 && offBench(ev.clientX, ev.clientY)) return;
+              lifting = true;
+              g.dragAt = performance.now();
+              g.spawn = spawnNow;
+              startTick();
             }
-            setUi({ dragging: true, armed: null });
-            lockCamera(true);
+            if (!spawnNow()) return;
           }
           if (g.drag) dragMove(g, ev.clientX, ev.clientY);
         };
         const up = (ev: PointerEvent) => {
           if (ev.pointerId !== g.pointerId) return;
-          loupe?.feed.set(null);
           window.removeEventListener("pointermove", move);
           window.removeEventListener("pointerup", up);
           window.removeEventListener("pointercancel", up);
+          if (active === g) active = null;
+          stopTick();
+          g.spawn = null;
           lockCamera(false);
+          if (g.done) return;
+          clearFeedback();
+          element.style.cursor = "";
           const st = store.getState();
           if (!spawned) {
             // A tap arms the item for tap-to-place.
-            setUi({ armed: st.ui.armed === item ? null : item });
+            if (!lifting && ev.type !== "pointercancel") setUi({ armed: st.ui.armed === item ? null : item });
             return;
           }
-          const r = element.getBoundingClientRect();
-          const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
-          if (!inside || ev.type === "pointercancel") st.cancel();
-          else {
-            if (g.drag?.kind === "clip") {
-              // Bring the other clip of a new lead next to the one just placed.
-              const id = g.drag.id;
-              st.apply((b) => {
-                const l = b.leads.find((x) => x.id === id);
-                if (!l || l.a.to) return b;
-                const at: [number, number, number] | null = l.b.to ? anchorPosition(b, l.b.to) : [l.b.pos[0], 0, l.b.pos[1]];
-                if (!at) return b;
-                // Toward the middle of the work area, so the loose clip stays in view (narrow phone views too).
-                const [cx, cz] = workCenter(b);
-                const dx = cx - at[0];
-                const dz = cz - at[2];
-                const d = Math.hypot(dx, dz);
-                const pos: Vec2 = d > 20 ? [at[0] + (dx / d) * 40, at[2] + (dz / d) * 40 + 18] : [at[0] - 30, at[2] + 45];
-                return ops.clipLead(b, id, "a", null, pos);
-              });
-            }
-            if (g.drag?.kind === "part") {
-              // A fresh part dropped right on one of its kind takes its place and wiring; the old one moves aside.
-              const id = g.drag.id;
-              const target = ops.swapTarget(st.bench, id);
-              if (target && !st.locked.includes(target.id)) st.apply((b) => ops.dropOnto(b, id, target.id, ops.asideSpot(b, target, [target.pos[0], target.pos[1] + 34], [id])));
-            }
-            st.commit();
-            if (g.drag?.kind === "part") emit({ type: "part:add", partId: g.drag.id, kind: item.kind as never });
-            else if (g.drag?.kind === "clip") emit({ type: "lead:add", leadId: g.drag.id });
+          if (ev.type === "pointercancel" || g.invalid) {
+            glideBack(g);
+            return;
           }
-          setUi({ dragging: false });
+          if (g.drag?.kind === "clip") {
+            // Bring the other clip of a new lead next to the one just placed.
+            const id = g.drag.id;
+            st.apply((b) => {
+              const l = b.leads.find((x) => x.id === id);
+              if (!l || l.a.to) return b;
+              const at: [number, number, number] | null = l.b.to ? anchorPosition(b, l.b.to) : [l.b.pos[0], 0, l.b.pos[1]];
+              if (!at) return b;
+              // Toward the middle of the work area, so the loose clip stays in view (narrow phone views too).
+              const [cx, cz] = workCenter(b);
+              const dx = cx - at[0];
+              const dz = cz - at[2];
+              const d = Math.hypot(dx, dz);
+              const pos: Vec2 = d > 20 ? [at[0] + (dx / d) * 40, at[2] + (dz / d) * 40 + 18] : [at[0] - 30, at[2] + 45];
+              return ops.clipLead(b, id, "a", null, pos);
+            });
+          }
+          if (g.drag?.kind === "part") {
+            // A fresh part dropped right on one of its kind takes its place and wiring; the old one moves aside.
+            const id = g.drag.id;
+            const target = ops.swapTarget(st.bench, id);
+            if (target && !st.locked.includes(target.id)) st.apply((b) => ops.dropOnto(b, id, target.id, ops.asideSpot(b, target, [target.pos[0], target.pos[1] + 34], [id])));
+            else if (g.drag.to) {
+              const to = g.drag.to;
+              st.apply((b) => ops.movePart(b, id, to, { seat: "free" }));
+            }
+          }
+          st.commit();
+          settle(g);
+          if (g.drag?.kind === "part") emit({ type: "part:add", partId: g.drag.id, kind: item.kind as never });
+          else if (g.drag?.kind === "clip") emit({ type: "lead:add", leadId: g.drag.id });
+          setUi({ dragging: false, snapTarget: null });
           invalidate();
         };
         window.addEventListener("pointermove", move);
@@ -977,9 +1471,13 @@ export function useInteraction({
       element.removeEventListener("pointercancel", onCancel);
       element.removeEventListener("pointerleave", onLeave);
       element.removeEventListener("contextmenu", onContext);
+      window.removeEventListener("keydown", onKey, { capture: true });
+      stopTick();
+      finishGlide();
+      lifter.clear();
       api.current = null;
     };
-  }, [element, camera, controls, scene, gl, store, readOnly, invalidate, api, emit, viewPad, view, loupe]);
+  }, [element, camera, controls, scene, gl, store, readOnly, invalidate, api, emit, viewPad, view, loupe, marks]);
 }
 
 /** Whether an attach point is, or hangs off (clip on a probe tip, tip on a clip ...), something starting with `prefix`. */
