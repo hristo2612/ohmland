@@ -15,7 +15,7 @@ unlocks:
 
 start:
   title: The dark lamp
-  say: My desk lamp won't light, and I can't see why. Will you help me find out?
+  say: My desk lamp won't light. Will you help me find out why?
   go: Take the case
 
 beats:
@@ -23,7 +23,7 @@ beats:
     objective: Find the gap
     do: close-the-switch
 
-  - say: The path is broken somewhere. Tap the minus (−) snap, the metal stud on the battery, and my pencil will follow the wires.
+  - say: Tap the minus (−) snap, a metal stud on the battery, and my pencil will trace the path from there.
     tap: { answer: B1.neg, among: [B1.pos, B1.neg] }
     trace: B1.neg
     wrong: { B1.pos: "That's the plus (+) snap. Tap the other metal stud, marked minus (−)." }
@@ -33,7 +33,7 @@ beats:
   - say: Drag the red clip off the battery's plastic wrapper and onto its plus (+) snap, the other metal stud.
     do: find-the-gap
     trace: B1.neg
-    done: It glows! Now electricity can flow from the battery, through metal all the way round, and back.
+    done: It glows, because electricity can now flow through metal all the way round.
     note: { at: D1, text: "loop: metal all the way round" }
     rule: Flow needs a closed loop of metal.
 
@@ -47,7 +47,7 @@ beats:
   - say: Put the loose clip back on the metal it came from, so the loop is closed again.
     do: mend-the-loop
 
-  - say: What do we call a metal path that runs from the battery, all the way round, and back?
+  - say: What do we call a metal path that goes all the way round and back?
     pick: { options: [a loop, a lamp, a line], answer: a loop }
     wrong: { a lamp: "The lamp is one stop on the path. What is the whole path called?", a line: "A line has two ends. This path has none: it comes back round." }
 
@@ -58,9 +58,9 @@ secret:
   note: { at: D1, text: "backwards: dark, no harm" }
 
 fixit:
-  say: Fix-it time, and now you know what to look for. The switch is on, but the lamp stays dark. Find the gap.
+  say: "Fix-it time, to test your eye. The switch is on, but the lamp stays dark: find the gap."
   tasks:
     - task: fix-it
 
 end:
-  say: Case closed. You followed the loop, found the gap, and my lamp is lit for the first time in ages.
+  say: "Case closed. You followed the loop and found the gap: first light in ages."
