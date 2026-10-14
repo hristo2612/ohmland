@@ -9,3 +9,4 @@ isle:
   seed: 4
 modules:
   - timer-555
+  - alarm

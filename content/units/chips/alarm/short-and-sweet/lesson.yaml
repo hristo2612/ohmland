@@ -1,0 +1,62 @@
+# Blueprint: docs/curriculum/unit-4.md, CH9. A bench lesson (docs/LESSONS.md).
+# One idea: the capacitor fills through R1 and R2 but empties through R2 alone, so the flash is always the longer part;
+# a diode across R2 lets it fill past R2. New: "duty cycle"; the 1N4148 is "this small diode". Lab:
+# content/labs/short-and-sweet.ts. The duty readout is not a bench target, so period 2 ("tap the duty") is left out.
+format: bench
+id: short-and-sweet
+version: 1
+title: Short flash, long gap
+summary: Find why a 555's flash is always the longer part, then let a small diode skip a resistor to shorten it.
+minutes: 7
+lab: short-and-sweet
+unlocks:
+  parts: [diode-1n4148]
+  isle: diode
+
+start:
+  title: Short flash, long gap
+  say: My beam stays on too long. A lighthouse should wink.
+  go: Trim the beam
+
+beats:
+  - say: Turn the knob through its whole range.
+    objective: Find the floor
+    tool: scope
+    do: try-the-knob
+    note: { at: U1.3, text: "duty cycle: the share spent on" }
+
+  - say: Could any knob setting make the flash the shorter part?
+    pick: { options: ["Yes", "No"], answer: "No" }
+    wrong: { "Yes": "Filling runs through R1 and R2. Emptying, through R2 alone." }
+    note: { at: R1, text: "fills through both, empties through one" }
+
+  - say: Clip this small diode across R2 and the knob.
+    objective: Skip R2
+    tool: scope
+    do: diode-in
+    note: { at: D2, text: "fills past R2: a short flash" }
+    rule: A diode across R2 shortens the flash.
+
+  - say: Now get the duty cycle under 25%.
+    tool: scope
+    do: under-25
+
+  - say: Flash 0.1 s, gap 0.3 s. Duty cycle?
+    pick: { options: ["25%", "33%", "75%"], answer: "25%" }
+    hint: On time divided by the whole cycle.
+
+secret:
+  task: even-blink
+  tool: scope
+  say: Curious? With the diode in, make an even blink.
+  done: Half on, half off.
+  note: { at: RV1, text: "R2 just over R1: even" }
+
+fixit:
+  say: My diode does nothing. Fix it.
+  tool: scope
+  tasks:
+    - task: fix-diode
+
+end:
+  say: Short and sweet. My beam winks now.

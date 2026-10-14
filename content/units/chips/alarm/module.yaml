@@ -1,0 +1,14 @@
+id: alarm
+title: The lighthouse
+summary: A lighthouse that blinks, sings, bends its note and guards the door.
+# Reveal caption: Its lamp sleeps until a door opens. Then the whole island knows.
+# Wave 1 ends the module on CH10 (bend-the-pitch): CH11 door-left-open and CH12 armed-and-ready need the door props and
+# plug-in modules (unit-4.md, CB5 and CB6), which the bench does not have yet. The landmark lands on the last lesson.
+landmark:
+  id: alarm-lighthouse
+  name: the Alarm Lighthouse
+lessons:
+  - blink-forever
+  - sing-a-note
+  - short-and-sweet
+  - bend-the-pitch
