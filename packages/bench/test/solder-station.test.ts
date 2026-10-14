@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { createSimulation } from "@ohmland/sim";
 import { benchToNetlist, connectivity } from "../src/netlist";
 import { emptyBench } from "../src/ops";
-import { createStation, feedAt, placeIron, quickPress, readJoint, stepStation, tug, type StationState } from "../src/solder/station";
+import { createStation, feedAt, layBraid, placeIron, quickPress, readJoint, stepStation, tug, type StationState } from "../src/solder/station";
 import { stationSpots } from "../src/solder/spots";
 import type { BenchState, PlacedPart } from "../src/types";
 
@@ -135,6 +135,24 @@ describe("the station", () => {
     const long = peak(25);
     // Above the die's damage threshold (105 °C) for many seconds: it dies.
     expect(long.max).toBeGreaterThan(115);
+  });
+
+  it("braid on a ball wicks it away; left on, it soaks up fresh solder; lifted off, a touch of solder stays", () => {
+    // A ball of too much solder at C4.
+    const r = new Run(solderBench());
+    r.do((b, s) => placeIron(b, s, "PB1.C4")).step(1.6).set((s) => feedAt(s, "PB1.C4")).step(1.8).set((s) => feedAt(s, null)).do((b, s) => placeIron(b, s, "stand")).step(4);
+    expect(r.joint("PB1.C4")!.verdict).toBe("too-much");
+    r.set((s) => layBraid(s, "PB1.C4")).do((b, s) => placeIron(b, s, "PB1.C4")).step(1).do((b, s) => placeIron(b, s, "stand")).step(4);
+    // The ball is gone (a second on the braid takes most of it).
+    expect(["good", "too-little"]).toContain(r.joint("PB1.C4")!.verdict);
+    // Left on the joint, the braid soaks up whatever is fed; lifted, fresh solder stays.
+    const left = r.joint("PB1.C4")!.volume;
+    r.do((b, s) => placeIron(b, s, "PB1.C4")).step(1.5).set((s) => feedAt(s, "PB1.C4")).step(0.4).set((s) => feedAt(s, null)).do((b, s) => placeIron(b, s, "stand")).step(4);
+    expect(r.joint("PB1.C4")!.volume).toBeLessThan(left);
+    r.set((s) => layBraid(s, null));
+    const before = r.joint("PB1.C4")!.volume;
+    r.do((b, s) => placeIron(b, s, "PB1.C4")).step(1.5).set((s) => feedAt(s, "PB1.C4")).step(0.4).set((s) => feedAt(s, null)).do((b, s) => placeIron(b, s, "stand")).step(4);
+    expect(r.joint("PB1.C4")!.volume).toBeGreaterThan(before + 0.2);
   });
 
   it("the iron dropped on the desk scorches the paper, then slides home", () => {

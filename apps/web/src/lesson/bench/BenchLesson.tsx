@@ -7,7 +7,7 @@
  * The shell (this file) is light: the bench, the simulator and three.js arrive in the Stage chunk, warmed on the
  * learner's first gesture or once the loaded page goes idle, never in the page's first load.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { BenchLessonData } from "../../content/load";
 import { m } from "../../i18n";
 import { Dialog } from "../../components/Dialog";
@@ -15,7 +15,7 @@ import { Icon } from "../../components/Icon";
 import { IconButton } from "../../components/IconButton";
 import { BenchSurfaceChunk, INK_RENDERER, readViewPref, resolveView, storeViewPref, type BenchViewKind, type BenchViewPref } from "../../lab/bench-view";
 import type { NoteSpec, SolutionStep } from "../../lab/define";
-import { loadLab } from "../../lab/labs";
+import { loadedLab, loadLab } from "../../lab/labs";
 import { preloadable, warmSimulator, whenIdle } from "../../lab/prefetch";
 import type { FriedCard } from "../../lab/runtime";
 import { prefersReducedMotion } from "../../progress/prefs";
@@ -72,6 +72,9 @@ function warmBench(labId: string): void {
   void loadLab(labId).catch(() => undefined);
   warmSimulator();
 }
+
+/** The lab panels' figures on the signed-off page (the 555 map so far): a chunk of their own, loaded at the sign-off. */
+const NotebookFigures = lazy(() => import("./NotebookFigures"));
 
 type Phase = "guess" | "act" | "done";
 
@@ -174,6 +177,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   clockRef.current = clock;
   const [warm, setWarm] = useState(false);
   const [api, setApi] = useState<StageApi | null>(null);
+  // The last stage's lab session outlives the stage, so the signed-off page can still show what the bench recorded.
+  const [lastApi, setLastApi] = useState<StageApi | null>(null);
   const [benchReady, setBenchReady] = useState(false);
   const [benchFailed, setBenchFailed] = useState(false);
   const [notebook, setNotebook] = useState(false);
@@ -770,6 +775,12 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const kept = !!moment.tool && moments[index - 1]?.tool === moment.tool;
   const tool = started && (phase !== "guess" || kept) ? (moment.tool ?? null) : null;
   const friedHere = friedAll.filter((f) => f.lessonId === lesson.id).map((f) => f.label);
+  const figLab = lastApi?.lab ?? loadedLab(lesson.lab);
+  const figures = figLab?.panels?.length ? (
+    <Suspense fallback={null}>
+      <NotebookFigures lab={figLab} session={lastApi ? lastApi.runtime.session : null} />
+    </Suspense>
+  ) : null;
   const fixedCount = moments.filter((mo) => mo.kind === "fix" && mo.task && tasks.includes(mo.task)).length;
 
   if (completion) {
@@ -784,7 +795,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
         isle={isle}
         firstTry={scoreOf(lesson, moments, answers).firstTry}
         items={scoreOf(lesson, moments, answers).items}
-        page={<NotebookPage lesson={lesson} moments={moments} answers={answers} reached={moments.length} rules={rulesFound(moments, moments.length, tasks, true)} fried={friedHere} fixed={fixedCount} signed />}
+        page={<NotebookPage lesson={lesson} moments={moments} answers={answers} reached={moments.length} rules={rulesFound(moments, moments.length, tasks, true)} fried={friedHere} fixed={fixedCount} figures={figures} signed />}
       />
     );
   }
@@ -1095,7 +1106,10 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               tool={tool}
               code={started ? { key: moment.key, ...moment.code } : null}
               keyboardOpen={keyboard}
-              onApi={setApi}
+              onApi={(a) => {
+                setApi(a);
+                if (a) setLastApi(a);
+              }}
               onBenchReady={() => setBenchReady(true)}
               onBenchFailed={() => setBenchFailed(true)}
               onTaskDone={onTaskDone}

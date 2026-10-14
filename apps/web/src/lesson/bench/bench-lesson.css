@@ -551,6 +551,8 @@ html:has(.bl:not(.bl--finale)) { overflow: hidden; }
 .bl-page__date { color: var(--bl-ink-2); font-family: var(--bl-hand); font-size: var(--bl-text-lg); }
 .bl-page__sec { display: flex; flex-direction: column; gap: var(--bl-s-2); }
 .bl-page__sec p { margin: 0; }
+/* A lab panel's figure (the 555 map): small, in ink, on the page. */
+.bl-page__figure .xr-map { width: min(240px, 100%); }
 .bl-page__rules, .bl-page__checks, .bl-page__hall { display: flex; flex-direction: column; gap: var(--bl-s-2); margin: 0; padding: 0; list-style: none; }
 .bl-page__rules li { display: flex; align-items: center; gap: var(--bl-s-3); font-size: var(--bl-text-md); }
 .bl-page__checks li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--bl-s-3); }

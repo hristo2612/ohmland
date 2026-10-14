@@ -1,0 +1,56 @@
+# Blueprint: docs/curriculum/unit-3.md, MP3. A bench lesson (docs/LESSONS.md).
+# One idea: heat the work, and let the hot work melt the solder. Lab: content/labs/first-joint.ts.
+format: bench
+id: first-joint
+version: 1
+title: The loose ends
+summary: Heat two crossed wires with the iron, feed solder to the hot wires, and let your first joint set.
+minutes: 8
+lab: first-joint
+unlocks:
+  parts: [hookup-wire]
+  isle: jumper-arch
+
+start:
+  title: The loose ends
+  say: Two wires, crossed. Let's make them one.
+  go: Let's join them
+
+beats:
+  - say: Rest the iron's tip on the crossing.
+    objective: Heat the work
+    do: heat-the-work
+    note: { at: HW1.b, text: "the iron heats both wires" }
+
+  - say: Touch solder to the hot wires, not the iron. Guess first.
+    guess: { options: [It stays solid, It melts and flows], answer: It melts and flows }
+    do: feed-the-joint
+    note: { at: HW1.b, text: "hot wires melt it: it flows" }
+
+  - say: Plenty. Lift the solder, then the iron. Hold still.
+    objective: Let it set
+    do: let-it-set
+    note: { at: HW1.b, text: "a joint: one metal path" }
+    rule: Heat the work. The work melts the solder.
+
+  - say: Show me the joint.
+    tap: { answer: HW1.b, among: [HW1.b, HW1.a, HW2.a] }
+    wrong:
+      HW1.a: "That's a loose end. Find where they meet."
+      HW2.a: "That's a loose end. Find where they meet."
+
+  - say: What is this?
+    pick: { on: HW1.b, options: [A joint, A crossing, A clip], answer: A joint }
+
+secret:
+  task: carry-on-tip
+  say: Curious? Melt solder on the tip, then dab the cold scrap.
+  note: { at: HW3.b, text: "flux burned off: it won't stick" }
+
+fixit:
+  say: Fix-it time. This joint let go of one wire. Fix it.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. That bond is for keeps.
