@@ -39,6 +39,9 @@ import {
   rulesFound,
   scoreOf,
   tasksOf,
+  notesIn,
+  notesToSave,
+  savedNotes,
   type Answers,
   type Moment,
 } from "./flow";
@@ -476,9 +479,31 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   }, [api]);
 
   // ---- Bench events -----------------------------------------------------------------------------------------------
+  // A resumed lesson puts the notebook entries the learner wrote back on the lab, so goals that read them still can.
+  useEffect(() => {
+    if (!api) return;
+    const saved = savedNotes(state.current.answers, lesson.lab);
+    const ids = Object.keys(saved);
+    if (!ids.length) return;
+    for (const id of ids) api.runtime.setNote(id, saved[id]!);
+    setNotebookText((t) => ({ ...saved, ...t }));
+  }, [api, lesson.lab]);
+  /** Saves the lab notebook as it stands (the typed entry `typed`, and whatever else the lab session holds). */
+  const saveNotes = useCallback(
+    (typed?: { id: string; text: string }) => {
+      const session = state.current.api?.runtime.session.notes ?? {};
+      setAnswer(answerKeys.notes(lesson.lab), (prev: unknown) => {
+        const saved = notesIn(prev);
+        return notesToSave(typed ? { ...saved, [typed.id]: typed.text } : saved, session);
+      });
+    },
+    [lesson.lab, setAnswer],
+  );
+
   const onTaskDone = useCallback(
     (id: string) => {
       setAnswer(answerKeys.tasks(lesson.lab), (prev: unknown) => [...new Set([...(Array.isArray(prev) ? (prev as string[]) : []), id])]);
+      saveNotes();
       const { moment: mo, phase: ph } = state.current;
       if (id === mo.task && ph !== "done") {
         floatXp(XP.task);
@@ -505,7 +530,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
         announce([m.lessonBench.secret, s.done, s.rule && m.lessonBench.stamped(s.rule)].filter(Boolean).join(". "));
       }
     },
-    [lesson.lab, lesson.secret, setAnswer, complete, say, addMark, announce],
+    [lesson.lab, lesson.secret, setAnswer, saveNotes, complete, say, addMark, announce],
   );
 
   const onFried = useCallback(
@@ -675,7 +700,9 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const onNote = (spec: NoteSpec) => {
     const mo = moment;
     if (!api || !mo.task || phase !== "act") return;
-    if (api.runtime.setNote(spec.id, notebookText[spec.id] ?? "") === null) return say(m.lessonBench.number.invalid, "thinking");
+    const text = notebookText[spec.id] ?? "";
+    if (api.runtime.setNote(spec.id, text) === null) return say(m.lessonBench.number.invalid, "thinking");
+    saveNotes({ id: spec.id, text });
     // A task with several boxes is only judged once every box has a value: no nudge for a right first number.
     const all = notesOf(api.task(mo.task)?.note);
     if (all.some((n) => n.id !== spec.id && !(notebookText[n.id] ?? "").trim())) return;
