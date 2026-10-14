@@ -687,7 +687,8 @@ function SpotRing({ ring, material }: { ring: Ring; material: THREE.ShaderMateri
   useEffect(() => () => mat.dispose(), [mat]);
   mat.uniforms.size!.value.set((hx + pad) * 2, (hz + pad) * 2);
   mat.uniforms.halfSize!.value.set(hx, hz);
-  mat.uniforms.radius!.value = Math.min(hx, hz) * 0.85;
+  // A band round a small part; a rounded rectangle round a big one, whose corners it must not cut (as in ink).
+  mat.uniforms.radius!.value = Math.min(Math.min(hx, hz) * 0.85, margin * 3.2);
   mat.uniforms.width!.value = 2.4;
   mat.uniforms.glow!.value = Math.max(1.5, Math.min(hx, hz) * 0.25);
   return (

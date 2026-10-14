@@ -30,13 +30,22 @@ function PartBrackets({ pi, className }: { pi: PartInk; className: string }) {
   );
 }
 
-/** A pencil ring round a desk rectangle: a rounded band, as the 3D view rings its targets. */
+/**
+ * The largest corner radius that keeps a ring `pad` outside its rectangle's corners (the arc's middle stays clear
+ * while radius * (1 - 1 / sqrt 2) is under the pad).
+ */
+const ringCorner = (pad: number) => pad * 3.2;
+
+/**
+ * A pencil ring round a desk rectangle, as the 3D view rings its targets: a rounded band round a small part, and a
+ * rounded rectangle round a big one (a chart, a box), whose corners would otherwise cut through its print.
+ */
 function Ring({ r, className, pad = 2.6 }: { r: Rect; className: string; pad?: number }) {
   const w = Math.max(4.8, r[2] - r[0] + pad * 2);
   const h = Math.max(4.8, r[3] - r[1] + pad * 2);
   const cx = (r[0] + r[2]) / 2;
   const cz = (r[1] + r[3]) / 2;
-  const rad = Math.min(w, h) / 2;
+  const rad = Math.min(Math.min(w, h) / 2, ringCorner(pad));
   return <rect x={n3(cx - w / 2)} y={n3(cz - h / 2)} width={n3(w)} height={n3(h)} rx={n3(rad)} className={className} />;
 }
 

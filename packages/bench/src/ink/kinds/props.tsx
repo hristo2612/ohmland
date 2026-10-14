@@ -491,7 +491,8 @@ function Chart({ pi }: DrawProps<"chart">) {
   const D = CHART.d;
   const top = -D / 2 + 11.5;
   const rowH = (D - 14) / CHART_ROWS.length;
-  const col = { sw: -W / 2 + 5, name: -W / 2 + 15, digit: 8, mult: 27, tol: 42 };
+  // The tolerance column keeps clear of the card's edge: the names need far less room than they had.
+  const col = { sw: -W / 2 + 5, name: -W / 2 + 15, digit: 2, mult: 21, tol: 37 };
   return (
     <g>
       <rect x={-W / 2 + 4} y={D / 2 - 2} width={W - 8} height={7} rx={1.4} className="f-wood-dark ln-thin" />
