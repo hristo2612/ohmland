@@ -1,0 +1,60 @@
+---
+/**
+ * Dev only (`pnpm dev`): what no lesson shows yet, played in the real bench lesson player. Never built: outside dev
+ * there are no paths.
+ *
+ * /dev/code-drawer  the mcu-demo lab with the microcontroller board's tools docked one beat at a time: the code drawer
+ *                   (blocks, the text view, Upload), the serial monitor and the millis() readout. apps/web/scripts/
+ *                   code-shots.mjs screenshots it.
+ */
+import { parse } from "yaml";
+import LessonLayout from "../../layouts/LessonLayout.astro";
+import LessonPlayer from "../../lesson/LessonPlayer";
+import { getCourse, type BenchLessonData } from "../../content/load";
+import { benchLessonSchema } from "../../content/schema";
+
+export function getStaticPaths() {
+  return import.meta.env.DEV ? [{ params: { name: "code-drawer" } }] : [];
+}
+
+/** A harness, not a lesson: one beat per tool, on the demo lab. */
+const CODE_DRAWER = `
+format: bench
+id: mcu-demo
+version: 1
+title: The board and its code
+summary: The code drawer, the serial monitor and the millis readout on a demo bench.
+minutes: 5
+lab: mcu-demo
+start: { title: The code drawer, say: Upload the program. The board obeys., go: Open the drawer }
+beats:
+  - say: Press Upload. Watch the L lamp.
+    do: first-upload
+    tool: code
+    spot: [U1]
+  - say: Make pin 7 blink. Add a LOW and two waits.
+    do: blink
+    tool: code
+    palette: ["digitalWrite(7, LOW);", "delay(1000);", "every"]
+  - say: The board can print to the serial monitor.
+    tool: serial
+  - say: This is millis, the board's clock.
+    tool: millis
+end: { say: That is the whole drawer. }
+`;
+
+const course = getCourse();
+const lesson = { ...benchLessonSchema.parse(parse(CODE_DRAWER)), unit: "dev", module: "dev", href: "/dev/code-drawer", index: 0 } as BenchLessonData;
+---
+
+<LessonLayout title={lesson.title} description={lesson.summary}>
+  <LessonPlayer
+    client:load
+    lesson={lesson}
+    outline={course.outline}
+    parts={{}}
+    module={{ id: "dev", title: "Dev", landmark: { id: "", name: "" } }}
+    next={null}
+    mapHref="/learn"
+  />
+</LessonLayout>
