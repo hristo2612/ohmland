@@ -1125,8 +1125,8 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
       finishGlide();
       const s = store.getState();
       const touch = e.pointerType !== "mouse";
-      const src = (e.currentTarget ?? e.target) as Element | null;
-      const sr = src?.getBoundingClientRect?.();
+      // The tray slot it comes from (the native event's currentTarget is React's root by now, not the slot).
+      const sr = (e.target as Element | null)?.closest?.("button")?.getBoundingClientRect();
       const g: Gesture = { ...newGesture(e, touch, null), home: sr ? [sr.left + sr.width / 2, sr.top + sr.height / 2] : [e.clientX, e.clientY] };
       let spawned = false;
       let lifting = false;
