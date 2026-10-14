@@ -1,6 +1,5 @@
 # Blueprint: docs/curriculum/start-here.md, SH1 "The dark lamp". A bench lesson (docs/LESSONS.md).
 # One idea: flow needs a closed loop, metal on metal all the way round. Lab: content/labs/welcome-to-the-bench.ts.
-# The lesson moves into the Start here unit (start-here/first-cases); it stays here until that move lands.
 format: bench
 id: welcome-to-the-bench
 version: 3

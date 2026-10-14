@@ -164,11 +164,15 @@ const SHOTS = [
   ["lab-desktop-light", DESKTOP, "light", async (page, base) => {
     await openLab(page, base, "start-here/welcome-to-the-bench", 2);
     await flipBlockSwitch(page, "S1");
+    // The dark lamp's gap closed: its red clip moved off the battery's wrapper onto the plus snap.
+    await page.evaluate(() => window.ohmlandLab.step({ do: "clip", lead: "TL1", end: "a", to: "B1.pos" }));
     await page.waitForTimeout(1500);
   }],
   ["lab-phone-light", PHONE, "light", async (page, base) => {
     await openLab(page, base, "start-here/welcome-to-the-bench", 2);
     await flipBlockSwitch(page, "S1");
+    // The dark lamp's gap closed: its red clip moved off the battery's wrapper onto the plus snap.
+    await page.evaluate(() => window.ohmlandLab.step({ do: "clip", lead: "TL1", end: "a", to: "B1.pos" }));
     await page.waitForTimeout(1500);
   }],
   ["lab-desktop-dark", DESKTOP, "dark", async (page, base) => {
