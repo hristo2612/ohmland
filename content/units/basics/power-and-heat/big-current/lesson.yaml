@@ -1,0 +1,59 @@
+# Split from fuse-guard (docs/curriculum/conversion-guide.md, B3 14b). A bench lesson (docs/LESSONS.md).
+# One idea: big flow goes through the meter's 10A socket, briefly. Lab: content/labs/big-current.ts.
+format: bench
+id: big-current
+version: 1
+title: The 10 A socket
+summary: Move the red lead to the 10A socket and measure the big flow that blew the 1 A fuse, quickly.
+minutes: 6
+lab: big-current
+unlocks:
+  parts: []
+  isle: fuse
+
+start:
+  title: The 10 A socket
+  say: That 1 A fuse died fast. How big was the flow?
+  go: Let's measure
+
+beats:
+  - say: Big flow skips the mA socket. Plug red into 10A.
+    objective: Set up for big flow
+    do: plug-10a
+    tool: meter
+    note: { at: "socket:a10", text: "10A: the big-flow door" }
+
+  - say: Now the dial. 10A there too.
+    do: dial-10a
+    tool: meter
+
+  - say: Red probe on the fuse's free end, black on minus.
+    objective: Measure it
+    guess: { options: [Under 1 A, 1 to 3 A, Over 3 A], answer: 1 to 3 A }
+    do: measure-big
+    tool: meter
+    done: About 1.9 A. Now let go. Quick is kind.
+    note: { at: F2, text: "1 A blew, 3 A held" }
+    rule: "Big flow: 10A socket, briefly."
+
+  - say: A motor draws 2 A. Where does red go?
+    pick: { options: [VΩ, mA, 10A], answer: 10A }
+    wrong:
+      VΩ: "VΩ is for push. No flow gets through."
+      mA: "Pop. Its 200 mA fuse would blow."
+
+secret:
+  task: battery-check
+  tool: meter
+  say: Curious? Read the battery now, and again in 30 seconds.
+  done: It sagged, then crept back. Not all the way.
+  note: { at: B1, text: "tired by big flow, recovers slowly" }
+
+fixit:
+  say: Fix-it time. Same loop, but the meter reads zero.
+  tool: meter
+  tasks:
+    - task: fix-zero
+
+end:
+  say: Nearly two amps, counted and let go. Like a pro.
