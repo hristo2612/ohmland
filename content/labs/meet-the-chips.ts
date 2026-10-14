@@ -19,15 +19,6 @@ import { blinking, seatedRight } from "./lib/timer555";
 /** Seated notch left for 2.5 s, and the lamp flashed twice in that time (so a blink from before a move never counts). */
 const blinks = (lab: LabView) => lab.heldFor(2.5, seatedRight(lab, "U1"), "seated") && blinking(lab, "D1", 2, 2.5);
 const healthy = (lab: LabView) => lab.part("U1")?.health !== "dead";
-/**
- * A surface-mount part lying on top of the board (it perches there: no hole fits its feet). `lab.bench.rejected` does
- * not list perched parts yet, so this checks the part's desk spot against the half board (82.55 by 54.6 mm).
- */
-const perched = (lab: LabView, id: string) => {
-  const p = lab.benchPart(id);
-  const [ox, oz] = lab.bench.board?.pos ?? [0, 0];
-  return !!p && Math.abs(p.pos[0] - ox) < 41 && Math.abs(p.pos[1] - oz) < 27;
-};
 
 /** The fix-it bench: the chip pushed down onto the near half, every pin sharing a strip with the pin facing it. */
 const ONE_SIDE: SolutionStep[] = [{ do: "move", part: "U1", at: "b14" }];
@@ -121,7 +112,7 @@ export default defineLab({
     {
       id: "too-small",
       prompt: "Try the tiny chip on the board.",
-      goal: (lab) => lab.bench.rejected.includes("U9") || perched(lab, "U9"),
+      goal: (lab) => lab.bench.rejected.includes("U9"),
       hints: ["Drag the tiny chip from the desk onto the board."],
       success: "It won't go in. Its feet are too close together.",
       bonus: true,

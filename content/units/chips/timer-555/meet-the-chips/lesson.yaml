@@ -14,7 +14,7 @@ minutes: 6
 lab: meet-the-chips
 unlocks:
   parts: [ic-555]
-  isle: header-fence # TODO piece: chip-block
+  isle: chip-block
 
 start:
   title: Pin 1 by the notch
