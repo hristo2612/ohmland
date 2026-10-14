@@ -304,8 +304,9 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         const [kind, rest = ""] = raw.split(":") as [string, string?];
         if (kind === "hole") return holeName(rest);
         const [id = "", leg] = rest.split(".");
-        const name = built.labels[id] ?? b.parts.find((p) => p.id === id)?.kind ?? id;
-        if (kind === "part") return name;
+        const [partId = "", mark] = id.split("/");
+        const name = built.labels[partId] ?? b.parts.find((p) => p.id === partId)?.kind ?? partId;
+        if (kind === "part") return mark ? `${name}: ${markNameOf(b, partId, mark)}` : name;
         const legName = leg ? legNameOf(b, id, leg) : "";
         return legName ? `${name}: ${legName}` : name;
       },
@@ -325,6 +326,8 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         if (kind === "hole") return holeName(rest);
         const [id = "", leg] = rest.split(".");
         if (leg) return legNameOf(b, id, leg);
+        const [partId = "", mark] = id.split("/");
+        if (mark) return markNameOf(b, partId, mark);
         return (built.labels[id] ?? id).toLowerCase();
       },
       holeFor(text) {
@@ -424,6 +427,14 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
 function legNameOf(bench: BenchState, partId: string, leg: string): string {
   const kind = bench.parts.find((p) => p.id === partId)?.kind;
   return (kind ? m.lessonBench.legsByKind[kind]?.[leg] : undefined) ?? m.lessonBench.legs[leg] ?? leg;
+}
+
+/** A mark's name for the learner (part:M1/dial, part:CAB/wheel1, part:SD1/R1): its own name, else its id. */
+function markNameOf(bench: BenchState, partId: string, mark: string): string {
+  if (bench.parts.find((p) => p.id === partId)?.kind === "schematic") return m.lessonBench.markSymbol(mark);
+  const wheel = /^wheel(\d+)$/.exec(mark);
+  if (wheel) return m.lessonBench.markWheel(Number(wheel[1]));
+  return m.lessonBench.marks[mark] ?? mark;
 }
 
 /** A seed that is the same for a learner every visit (their first finished lesson), for shuffled mystery parts. */
@@ -526,7 +537,8 @@ function TapLayer({
   const placed = spread(
     targets.flatMap((t) => {
       const p = pointOf(t);
-      return p ? [{ id: t, x: p.x, y: p.y, big: check.kind === "meet" || !t.includes(".") }] : [];
+      // A whole part gets a wide target; a leg or a mark on a part (part:M1/dial) a round one on its spot.
+      return p ? [{ id: t, x: p.x, y: p.y, big: check.kind === "meet" || !/[./]/.test(t) }] : [];
     }),
   );
   return (
