@@ -198,7 +198,7 @@ async function pages(browser, url) {
           await shot(page, `isle-label-${size}-${theme}`);
         }
         if (name === "parts") {
-          const first = page.locator(".part-slip:not(.part-slip--locked)").first();
+          const first = page.locator("button.part-slip").first();
           if (await first.count()) {
             await first.click();
             await page.waitForTimeout(400);
