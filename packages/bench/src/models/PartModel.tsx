@@ -12,6 +12,7 @@ import { BinModel, CardModel, ChartModel, ClockModel, ElectrodeModel, FruitModel
 import { PushbuttonModel, SlideSwitchModel, ToggleSwitchModel } from "./Switches";
 import { ButtonBlock, DpdtBlock, KnobBlock, RelayBlock, SlideBlock } from "./Blocks";
 import { TouchPadsModel } from "./Props";
+import { AaCutawayModel, BalloonModel, BoxModel, CombModel, DrawerModel, EverydayModel, GateModel, PaperBitsModel, PieceModel, ScarfModel, SchematicModel, TrayModel, WallModel } from "./StartProps";
 import type { Mount } from "./common";
 
 export type PartModelProps<K extends BenchPartKind = BenchPartKind> = {
@@ -26,6 +27,8 @@ export type PartModelProps<K extends BenchPartKind = BenchPartKind> = {
   held?: boolean;
   /** Simulated minutes since the lab started (the desk clock). */
   minutes?: number;
+  /** The part's id (a gate reads its count from the bench store by it). */
+  id?: string;
 };
 
 /** Renders any bench part in its local frame. See `Mount` for what the origin means. */
@@ -42,6 +45,7 @@ export function PartModel(props: PartModelProps) {
     case "phototransistor":
       return <PhototransistorModel {...p} />;
     case "battery":
+      if ((props.params as { size?: string; xray?: boolean }).size === "aa" && (props.params as { xray?: boolean }).xray) return <AaCutawayModel />;
       return <BatteryModel {...p} />;
     case "ceramic-cap":
       return <CeramicCapModel {...p} />;
@@ -85,20 +89,45 @@ export function PartModel(props: PartModelProps) {
       return <ElectrodeModel {...p} held={props.held} />;
     case "skin":
       return <SkinModel {...p} />;
-    case "sample":
+    case "sample": {
+      const m = (props.params as { material: string }).material;
+      if (m !== "copper" && m !== "plastic") return <EverydayModel material={m as never} quality={props.quality} />;
       return <SampleModel {...p} />;
+    }
     case "card":
       return <CardModel {...p} />;
     case "tag":
       return <TagModel {...p} />;
-    case "bin":
+    case "bin": {
+      const b = props.params as { style?: string; face?: never; label?: string };
+      if (b.style === "tray") return <TrayModel label={b.label ?? ""} />;
+      if (b.style === "drawer") return <DrawerModel face={b.face} label={b.label ?? ""} />;
       return <BinModel {...p} />;
+    }
     case "chart":
       return <ChartModel />;
     case "clock":
       return <ClockModel minutes={props.minutes} />;
     case "showcase":
       return <ShowcaseModel quality={props.quality} />;
+    case "gate":
+      return <GateModel id={props.id ?? ""} params={props.params as never} />;
+    case "box":
+      return <BoxModel params={props.params as never} />;
+    case "schematic":
+      return <SchematicModel params={props.params as never} />;
+    case "piece":
+      return <PieceModel params={props.params as never} />;
+    case "balloon":
+      return <BalloonModel params={props.params as never} />;
+    case "scarf":
+      return <ScarfModel />;
+    case "paper":
+      return <PaperBitsModel />;
+    case "comb":
+      return <CombModel />;
+    case "wall":
+      return <WallModel />;
   }
 }
 

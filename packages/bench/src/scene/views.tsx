@@ -4,7 +4,7 @@ import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { PartState } from "@ohmland/sim";
 import { boardGeometry, boardOrigin, holeWorld } from "../board";
-import { BOARD_TOP, PITCH, TOGGLE_BASE } from "../dims";
+import { BOARD_TOP, BOX, CABINET, PITCH, TOGGLE_BASE } from "../dims";
 import { METER, anchorPosition, isOnBoard, outwardHeading, partPose, probeTip, socketWorld, meterLocalToWorld } from "../layout";
 import { parseAnchor } from "../anchors";
 import { partDef, rotateXZ, type Hotspot } from "../parts";
@@ -12,7 +12,9 @@ import { PartModel, flyingLeads, type PartModelProps } from "../models/PartModel
 import { useBench, useBenchStore } from "../store";
 import { MultimeterModel } from "../models/Multimeter";
 import { AlligatorClip, BananaPlug, CLIP_LEN, Cable, JumperWire, PLUG_TOP, PROBE_LEN, Probe, StrippedEnd, quatFromY } from "../models/Leads";
-import type { FloorFn } from "../three/geometry";
+import { GateModel } from "../models/StartProps";
+import { ropePoints, type FloorFn } from "../three/geometry";
+import { GATE } from "../dims";
 import type { BenchState, MeterState, PlacedPart, ProbeColor, Quality, TestLead, Vec3, Wire } from "../types";
 import { Proxy, localBox } from "./pick";
 import { prefersReducedMotion, useAnimating } from "../three/anim";
@@ -32,6 +34,12 @@ const OVERLAY = { fx: true };
 export function makeFloor(bench: BenchState): FloorFn {
   const board = bench.board ? { o: boardOrigin(bench.board), g: boardGeometry(bench.board) } : null;
   const m = bench.meter;
+  const boxes = bench.parts
+    .filter((p) => p.kind === "box")
+    .map((p) => {
+      const cab = (p.params as { style?: string }).style === "cabinet";
+      return { pos: p.pos, rot: p.rot, w: cab ? CABINET.w : BOX.w, d: cab ? CABINET.d : BOX.d, h: cab ? CABINET.h : BOX.h };
+    });
   return (x, z) => {
     let y = 0;
     if (board) {
@@ -42,6 +50,11 @@ export function makeFloor(bench: BenchState): FloorFn {
     if (m) {
       const [lx, lz] = rotateXZ(x - m.pos[0], z - m.pos[1], -m.rot);
       if (Math.abs(lx) < METER.width / 2 && Math.abs(lz) < METER.length / 2) y = Math.max(y, METER.height);
+    }
+    // Cables lie over a sealed box, not through it.
+    for (const b of boxes) {
+      const [lx, lz] = rotateXZ(x - b.pos[0], z - b.pos[1], -b.rot);
+      if (Math.abs(lx) < b.w / 2 && Math.abs(lz) < b.d / 2) y = Math.max(y, b.h + 3);
     }
     return y;
   };
@@ -120,8 +133,7 @@ const LivePartModel = memo(function LivePartModel(props: Omit<PartModelProps, "s
   const state = useMemo(() => (store.getState().snapshot?.parts[props.id] as PartState | undefined) ?? null, [store, props.id, key]);
   // The desk clock shows simulated time.
   const minutes = useBench((s) => (props.kind === "clock" ? Math.floor((s.snapshot?.t ?? 0) / 60) : 0));
-  const { id: _id, ...rest } = props;
-  return <PartModel {...rest} state={state} minutes={minutes} />;
+  return <PartModel {...props} state={state} minutes={minutes} />;
 });
 
 /** What a part's look depends on, as a string: health, glow (in 2% steps), contacts, display, relay armature. */
@@ -155,6 +167,8 @@ function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality,
     setBox((prev) => (prev && prev.equals(b) ? prev : b));
   }, [part.kind, paramsKey, pose.mount, pose.span]);
   const rotY = (pose.rot * Math.PI) / 180;
+  // A part laid on its back in its seat (a 9 V battery in a sealed box) turns a quarter about x, then about y.
+  const turn = useMemo(() => new THREE.Euler(pose.lie ? -Math.PI / 2 : 0, rotY, 0, "YXZ"), [pose.lie, rotY]);
   const flying = useMemo(() => flyingLeads(part.kind, part.params as Record<string, unknown>), [part.kind, paramsKey]);
   const actuator = ACTUATOR[part.kind];
   const pal = usePaperPalette();
@@ -165,7 +179,7 @@ function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality,
   );
   return (
     <group name={`part:${part.id}`}>
-      <group position={pose.origin} rotation={[0, rotY, 0]}>
+      <group position={pose.origin} rotation={turn}>
         {body}
         {box && (
           <>
@@ -355,6 +369,65 @@ function leadEndPose(bench: BenchState, lead: TestLead, end: "a" | "b"): ClipPos
   return clipPose(here, tailDir, true);
 }
 
+/** Cable length for a lead whose clips' tails are `d` mm apart. */
+const leadLength = (d: number) => Math.min(320, d * 1.1 + 45);
+
+/**
+ * A clip lead's shape as the 3D view draws it: each clip's pose and the cable between their tails. The flow dots,
+ * gates, push hatching and the tracer ride these points.
+ */
+export function leadCable(bench: BenchState, lead: TestLead, floor: FloorFn): { a: ClipPose; b: ClipPose; cable: THREE.Vector3[] } {
+  const a = leadEndPose(bench, lead, "a");
+  const b = leadEndPose(bench, lead, "b");
+  const cable = ropePoints(a.tail, a.tailDir, b.tail, b.tailDir, leadLength(a.tail.distanceTo(b.tail)), LEAD_CABLE_R, floor, 2, 0.28);
+  return { a, b, cable };
+}
+
+/** A point `t` of the way along a polyline (by length), and the heading there. */
+export function alongLine(pts: THREE.Vector3[], t: number): { at: THREE.Vector3; dir: THREE.Vector3 } {
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) total += pts[i]!.distanceTo(pts[i - 1]!);
+  let want = Math.max(0, Math.min(1, t)) * total;
+  for (let i = 1; i < pts.length; i++) {
+    const seg = pts[i]!.distanceTo(pts[i - 1]!);
+    if (want <= seg || i === pts.length - 1) {
+      const k = seg > 0 ? Math.min(1, want / seg) : 0;
+      return { at: pts[i - 1]!.clone().lerp(pts[i]!, k), dir: pts[i]!.clone().sub(pts[i - 1]!).normalize() };
+    }
+    want -= seg;
+  }
+  return { at: pts[0]?.clone() ?? new THREE.Vector3(), dir: new THREE.Vector3(1, 0, 0) };
+}
+
+/** A gate riding a lead's cable: the collar along the cable, its flag above, and the hit boxes to move it or tap its unit. */
+function GateOnLead({ gate, cable, selected, hinted }: { gate: PlacedPart; cable: THREE.Vector3[]; selected: boolean; hinted: boolean }) {
+  const params = gate.params as { at?: number; mode?: string; unit?: string };
+  const { at, dir } = alongLine(cable, Math.max(0.08, Math.min(0.92, params.at ?? 0.5)));
+  const flat = new THREE.Vector3(dir.x, 0, dir.z);
+  const yaw = flat.lengthSq() > 1e-6 ? Math.atan2(-flat.z, flat.x) : 0;
+  const pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+  const hotspots = (partDef("gate").hotspots?.(gate.params as never) ?? []) as Hotspot[];
+  const pal = usePaperPalette();
+  return (
+    <group name={`part:${gate.id}`} position={at}>
+      <group rotation={[0, yaw, pitch]}>
+        <GateModel id={gate.id} params={gate.params as never} />
+      </group>
+      <Proxy pick={{ type: "part", id: gate.id }} size={[GATE.len + 4, GATE.ring + 4, GATE.ring + 4]} />
+      <Proxy pick={{ type: "part", id: gate.id }} size={[GATE.flagW, GATE.flagH, 3]} position={[0, GATE.lift, 0]} />
+      {hotspots.map((h, i) => (
+        <Proxy key={i} pick={{ ...h.pick, id: gate.id }} size={[h.size[0], h.size[1], 4]} position={[h.at[0], h.at[1], 1.6]} />
+      ))}
+      {(selected || hinted) && (
+        <mesh position={[0, 0, 0]} renderOrder={20} userData={OVERLAY}>
+          <sphereGeometry args={[GATE.len * 0.6, 16, 12]} />
+          <meshBasicMaterial color={hinted && !selected ? pal.red : pal.blue} transparent opacity={0.25} depthWrite={false} toneMapped={false} />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
 export function LeadView({
   lead,
   bench,
@@ -362,6 +435,9 @@ export function LeadView({
   hinted,
   open,
   floor,
+  gates = [],
+  selectedPart = null,
+  hintedParts,
 }: {
   lead: TestLead;
   bench: BenchState;
@@ -369,9 +445,14 @@ export function LeadView({
   hinted: boolean;
   open: { a: number; b: number };
   floor: FloorFn;
+  /** Gates clipped onto this lead. */
+  gates?: PlacedPart[];
+  selectedPart?: string | null;
+  hintedParts?: Set<string>;
 }) {
-  const pa = leadEndPose(bench, lead, "a");
-  const pb = leadEndPose(bench, lead, "b");
+  const shape = useMemo(() => leadCable(bench, lead, floor), [bench, lead, floor]);
+  const pa = shape.a;
+  const pb = shape.b;
   const pal = usePaperPalette();
   return (
     <group name={`lead:${lead.id}`}>
@@ -392,7 +473,10 @@ export function LeadView({
           </group>
         );
       })}
-      <Cable from={pa.tail} fromDir={pa.tailDir} to={pb.tail} toDir={pb.tailDir} length={Math.min(320, pa.tail.distanceTo(pb.tail) * 1.1 + 45)} radius={LEAD_CABLE_R} color={lead.color} floor={floor} bend={0.28} />
+      <Cable from={pa.tail} fromDir={pa.tailDir} to={pb.tail} toDir={pb.tailDir} length={leadLength(pa.tail.distanceTo(pb.tail))} radius={LEAD_CABLE_R} color={lead.color} floor={floor} bend={0.28} points={shape.cable} />
+      {gates.map((g) => (
+        <GateOnLead key={g.id} gate={g} cable={shape.cable} selected={selectedPart === g.id} hinted={!!hintedParts?.has(g.id)} />
+      ))}
     </group>
   );
 }
