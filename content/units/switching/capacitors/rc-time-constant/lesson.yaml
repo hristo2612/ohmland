@@ -51,6 +51,10 @@ beats:
       Twice as slow: "Halving C cancels it. R × C hasn't changed."
       Twice as fast: "Doubling R cancels it. R × C hasn't changed."
 
+  - say: Quick sum. τ for 47 kΩ and 22 µF?
+    number: { answer: 1.034, unit: s, tolerance: 2 }
+    hint: "47,000 × 0.000022, in seconds."
+
 fixit:
   say: Fix-it time. This timer should take 2.2 s.
   tool: logger

@@ -32,18 +32,18 @@ beats:
     done: C1 kept it lit all by itself.
     rule: A capacitor gives back what you put in.
 
+  - say: While it filled, did charge cross C1's gap?
+    pick: { on: C1, options: ["Yes, right through", "No, never"], answer: "No, never" }
+    wrong:
+      "Yes, right through": "It piles up on one plate. The gap stays shut."
+    note: { at: C1, text: nothing crosses the gap }
+
   - say: Fill it again, then press the black button.
     objective: Empty it fast
     spot: [S1, S2, D1]
     do: dump
     done: Gone in a blink.
     note: { at: R3, text: "100 Ω: the fast way out" }
-
-  - say: While it filled, did charge cross C1's gap?
-    pick: { on: C1, options: ["Yes, right through", "No, never"], answer: "No, never" }
-    wrong:
-      "Yes, right through": "It piles up on one plate. The gap stays shut."
-    note: { at: C1, text: nothing crosses the gap }
 
 fixit:
   say: Fix-it time. My LED won't fade any more. Why?

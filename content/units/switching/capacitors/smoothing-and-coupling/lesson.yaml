@@ -47,7 +47,7 @@ secret:
   note: { at: C3, text: "small tank: ripple again" }
 
 fixit:
-  say: Fix-it time. Still flickering. Why?
+  say: Fix-it time. Start tapping. It still flickers. Why?
   tool: tapper
   tasks:
     - task: fix-one-hole

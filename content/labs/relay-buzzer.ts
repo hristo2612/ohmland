@@ -84,7 +84,7 @@ export default defineLab({
       id: "move-one-wire",
       prompt: "Run a wire from NC, row 16, to the coil, row 11.",
       goal: buzzing,
-      hints: ["One wire from row 16 to row 11, on this side of the gap.", "Nothing? Check S2 is still on."],
+      hints: ["One wire: row 16 to row 11, this side of the gap.", "Nothing? Check S2 is still on."],
       highlight: ["pin:K1.nc1", "pin:K1.coil1"],
       nudges: [{ when: (lab) => fromNo(lab) && !lab.connected("K1.nc1", "K1.coil1"), say: "That's NO, row 18. NC is row 16." }],
       success: "It buzzes!",

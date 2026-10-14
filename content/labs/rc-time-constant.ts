@@ -123,7 +123,7 @@ export default defineLab({
       note: { id: "tau3", label: "τ with 10 kΩ", unit: "s" },
       goal: (lab) => measured(lab, "tau3", "e3", 0.1, 10000),
       hints: ["Empty C1 first: slide to discharge and wait.", "This one takes a while: about ten seconds to reach 5.69 V."],
-      success: "Ten times the resistance, ten times the time.",
+      success: "Ten times slower.",
     },
     {
       id: "hit-the-target",
