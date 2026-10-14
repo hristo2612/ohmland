@@ -61,6 +61,10 @@ export type BenchLabels = {
     insulators: string;
     /** On the parts cabinet's front. */
     cabinet: string;
+    /** The logic probe's lamps. */
+    hi?: string;
+    lo?: string;
+    pulse?: string;
   };
 };
 
@@ -126,6 +130,15 @@ export const DEFAULT_LABELS: BenchLabels = {
     paper: "Paper bits",
     comb: "Comb",
     wall: "Wall",
+    "mcu-board": "Microcontroller board",
+    chip: "Chip",
+    sevenseg: "7-segment display",
+    regulator7805: "5 V regulator",
+    "ic-socket": "Chip socket",
+    "dip-switch": "DIP switch",
+    "logic-probe": "Logic probe",
+    "battery-pack": "Battery pack",
+    "bench-supply": "Bench supply",
   },
   colors: {
     red: "Red",
@@ -160,6 +173,11 @@ export const DEFAULT_LABELS: BenchLabels = {
     "gate.mode": { label: "Gate", values: { ticks: "Ticks", number: "Number" } },
     "gate.unit": { label: "Unit", values: { A: "A", mA: "mA" } },
     "box.lid": { label: "Lid", values: { false: "Shut", true: "Open" } },
+    "pushbutton.bounce": { label: "Bounce", values: { false: "Off", true: "On" } },
+    "slide-switch.bounce": { label: "Bounce", values: { false: "Off", true: "On" } },
+    "toggle-switch.bounce": { label: "Bounce", values: { false: "Off", true: "On" } },
+    "dpdt-switch.bounce": { label: "Bounce", values: { false: "Off", true: "On" } },
+    "regulator7805.heatsink": { label: "Heat sink", values: { false: "Off", true: "On" } },
   },
   actions: { "card.erase": "Erase" },
   heat: { cool: "cool", warm: "warm", hot: "hot", ouch: "ouch" },
@@ -197,6 +215,9 @@ export const DEFAULT_LABELS: BenchLabels = {
     conductors: "LETS FLOW THROUGH",
     insulators: "STOPS FLOW",
     cabinet: "PARTS",
+    hi: "HI",
+    lo: "LO",
+    pulse: "PULSE",
   },
 };
 

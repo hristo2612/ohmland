@@ -228,7 +228,7 @@ const CHEM: Record<string, { wrap: string; band: string; text: string; volts: st
   lithium: { wrap: "#5a5f69", band: "#c0c6cf", text: "LITHIUM", volts: "1.5V" },
 };
 
-function aaWrapTexture(chem: string): THREE.CanvasTexture {
+export function aaWrapTexture(chem: string): THREE.CanvasTexture {
   const c = CHEM[chem] ?? CHEM.alkaline!;
   // u runs round the cell (0 faces the viewer, 0.75 faces up once it lies along x), v along it (top = the + end).
   return canvasTexture(`aa-wrap:${chem}`, 512, 512, (ctx, w, h) => {

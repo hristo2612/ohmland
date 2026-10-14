@@ -40,6 +40,7 @@ same commit.
 | Hosting | Firebase Hosting, project id `ohmland` (`firebase.json`: `apps/web/dist`, clean URLs, immutable `/_astro/**`) |
 | Firebase tooling | firebase-tools 15.31.0 and @firebase/rules-unit-testing 5.0.2 (dev dependencies of `apps/web`) |
 | Tests | Vitest 5 (pure logic), Playwright 1.64 (a few end-to-end paths) |
+| Type | Literata (`@fontsource/literata` 5.3.0) and Kalam (`@fontsource/kalam` 5.3.0), self-hosted |
 
 Exact versions: pin exact versions (no `^`) in every `package.json`.
 
@@ -49,19 +50,21 @@ Exact versions: pin exact versions (no `^`) in every `package.json`.
 apps/web/                 the site (Astro + React islands)
   src/pages/              routes (see "Routes")
   src/layouts/            page shells
-  src/components/         shared UI (buttons, cards, dialogs, nav, icons)
+  src/components/         shared UI (buttons, slips, stamps, dialogs, the notebook menu, icons, the island sketch)
   src/lesson/             lesson player and step renderers
   src/quiz/               quiz item components and grading
   src/lab/                lab runtime: bench + simulator + goals + instruments + mascot hints
   src/progress/           local-first learner store, XP, levels, achievements, parts bin, island events
-  src/isle/               the island in the app: lazy loader, /isle page, landing hero, map card, finale reveal
+  src/isle/               the island in the app: lazy loader, /isle page, the course map's island, finale reveal
   src/account/            Firebase auth + sync (lazy)
   src/i18n/               UI messages (en.ts); no UI words inline in components
-  src/styles/tokens.css   the only file allowed to hold raw design values
+  src/styles/tokens.css   the only file allowed to hold raw design values (see "Design system")
 packages/sim/             circuit simulator: pure TS, no DOM; worker entry + async client
 packages/bench/           3D workbench: procedural part models, breadboard, meter, wires, interaction,
                           bench state -> netlist (React Three Fiber components)
 packages/isle/            the progress island: pure planner + three.js renderer (vanilla three, lazy)
+packages/code/            bench C, the microcontroller board's language: parser, checker, formatter, blocks <-> tree,
+                          an interpreter on virtual time (pure TS, no DOM; the simulator's board runs it in the worker)
 content/                  the course: units, modules, lessons (YAML), labs (TS), quiz items
 docs/                     ARCHITECTURE.md (this), CONTENT.md (writing + copyright rules), CURRICULUM.md,
                           ACCOUNTS.md (Firebase setup, emulators, the synced document)
@@ -70,7 +73,7 @@ firebase.json, .firebaserc, firestore.rules    Firebase Hosting, the project, th
 ```
 
 Packages are consumed from source (`"exports": { ".": "./src/index.ts" }`), no separate build step.
-Package names: `@ohmland/web`, `@ohmland/sim`, `@ohmland/bench`, `@ohmland/isle`.
+Package names: `@ohmland/web`, `@ohmland/sim`, `@ohmland/bench`, `@ohmland/isle`, `@ohmland/code`.
 
 ## Course structure
 
@@ -374,7 +377,12 @@ type PartSpec =                            // discriminated by kind; pins map pi
   | { id: string; kind: "logic"; model: LogicModel; pins: Partial<Record<string, NodeId>> }   // input: proximity
   | { id: string; kind: "sevenseg"; pins: Partial<Record<"a" | "b" | "c" | "d" | "e" | "f" | "g" | "dp" | "com" | "com2", NodeId>>;
       common: "cathode" | "anode"; color?: LedColor; maxmA?: number }
-  | { id: string; kind: "regulator7805"; pins: { in: NodeId; gnd: NodeId; out: NodeId }; heatsink?: boolean };
+  | { id: string; kind: "regulator7805"; pins: { in: NodeId; gnd: NodeId; out: NodeId }; heatsink?: boolean }
+  // Unit 5: an Uno-style board running a bench C program (@ohmland/code) on simulated time. Pins d0..d13, a0..a5,
+  // "5v", gnd, vin (MCU_PINS); a new upload number or program resets it. Snapshot: extra.modes/levels/volts/mA per
+  // pin (mcuPin(state, n)), the lamps as parts "<id>:L" and "<id>:ON", printed lines as "serial" events.
+  | { id: string; kind: "mcuboard"; pins: Partial<Record<McuPin, NodeId>>; program?: string; upload?: number;
+      power?: "usb" | "jack" | "off"; jackVolts?: number; clockStart?: number; seed?: number };  // input: power, reset, millis, proximity
 type MeterMode = "off" | "dcv" | "acv" | "dca-ma" | "dca-10a" | "ohm" | "continuity" | "diode";
 type Bounce = boolean | number;                // contact chatter: true 1 to 5 ms (seeded), or the longest in ms
 type LogicModel = "74HC00" | "74HC02" | "74HC04" | "74HC08" | "74HC14" | "74HC27" | "74HC32" | "74HC74" | "74HC86"
@@ -394,7 +402,8 @@ const sim = await createSimClient();            // createSimulation() is the sam
 sim.load(netlist);                               // full rebuild; keeps state (charge, damage, heat, wear) of parts whose id survives
 sim.setInput(partId, key, value);                // pressed, closed, to, position, light, ohms, mode, range,
                                                  // replaceFuse (meter: fit a new mA fuse), replace (any part: fresh part, same id),
-                                                 // bounce (contacts), proximity (chips: a hand near floating inputs, 0..1)
+                                                 // bounce (contacts), proximity (chips: a hand near floating inputs, 0..1),
+                                                 // power, reset, millis (the microcontroller board)
 sim.run({ speed: 1 });                           // real time; below 1 slow motion; up to 3600 time-lapse (audio muted above 4)
                                                  // in-thread step(dt, { speed }) takes a time-lapse's larger steps (replays)
 sim.onSnapshot((s: Snapshot) => ...);            // about 30 per second
@@ -628,15 +637,48 @@ wire roots. The mascot (a small voxel robot with an LED face) floats over the sq
 
 | Path | Page |
 |---|---|
-| `/` | Landing: live island demo, what you learn, Start (no account needed) |
-| `/learn` | Course map: units, modules, lessons, progress |
+| `/` | Landing: one drawn circuit whose switch is the Start button, then the course on one wire |
+| `/learn` | Course map: the unit you are in, the lesson to do next, its island, chapters, the rest of the course |
 | `/learn/<unit>/<lesson>` | Lesson player |
 | `/isle` | Your island, full screen |
 | `/bench` | Sandbox with unlocked parts |
-| `/parts` | Parts bin: every unlocked part with a 3D view and key facts |
-| `/achievements` | Achievements and the Hall of Fried Parts |
+| `/parts` | Parts bin: every part as a pasted slip, its drawing and key facts |
+| `/achievements` | Your level, achievements as stamps, and the Hall of Fried Parts |
 | `/account` | Sign in (Google, GitHub), sync status, export and delete data |
 | `/about` | Open source, licenses, credits, companion reading |
+
+The header holds only the two places, Learn and Isle, and "your notebook": the level and XP as a quiet handwritten
+tally that opens the one menu for everything else (Parts bin, Achievements, Free bench, Account, the page's theme).
+On phones a bottom bar holds Learn, Isle and Notebook. Pressing Start on the landing turns the page over onto the
+lesson (`--dur-turn`, under 600 ms; instant under reduced motion).
+
+## Design system (`apps/web/src/styles`, `apps/web/src/components`)
+
+The Classic notebook, and `docs/DESIGN-PRINCIPLES.md` for how much goes on a screen. Grid paper (one 24 px grid
+lined up with a rose margin rule), Literata for everything, Kalam only for marginalia (the robot's lines, "you are
+here", the XP tally). Colour has one meaning each: graphite (`--ink`) carries everything, blue ink (`--blue`) means you
+(ticks, answers, XP, you are here), red pencil (`--red`) means the robot and the teacher (notes, corrections, stamps),
+amber (`--amber`) is only the robot's eyes and a lit LED.
+
+Token names (`tokens.css`, light first, then the "night page" in two identical dark blocks): paper `--paper`,
+`--paper-slip`, `--paper-sunk`, `--grid`, `--margin-rose`; graphite `--ink`, `--ink-2`, `--ink-3`, `--rule`,
+`--rule-soft`, `--shadow-ink`; inks `--blue`, `--blue-wash`, `--red`, `--red-wash`, `--amber`, `--visor`, `--copper`,
+`--copper-wash`; buttons `--btn-bg`, `--btn-fg`, `--btn-bg-hover`, `--focus`; coloured pencils for drawings `--sk-*`;
+type `--font-serif`, `--font-hand`, `--text-xs` to `--text-3xl` with `--lh-*`, `--text-poster(-xl)`, `--weight-body`,
+`--weight-strong`, `--weight-heavy`; space `--s-1` to `--s-24`, `--cell`; layout `--page-w`, `--margin-col`,
+`--text-col`, `--header-h`, `--bar-h`, `--tap`, `--gutter`; shape `--radius-0`, `--radius-1`, `--border-1`,
+`--border-2`, `--slip-shadow`, `--slip-shadow-lift`, `--stroke-icon`, `--stroke-draw`, `--stroke-mark`; motion
+`--dur-press`, `--dur-ui`, `--dur-fade`, `--dur-write`, `--dur-turn`, `--dur-draw`, `--ease-out`, `--ease-in-out`,
+`--ease-press`; layers `--z-*`. Real component colours (the resistor bands, the meter's LCD, the scope) keep their own
+names. A block of legacy names (`--bg`, `--surface`, `--primary`, `--space-*`, ...) maps the old tokens onto these
+until nothing reads them.
+
+Components: `Button` (graphite primary, paper secondary, underlined tertiary, red-pencil danger), `IconButton`,
+`Card` (a pasted slip), `Stamp` (a rubber stamp: earned in red, waiting as a dashed ring), `Tick` (a pencil box with a
+blue tick), `ProgressBar` (a blue line on a pencil track), `Badge`, `Dialog`, `ToastRegion`, `Tabs`, `Tooltip`,
+`Skeleton`, `MascotSay` (the robot with its line in red pencil), the ink robot (`mascot/Mascot.tsx`, poses idle,
+happy, thinking, oops, celebrate), the part drawings (`parts/PartIcon.tsx`) and the island sketch (`IsleArt`, the
+fallback where 3D is unavailable).
 
 ## Performance budgets
 
@@ -652,7 +694,8 @@ merge, island determinism, SI parsing, the resistor colour code, the cloud docum
 Playwright for a few critical paths: finish the first lesson (a bench lesson) as a guest, a lesson's first load has no
 three.js, a guest's pages load no Firebase, play the two other reference bench lessons through on the real bench,
 switch the bench view mid-lesson, the island reveal, the free-build bench. Plus `pnpm lint:copy` (no em dashes), the content check (the web build fails on invalid content) and
-`pnpm --filter @ohmland/web lint:colors` (no raw colours or durations outside `tokens.css`).
+`pnpm --filter @ohmland/web lint:colors` (no raw colours or durations outside `tokens.css`, and no `var(--name)` that
+nothing defines).
 
 With the Firebase emulators (Java 21+, `docs/ACCOUNTS.md`): `pnpm test:rules` runs `apps/web/rules` (Vitest and
 `@firebase/rules-unit-testing` on the Firestore emulator) and `pnpm e2e:accounts` runs `apps/web/e2e/accounts`
@@ -665,6 +708,5 @@ and stepper lesson step in both themes at 1440x900 and 390x844 for visual review
 `scripts/lab-shots.mjs`). Headless Chromium gets WebGL from SwiftShader (`--use-angle=swiftshader
 --enable-unsafe-swiftshader`). The island's clock is pinned (`?time=12:00` in light shots, `22:00` in dark ones),
 seeded learners (`scripts/seed.mjs`: one lesson done, the first module done, or one lesson short of it) use fixed
-dates, and shots wait for islands to settle, so islands look the same in every run. `apps/web/scripts/isle-poster.mjs` renders the
-landing hero's day and night stills from the live island (1200 and 640 px wide, plus the tiny blurred copies that
-`tokens.css` inlines so the hero frame is never empty).
+dates, and shots wait for islands to settle, so islands look the same in every run. The app's islands stand on the
+page's own paper (`paper: "clear"`) and show noon or midnight to match the page's theme (`isle/env.ts`, `pageTime`).

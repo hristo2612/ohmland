@@ -17,16 +17,10 @@ importers:
       '@astrojs/react':
         specifier: 7.0.1
         version: 7.0.1(@types/node@22.20.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(yaml@2.9.1)
-      '@fontsource/inter':
-        specifier: 5.3.0
-        version: 5.3.0
-      '@fontsource/jetbrains-mono':
-        specifier: 5.3.0
-        version: 5.3.0
       '@fontsource/kalam':
         specifier: 5.3.0
         version: 5.3.0
-      '@fontsource/space-grotesk':
+      '@fontsource/literata':
         specifier: 5.3.0
         version: 5.3.0
       '@ohmland/bench':
@@ -149,6 +143,15 @@ importers:
         specifier: 5.0.4
         version: 5.0.4(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(vite@8.3.4(@types/node@24.19.1)(yaml@2.9.1))
 
+  packages/code:
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.4
+        version: 5.0.4(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(yaml@2.9.1))
+
   packages/isle:
     dependencies:
       three:
@@ -172,6 +175,10 @@ importers:
         version: 5.0.4(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(yaml@2.9.1))
 
   packages/sim:
+    dependencies:
+      '@ohmland/code':
+        specifier: workspace:*
+        version: link:../code
     devDependencies:
       typescript:
         specifier: 5.9.3
@@ -695,17 +702,11 @@ packages:
   '@firebase/webchannel-wrapper@1.0.7':
     resolution: {integrity: sha512-phBFwieDLvkZGYN9CE9ZFNEIoBVksprzsnCzQejCmCHtgwCXReeuRpoEGN9C4EbhONztv8NRV1tau6Rb9pONwQ==}
 
-  '@fontsource/inter@5.3.0':
-    resolution: {integrity: sha512-RofMylZmjlJEfELXeNHFWBRcSs75rGU/6bV2S2jfnvv/3rPXPGe0LgUJTklcHZ9lM4OZmAVFhcJPnACfb91A3g==}
-
-  '@fontsource/jetbrains-mono@5.3.0':
-    resolution: {integrity: sha512-fqDfB5I9f1p1TV486aUgB9t8zP84P0O1FtQR5Ol9vjwPy+S+EIGlVYm1cvj2W5shcZMTg2nZFdVMoH5wFu8a1A==}
-
   '@fontsource/kalam@5.3.0':
     resolution: {integrity: sha512-FDkVoDfPDCSN/eO81FOYtUI67eMgpVBJmjBtAqSL0PmEhJyeFY2biC+CR+yEttksgXR9+swpFdYmQTyjwBq80Q==}
 
-  '@fontsource/space-grotesk@5.3.0':
-    resolution: {integrity: sha512-ksnGizDPXIDuvqcTYTSrmZ+evx9sDlS8rp7+42BQ7wU+spt3twEoXfbJz672C+5CLg6VeUQwRy5RXshWb67LcQ==}
+  '@fontsource/literata@5.3.0':
+    resolution: {integrity: sha512-9JGMT5+YfBK49thoMq9ASaMRJErHT4V4QuMhAEwKHRLreOsIMP2xP6ZRLhPJ0e6YlET+kjWTJuN7LAxt9/gWGQ==}
 
   '@google-cloud/cloud-sql-connector@1.12.1':
     resolution: {integrity: sha512-Vilc4J0L+rU+4yjxZpBFn8+bvPoibfcnP4cAAFUsON/GiT0p9qwqLKh7J2q4DaG8WnAgesfn/F2Hb+CkEZn3VA==}
@@ -5325,13 +5326,9 @@ snapshots:
 
   '@firebase/webchannel-wrapper@1.0.7': {}
 
-  '@fontsource/inter@5.3.0': {}
-
-  '@fontsource/jetbrains-mono@5.3.0': {}
-
   '@fontsource/kalam@5.3.0': {}
 
-  '@fontsource/space-grotesk@5.3.0': {}
+  '@fontsource/literata@5.3.0': {}
 
   '@google-cloud/cloud-sql-connector@1.12.1':
     dependencies:

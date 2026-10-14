@@ -1,54 +1,60 @@
-// Blueprint: docs/curriculum/unit-1.md, L14. A battery, a 1 A and a 3 A glass fuse lying loose, three clip leads
-// (0.15 Ω each) and the meter. The battery sags under heavy load and partly recovers at rest.
-import { defineLab, type LabView } from "@ohmland/lab";
-import { readsIn } from "./lib/meter";
+// Blueprint: docs/curriculum/unit-1.md, L14, the kept half after the split (docs/curriculum/conversion-guide.md, B3 14).
+// The lab of a bench lesson (docs/LESSONS.md): content/units/basics/power-and-heat/fuse-guard.
+// One idea: a fuse melts on purpose to save the rest, and the continuity beep shows the gap it leaves.
+// A battery, a 1 A and a 3 A glass fuse lying loose, two clip leads (0.15 Ω each) and the meter. From the simulator:
+// a fuse straight across the battery first sees about 4 A, then about 1.9 A as the battery sags; the 1 A fuse blows
+// in a blink, a 10 A fuse just sits there while the battery heats up. The big-current measurement moved to big-current.
+import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 
-/** Two notebook readings across the battery at least 25 s apart, both below its fresh 9.4 V, the later one 0.05 V higher. */
-const recovered = (lab: LabView): boolean => {
-  const rs = lab.readings("across:B1").filter((r) => r.mode === "dcv" && Number.isFinite(r.si) && r.si < 9.38);
-  return rs.some((a, i) => rs.slice(i + 1).some((b) => b.t - a.t >= 25 && b.si >= a.si + 0.05));
-};
+/** A fuse sits straight across the battery, one end on each terminal. */
+const acrossBattery = (lab: LabView, id: string): boolean => lab.joins(id, "B1.pos", "B1.neg");
+
+/** The fix-it bench: someone fitted a 10 A fuse straight across the battery. It never blows; the battery cooks. */
+const TEN_AMP: SolutionStep[] = [
+  { do: "probe", red: null, black: null },
+  { do: "dial", mode: "off" },
+  { do: "place", part: "F3", kind: "fuse", params: { amps: 10 }, at: "desk:-15,5" },
+  { do: "clip", lead: "TL1", end: "a", to: "B1.pos" },
+  { do: "clip", lead: "TL1", end: "b", to: "F3.a" },
+  { do: "clip", lead: "TL2", end: "a", to: "F3.b" },
+  { do: "clip", lead: "TL2", end: "b", to: "B1.neg" },
+];
 
 export default defineLab({
   id: "fuse-guard",
-  title: "The part that fails first",
+  title: "The weak link",
   bench: {
     board: "none",
+    frame: ["desk:-140,-85", "desk:135,80"],
     parts: [
-      { id: "B1", kind: "battery", at: "desk:-98,8", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
-      { id: "F1", kind: "fuse", at: "desk:-12,-40", params: { amps: 1 }, label: "1 A fuse" },
-      { id: "F2", kind: "fuse", at: "desk:-12,14", params: { amps: 3 }, label: "3 A fuse" },
+      { id: "B1", kind: "battery", at: "desk:-95,15", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
+      { id: "F1", kind: "fuse", at: "desk:-15,-25", params: { amps: 1 }, label: "1 A fuse" },
+      { id: "F2", kind: "fuse", at: "desk:-15,35", params: { amps: 3 }, label: "3 A fuse" },
     ],
     tray: [
       { kind: "lead", params: { color: "red" }, count: 1 },
       { kind: "lead", params: { color: "black" }, count: 1 },
-      { kind: "lead", params: { color: "yellow" }, count: 1 },
     ],
-    instruments: [{ kind: "meter", at: "desk:120,22", mode: "off" }],
+    instruments: [{ kind: "meter", at: "desk:85,-25", mode: "off", tips: { red: "desk:0,62", black: "desk:18,68" } }],
   },
   mascot: {
-    start: "Meet the bravest part on the bench. It's built to fail.",
-    hint: "Big current? Red lead to 10A, and keep it quick.",
-    fried: "The fuse gave its life, exactly as designed. A hero of the Hall.",
-    success: "Between one and three amps. Bracketed like a detective.",
+    hint: "A fuse is a wire or a gap. Nothing in between.",
+    fried: "The fuse gave its life, exactly as designed.",
   },
   fried: { F1: "1 A fuse across a 9 V battery", F2: "3 A fuse, too much current" },
-  // The Bracketed achievement: the 1 A fuse blown, the 3 A fuse alive, and the current in between measured.
-  triggers: {
-    bracketed: (lab) => lab.task("blow-1a") === "done" && lab.task("measure-big") === "done" && !lab.event("blown", "F2"),
-  },
   tasks: [
     {
       id: "blow-1a",
-      prompt: "Clip the 1 A fuse straight across the battery. Watch the wire.",
+      prompt: "Clip the 1 A fuse straight across the battery.",
       goal: (lab) => lab.event("blown", "F1"),
-      hints: ["Two clip leads: battery plus to one end, the other end to minus."],
+      hints: ["Two clip leads: battery plus to one end of the fuse.", "The fuse's other end to battery minus."],
       highlight: ["F1", "pin:B1.pos", "pin:B1.neg"],
-      success: "Snap. The wire melted in a fraction of a second.",
+      nudges: [{ when: (lab) => acrossBattery(lab, "F2"), say: "That's the 3 A one. Try the 1 A fuse." }],
+      success: "Snap.",
     },
     {
       id: "continuity-check",
-      prompt: "Dial to continuity. Test the blown fuse, then the 3 A one.",
+      prompt: "Dial to the beep. Probe the blown fuse, then the 3 A one.",
       goal: (lab) => {
         const mem = lab.memory as { open?: boolean; beep?: boolean };
         if (lab.meter?.mode === "continuity") {
@@ -57,35 +63,29 @@ export default defineLab({
         }
         return !!mem.open && !!mem.beep;
       },
-      hints: ["A probe on each metal end cap.", "Unclip the fuse from the battery first. Powered parts can't be tested."],
+      hints: ["Turn the dial to the beep symbol.", "A probe on each metal end cap: the blown fuse, then the good one."],
       highlight: ["F1", "F2"],
-      success: "Silence from the blown one, a beep from the good one.",
+      success: "Silence, then a beep.",
     },
     {
-      id: "measure-big",
-      prompt: "On **10A**, loop battery, 3 A fuse and meter. Hold 3 seconds.",
-      goal: (lab) =>
-        lab.meter?.red === "a10" &&
-        lab.meter.mode === "dca-10a" &&
-        lab.inSeries("M1", "F2") &&
-        lab.heldFor(3, lab.part("F2")?.health !== "dead" && lab.amps("F2") > 1) &&
-        readsIn(lab, 1.4, 2.6),
-      hints: [
-        "Red lead in the 10A socket, dial on 10A. Never mA.",
-        "Clip battery plus to the fuse. Red probe on its other end, black on minus.",
-        "Keep it short, then break the loop.",
+      id: "fix-short",
+      prompt: "A short, and the 10 A fuse won't blow. Fix it.",
+      setup: TEN_AMP,
+      // The 10 A fuse across the battery first (the setup), then the 1 A fuse in its place, blown by the short.
+      goal: (lab) => {
+        if (acrossBattery(lab, "F3")) lab.memory["short"] = true;
+        return lab.memory["short"] === true && !acrossBattery(lab, "F3") && acrossBattery(lab, "F1") && !lab.closed("F1");
+      },
+      hints: ["A fuse only helps if the fault's flow can melt it.", "Drop the 1 A fuse onto the 10 A one: they swap."],
+      highlight: ["F1", "F3"],
+      nudges: [
+        { when: (lab) => acrossBattery(lab, "F2"), say: "Still holding. 3 A is too big for this short." },
+        {
+          when: (lab) => lab.memory["short"] === true && !acrossBattery(lab, "F3") && !acrossBattery(lab, "F1") && !acrossBattery(lab, "F2"),
+          say: "Short gone. Now fit a fuse that would stop one.",
+        },
       ],
-      highlight: ["socket:a10", "F2"],
-      success: "About 2 A. Too much for 1 A, fine for 3 A. Bracketed.",
-    },
-    {
-      id: "battery-check",
-      prompt: "DC volts. Measure the battery now, and again in 30 seconds.",
-      goal: recovered,
-      hints: ["Red lead back into VΩ. Read once, then wait half a minute."],
-      highlight: ["pin:B1.pos", "pin:B1.neg"],
-      success: "It dipped, then crept back, not all the way. Next lesson shows why.",
-      bonus: true,
+      success: "Snap. Short stopped.",
     },
   ],
   solution: [
@@ -93,27 +93,15 @@ export default defineLab({
     { do: "lead", id: "TL2", from: "F1.b", to: "B1.neg", color: "black" },
     { do: "wait", seconds: 0.5 },
     { do: "check", task: "blow-1a" },
-    { do: "clip", lead: "TL1", end: "a", to: null },
-    { do: "clip", lead: "TL2", end: "b", to: null },
     { do: "probe", red: "F1.a", black: "F1.b", mode: "continuity" },
     { do: "wait", seconds: 0.5 },
     { do: "probe", red: "F2.a", black: "F2.b" },
     { do: "wait", seconds: 0.5 },
     { do: "check", task: "continuity-check" },
-    { do: "probe", red: null, black: null },
-    { do: "plug", probe: "red", socket: "a10" },
-    { do: "dial", mode: "dca-10a", range: "10A" },
-    { do: "clip", lead: "TL1", end: "b", to: "F2.a" },
-    { do: "clip", lead: "TL1", end: "a", to: "B1.pos" },
-    { do: "probe", red: "F2.b", black: "B1.neg" },
-    { do: "wait", seconds: 3.5 },
-    { do: "check", task: "measure-big" },
-    { do: "probe", red: null },
-    { do: "plug", probe: "red", socket: "vohm" },
-    { do: "dial", mode: "dcv", range: "20V" },
-    { do: "probe", red: "B1.pos", black: "B1.neg" },
+    ...TEN_AMP,
     { do: "wait", seconds: 1 },
-    { do: "wait", seconds: 30 },
-    { do: "check", task: "battery-check" },
+    { do: "move", part: "F1", at: "on:F3" },
+    { do: "wait", seconds: 0.5 },
+    { do: "check", task: "fix-short" },
   ],
 });

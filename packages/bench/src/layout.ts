@@ -3,7 +3,8 @@
 import { parseAnchor } from "./anchors";
 import { PITCH, boardGeometry, boardOrigin, holeWorld } from "./board";
 import { BOARD_TOP, BOARD_CLIP_LIFT, LED, NPN, CERAMIC, electrolyticSize, RESISTOR, DIODE, blockWidth, OBJECT, GATE } from "./dims";
-import { canMountOnBoard, footprintOf, isFlying, partDef, partLegs, partSpots, rotateXZ } from "./parts";
+import { PERCH_SKEW, overBoard } from "./chips";
+import { canMountOnBoard, footprintOf, isFlying, partDef, partLegs, partSpots, perches, resolveLeg, rotateXZ } from "./parts";
 import { hiddenParts, holderOf, seatPose } from "./seats";
 import type { Anchor, BenchState, MeterSocket, MeterState, PlacedPart, ProbeColor, Vec2, Vec3 } from "./types";
 
@@ -51,6 +52,14 @@ function boardClipLift(part: PlacedPart): number {
     default:
       return 0.5;
   }
+}
+
+/**
+ * Parts the bench refused to seat: a surface mount chip lying on top of the board (its legs are too close together
+ * for the holes). Lab runtimes read this as `lab.bench.rejected`.
+ */
+export function rejectedParts(bench: BenchState): string[] {
+  return bench.parts.filter((p) => perches(p) && overBoard(bench, p.pos)).map((p) => p.id);
 }
 
 /** True when every footprint lead of a board-mountable part sits in a hole of the current board. */
@@ -111,7 +120,7 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
 
   const seat = holderOf(bench, part.id);
   if (seat) {
-    const sp = seatPose(seat.holder, seat.seat, part);
+    const sp = seatPose(seat.holder, seat.seat, part, bench);
     const local = ((def.heldLegs ?? def.deskLegs) as (p: unknown) => Record<string, Vec3>)(part.params);
     const legs: Record<string, Vec3> = {};
     for (const leg of def.legs) {
@@ -154,9 +163,14 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
     pose.ends = ends;
     return pose;
   }
+  // A part that will not seat (a surface mount chip) dropped over the board lies on top of it, a little askew.
+  if (perches(part) && overBoard(bench, part.pos)) {
+    origin[1] = BOARD_TOP;
+    pose.rot = part.rot + PERCH_SKEW;
+  }
   for (const leg of partLegs(part)) {
     const l = local[leg]!;
-    const [rx, rz] = rotateXZ(l[0], l[2], part.rot);
+    const [rx, rz] = rotateXZ(l[0], l[2], pose.rot);
     legs[leg] = add3(origin, [rx, l[1], rz]);
   }
   return pose;
@@ -221,7 +235,8 @@ export function anchorPosition(bench: BenchState, anchor: Anchor, depth = 0): Ve
       const part = bench.parts.find((p) => p.id === a.part);
       if (!part) return null;
       const pose = partPose(bench, part);
-      return pose.legs[a.leg] ?? spotWorld(pose, partSpots(part)[a.leg]);
+      // A pin may be named by its function ("pin:U1.trig").
+      return pose.legs[resolveLeg(part, a.leg) ?? a.leg] ?? spotWorld(pose, partSpots(part)[a.leg]);
     }
     case "wire": {
       const w = bench.wires.find((x) => x.id === a.wire);
@@ -381,6 +396,10 @@ const PROP_REACH: Partial<Record<PlacedPart["kind"], number>> = {
   clock: 32,
   showcase: 66,
   tag: 14,
+  "logic-probe": 40,
+  "battery-pack": 40,
+  "bench-supply": 44,
+  sevenseg: 16,
   gate: 12,
   box: 56,
   schematic: 58,
