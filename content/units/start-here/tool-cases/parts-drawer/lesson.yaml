@@ -1,0 +1,69 @@
+# Start here, case 11 (docs/curriculum/start-here.md, SH11). A bench lesson (docs/LESSONS.md).
+# One idea: a symbol draws what a part does. Each part is tried in the tester's gap, then filed by its symbol.
+# Lab: content/labs/parts-drawer.ts (four drawers with symbol faces, loose parts, the tester with a gap).
+format: bench
+id: parts-drawer
+version: 1
+title: The mixed-up drawer
+summary: Try each part in the tester, then file it in the drawer whose symbol draws its job.
+minutes: 6
+lab: parts-drawer
+unlocks:
+  isle: resistor
+
+start:
+  title: The mixed-up drawer
+  say: The drawer labels fell off. Only symbols left.
+  go: Sort them
+
+beats:
+  - say: This is a battery's symbol. Pop the battery in.
+    objective: Battery and switch
+    spot: [DRB, B2]
+    do: file-battery
+    note: { at: DRB, text: "long line: plus" }
+
+  - say: Clip the switch into the gap. Flip it.
+    spot: [S2, TL2.b, TL3.a]
+    do: test-switch
+    note: { at: DRS, text: a gap you open and close }
+
+  - say: Now the LED. Try it both ways.
+    objective: One-way LED
+    spot: [D1, TL2.b, TL3.a]
+    do: led-both-ways
+    note: { at: D1, text: "LED: one way only" }
+    rule: "LED: long leg toward plus."
+
+  - say: See its symbol? The triangle points the way flow goes.
+    spot: [DRL]
+    note: { at: DRL, text: "triangle: the way flow goes" }
+
+  - say: And the resistor.
+    objective: File them all
+    spot: [RB, TL2.b, TL3.a]
+    do: test-resistor
+    note: { at: DRR, text: "zigzag: a squeeze" }
+
+  - say: File them all.
+    do: file-all
+
+  - say: Show me the LED's symbol.
+    tap: { answer: DRL, among: [DRB, DRS, DRR, DRL] }
+    wrong: { DRB: "That's the battery: long line, short line.", DRS: That one opens and closes a gap., DRR: "That zigzag squeezes." }
+
+  - say: What is this?
+    pick: { on: DRR, options: [A resistor, A switch, An LED], answer: A resistor }
+
+secret:
+  task: button-drawer
+  say: "Secret: which drawer takes this button?"
+  note: { at: PB1, text: a button is a switch too }
+
+fixit:
+  say: Someone filed two parts wrong. Fix it.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. Every drawer has its picture.
