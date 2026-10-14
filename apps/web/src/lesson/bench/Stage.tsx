@@ -406,7 +406,8 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     if (dock) ro.observe(dock);
     return () => ro.disconnect();
   }, [tool, benchReady]);
-  const lastFocus = useRef<{ targets: string[]; read?: number } | null>(null);
+  /** Where the hands last worked on a phone: a beat that names no parts picks up there. */
+  const lastHands = useRef<string[] | null>(null);
   useEffect(() => {
     const c = controllerRef.current;
     const stage = stageRef.current;
@@ -423,11 +424,13 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     // Hands-on work on a phone: the working parts come close enough to aim a finger at (holes and legs at least
     // READ_PHONE px apart); a beat that names none keeps the view where the hands already are. On a desktop, parts in
     // play come to a reading scale (a resistor's body about 80 px long).
-    const phoneHands = w < 640 && !!props.hands;
-    const read = props.hands && framed.length ? (w < 640 ? READ_PHONE : READ_DESK) : phoneHands ? READ_PHONE : undefined;
-    if (phoneHands && !framed.length && props.hands === "beat") framed = resolve(props.gate ? lab.tasks.find((t) => t.id === props.gate)?.highlight : null);
-    if (phoneHands && !framed.length && props.hands === "beat" && lastFocus.current?.targets.length) {
-      c.focus(lastFocus.current.targets, { inset, read: lastFocus.current.read ?? READ_PHONE });
+    // Only while the task is open: once it is done, the discovery (a note, a glow) is framed as any beat's.
+    const working = !!props.hands && !!props.gate;
+    const phoneHands = w < 640 && working;
+    const read = working && framed.length ? (w < 640 ? READ_PHONE : READ_DESK) : phoneHands ? READ_PHONE : undefined;
+    if (phoneHands && !framed.length && props.hands === "beat") framed = resolve(lab.tasks.find((t) => t.id === props.gate)?.highlight);
+    if (phoneHands && !framed.length && props.hands === "beat" && lastHands.current?.length) {
+      c.focus(lastHands.current, { inset, read: READ_PHONE });
       return;
     }
     // A part in play keeps some bench around it: close enough to tell its legs apart and tap them, never a lone
@@ -441,7 +444,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     const padding = close ? 8 : Math.round(free * (framed.length > 1 ? 0.06 : phone ? 0.12 : 0.3));
     // A desktop pointer aims well: there the reading scale only nudges the view closer, never far past a fit.
     const zoom = read && w >= 640 ? { readZoom: READ_DESK_ZOOM } : {};
-    lastFocus.current = { targets: framed, ...(read && framed.length ? { read } : {}) };
+    if (phoneHands && framed.length) lastHands.current = framed;
     c.focus(framed, framed.length ? { padding, inset, ...(read ? { read, ...zoom } : {}) } : { inset });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spotKey, frameKey, runtime, benchReady, dockKey, quietPins, props.hands, props.gate]);
