@@ -106,7 +106,9 @@ export function placeNotes(notes: readonly NoteIn[], obstacles: readonly Rect[],
         12 * (notes / a) +
         (inside(box, n.p) ? 3 : 0) +
         0.5 * (Math.hypot(cx - n.p.x, cy - n.p.y) / 100) +
-        (moved > 24 ? 0.4 : 0) -
+        (moved > 24 ? 0.4 : 0) +
+        // Notes read most naturally above what they are about.
+        (ty > n.p.y ? 0.15 : 0) -
         (i === n.prev ? 0.35 : 0);
       if (best && score >= best.score) continue;
       const anchor: "start" | "end" = c.anchor;

@@ -65,8 +65,11 @@ function benchObstacles(bench: BenchState, c: BenchController, host: HTMLElement
   const rects: Rect[] = [];
   const parts = new Map<string, { rect: Rect; marks?: Pt[] }>();
   const keep = (id: string, anchors: string[], pad: number, symbols?: string[]) => {
-    const r = rectOf(anchors.map(at).filter((p): p is Pt => !!p), pad);
-    if (!r) return;
+    const tight = rectOf(anchors.map(at).filter((p): p is Pt => !!p), 0);
+    if (!tight) return;
+    // A part's body reaches past its legs and marks, the more so the closer the camera: grow with its size on screen.
+    const grow = Math.max(pad, 0.12 * Math.max(tight.x1 - tight.x0, tight.y1 - tight.y0));
+    const r = { x0: tight.x0 - grow, y0: tight.y0 - grow, x1: tight.x1 + grow, y1: tight.y1 + grow };
     rects.push(r);
     // A drawing's marks are its symbols, and its lines run through them: an arrow about the drawing ends on one.
     const marks = symbols?.map(at).filter((p): p is Pt => !!p);
