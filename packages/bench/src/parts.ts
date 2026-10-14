@@ -40,6 +40,7 @@ import {
 import type { BenchPartKind, BenchState, Moisture, PartParamsMap, PlacedPart, PlacedPartOf, SampleMaterial, SymbolKind, Vec3, WaterKind } from "./types";
 import { MCU_LEGS, MCU_SIM_PIN, mcuDeskLegs } from "./mcuBoard";
 import { CHIP_DEFS } from "./chips";
+import { ALARM_DEFS } from "./alarm";
 import { SOLDER_DEFS } from "./solder/parts";
 
 /** A lead position in board pitches at rotation 0, relative to the first lead. */
@@ -400,6 +401,8 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
         volts: p.params.volts ?? 16,
         polarized: true,
         ...(p.params.actualFarads !== undefined ? { actualFarads: p.params.actualFarads } : {}),
+        ...(p.params.tolerance !== undefined ? { tolerance: p.params.tolerance / 100 } : {}),
+        ...(p.params.leakOhms !== undefined ? { leakOhms: p.params.leakOhms } : {}),
       },
     ],
   },
@@ -945,6 +948,8 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
   },
   // ---- Chips (Unit 4): see chips.ts ------------------------------------------------------------------------------
   ...CHIP_DEFS,
+  // ---- Unit 4's door guard: a door with a reed switch, plug-in modules (see alarm.ts) ----------------------------
+  ...ALARM_DEFS,
   // ---- Unit 3: soldering, perfboard, wire and power from the wall (src/solder) ---------------------------------
   ...SOLDER_DEFS,
 };

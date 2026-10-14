@@ -77,6 +77,8 @@ export type BenchPartKind =
   // Chips (Unit 4): DIP chips and their socket, the 7-segment display, the 5 V regulator, the DIP switch, the logic
   // probe, AA battery packs and an adjustable bench supply.
   | ChipKind
+  // Unit 4's door guard: a door or window with a reed switch, and plug-in modules (alarm.ts).
+  | AlarmKind
   // Unit 3 (making it permanent): the solder station and its tools, perfboard, wire and power from the wall.
   | SolderKind;
 
@@ -97,6 +99,9 @@ export type SolderKind =
 
 /** The Unit 4 kinds (see chips.ts). */
 export type ChipKind = "chip" | "sevenseg" | "regulator7805" | "ic-socket" | "dip-switch" | "logic-probe" | "battery-pack" | "bench-supply";
+
+/** Unit 4's door guard kinds (see alarm.ts). */
+export type AlarmKind = "door" | "plug-module";
 
 /**
  * What a `chip` is: "555" (NE555), "555-cmos" (a 7555-style CMOS timer), a 74HC gate, flip-flop or counter, or the
@@ -195,7 +200,16 @@ export type PartParamsMap = {
   } & Bouncy;
   fuse: { amps: number };
   "ceramic-cap": { farads: number; volts?: number; /** The real value, for an out-of-spec part (labs). */ actualFarads?: number };
-  "electrolytic-cap": { farads: number; volts?: number; /** The real value, for an out-of-spec part (labs). */ actualFarads?: number };
+  "electrolytic-cap": {
+    farads: number;
+    volts?: number;
+    /** The real value, for an out-of-spec part (labs). */
+    actualFarads?: number;
+    /** Percent the simulator may spread the value (default 20); 5 for a timing capacitor whose delay a lab quotes. */
+    tolerance?: number;
+    /** Leakage in ohms (default 1 MΩ from 100 µF up); a lab sets it high so a long 555 delay stays true. */
+    leakOhms?: number;
+  };
   trimmer: { ohms: number; /** wiper position 0..1 from pin a to pin b */ position: number } & Base;
   relay: {
     coilVolts?: number;
@@ -334,7 +348,25 @@ export type PartParamsMap = {
     seed?: number;
   };
 } & ChipParamsMap &
+  AlarmParamsMap &
   SolderParamsMap;
+
+/** Params of Unit 4's door guard kinds. */
+export type AlarmParamsMap = {
+  /**
+   * A door (or a window, `style`) in a short stretch of wall on the desk: a magnet on its leaf, a reed switch on its
+   * frame, wired to two screw terminals (`a`, `b`) on a little block beside it. The reed is normally open; the magnet
+   * of the shut leaf holds it closed, so `open` breaks the circuit. Clicking the leaf opens or shuts it. `side` is
+   * where the terminal block stands: "left" (default) for a door to the right of the board, "right" for one to its
+   * left. `tag` prints a name on the base.
+   */
+  door: { open?: boolean; style?: "door" | "window"; side?: "left" | "right"; tag?: string };
+  /**
+   * A plug-in module: a small labelled board on a header row that plugs into the breadboard (leads named by its pins).
+   * The voice module is a 555 singer (about 440 Hz) whose EN pin is its reset: it sings while EN is high.
+   */
+  "plug-module": { model: "voice"; tag?: string };
+};
 
 /** Params of the Unit 4 kinds. */
 export type ChipParamsMap = {

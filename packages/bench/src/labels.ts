@@ -228,6 +228,8 @@ export const DEFAULT_LABELS: BenchLabels = {
     "logic-probe": "Logic probe",
     "battery-pack": "Battery pack",
     "bench-supply": "Bench supply",
+    door: "Door with reed switch",
+    "plug-module": "Plug-in module",
   },
   colors: {
     red: "Red",
@@ -276,6 +278,7 @@ export const DEFAULT_LABELS: BenchLabels = {
     "toggle-switch.bounce": { label: "Bounce", values: { false: "Off", true: "On" } },
     "dpdt-switch.bounce": { label: "Bounce", values: { false: "Off", true: "On" } },
     "regulator7805.heatsink": { label: "Heat sink", values: { false: "Off", true: "On" } },
+    "door.open": { label: "Door", values: { false: "Shut", true: "Open" } },
   },
   actions: {
     "card.erase": "Erase",

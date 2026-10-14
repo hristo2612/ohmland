@@ -56,7 +56,8 @@ speaker, touch-pads, cup, lemon, and the lab props below. `params` are typed per
 resistor `ohms` (the bands), `actualOhms` (an out-of-spec part, whose body then looks slightly darkened), `tolerance`
 (percent, default 5: the simulator spreads each part's value by its id), `watts` (1 W parts are bigger, 2 W and up
 are white ceramic blocks); capacitors `actualFarads` and `span` (holes between the legs, 1 to 7: the legs bend to
-reach); pushbutton `normallyClosed`; battery `snap` (leads that go into the board), `size` (`"aa"` in a cradle,
+reach); electrolytics `tolerance` (percent, default 20) and `leakOhms` (default 1 MΩ from 100 µF up: a lab that times
+a long 555 delay sets 5 and 5e7 so the delay matches 1.1 × R × C); pushbutton `normallyClosed`; battery `snap` (leads that go into the board), `size` (`"aa"` in a cradle,
 `"coin"` in a holder), `chem` (`"nimh"`, `"lithium"`) and `worn` (a scuffed, used one); relay `poles: 1` (one
 changeover: `coil1 coil2 com1 nc1 no1`), `coilOhms`, `coilHenries` (a kickback worth catching); toggle-switch
 `throws: 1` (on/off only).
