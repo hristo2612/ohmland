@@ -297,18 +297,25 @@ export function ViewRig({
     };
 
     const frame = (boxes: THREE.Box3[], opts: { padding: number; top?: boolean; turn: boolean; minSize?: number }) => {
+      // Fit the corners of each box (not of their union, whose far top corners hold nothing and push the view away).
+      const pts: THREE.Vector3[] = [];
       const union = new THREE.Box3();
-      for (const b of boxes) union.union(b);
+      for (const b of boxes) {
+        if (b.isEmpty()) continue;
+        union.union(b);
+        pts.push(...boxPoints(b));
+      }
       const min = opts.minSize ?? 0;
       if (min > 0) {
         const c = union.getCenter(new THREE.Vector3());
         const s = union.getSize(new THREE.Vector3());
-        union.expandByVector(new THREE.Vector3(Math.max(0, (min - s.x) / 2), 0, Math.max(0, (min - s.z) / 2)));
-        union.expandByPoint(new THREE.Vector3(c.x, Math.max(union.max.y, 4), c.z));
+        const grow = new THREE.Box3().copy(union).expandByVector(new THREE.Vector3(Math.max(0, (min - s.x) / 2), 0, Math.max(0, (min - s.z) / 2)));
+        grow.expandByPoint(new THREE.Vector3(c.x, Math.max(grow.max.y, 4), c.z));
+        pts.push(...boxPoints(grow));
       }
       const rect = viewRect(opts.padding);
       const cam = get().camera as THREE.PerspectiveCamera;
-      return solveFrame(boxPoints(union), angles(opts.turn, !!opts.top), cam.fov ?? FOV, rect.aspect, rect, 45);
+      return solveFrame(pts, angles(opts.turn, !!opts.top), cam.fov ?? FOV, rect.aspect, rect, 45);
     };
 
     const isPortrait = () => {

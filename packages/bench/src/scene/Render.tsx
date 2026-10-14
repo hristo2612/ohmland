@@ -130,8 +130,11 @@ export function PaperUpkeep({
   useLayoutEffect(() => {
     gl.shadowMap.autoUpdate = live;
     gl.shadowMap.needsUpdate = true;
+    // Count a whole frame's draws (post-processing renders several passes), for stats().
+    gl.info.autoReset = false;
     return () => {
       gl.shadowMap.autoUpdate = true;
+      gl.info.autoReset = true;
     };
   }, [gl, live]);
   useEffect(() => {
@@ -139,6 +142,7 @@ export function PaperUpkeep({
     invalidate();
   }, [version, shadows, invalidate]);
   useFrame(() => {
+    gl.info.reset();
     if (pending.current <= 0) return;
     pending.current--;
     paperizeScene(scene, dark);

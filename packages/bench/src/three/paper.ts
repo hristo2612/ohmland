@@ -192,6 +192,16 @@ export function paperizeMaterial(m: THREE.Material, dark = false): void {
   if (s.isMeshPhysicalMaterial) {
     s.clearcoat *= 0.18;
     s.clearcoatRoughness = Math.max(s.clearcoatRoughness, 0.55);
+    if (s.transmission > 0) {
+      // Glass as plain see-through plastic: refraction would draw the whole scene a second time every frame, and a
+      // page drawing does not need it.
+      const clear = s.transmission;
+      s.transmission = 0;
+      s.transparent = true;
+      s.opacity = Math.min(s.opacity, 1 - 0.68 * clear);
+      s.depthWrite = false;
+      s.needsUpdate = true;
+    }
   }
   if (s.metalness > 0.5) {
     // Tinned leads, clips and terminals: a light pencil grey that still reads as metal.
