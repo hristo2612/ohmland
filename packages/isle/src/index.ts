@@ -14,7 +14,7 @@ export { makeIsle, planHash, tierAt } from "./plan";
 export { DECK, LANDMARKS, LANDMARKS_BY_UNIT, PIECES, UNITS, isLandmark, isPiece } from "./catalog";
 export type { IsleMessages } from "./messages";
 export { EN as ISLE_EN } from "./messages";
-export type { IsleInset, IsleLabel, IsleStats, IsleView, MountOptions, RevealInfo } from "./render/view";
+export type { IsleInset, IsleLabel, IsleStats, IsleView, Look, MountOptions, Paper, RevealInfo } from "./render/view";
 export { isleAudio, primeAudio } from "./audio";
 
 const renderer = () => import("./render/view");
