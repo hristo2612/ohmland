@@ -74,7 +74,7 @@ export default defineLab({
         return lab.memory["blunt"] === true && onCell(lab) && rangeIs(lab, "2V") && readsIn(lab, 1.4, 1.65);
       },
       hints: ["1.6 fits in a much smaller range.", "Step the range down until just before OL."],
-      highlight: ["part:M1/dial"],
+      highlight: ["part:M1/range"],
       nudges: [{ when: (lab) => onCell(lab) && showsOL(lab), say: "Too far down. One step back up." }],
       success: "Fixed.",
     },

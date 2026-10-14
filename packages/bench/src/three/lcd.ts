@@ -2,6 +2,7 @@
 
 import type { MeterMode } from "@ohmland/sim";
 import { FONT } from "./canvas";
+import { rangeText } from "../layout";
 
 type Seg = "a" | "b" | "c" | "d" | "e" | "f" | "g";
 
@@ -102,7 +103,8 @@ function fillPoly(ctx: CanvasRenderingContext2D, pts: [number, number][]) {
   ctx.fill();
 }
 
-export type LcdContent = { text: string; unit?: string; mode: MeterMode; on: boolean };
+/** `range`: the RANGE key's setting ("auto" or a manual range), shown top right; null where the dial has no ranges. */
+export type LcdContent = { text: string; unit?: string; mode: MeterMode; on: boolean; range?: string | null };
 
 const ON = "#1c221f";
 const GHOST = "rgba(40,52,44,0.045)";
@@ -191,6 +193,8 @@ export function drawLcd(ctx: CanvasRenderingContext2D, w: number, h: number, c: 
   ctx.fill();
   ctx.fillRect(ix + h * 0.07, cy - h * 0.045, h * 0.016, h * 0.09);
   ctx.fillRect(ix - h * 0.04, cy - h * 0.008, h * 0.13, h * 0.016);
+  // The range: AUTO, or the manual range the RANGE key chose ("20V").
+  if (on && c.range) ann(rangeText(c.range), w * 0.955, h * 0.11, true, h * 0.12, "right");
 
   // Unit annunciators on the right, the active one dark.
   const unit = on ? (c.unit ?? defaultUnit(mode)) : "";

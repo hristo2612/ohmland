@@ -49,10 +49,10 @@ export default defineLab({
     },
     {
       id: "set-dial",
-      prompt: "Turn the dial to 20 in the V part.",
+      prompt: "Turn the dial to V, then the range to 20 V.",
       goal: (lab) => lab.meter?.mode === "dcv" && rangeIs(lab, "20V"),
-      hints: ["The V part of the dial has 200m, 2, 20 and 200.", "Turn the dial to the 20 next to the V."],
-      highlight: ["M1"],
+      hints: ["Tap the knob toward the V with the straight line.", "Then tap RANGE until the display says 20V."],
+      highlight: ["part:M1/dial", "part:M1/range"],
       success: "Ready for up to 20 V.",
     },
     {
@@ -94,7 +94,7 @@ export default defineLab({
         if (lab.meter?.mode !== "dcv") lab.memory["broken"] = true;
         return lab.memory["broken"] === true && onBox(lab) && fresh(lab);
       },
-      hints: ["Which letter on the dial means push?", "Turn the dial back to 20 in the V part."],
+      hints: ["Which letter on the dial means push?", "Turn the dial back to V with the straight line."],
       highlight: ["M1"],
       // The panel's socket advice points at mA; across a battery that only blows the fuse.
       nudges: [{ when: (lab) => lab.meter?.red === "ma" || lab.meter?.red === "a10", say: "Red stays in VΩ. Turn the dial instead." }],

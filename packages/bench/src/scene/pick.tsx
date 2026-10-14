@@ -23,6 +23,8 @@ export type Pick =
   | { type: "meter" }
   | { type: "dial" }
   | { type: "dialMode"; mode: MeterMode }
+  /** The meter's RANGE key. */
+  | { type: "range" }
   | { type: "plug"; color: ProbeColor }
   /** `tip`: the probe's tip end, which a pencil card's drawing strip under it beats (the grip still wins). */
   | { type: "probe"; color: ProbeColor; tip?: true };

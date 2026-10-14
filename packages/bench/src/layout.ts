@@ -8,7 +8,7 @@ import { canMountOnBoard, footprintOf, isFlying, partDef, partLegs, partSpots, p
 import { hiddenParts, holderOf, seatPose } from "./seats";
 import { PERF, padWorld, parsePerfHole, perfMount } from "./solder/perfboard";
 import { clipPose, jackSocket, spotPosition, tubePose } from "./solder/spots";
-import type { Anchor, BenchState, MeterSocket, MeterState, PlacedPart, ProbeColor, Vec2, Vec3 } from "./types";
+import type { Anchor, BenchState, MeterMode, MeterSocket, MeterState, PlacedPart, ProbeColor, Vec2, Vec3 } from "./types";
 
 export type PartPose = {
   mount: "board" | "desk";
@@ -260,6 +260,8 @@ export const METER = {
   face: 29.2,
   lcd: { x0: -29, x1: 29, z0: -63, z1: -33 },
   dial: { z: 12, knob: 15, labels: 24 },
+  /** The RANGE key between the display and the dial (the LIGHT key mirrors it at +x in 3D). */
+  rangeKey: { x: -17, z: -18.5, w: 13, d: 5 },
   sockets: { z: 53, xs: { a10: -25.5, ma: -8.5, com: 8.5, vohm: 25.5 } as Record<MeterSocket, number>, dia: 9.5 },
   plug: { insert: 9, body: 30 },
   probe: { tip: 14, guard: 16, handle: 98, boot: 116 },
@@ -268,6 +270,46 @@ export const METER = {
 /** Dial detents, clockwise from the top. */
 export const DIAL_MODES = ["off", "dcv", "acv", "ohm", "continuity", "diode", "dca-10a", "dca-ma"] as const;
 export const DIAL_STEP = 360 / DIAL_MODES.length;
+
+/** The dial one detent on (`dir` 1, clockwise) or back (-1), wrapping round. */
+export function stepDial(mode: MeterMode, dir: 1 | -1): MeterMode {
+  const i = Math.max(0, DIAL_MODES.indexOf(mode as (typeof DIAL_MODES)[number]));
+  return DIAL_MODES[(i + dir + DIAL_MODES.length) % DIAL_MODES.length]!;
+}
+
+/** The manual ranges of each dial position, smallest first (the simulator's labels). Positions not listed have one. */
+export const METER_RANGES: Partial<Record<MeterMode, readonly string[]>> = {
+  dcv: ["200mV", "2V", "20V", "200V", "600V"],
+  acv: ["2V", "20V", "200V", "600V"],
+  ohm: ["200", "2k", "20k", "200k", "2M", "20M"],
+  "dca-ma": ["200uA", "2mA", "20mA", "200mA"],
+};
+
+/** The range the meter is on for its dial position: a manual range label, or "auto" (also for a range of another position). */
+export function meterRange(meter: Pick<MeterState, "mode" | "range">): string {
+  const list = METER_RANGES[meter.mode] ?? [];
+  return meter.range && list.includes(meter.range) ? meter.range : "auto";
+}
+
+/**
+ * The RANGE key pressed (`dir` 1) or held (-1): auto, then each manual range from the smallest up, then auto again.
+ * Null where the dial position has no ranges to choose from.
+ */
+export function stepRange(meter: Pick<MeterState, "mode" | "range">, dir: 1 | -1): string | null {
+  const list = METER_RANGES[meter.mode];
+  if (!list?.length) return null;
+  const cycle = ["auto", ...list];
+  const i = cycle.indexOf(meterRange(meter));
+  return cycle[(i + dir + cycle.length) % cycle.length]!;
+}
+
+/** A range as the meter's display prints it: "AUTO", "200mV", "20V", "2kΩ", "200µA". */
+export function rangeText(range: string): string {
+  if (range === "auto") return "AUTO";
+  const m = /^(\d+)(u|m|k|M)?(V|A)?$/.exec(range);
+  if (!m) return range;
+  return `${m[1]}${m[2] === "u" ? "µ" : (m[2] ?? "")}${m[3] ?? "Ω"}`;
+}
 
 export function meterLocalToWorld(meter: MeterState, local: Vec3): Vec3 {
   const [rx, rz] = rotateXZ(local[0], local[2], meter.rot);

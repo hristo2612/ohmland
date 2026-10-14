@@ -34,7 +34,7 @@ export {
 } from "./parts";
 export { seatsOf, heldOf, holderOf, seatNear, SEAT_REACH } from "./seats";
 export { trayLeft, trayUsed } from "./tray";
-export { partPose, anchorPosition, benchBounds, fitCamera, isOnBoard, rejectedParts, METER, DIAL_MODES, type PartPose } from "./layout";
+export { partPose, anchorPosition, benchBounds, fitCamera, isOnBoard, rejectedParts, METER, DIAL_MODES, METER_RANGES, meterRange, stepDial, stepRange, rangeText, type PartPose } from "./layout";
 // Unit 4: chips and friends.
 export {
   CHIP_MODELS,

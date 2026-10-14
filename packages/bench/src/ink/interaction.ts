@@ -360,6 +360,8 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
       case "dial":
       case "dialMode":
         return { kind: "dial" };
+      case "range":
+        return null;
     }
   };
 
@@ -804,7 +806,8 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
         if (ro) break;
         const m = s.bench.meter;
         if (m) {
-          // A tap on the knob turns it to the position tapped; a tap on its middle, one step on.
+          // A tap on the knob turns it to the position tapped; a tap on its middle, one step on (a long press, one
+          // back: below).
           const [x, z] = world(cx, cy);
           const at = dialModeAt(s.bench, x, z);
           const i = DIAL_MODES.indexOf(m.mode as (typeof DIAL_MODES)[number]);
@@ -812,6 +815,10 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
         }
         break;
       }
+      case "range":
+        // A tap steps the range one up (a long press, one down: below).
+        if (!ro) s.stepMeter("range", 1);
+        break;
       case "dialMode":
         if (!ro) s.setMeterMode(p.mode);
         break;
@@ -901,7 +908,9 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
       }
       g.longPress = window.setTimeout(() => {
         if (gesture === g && !g.moved && !g.flipped && pick.type !== "press") {
-          openMenu(g, g.x0, g.y0);
+          // Held on the dial or the RANGE key, the meter steps back; anywhere else the menu opens.
+          if (pick.type === "dial" || pick.type === "range") store.getState().stepMeter(pick.type, -1);
+          else openMenu(g, g.x0, g.y0);
           gesture = null;
         }
       }, 520);
@@ -1066,7 +1075,7 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
       if (hover !== s.ui.hover) setUi({ hover });
       const fixed = p && (p.type === "part" || p.type === "leg") && s.locked.includes(p.id);
       element.style.cursor = p
-        ? p.type === "press" || p.type === "flip" || p.type === "dialMode" || p.type === "setting" || p.type === "dial"
+        ? p.type === "press" || p.type === "flip" || p.type === "dialMode" || p.type === "setting" || p.type === "dial" || p.type === "range"
           ? "pointer"
           : p.type === "draw"
             ? "crosshair"

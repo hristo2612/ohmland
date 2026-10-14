@@ -143,16 +143,27 @@ Optional, on any beat:
   `code` (the code drawer), `serial` (the serial monitor) or `millis` (its clock, with the day-49 jump), or a lab
   panel id. Without it, a lab panel tied to the beat's task (its `show`) appears. Never two at once. A tool stays
   open into the next beat that names it too (through that beat's guess), and closes when the next beat does not. The
-  fix-it round and the secret take a `tool` too (`fixit: { tool: meter, ... }`, `secret: { tool: meter, ... }`): the
-  meter's range, for one, can only be changed on its panel.
+  fix-it round and the secret take a `tool` too (`fixit: { tool: meter, ... }`, `secret: { tool: meter, ... }`).
+  Two tools are drawn on the bench instead of docked beside it. `meter`: the bench meter is the instrument (a tap on
+  its knob turns it where the tap points, a long press one back; its RANGE key steps the range up, a long press down;
+  the display shows the range). Over the bench there is a red pencil ring on the socket the red lead belongs in when it is in the
+  wrong one (none while the probes sit across a voltage on a current position: there the zero is the mistake to see),
+  and a blown mA fuse's Replace control at the mA socket while the beat waits on the bench. Only while part of the
+  meter is out of view (a beat framed close on what it measures) a slip stands in for that part: the reading, large; a
+  key that steps like the dial and one that steps like RANGE (44 px, a tap on, a long press back); the fuse's Replace.
+  A continuity panel: drawn on its part, an arc for each
+  pair of legs tested, solid and labelled with the positions it beeped in (A, B; rest, held), or dashed with a small
+  cross when it never beeped, faint until tested in the position the part is in now. The part is framed, and its arcs
+  stay until the beat ends; a pin map for the same part shows them too, and the signed-off notebook page keeps them.
 
 Anchors (`at`, `answer`, `among`, `on`, `spot`, `trace`) use the lab's shorthand: a part `D1`, a lead `D1.anode`, a
 hole `e12` or `rail+:21`, a clip lead end `TL1.a`, a jumper end `W1.b`, or a raw bench anchor (`pin:D1.anode`,
-`part:D1`). A named mark on a part is `part:<id>/<mark>`: the meter's `part:M1/dial`, `part:M1/display`, sockets
-(`part:M1/com`) and the dial's letters by mode (`part:M1/dcv`, `part:M1/ohm`, `part:M1/dca-ma`), a drawing's symbol
-`part:SD1/R1`, a box's `lid`, `knob`, `tag` and padlock wheels (`part:CAB/wheel1`), a gate's `flag` and `unit`, an LED's
-stress bar (`part:D1/stress`) and a resistor's colour bands (`part:R3/band1` to `band4`). Taps, notes and the
-spotlight work on marks in both views; a tapped mark that is wrong writes its own name ("dial", "wheel 2", "stripe 4").
+`part:D1`). A named mark on a part is `part:<id>/<mark>`: the meter's `part:M1/dial`, `part:M1/range` (its RANGE
+key), `part:M1/display`, sockets (`part:M1/com`) and the dial's letters by mode (`part:M1/dcv`, `part:M1/ohm`,
+`part:M1/dca-ma`), a drawing's symbol `part:SD1/R1`, a box's `lid`, `knob`, `tag` and padlock wheels
+(`part:CAB/wheel1`), a gate's `flag` and `unit`, an LED's stress bar (`part:D1/stress`) and a resistor's colour bands
+(`part:R3/band1` to `band4`). Taps, notes and the spotlight work on marks in both views; a tapped mark that is wrong
+writes its own name ("dial", "wheel 2", "stripe 4").
 
 ## Control of error
 

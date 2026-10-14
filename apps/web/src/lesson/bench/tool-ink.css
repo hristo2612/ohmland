@@ -1,0 +1,95 @@
+/*
+ * Instruments drawn on the bench (ToolInk.tsx): a red pencil ring on the socket the red lead belongs in, the meter's
+ * slip while part of it is out of view, and continuity arcs on a switch (ContinuityArcs.tsx, also kept on the notebook
+ * page). Tokens only.
+ */
+.ti { position: absolute; inset: 0; pointer-events: none; }
+.ti__svg { position: absolute; inset: 0; overflow: visible; }
+
+/* The socket the red lead belongs in: a red pencil ring, as the lesson's own rings are drawn. */
+.ti-ring path {
+  fill: none;
+  stroke: var(--bl-red, var(--red));
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  animation: bl-draw var(--bl-dur-write, var(--dur-write)) var(--bl-ease-out, var(--ease-out)) backwards;
+}
+
+/* Continuity: blue ink, the learner's own findings. */
+.ti-arc { color: var(--bl-blue, var(--blue)); transition: opacity var(--bl-dur-write, var(--dur-write)) var(--bl-ease-out, var(--ease-out)); }
+.ti-arc--faint { opacity: 0.38; }
+/* A pair that never beeped recedes behind the ones that did (a six-legged switch has eleven of them). */
+.ti-arc--open { opacity: 0.72; }
+.ti-arc--open.ti-arc--faint { opacity: 0.3; }
+.ti-arc__line { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+.ti-arc--beep .ti-arc__line { stroke-dasharray: 1; animation: bl-draw var(--bl-dur-write, var(--dur-write)) var(--bl-ease-out, var(--ease-out)) backwards; }
+.ti-arc--open .ti-arc__line { stroke-width: 1.5; stroke-dasharray: 4 5; animation: ti-in var(--bl-dur-write, var(--dur-write)) var(--bl-ease-out, var(--ease-out)) backwards; }
+.ti-arc__cross { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; animation: ti-in var(--bl-dur-write, var(--dur-write)) var(--bl-ease-out, var(--ease-out)) backwards; }
+.ti-arc__label {
+  fill: currentColor;
+  font-family: var(--bl-hand, var(--font-hand));
+  font-size: var(--bl-text-md, var(--text-md));
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--bl-paper, var(--paper));
+  stroke-width: 5;
+  stroke-linejoin: round;
+  animation: ti-in var(--bl-dur-write, var(--dur-write)) var(--bl-ease-out, var(--ease-out)) backwards;
+  animation-delay: calc(var(--bl-dur-write, var(--dur-write)) * 0.6);
+}
+
+/* The same arcs kept on the signed-off notebook page, under a row of the part's legs. */
+.ti-fig { margin: 0; overflow-x: auto; }
+.ti-fig svg { display: block; max-width: 100%; height: auto; overflow: visible; }
+.ti-fig__lug circle { fill: var(--bl-paper, var(--paper)); stroke: var(--bl-ink, var(--ink)); stroke-width: 1.6; }
+.ti-fig__lug text { fill: var(--bl-ink-2, var(--ink-2)); font-size: var(--bl-text-xs, var(--text-xs)); }
+
+/* The slip over the bench while part of the meter is out of view: its reading, large, and keys that step like its
+   dial and RANGE key. Above the phone's parts tray, as the dock is. */
+.ti-slip {
+  position: absolute;
+  right: var(--bl-s-3, var(--space-3));
+  bottom: calc(var(--bl-s-3, var(--space-3)) + var(--bl-tray-bottom, 0px));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--bl-s-2, var(--space-2));
+  max-width: calc(100% - 2 * var(--bl-s-3, var(--space-3)));
+  padding: var(--bl-s-1, var(--space-1));
+  border: 1px solid var(--bl-rule, var(--ink-2));
+  background: var(--bl-slip, var(--surface));
+  box-shadow: var(--bl-slip-shadow, var(--slip-shadow));
+  pointer-events: auto;
+  animation: ti-in var(--bl-dur-write, var(--dur-write)) var(--bl-ease-out, var(--ease-out)) backwards;
+}
+.ti-reading { display: flex; align-items: baseline; gap: var(--bl-s-1, var(--space-1)); margin: 0; padding: 0 var(--bl-s-2, var(--space-2)); background: var(--lcd); color: var(--lcd-ink); }
+.ti-reading__value { font-family: var(--bl-mono, var(--font-mono)); font-size: var(--text-2xl); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.ti-reading__unit { font-size: var(--bl-text-md, var(--text-md)); font-weight: 600; }
+.ti-reading__off { font-size: var(--bl-text-md, var(--text-md)); font-weight: 600; letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.ti-key {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0 var(--bl-s-2, var(--space-2));
+  border: 1.5px solid var(--bl-ink, var(--ink));
+  border-radius: var(--radius-s);
+  background: var(--bl-paper, var(--paper));
+  color: var(--bl-ink, var(--ink));
+  font: inherit;
+  font-size: var(--bl-text-sm, var(--text-sm));
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+}
+.ti-key:hover { background: var(--bl-sunk, var(--surface-sunk)); }
+.ti-key:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ti-slip .bl-replace { position: static; transform: none; }
+
+@keyframes ti-in { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 639px) {
+  .ti-slip { left: 50%; right: auto; width: max-content; transform: translateX(-50%); }
+}

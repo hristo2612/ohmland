@@ -18,7 +18,7 @@ import { prefersReducedMotion } from "../../progress/prefs";
 import { LabAudio } from "../../lab/audio";
 import { buildBench, type SimInput } from "../../lab/build";
 import { BenchSurfaceChunk, type BenchController, type BenchViewKind } from "../../lab/bench-view";
-import { ConnectionsPanel, ControlsPanel, MeterPanel, ScopePanel, ViewsPanel } from "../../lab/instruments";
+import { ConnectionsPanel, ControlsPanel, ScopePanel, ViewsPanel } from "../../lab/instruments";
 import { LabPanels } from "../../lab/panels-ui";
 import { LoggerPanel, StopwatchPanel, TapperPanel } from "../../lab/timing";
 import { friedLabel } from "../../lab/labels";
@@ -33,6 +33,7 @@ import { Annotations, useSize, useViewTick } from "./Annotations";
 import { holeName, type PinName } from "./flow";
 import { allHoles, choiceScale, namedParts, resolveAnchor, wholeTargets, type Mark } from "./marks";
 import { ResistorSlider } from "./ResistorSlider";
+import { ContinuityInk, MeterInk, continuityFor } from "./ToolInk";
 import { CoachMark } from "./CoachMark";
 import { coachAnchors, firstMove } from "./coach";
 import type { Popup } from "../../content/schema";
@@ -426,11 +427,19 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
 
   // Frame and spotlight the parts in play (a whole-bench view when none are named), in the part of the bench the
   // docked tool leaves free. On a phone the bench is small, so a beat about one part brings that part close.
+  const tool = props.tool ?? defaultTool(lab, props.gate);
+  // A continuity table is drawn on its part, and stays there until the beat ends (its discovery reads off the arcs).
+  const arcsNow = continuityFor(lab.panels, tool);
+  const beatKey = props.code?.key ?? null;
+  const arcsKept = useRef<{ beat: string | null; id: string } | null>(null);
+  if (arcsNow) arcsKept.current = { beat: beatKey, id: arcsNow.id };
+  const arcs = arcsNow ?? (arcsKept.current?.beat === beatKey ? continuityFor(lab.panels, arcsKept.current.id) : null);
   const spotKey = (props.spot ?? []).join(",");
   // A tap check on a chip's or display's pins: the spotlit part prints no pin numbers, which would answer it.
   const quietPins = props.check?.kind === "targets" && props.check.targets.some((t) => printsPins(bench, t));
-  const frameKey = (props.frame ?? []).join(",");
-  const tool = props.tool ?? defaultTool(lab, props.gate);
+  // Arcs need the part close: it is framed (at a reading scale while the hands work on it).
+  const toolFrame = arcs ? [`part:${arcs.part}`] : [];
+  const frameKey = [...(props.frame ?? []), ...toolFrame].join(",");
   // The docked tool's size: when it comes, goes or changes size the bench is framed again.
   const [dockKey, setDockKey] = useState("");
   // The parts tray, when it shows: the docked tool sits above its strip (a phone) or beside its column, never on it.
@@ -464,7 +473,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     const b = runtime.store.getState().bench;
     const resolve = (list: readonly string[] | null | undefined) => (list ?? []).map((s) => resolveAnchor(b, s)).filter((x): x is string => !!x);
     const spotted = resolve(props.spot);
-    let framed = [...spotted, ...resolve(props.frame)];
+    let framed = [...spotted, ...resolve(props.frame), ...toolFrame];
     c.spotlight(spotted.length ? spotted : null, quietPins ? { pins: false } : undefined);
     const inset: { top?: number; bottom?: number; right?: number } = dockInset(stage);
     const box = stage.getBoundingClientRect();
@@ -568,6 +577,8 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
           {/* The meter's fuse has its own Replace on the docked meter. */}
           <ReplaceLayer controllerRef={controllerRef} bench={bench} items={props.replace.filter((r) => !(r.card.kind === "meter-fuse" && tool === "meter"))} onReplace={(c) => cb.current.onReplace(c)} />
           <TapLayer controllerRef={controllerRef} bench={bench} check={props.check} labelOf={api.labelOf} onTap={(a) => cb.current.onTap(a)} />
+          {tool === "meter" && built.bench.meter && <MeterInk runtime={runtime} controllerRef={controllerRef} act={!!props.gate && !readOnly} readOnly={readOnly} />}
+          {arcs && <ContinuityInk runtime={runtime} controllerRef={controllerRef} panel={arcs} />}
           {props.popup && (
             <PopupCard controllerRef={controllerRef} bench={bench} at={props.popup.at} title={m.lessonBench.popup.resistorTitle}>
               <ResistorSlider runtime={runtime} props={props.popup.props} onDone={() => cb.current.onPopupDone()} />
@@ -650,12 +661,14 @@ function defaultTool(lab: LabDefinition, task: string | null): string | null {
   return lab.panels?.find((p) => p.show?.includes(task))?.id ?? null;
 }
 
-/** One instrument at a time, only when the beat needs it: a slip on the bench's lower edge. */
+/**
+ * One instrument at a time, only when the beat needs it: a slip on the bench's lower edge. The meter and a continuity
+ * table have none: they are drawn on the bench (ToolInk.tsx).
+ */
 function ToolDock({ runtime, built, tool, code }: { runtime: LabRuntime; built: ReturnType<typeof buildBench>; tool: string | null; code: CodeBeat | null }) {
-  if (!tool) return null;
+  if (!tool || tool === "meter" || continuityFor(runtime.lab.panels, tool)?.id === tool) return null;
   let body: ReactNode = null;
-  if (tool === "meter" && built.bench.meter) body = <MeterPanel runtime={runtime} />;
-  else if (tool === "scope" && built.scope) body = <ScopePanel runtime={runtime} config={built.scope} />;
+  if (tool === "scope" && built.scope) body = <ScopePanel runtime={runtime} config={built.scope} />;
   else if (tool === "logger" && built.logger) body = <LoggerPanel runtime={runtime} config={built.logger} />;
   else if (tool === "stopwatch" && built.stopwatch) body = <StopwatchPanel runtime={runtime} config={built.stopwatch} />;
   else if (tool === "tapper" && built.tapper) body = <TapperPanel runtime={runtime} config={built.tapper} />;

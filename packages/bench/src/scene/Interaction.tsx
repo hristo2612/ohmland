@@ -194,6 +194,7 @@ export function useInteraction({
       plug: 2,
       probe: 2,
       dialMode: 3,
+      range: 3,
       dial: 2,
       part: 1,
       wire: 1,
@@ -454,6 +455,8 @@ export function useInteraction({
         case "dial":
         case "dialMode":
           return { kind: "dial" };
+        case "range":
+          return null;
       }
     };
 
@@ -470,9 +473,12 @@ export function useInteraction({
     const dialModeAt = (cx: number, cy: number): MeterMode | null => {
       const m = bench().meter;
       if (!m) return null;
-      const p = planePoint(cx, cy, METER.face);
+      // On the knob's top (where `part:M1/dial` is), not the face under it: seen at a slant, the face plane lies
+      // several mm behind what the pointer is over, and a tap on the knob's middle would turn it toward OFF.
+      const top = METER.face + 4;
+      const p = planePoint(cx, cy, top);
       if (!p) return null;
-      const c = meterLocalToWorld(m, [0, METER.face, METER.dial.z]);
+      const c = meterLocalToWorld(m, [0, top, METER.dial.z]);
       const [lx, lz] = rotateXZ(p.x - c[0], p.z - c[2], -m.rot);
       if (Math.hypot(lx, lz) < 3) return null;
       let a = Math.atan2(lx, -lz);
@@ -1015,12 +1021,17 @@ export function useInteraction({
           if (readOnly) break;
           const m = s.bench.meter;
           if (m) {
-            // A tap on the knob turns it to the position tapped; a tap on its middle, one step on.
+            // A tap on the knob turns it to the position tapped; a tap on its middle, one step on (a long press, one
+            // back: below).
             const i = DIAL_MODES.indexOf(m.mode as (typeof DIAL_MODES)[number]);
             s.setMeterMode(dialModeAt(cx, cy) ?? DIAL_MODES[(i + 1) % DIAL_MODES.length]!);
           }
           break;
         }
+        case "range":
+          // A tap steps the range one up (a long press, one down: below).
+          if (!readOnly) s.stepMeter("range", 1);
+          break;
         case "dialMode":
           if (!readOnly) s.setMeterMode(p.mode);
           break;
@@ -1092,7 +1103,9 @@ export function useInteraction({
         }
         g.longPress = window.setTimeout(() => {
           if (gesture.current === g && !g.moved && !g.flipped && pick.type !== "press") {
-            openMenu(g, g.x0, g.y0);
+            // Held on the dial or the RANGE key, the meter steps back; anywhere else the menu opens.
+            if (pick.type === "dial" || pick.type === "range") store.getState().stepMeter(pick.type, -1);
+            else openMenu(g, g.x0, g.y0);
             gesture.current = null;
             lockCamera(false);
           }
@@ -1241,7 +1254,7 @@ export function useInteraction({
         if (hover !== s.ui.hover) setUi({ hover });
         const fixed = p && (p.type === "part" || p.type === "leg") && s.locked.includes(p.id);
         element.style.cursor = p
-          ? p.type === "press" || p.type === "flip" || p.type === "dialMode" || p.type === "setting" || p.type === "dial"
+          ? p.type === "press" || p.type === "flip" || p.type === "dialMode" || p.type === "setting" || p.type === "dial" || p.type === "range"
             ? "pointer"
             : p.type === "draw"
               ? "crosshair"
@@ -1581,9 +1594,9 @@ export function handleBenchKey(e: KeyboardEvent, store: BenchStore, api: Interac
       if (readOnly) return false;
       const dx = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
       const dz = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
-      if (sel?.type === "meter" && s.bench.meter && dz === 0) {
-        const i = DIAL_MODES.indexOf(s.bench.meter.mode as (typeof DIAL_MODES)[number]);
-        s.setMeterMode(DIAL_MODES[(i + dx + DIAL_MODES.length) % DIAL_MODES.length]!);
+      if (sel?.type === "meter" && s.bench.meter) {
+        // Left and right turn the dial; up and down step the range (the RANGE key).
+        s.stepMeter(dz === 0 ? "dial" : "range", dz === 0 ? (dx < 0 ? -1 : 1) : dz < 0 ? 1 : -1);
         return true;
       }
       if (sel?.type !== "part") return false;

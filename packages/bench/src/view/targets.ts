@@ -8,7 +8,7 @@ import type { Anchor, BenchState, MeterSocket, Vec3 } from "../types";
 
 /**
  * - `part:D1`: a whole part (or the meter, `part:M1`).
- * - `part:M1/display`, `part:M1/dial`, `part:M1/com` (any socket): spots on the meter.
+ * - `part:M1/display`, `part:M1/dial`, `part:M1/range` (its RANGE key), `part:M1/com` (any socket): spots on the meter.
  * - `part:R1/a`: a part's lead; `part:SD1/R1`, `part:BX/lid`, `part:G1/unit`: a named mark on a part (PartDef.marks:
  *   a drawing's symbols, a box's lid, knob and padlock wheels, a gate's flag and unit button, a tag's text).
  * - `lead:TL1`, `wire:W1`: a whole test lead or jumper wire.
@@ -20,7 +20,7 @@ export type ParsedTarget =
   | { type: "wire"; id: string }
   | { type: "anchor"; anchor: Anchor };
 
-export const METER_SPOTS = ["display", "dial", "com", "vohm", "ma", "a10", ...DIAL_MODES] as const;
+export const METER_SPOTS = ["display", "dial", "range", "com", "vohm", "ma", "a10", ...DIAL_MODES] as const;
 
 /**
  * Where a dial position's letter sits on the meter face (`part:M1/dca-ma`, `part:M1/ohm`), in the meter's frame: the
@@ -55,6 +55,7 @@ export function meterSpot(bench: BenchState, sub: string): Vec3 | null {
     return meterLocalToWorld(m, [(x0 + x1) / 2, METER.face + 0.6, (z0 + z1) / 2]);
   }
   if (sub === "dial") return meterLocalToWorld(m, [0, METER.face + 4, METER.dial.z]);
+  if (sub === "range") return meterLocalToWorld(m, [METER.rangeKey.x, METER.face + 2, METER.rangeKey.z]);
   if (sub in METER.sockets.xs) return socketWorld(m, sub as MeterSocket);
   const letter = dialLetterLocal(sub);
   return letter ? meterLocalToWorld(m, letter) : null;

@@ -248,6 +248,7 @@ export const en = {
     marks: {
       display: "display",
       dial: "dial",
+      range: "RANGE key",
       com: "COM socket",
       vohm: "V Ω socket",
       ma: "mA socket",
@@ -279,6 +280,19 @@ export const en = {
       "dca-ma": "mA",
       stress: "stress bar",
     } as Record<string, string>,
+    /** The meter's keys over the bench while its own dial or RANGE key is out of view (ToolInk.tsx). */
+    meterKeys: {
+      dial: (mode: string) => `Dial: ${mode}`,
+      range: (range: string) => `Range: ${range}`,
+      how: "Tap to step on, hold to step back",
+    },
+    /** A continuity table drawn on its part: one arc per pair of legs tested (ToolInk.tsx). */
+    arcs: {
+      /** Labels on an arc for the positions it beeped in: a slider's sides, a one-way toggle, a button. */
+      sides: { a: "A", b: "B", on: "on", off: "off", up: "rest", down: "held" } as Record<string, string>,
+      pair: (a: string, b: string, beeps: string[], silent: string[]) =>
+        `${a} and ${b}: ${[beeps.length ? `beeps at ${beeps.join(" and ")}` : "", silent.length ? `silent at ${silent.join(" and ")}` : ""].filter(Boolean).join(", ")}`,
+    },
     markWheel: (n: number) => `wheel ${n}`,
     markSymbol: (part: string) => `${part} symbol`,
     /**
@@ -957,6 +971,8 @@ export const en = {
     wireColor: "Wire colour",
     leadColor: "Lead colour",
     meter: "Multimeter",
+    meterRange: "Range",
+    meterAuto: "auto",
     testLead: "Clip lead",
     hole: (id: string) => `Hole ${id.toUpperCase()}`,
     canvas: "Workbench. Use the arrow keys to move the selected part, R to rotate, Delete to remove, Space to flip a switch.",

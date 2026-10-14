@@ -71,7 +71,8 @@ Implementation notes (both views):
   and `spotlight` are applied to the new view. `hub.inner()` is the active view's own controller, and `hub.refocus()`
   frames the last focus again (the tray came or went, so the room round the bench changed).
 - Targets besides anchors: `part:<id>` (the meter is `part:M1`), `part:M1/display`, `part:M1/dial`,
-  `part:M1/<socket>`, `lead:<id>` and `wire:<id>` for a whole lead or wire, `part:R1/a` for a part's lead and
+  `part:M1/range` (its RANGE key), `part:M1/<socket>`, `lead:<id>` and `wire:<id>` for a whole lead or wire,
+  `part:R1/a` for a part's lead and
   `part:<id>/<mark>` for a named spot on a part (`PartDef.marks`: a drawing's symbol `part:SD1/R1`, a box's `lid`,
   `knob` and `tag`, a padlock's `wheel1`, a gate's `flag` and `unit`, a tag's `text`), and an LED's stress bar,
   `part:D1/stress` (`stressPoint`, where both views draw the bar). Both views place marks at the same desk point. `parseTarget` and `targetPoint` (a
@@ -157,8 +158,15 @@ under it and lies there). Flow dots, gates, the push hatching and the loop trace
 
 Everything a learner can do in one view works in the other: take parts from the tray, place and move them, stretch
 resistor leads, rotate, delete, wire hole to hole, clip and unclip test leads, move meter probes and plugs, turn the
-meter dial, flip switches, press buttons, use sliders such as light and fingertip, x-ray the breadboard, undo and redo.
-Mouse, touch and keyboard in both.
+meter dial, step its range, flip switches, press buttons, use sliders such as light and fingertip, x-ray the
+breadboard, undo and redo. Mouse, touch and keyboard in both.
+
+The meter is worked on the drawing, the same way in both views: a tap on the knob turns it to where the tap points (a
+tap on its middle, one detent on), a long press turns it one back (the store's `stepMeter`), a tap on a position's
+label goes straight there, and a drag turns it. The RANGE key beside it steps the range: a tap goes up (auto, then each range from the smallest, then auto again), a long
+press goes down. The display shows the range (AUTO, or the range such as 20V) where the dial has more than one. Keys:
+on the focused dial (or the selected meter) left and right turn it and up and down step the range; on the focused
+RANGE key Enter, Space or an arrow up steps up and an arrow down steps down.
 
 When a view is so close that the breadboard's own row letters and strip numbers are out of sight (a phone working at
 a reading scale), both views pin them to the bench's edge beside their rows and strips (`view/Ruler.tsx`), letters
@@ -201,7 +209,7 @@ and bench ops, with the mouse and with a finger:
 - **Edge auto-pan.** Held within 36 px of the bench's edge for a moment, a drag pans the view that way, faster the
   nearer, and the thing in hand follows; the edges the tray covers do not pan.
 - **Dials and switches.** The meter's dial turns by dragging round it, or by tapping the knob where it should point
-  (tapping its middle steps it on); a switch flips on a tap or on a short drag of its lever (a longer drag moves a
+  (tapping its middle steps it on, a long press steps it back); a switch flips on a tap or on a short drag of its lever (a longer drag moves a
   switch that is not locked).
 
 Soldering (Unit 3) is one DOM overlay (`SolderOverlay`) that both renderers mount over their canvas. It places its

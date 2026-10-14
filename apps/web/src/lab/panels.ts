@@ -34,6 +34,23 @@ export function stateOf(part: PlacedPart, lab: LabView): string {
 
 export const cellKey = (a: string, b: string, state: string) => `${a}|${b}@${state}`;
 
+/**
+ * A continuity table drawn on its part (a lesson draws one arc per pair of legs): every pair tested so far, the states
+ * it beeped in and the states it was tested in, in table order, and whether it was tested in the state the part is
+ * in now (`current`, from stateOf).
+ */
+export type ContinuityArc = { a: string; b: string; beeps: string[]; tested: string[]; now: boolean };
+
+export function continuityArcs(part: PlacedPart, cells: Readonly<Record<string, unknown>>, current: string | null): ContinuityArc[] {
+  const states = partStates(part);
+  return legPairs(part).flatMap(([a, b]) => {
+    const tested = states.filter((st) => typeof cells[cellKey(a, b, st)] === "boolean");
+    if (!tested.length) return [];
+    const beeps = tested.filter((st) => cells[cellKey(a, b, st)] === true);
+    return [{ a, b, beeps, tested, now: current !== null && tested.includes(current) }];
+  });
+}
+
 /** Every cell a panel can have (0 for answer panels). */
 export function panelSize(cfg: PanelConfig, bench: BenchState): number {
   if (cfg.kind === "continuity") {

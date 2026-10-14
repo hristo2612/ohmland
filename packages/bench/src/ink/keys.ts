@@ -7,7 +7,7 @@ import { parseAnchor } from "../anchors";
 import { boardGeometry, boardOrigin, parseHole } from "../board";
 import type { BenchLabels } from "../labels";
 import type { InkLabels } from "./labels";
-import { DIAL_MODES, METER, socketWorld } from "../layout";
+import { METER, rangeText, socketWorld, stepDial, stepRange } from "../layout";
 import { connectivity } from "../netlist";
 import * as ops from "../ops";
 import { isThrowSwitch, partLegs } from "../parts";
@@ -341,11 +341,18 @@ export function handleInkKey(e: KeyboardEvent, env: KeyEnv, kb: string | null): 
     }
   }
   if (kb === "dial" && (arrow === "left" || arrow === "right" || e.key === "Enter" || e.key === " ") && s.bench.meter && !ro) {
-    const i = DIAL_MODES.indexOf(s.bench.meter.mode as (typeof DIAL_MODES)[number]);
-    const dx = arrow === "left" ? -1 : 1;
-    const mode = DIAL_MODES[(i + dx + DIAL_MODES.length) % DIAL_MODES.length]!;
+    const mode = stepDial(s.bench.meter.mode, arrow === "left" || (e.key === "Enter" && e.shiftKey) ? -1 : 1);
     s.setMeterMode(mode);
     env.announce(env.labels.meterModes[mode]);
+    return true;
+  }
+  // The RANGE key: Enter, Space or an arrow up steps the range up; an arrow down (or Shift+Enter) steps it down.
+  if (kb === "range" && (arrow || e.key === "Enter" || e.key === " ") && s.bench.meter && !ro) {
+    const next = stepRange(s.bench.meter, arrow === "down" || arrow === "left" || (e.key === "Enter" && e.shiftKey) ? -1 : 1);
+    if (next) {
+      s.setMeterRange(next);
+      env.announce(`${env.labels.meterRange}: ${next === "auto" ? env.labels.meterAuto : rangeText(next)}`);
+    }
     return true;
   }
 
@@ -381,9 +388,13 @@ export function handleInkKey(e: KeyboardEvent, env: KeyEnv, kb: string | null): 
     if (ro) return false;
     const dx = arrow === "left" ? -1 : arrow === "right" ? 1 : 0;
     const dz = arrow === "up" ? -1 : arrow === "down" ? 1 : 0;
-    if ((sel?.type === "meter" || kb === "meter") && s.bench.meter && dz === 0) {
-      const i = DIAL_MODES.indexOf(s.bench.meter.mode as (typeof DIAL_MODES)[number]);
-      s.setMeterMode(DIAL_MODES[(i + dx + DIAL_MODES.length) % DIAL_MODES.length]!);
+    if ((sel?.type === "meter" || kb === "meter" || kb === "dial") && s.bench.meter) {
+      // Left and right turn the dial; up and down step the range.
+      if (dz === 0) s.setMeterMode(stepDial(s.bench.meter.mode, dx < 0 ? -1 : 1));
+      else {
+        const next = stepRange(s.bench.meter, dz < 0 ? 1 : -1);
+        if (next) s.setMeterRange(next);
+      }
       return true;
     }
     if (sel?.type !== "part") {

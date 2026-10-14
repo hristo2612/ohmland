@@ -5,20 +5,32 @@
  */
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { DIAL_MODES, partLegs, terminalNumber, type MeterMode, type MeterSocket } from "@ohmland/bench/core";
+import { DIAL_MODES, METER_RANGES, partLegs, terminalNumber, type MeterSocket, type MeterState } from "@ohmland/bench/core";
 import { Icon } from "../components/Icon";
 import { m } from "../i18n";
 import type { ControlConfig, OverlayName, Reading, ScopeConfig, ScopeLevel, ScopeTrace } from "./define";
 import type { LabRuntime } from "./runtime";
 import { formatSpan } from "./signals";
 
-const RANGES: Partial<Record<MeterMode, string[]>> = {
-  dcv: ["200mV", "2V", "20V", "200V", "600V"],
-  acv: ["2V", "20V", "200V", "600V"],
-  ohm: ["200", "2k", "20k", "200k", "2M", "20M"],
-  "dca-ma": ["200uA", "2mA", "20mA", "200mA"],
-  "dca-10a": ["10A"],
-};
+/** Where the red lead belongs when it is in the wrong socket for the dial, and the line that says why. */
+export type SocketAdvice = { socket: MeterSocket; why: "wrongSocket" | "needCurrentSocket" };
+
+/**
+ * The red lead's socket against the dial: in a current socket on a volts or ohms position (touching a battery would
+ * blow the fuse), or out of the current socket on a current position. Null when it is right, and also when the probes
+ * sit across a voltage on a current position: moved there, the meter would short the battery and blow its fuse, so it
+ * says nothing, and its reading (zero) shows the mistake (a fix-it round about the dial keeps its answer).
+ */
+export function socketAdvice(meter: MeterState, volts: (a: string, b: string) => number | undefined): SocketAdvice | null {
+  const red = meter.probes.red.socket;
+  const current = meter.mode === "dca-ma" || meter.mode === "dca-10a";
+  if (!current) return red === "ma" || red === "a10" ? { socket: "vohm", why: "wrongSocket" } : null;
+  const want: MeterSocket = meter.mode === "dca-10a" ? "a10" : "ma";
+  if (red === want) return null;
+  const [a, b] = [meter.probes.red.tip.to, meter.probes.black.tip.to];
+  if (a && b && Math.abs(volts(a, b) ?? 0) > 0.3) return null;
+  return { socket: want, why: "needCurrentSocket" };
+}
 
 /** "200uA" -> "200 µA", "2k" -> "2 kΩ", "20V" -> "20 V". */
 export function rangeLabel(r: string): string {
@@ -39,18 +51,12 @@ export function MeterPanel({ runtime, compact = false }: { runtime: LabRuntime; 
   const unit = off ? "" : state?.unit ?? "";
   const fuseBlown = state?.extra?.["fuse"] === "blown";
   const range = meter.range ?? "auto";
-  const ranges = RANGES[meter.mode] ?? [];
+  const ranges = METER_RANGES[meter.mode] ?? [];
   const red = meter.probes.red.socket;
   const black = meter.probes.black.socket;
   const name = (s: MeterSocket | null) => (s ? m.lab.meter.socketNames[s] ?? s : m.lab.meter.unplugged);
-  const current = meter.mode === "dca-ma" || meter.mode === "dca-10a";
-  // Current needs the red lead in a current socket, but not with the probes across a voltage (a battery's
-  // terminals): moved there, the meter would short it and blow its fuse. Then the panel says nothing: the reading
-  // (zero) shows the mistake, and a fix-it round about it keeps its answer.
-  const needSocket = current && red !== (meter.mode === "dca-10a" ? "a10" : "ma");
-  const tips = [meter.probes.red.tip.to, meter.probes.black.tip.to];
-  const across = needSocket && !!tips[0] && !!tips[1] && Math.abs(runtime.session.view().volts(tips[0]!, tips[1]!) ?? 0) > 0.3;
-  const warn = !current && (red === "ma" || red === "a10") ? m.lab.meter.wrongSocket : needSocket && !across ? m.lab.meter.needCurrentSocket : null;
+  const advice = socketAdvice(meter, (a, b) => runtime.session.view().volts(a, b));
+  const warn = advice ? m.lab.meter[advice.why] : null;
   const probesFree = !meter.probes.red.tip.to && !meter.probes.black.tip.to;
   const over = /OL/.test(display);
 
