@@ -14,6 +14,7 @@ import { fitRect, growRect, rectOfPoints, type Pad, type Rect } from "./camera";
 import { BoardBase, BoardHoles, BoardXray } from "./draw/Board";
 import { GlowLayer, LeadView, PartView, SmokeLayer, WireView } from "./draw/layers";
 import { Marks } from "./draw/Marks";
+import { BoxWires, InkOverlays, InkPush } from "./draw/Overlays";
 import { MeterBody, MeterLeads } from "./draw/Meter";
 import { Readouts } from "./draw/Readouts";
 import { DefsContext, InkDefs } from "./draw/shared";
@@ -416,7 +417,7 @@ export function BenchInk(props: BenchInkProps) {
                   </>
                 )}
                 {parts
-                  .filter((p) => p.layer === 0)
+                  .filter((p) => p.layer === 0 && p.along === undefined)
                   .map((pi) => (
                     <PartView key={pi.part.id} pi={pi} store={store} name={nameOf(pi.part.id)} />
                   ))}
@@ -425,15 +426,24 @@ export function BenchInk(props: BenchInkProps) {
                   <WireView key={wi.wire.id} wi={wi} name={`${labels.wire} ${wi.wire.id}, ${wi.wire.a} ${wi.wire.b}`} />
                 ))}
                 {parts
-                  .filter((p) => p.layer > 0)
+                  .filter((p) => p.layer > 0 && p.along === undefined)
                   .map((pi) => (
                     <PartView key={pi.part.id} pi={pi} store={store} name={nameOf(pi.part.id)} />
                   ))}
+                <BoxWires model={model} />
                 {model.meter && <MeterBody mi={model.meter} store={store} name={labels.meter} />}
+                <InkPush model={model} store={store} defs={defsId} />
                 {[...model.leads.values()].map((li) => (
                   <LeadView key={li.lead.id} li={li} held={keyState.carry?.kind === "clip" && keyState.carry.id === li.lead.id ? keyState.carry.end : null} names={[`${labels.testLead} ${li.lead.id} a`, `${labels.testLead} ${li.lead.id} b`]} />
                 ))}
                 {model.meter && <MeterLeads mi={model.meter} held={keyState.carry?.kind === "probe" ? keyState.carry.color : null} labels={labels} />}
+                <InkOverlays model={model} store={store} />
+                {/* Gates ride the cables, over the leads and the dots. */}
+                {parts
+                  .filter((p) => p.along !== undefined)
+                  .map((pi) => (
+                    <PartView key={pi.part.id} pi={pi} store={store} name={nameOf(pi.part.id)} />
+                  ))}
                 <SmokeLayer parts={parts} store={store} />
               </g>
               {dimRoom && <rect width="100%" height="100%" className="ohi-room" style={{ opacity: Math.min(0.82, (1 - ambient) * 0.9) }} />}

@@ -359,6 +359,20 @@ const popupSchema = z.strictObject({
   props: z.record(z.string(), z.unknown()).default({}),
 });
 
+/**
+ * The one instrument or panel a moment shows: meter, scope, logger, stopwatch, tapper, controls, views (the lab's
+ * overlay toggles), or a lab panel id.
+ */
+const toolSchema = z.string().trim().regex(/^[a-z0-9-]+$/, "must be meter, scope, logger, stopwatch, tapper, controls, views or a panel id");
+
+/**
+ * One bench step in a lesson file: a lab solution step ({ do: param, part: PL1, params: { wheel1: 3 } }). Its fields are
+ * checked against the lab by apps/web/src/lesson/bench/lessons.test.ts, which applies it to the bench.
+ */
+const benchStepSchema = z.looseObject({
+  do: z.enum(["place", "move", "rotate", "remove", "lead", "clip", "wire", "unwire", "probe", "plug", "dial", "flip", "param", "action", "set", "control", "view", "trace"]),
+});
+
 /** A prediction right before an action: the learner guesses, then does it and sees. Never graded. */
 const guessSchema = z
   .strictObject({ options: z.array(chip).min(2).max(3), answer: chip.optional() })
@@ -375,10 +389,16 @@ export const beatSchema = z
     /** Show the metal strips inside the breadboard during this beat. */
     xray: z.boolean().optional(),
     /**
-     * The one instrument or panel this beat needs: meter, scope, logger, stopwatch, tapper, controls, or a lab panel
-     * id. Without it, a lab panel tied to the beat's task (its `show`) appears; otherwise none.
+     * Run the loop tracer from this terminal (B1.neg) once the beat's action is done (the right tap), or as the beat
+     * begins when it has nothing to do. Its ink clears when the beat ends.
      */
-    tool: z.string().trim().regex(/^[a-z0-9-]+$/, "must be meter, scope, logger, stopwatch, tapper, controls or a panel id").optional(),
+    trace: anchor.optional(),
+    /**
+     * The one instrument or panel this beat needs: meter, scope, logger, stopwatch, tapper, controls, views (the lab's
+     * overlay toggles), or a lab panel id. Without it, a lab panel tied to the beat's task (its `show`) appears;
+     * otherwise none.
+     */
+    tool: toolSchema.optional(),
 
     // One thing to do (at most one of these; none means a plain Next).
     /** The three-period lesson's first period: name a part ("This is an LED."). Tap it to go on. */
@@ -393,6 +413,12 @@ export const beatSchema = z
 
     /** A guess before a `do` action. */
     guess: guessSchema.optional(),
+    /**
+     * Bench steps (the lab's solution steps, in YAML) applied once a tap, pick or number check is answered right: a
+     * padlock wheel turned to the digit just found. Steps that set a state (param, flip with `to`, clip), so a resumed
+     * lesson can apply them again.
+     */
+    then: z.array(benchStepSchema).min(1).max(8).optional(),
     /** A nudge after a wrong tap, pick or number (a `do` beat uses its lab task's hints). On demand. */
     hint: onDemand.optional(),
     /** Lines for particular wrong taps or picks, by anchor or option text. On demand. */
@@ -416,6 +442,7 @@ export const beatSchema = z
     if (b.guess && !b.do) ctx.addIssue({ code: "custom", message: "a guess goes before a do action", path: ["guess"] });
     if (b.note?.at === "tap" && !b.tap) ctx.addIssue({ code: "custom", message: "at: tap needs a tap beat", path: ["note", "at"] });
     if (b.wrong && !b.tap && !b.pick) ctx.addIssue({ code: "custom", message: "wrong lines go with a tap or a pick", path: ["wrong"] });
+    if (b.then && !b.tap && !b.pick && !b.number) ctx.addIssue({ code: "custom", message: "then goes with a tap, pick or number check", path: ["then"] });
   });
 
 /** Every line on a bench lesson's main path, for the word budget (hints and wrong lines are on demand). */
@@ -470,11 +497,21 @@ const benchLessonObject = z.strictObject({
       tasks: z.array(z.strictObject({ task: labId, say: line.optional() })).min(1).max(3),
       /** Seconds on the optional clock. */
       timer: z.number().int().min(20).max(300).default(60),
+      /** The one instrument or panel the round needs (the meter, to change its range), as on a beat. */
+      tool: toolSchema.optional(),
     })
     .optional(),
   /** The secret bonus: a bonus lab task, offered at the end if the learner has not found it by then. */
   secret: z
-    .strictObject({ task: labId, say: line, done: line.optional(), note: noteSchema.optional(), rule: ruleLine.optional() })
+    .strictObject({
+      task: labId,
+      say: line,
+      done: line.optional(),
+      note: noteSchema.optional(),
+      rule: ruleLine.optional(),
+      /** The one instrument or panel the secret needs, as on a beat. */
+      tool: toolSchema.optional(),
+    })
     .optional(),
   /** The robot's last line, on the signed-off notebook page. */
   end: z.strictObject({ say: line }),

@@ -88,6 +88,12 @@ Every beat has a robot line (`say`) and at most one thing to do:
 | `popup: { widget, at, props }` | plays with the lesson's one pop-up card | "Got it" |
 | nothing | reads, then taps Next | Next |
 
+A `do` beat whose lab task declares a `note` (a number read off the bench, `lab.note(id)` in `docs/LABS.md`) shows a
+box for it under the robot's line, labelled with the note's `label` and `unit`. The learner types the number and
+presses Enter (or Check); the task's goal judges it against the bench, and if the task is still open a moment later the
+robot nudges. Use it when the bench decides the right answer (a measured τ that depends on the parts); use `number`
+when one fixed answer is right.
+
 Optional, on any beat:
 
 - `objective`: starts an objective (a few words). The robot's eyes fill in equal steps as each objective (and the
@@ -96,11 +102,21 @@ Optional, on any beat:
   themselves; leave `spot` out when the result shows somewhere else (a switch that lights a lamp).
 - `guess` (only with `do`): an ungraded prediction just before the action. The notebook keeps it in blue ink.
 - `done`, `note`, `rule`: the discovery. A beat with any of them ends on a Next button so the learner can read it; a
-  beat without one moves on by itself after a beat of the robot's success line.
+  beat without one moves on by itself after a beat of the robot's success line. A beat with nothing to do draws its
+  `note` and stamps its `rule` as it begins, beside its line, and the learner taps Next when they have read it.
 - `hint` (checks) and `wrong` (lines for particular wrong taps or chips). A `do` beat uses its lab task's `hints`.
+- `then` (checks): bench steps, written as the lab's solution steps, applied once the tap, pick or number is right,
+  the way a setup is applied: `then: [{ do: param, part: PL1, params: { wheel1: 3 } }]` turns a padlock's first wheel
+  to the digit just found. Use steps that set a state (`param`, `flip` with `to`, `clip`): a resumed lesson applies
+  them again. A step that needs the bench to keep its new state through a later task's setup belongs in the lab's
+  solution as well.
 - `xray: true`: the breadboard's metal strips show during the beat.
-- `tool`: the one instrument or panel the beat needs: `meter`, `scope`, `logger`, `stopwatch`, `tapper`, `controls`
-  or a lab panel id. Without it, a lab panel tied to the beat's task (its `show`) appears. Never two at once.
+- `trace: B1.neg`: the loop tracer runs from that terminal once the beat's action is done (the right tap on it, the
+  task's goal met), or as the beat begins when it has nothing to do. Its red pencil line clears when the beat ends.
+- `tool`: the one instrument or panel the beat needs: `meter`, `scope`, `logger`, `stopwatch`, `tapper`, `controls`,
+  `views` (the lab's overlay toggles, Flow, Electrons and Push, from `overlays.offer`) or a lab panel id. Without it, a lab panel tied to the beat's task (its `show`) appears. Never two at once. The
+  fix-it round and the secret take a `tool` too (`fixit: { tool: meter, ... }`, `secret: { tool: meter, ... }`): the
+  meter's range, for one, can only be changed on its panel.
 
 Anchors (`at`, `answer`, `among`, `on`, `spot`) use the lab's shorthand: a part `D1`, a lead `D1.anode`, a hole `e12`
 or `rail+:21`, a clip lead end `TL1.a`, a jumper end `W1.b`, or a raw bench anchor (`pin:D1.anode`, `part:D1`).
@@ -130,8 +146,10 @@ const SWAP_BATTERY: SolutionStep[] = [{ do: "clip", lead: "TL1", end: "a", to: "
 [...earlierSteps, { do: "check", task: "flip-back" }, ...SWAP_BATTERY, ...fixSteps, { do: "check", task: "fix-reversed" }]
 ```
 
-A fix-it goal should need the broken state first (the `memory` pattern above), so a bench that never broke does not
-count. The clock is the learner's choice ("Race the clock"); nothing happens when it runs out.
+The setup's own simulator inputs (a meter's mode or range set with a `dial` step) are sent after the checkpoint's, so
+`{ do: "dial", mode: "dcv", range: "200V" }` really leaves the meter on 200 V. A fix-it goal should need the broken
+state first (the `memory` pattern above), so a bench that never broke does not count. The clock is the learner's
+choice ("Race the clock"); nothing happens when it runs out.
 
 ## Order and the lab
 

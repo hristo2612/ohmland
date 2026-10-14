@@ -23,7 +23,9 @@ export function visualKey(p: PartState | undefined): string {
   const arm = typeof p.extra?.["armature"] === "number" ? Math.round((p.extra["armature"] as number) * 20) : "";
   const blown = p.extra?.["blown"] === true ? 1 : 0;
   const beep = p.extra?.["beep"] === true ? 1 : 0;
-  return `${p.health}|${Math.round((p.glow ?? 0) * 50)}|${p.closed ? 1 : 0}|${p.display ?? ""}|${p.unit ?? ""}|${arm}|${blown}|${beep}|${extraLookKey(p)}`;
+  // A microcontroller board's own lamps (L and ON) live in its extra.
+  const lamps = typeof p.extra?.["ON"] === "number" ? `${Math.round((p.extra["L"] as number) * 50)}:${Math.round((p.extra["ON"] as number) * 50)}` : "";
+  return `${p.health}|${Math.round((p.glow ?? 0) * 50)}|${p.closed ? 1 : 0}|${p.display ?? ""}|${p.unit ?? ""}|${arm}|${blown}|${beep}|${lamps}|${extraLookKey(p)}`;
 }
 
 /** A part's simulator state, re-rendering only when something visible changes (not 30 times a second). */
@@ -41,6 +43,9 @@ export function InkDefs({ id }: { id: string }) {
       </pattern>
       <pattern id={`${id}-hatch-big`} patternUnits="userSpaceOnUse" width="3.2" height="3.2" patternTransform="rotate(45)">
         <path d="M0 0V3.2" style={{ stroke: "var(--k-ink)", strokeWidth: 0.35, opacity: 0.3 }} />
+      </pattern>
+      <pattern id={`${id}-push`} patternUnits="userSpaceOnUse" width="2.2" height="2.2" patternTransform="rotate(-35)">
+        <path d="M0 0V2.2" style={{ stroke: "var(--k-red)", strokeWidth: 0.4, opacity: 0.75 }} />
       </pattern>
       <pattern id={`${id}-speckle`} patternUnits="userSpaceOnUse" width="5" height="5">
         <path d="M0.6 0.8h0.4M3.1 2.2h0.4M1.8 3.9h0.4M4.2 4.4h0.3" style={{ stroke: "var(--k-ink-3)", strokeWidth: 0.35, opacity: 0.5 }} />

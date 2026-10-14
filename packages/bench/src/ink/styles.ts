@@ -125,6 +125,23 @@ const LIGHT = `
   --k-aa-nimh: #3E8A57;
   --k-aa-lithium: #6A6F78;
   --k-room: #0E0D0C;
+  --k-cardboard: #DCC6A2;
+  --k-cardboard-dark: #C4A982;
+  --k-foil: #D6DADF;
+  --k-silver: #C9C8C1;
+  --k-spoon: #F3EFE6;
+  --k-marble: #BFE0E6;
+  --k-coat: #3E7CC7;
+  --k-string: #E3D6BA;
+  --k-mno2: #3A3632;
+  --k-zinc-gel: #B9BDC2;
+  --k-separator: #F4EFE3;
+  --k-balloon-red: #D9483B;
+  --k-balloon-blue: #3F6CC8;
+  --k-balloon-yellow: #E8BE2C;
+  --k-wool: #B8574A;
+  --k-wall: #EFE7D6;
+  --k-wall-line: #D8CCB2;
   --k-tape: #EFE6CF;
   --k-warm: #C2562E;
   --k-dipsw: #3360C2;
@@ -257,6 +274,23 @@ const DARK = `
   --k-aa-nimh: #3A7A50;
   --k-aa-lithium: #5A5F68;
   --k-room: #000000;
+  --k-cardboard: #6E5A42;
+  --k-cardboard-dark: #5A4834;
+  --k-foil: #8E949A;
+  --k-silver: #8F8E88;
+  --k-spoon: #CFC9BC;
+  --k-marble: #4F7A82;
+  --k-coat: #5E8DD0;
+  --k-string: #9A8F78;
+  --k-mno2: #121110;
+  --k-zinc-gel: #7E8388;
+  --k-separator: #C9C3B5;
+  --k-balloon-red: #C8503F;
+  --k-balloon-blue: #5A7FD0;
+  --k-balloon-yellow: #C9A227;
+  --k-wool: #8A3F35;
+  --k-wall: #3A3631;
+  --k-wall-line: #4C4740;
   --k-tape: #D9CFB4;
   --k-warm: #D9683C;
   --k-dipsw: #3F69C8;
@@ -332,6 +366,27 @@ export const INK_CSS = `
 .ohi-root .t-rail-pos{fill:var(--k-rail-pos)}.ohi-root .t-rail-neg{fill:var(--k-rail-neg)}
 .ohi-root .print{fill:var(--k-ink-3)}
 .ohi-root .print-light{fill:var(--k-print)}
+
+.ohi-root .f-cardboard{fill:var(--k-cardboard)}.ohi-root .f-cardboard-dark{fill:var(--k-cardboard-dark)}.ohi-root .f-foil{fill:var(--k-foil)}
+.ohi-root .f-silver{fill:var(--k-silver)}.ohi-root .f-spoon{fill:var(--k-spoon)}.ohi-root .f-marble{fill:var(--k-marble);fill-opacity:.85}
+.ohi-root .f-coat{fill:var(--k-coat)}.ohi-root .s-coat{stroke:var(--k-coat);fill:none}.ohi-root .s-string{stroke:var(--k-string);fill:none}
+.ohi-root .f-mno2{fill:var(--k-mno2)}.ohi-root .f-zinc-gel{fill:var(--k-zinc-gel)}.ohi-root .f-sep{fill:var(--k-separator)}
+.ohi-root .f-wool{fill:var(--k-wool)}.ohi-root .f-wall{fill:var(--k-wall)}.ohi-root .s-wall{stroke:var(--k-wall-line);fill:none}
+.ohi-root .f-balloon-red{fill:var(--k-balloon-red)}.ohi-root .f-balloon-blue{fill:var(--k-balloon-blue)}.ohi-root .f-balloon-yellow{fill:var(--k-balloon-yellow)}
+.ohi-root .s-ink{stroke:var(--k-ink);fill:none}.ohi-root .s-red{stroke:var(--k-red);fill:none}.ohi-root .f-red-pencil{fill:var(--k-red)}
+
+/* Teaching overlays: flow dots (paper dots ringed in ink), electrons (ink dashes), push (red pencil hatching), the
+   loop tracer (a red pencil line). Physical sizes: they scale with the desk. */
+.ohi-root .ov{pointer-events:none}
+.ohi-root .flow-halo{fill:none;stroke:var(--k-ink);stroke-linecap:round}
+.ohi-root .flow-dot{fill:none;stroke:var(--k-slip);stroke-linecap:round}
+.ohi-root .flow-e{fill:none;stroke:var(--k-ink);stroke-linecap:butt}
+.ohi-root .flow-e-halo{fill:none;stroke:var(--k-slip);stroke-linecap:round}
+.ohi-root .push-hatch{fill:none;stroke:var(--k-red);opacity:.62}
+.ohi-root .push-hill{fill:var(--k-red-wash);fill-opacity:.55;stroke:var(--k-red);stroke-width:1.4px;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+.ohi-root .push-hill-hatch{fill:none;stroke:var(--k-red);stroke-width:.32;opacity:.8}
+.ohi-root .trace{fill:none;stroke:var(--k-red);stroke-linecap:round;stroke-linejoin:round;opacity:.9}
+.ohi-root .trace-mark{fill:none;stroke:var(--k-red);stroke-width:2.2px;vector-effect:non-scaling-stroke;stroke-linecap:round}
 
 /* Breadboard x-ray: the metal clips under the plastic. */
 .ohi-root .strip{fill:var(--k-strip-wash);stroke:var(--k-strip);stroke-width:var(--lw-thin,1px);vector-effect:non-scaling-stroke}

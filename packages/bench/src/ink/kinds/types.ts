@@ -18,6 +18,8 @@ export type ShapeCtx = {
   span?: number;
   /** Sitting in a holder's seat (a resistor holder, a battery tester's bay, a lemon slot, the reject bin). */
   held: boolean;
+  /** Laid on its back in its seat (a 9 V battery in a sealed box). */
+  lie?: boolean;
 };
 
 export type Actuator = { type: "press" | "flip" | "rotor"; x: number; z: number; r: number };

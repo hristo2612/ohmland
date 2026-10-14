@@ -102,6 +102,7 @@ Kinds added for the later units (Units 3 to 5):
 | `logic` | by datasheet name (`LOGIC_PINOUTS[model]` lists them in pin-number order) | `model` | `74HC00`, `74HC02`, `74HC04`, `74HC08`, `74HC14`, `74HC27`, `74HC32`, `74HC74`, `74HC86`, `74HC393`, `4026B`. Pins may be left out (an unconnected input floats). |
 | `sevenseg` | `a` to `g`, `dp`, `com`, `com2` (`SEVENSEG_PINS` gives the 10-pin order) | `common` (`"cathode"` or `"anode"`), `color` = red, `maxmA` = 25 | Eight LEDs on one common pin; `com2` is joined to `com` inside. |
 | `regulator7805` | `in`, `gnd`, `out` (TO-220 order) | `heatsink` = false | 5 V linear regulator. |
+| `mcuboard` | `d0` to `d13`, `a0` to `a5`, `5v`, `gnd`, `vin` (`MCU_PINS`) | `program` (bench C source), `upload` = 0, `power` = `"usb"`, `jackVolts` = 9, `clockStart` = 0 (ms), `seed` = 1 | An Uno-style microcontroller board running a program. See "Microcontroller board". |
 
 Pin names for the logic chips: quad 2-input gates (`00 02 08 32 86`) `a1 b1 y1` to `a4 b4 y4`; hex inverters
 (`04 14`) `a1 y1` to `a6 y6`; triple 3-input NOR (`27`) `a1 b1 c1 y1` to `a3 b3 c3 y3`; dual D flip-flop (`74`)
@@ -143,6 +144,7 @@ minus second pin. Per kind:
 | logic | `i` supply current into the vcc (vdd) pin, `v` supply voltage | `extra.model`, `family` (`74HC`, `4000B`), `powered`, `damage`; one entry per logic pin by name: inputs `L` / `H` / `X` (undefined, between 0.3 and 0.7 of the supply) / `Z` (unpowered), outputs `L` / `H` / `Z` (floating) / `~` (oscillation guard); `oscillating`; 74: `state1`, `state2`; 393: `count1`, `count2`; 4026B: `count`, `digit` |
 | sevenseg | `i` total segment current, `v` largest segment voltage, `glow` brightest segment | `extra.a` to `extra.g`, `extra.dp`: per-segment glow 0..1; `lit` (segments with glow above 0.3, as `"abcdg"`), `digit` (`"0"` to `"9"`, `"-"`, `" "` for dark, `""` for no digit), `common`, `color`, `dead` (dead segments) |
 | regulator7805 | `i` current delivered from `out`, `v` = out minus gnd, `p` heat, `temp` junction | `extra.vin`, `vset` (this part's set point), `caseTemp`, `dropout` (input too low to regulate), `limiting` (current limit), `shutdown` (thermal), `heatsink`, `damage` |
+| mcuboard | `i` current from the board's own supply (USB or the jack battery), `v` = 5V rail minus GND; `health` `hot` once a pin has burned out, `dead` when the chip is | `extra.power`, `powered`, `program` (`none`, `running`, `error`, `stopped`, `off`), `error` (`"2:3 Did you mean digitalWrite? ..."` or a runtime stop), `line` (the line running now), `millis`, `upload`, `modes` (20 characters, D0 to A5: `I` input, `U` pull-up, `O` output, `P` PWM), `levels` (`H`/`L`, `h`/`l` between the datasheet bands, `-` off), `volts` and `mA` (20 comma-separated values; mA out of the pin), `L`, `ON` (lamp glow), `serial` (the last 600 characters sent), `serialChars`, `deadPins`, `usbFuse`. `mcuPin(state, n)` reads one pin as `{ mode, level, volts, mA, dead }`. The board's lamps are parts of their own: `U1:L` and `U1:ON` (`glow`, `i`) |
 
 `nodes` lists every node name in the netlist (wired-together names share a voltage) plus `gnd` at 0 V. Pins a part
 leaves out appear as `<id>.<pin>~float`.
@@ -151,16 +153,17 @@ leaves out appear as `<id>.<pin>~float`.
 
 | Type | Raised by | When | `data` |
 |---|---|---|---|
-| `died` | led, diode, npn, resistor, pot, capacitor, speaker, switches and relays, inductor, timer555, logic, sevenseg (one segment), regulator7805 | part fails (open circuit from then on) | amps, watts or volts, ratings; `cause` where there are several: capacitor `reverse` / `overvoltage`, npn and diode `overcurrent` / `overheat`, speaker and inductor `overpower`, contacts `worn`; chips `overvoltage` (supply, or an input driven beyond the rails), `reverse` (supply backwards), `overcurrent` (an output, or the 555's pin 7), `overheat`; regulator `overheat`, `overvoltage`, `reverse`; sevenseg adds `segment` |
+| `died` | led, diode, npn, resistor, pot, capacitor, speaker, switches and relays, inductor, timer555, logic, sevenseg (one segment), regulator7805, mcuboard (one pin, or the chip) | part fails (open circuit from then on; a board pin that burns out floats, the rest of the board works) | amps, watts or volts, ratings; `cause` where there are several: capacitor `reverse` / `overvoltage`, npn and diode `overcurrent` / `overheat`, speaker and inductor `overpower`, contacts `worn`; chips `overvoltage` (supply, or an input driven beyond the rails), `reverse` (supply backwards), `overcurrent` (an output, or the 555's pin 7), `overheat`; regulator `overheat`, `overvoltage`, `reverse`; sevenseg adds `segment`; mcuboard adds `pin` for a pin (`cause: "overcurrent"`), the chip dies of `overvoltage` (over 6 V on 5V) or `overcurrent` (over 200 mA through all pins) |
 | `damaged` | led, npn, capacitor, diode, speaker, timer555, logic, sevenseg, regulator7805 | wear has started (not sent when the part dies within a blink) | as for `died` |
 | `smoke` | resistor, pot, npn, speaker, inductor, timer555, logic | health becomes smoking (chips: above 150 °C inside) | watts, temp |
 | `blown` | fuse | element melts | amps (peak), rating, seconds |
 | `meter-fuse` | multimeter | internal 200 mA fuse melts | amps, rating |
 | `shorted` | battery, cell | terminal voltage collapsed under load for 0.1 s (also with a forward diode straight across it) | amps, volts |
-| `reversed` | led (more than 5 V backwards), capacitor (polarised, reversed; `cause: "reverse"`), battery (forced backwards), npn (collector and emitter swapped), phototransistor (backwards) | | volts or amps |
+| `reversed` | led (more than 5 V backwards; `data.risk` is `"none"` or `"damage"`, see LED), capacitor (polarised, reversed; `cause: "reverse"`), battery (forced backwards), npn (collector and emitter swapped), phototransistor (backwards) | | volts or amps |
 | `clicked` | relay | contacts move; merged per snapshot with `data.count` | contact, `to` (`no` / `nc`), count |
 | `spark` | switch, pushbutton, spdt, dpdt, relay | opening contacts arc: something inductive drove the gap past about 300 V; merged per snapshot with `data.count` | volts, sparks, wear |
-| `warning` | multimeter, timer555, logic, regulator7805 | no damage yet. Meter: the 10 A input has carried more than 1 A for over 10 s (`a10-heat`). 555: running below its minimum supply (`undervoltage`). Logic: an output over its current limit for 20 ms, shorted to a rail or fighting another output (`overload`, with `pin`); supply above the recommended maximum (`overvoltage`); an output fed back on itself oscillating at megahertz (`oscillating`, with `pin`). Regulator: thermal shutdown (`thermal-shutdown`) | amps, volts, seconds, temp, cause |
+| `warning` | multimeter, timer555, logic, regulator7805, mcuboard | no damage yet. Meter: the 10 A input has carried more than 1 A for over 10 s (`a10-heat`). 555: running below its minimum supply (`undervoltage`). Logic: an output over its current limit for 20 ms, shorted to a rail or fighting another output (`overload`, with `pin`); supply above the recommended maximum (`overvoltage`); an output fed back on itself oscillating at megahertz (`oscillating`, with `pin`). Regulator: thermal shutdown (`thermal-shutdown`). Board: a pin over 20 mA for 20 ms (`overload`, with `pin`), something wired to pins 0 or 1 (`serial-pins`), the USB fuse tripped (`usb-fuse`), the program printing before `Serial.begin` (`serial`), dividing by zero (`divide`), using a pin the board lacks (`pin`), the program stopping (`program`) | amps, volts, seconds, temp, cause |
+| `serial` | mcuboard | the program finished printing lines (merged per snapshot) | `text` (the lines, joined by `\n`), `lines` (how many); `message` is the last line |
 
 Messages are complete, friendly sentences meant for the learner (they name the cause and the fix). Labs can
 use `data` to write their own.
@@ -179,8 +182,38 @@ use `data` to write their own.
 | multimeter | `range` | `"auto"` or a range label: `200mV 2V 20V 200V 600V`, `200 2k 20k 200k 2M 20M` (ohms), `200uA 2mA 20mA 200mA`, `10A` |
 | multimeter | `replaceFuse` | `true`: fits a new internal mA fuse |
 | switch, pushbutton, spdt, dpdt | `bounce` | `true`, `false` or the longest chatter in ms (a global "bounce on" toggle sets it on every contact) |
-| timer555, logic | `proximity` | 0..1: how close a hand is to the chip. Floating inputs pick up more, mostly mains hum (see "Floating inputs") |
+| timer555, logic, mcuboard | `proximity` | 0..1: how close a hand is to the chip. Floating inputs pick up more, mostly mains hum (see "Floating inputs") |
+| mcuboard | `power` | `"usb"`, `"jack"` or `"off"` (carried across rebuilds like other live inputs) |
+| mcuboard | `reset` | `true`: the reset button; the program starts again from `setup()` and the clock from 0 |
+| mcuboard | `millis` | a number: sets the clock so `millis()` reads that many ms now (`4294967296 - 9000`: nine seconds before day 49's wrap) |
 | any | `replace` | `true`: swaps in a fresh part with the same id (clears damage, heat, wear, blown state, charge history) |
+
+## Edge watch (`Netlist.watch`, `Snapshot.edges`)
+
+Snapshots arrive about 30 times a second, so a 1 kHz clock, a bouncing contact or a counter's ripple happens between
+two of them. List the nodes to watch and the simulator checks each against a threshold after every solver step:
+
+```ts
+sim.load({ ...netlist, watch: [{ id: "clk", node: "clk", of: "v5" }, { id: "trig", node: "tr", level: 3 }] });
+const s = sim.step(1 / 30);
+s.edges?.clk; // { rises: 4, falls: 5, high: false, level: 2.5, log: [[0.10021, 0], [0.10032, 1], ...] }
+```
+
+| Field | Meaning |
+|---|---|
+| `id`, `node` | The key in `snapshot.edges` and the netlist node to watch. An unknown node is skipped. |
+| `level` | A fixed threshold in volts. |
+| `of`, `fraction` | Otherwise the threshold is `fraction` (default 0.5) of node `of`'s voltage (a chip's supply pin), or of the highest node voltage when `of` is absent. |
+| `hysteresis` | A Schmitt band either side of the threshold (default 2% of it, at least 5 mV). |
+
+Each snapshot carries, per watch: `rises` and `falls` since the previous snapshot, `high` (where the node is now),
+`level` (the threshold in volts) and `log`, every crossing as `[t, 1]` (rising) or `[t, 0]` (falling), oldest first,
+at most 4000 per snapshot (`dropped` counts the rest). A crossing is timed where the straight line between the two
+solver points around it meets the threshold. Digital edges land on breakpoints with a 1 ns settle step after them, so a
+logic output's edge is placed within a nanosecond: a 74HC393's ripple shows as separate edges about 7 ns apart, and
+the mod-6 glitch as a rise and fall of QB a few nanoseconds apart. A rebuild (`load`) keeps each watch's level by id,
+so editing the circuit invents no edge, and crossings not yet delivered still arrive with the next snapshot.
+`test/watch.test.ts` covers a 1 kHz 555, contact bounce, the 393's ripple and glitch, and rebuilds.
 
 ## Rebuilds
 
@@ -258,7 +291,7 @@ Ambient is 25 °C. Thermal models are first order (`dT/dt` towards `25 + P x Rth
 - Health: hot above 100 °C, smoking above 250 °C (about 3.6 x rating sustained), burns open after sustained
   temperatures above 350 °C (a 15 Ω part across 9 V smokes after about 1 s and burns open after about 4 s).
 
-### Battery (`emf`, `internalOhms`, `mAh` optional) and cell (`emf`, `internalOhms`)
+### Battery (`emf`, `internalOhms`, `mAh` and `soc` optional) and cell (`emf`, `internalOhms`)
 
 - Norton source with internal resistance. Batteries add two polarisation states that pull the terminal voltage down
   under load: a fast one (up to 2 x `internalOhms`, 0.3 s) that only matters at amps (it fades steeply below about
@@ -269,6 +302,10 @@ Ambient is 25 °C. Thermal models are first order (`dT/dt` towards `25 + P x Rth
 - `mAh` (batteries only) drains; open-circuit voltage falls gently with charge then drops near empty, and internal
   resistance rises. A 500 mAh battery runs a 15 mA LED (470 Ω, red) for about 35 hours, slowly dimming, then fades
   out within a few hours. Without `mAh` the battery never drains.
+- `soc` (0..1, default 1) is the charge a battery starts at: a lab's tired battery. Only a battery new to the circuit
+  takes it; a rebuild keeps the charge a battery with the same id already has, and `replace` fits a full one. At
+  0.08 of 500 mAh a red LED on 1 kΩ falls under 2% charge after about 7.5 simulated hours and goes dark after about
+  17 (17 s of real time at 3600 x).
 - Heats from internal losses (`Rth` 20 °C/W, `tau` 200 s): hot above 50 °C, smoking above 110 °C. Event `shorted`.
 - Cells (fruit cells, emf about 0.9 V, internal about 1 kΩ) have no polarisation or capacity.
 
@@ -282,6 +319,10 @@ green 2.2 V, blue 3.1 V, white 3.1 V. Red sits near 1.75 V at 1 mA, 1.85 V at 5 
   100 Hz reads about 0.7). A brief pulse of 10 mA or more, even well under a millisecond (a coil's kickback through
   an LED), still shows as a blip of 0.25 that fades over about 80 ms, so a 30 Hz bench sees it. Dimmer when worn.
 - Reverse: blocks until about 5 V, then leaks through a soft 200 kΩ breakdown (no light, no damage, event `reversed`).
+  The event's message depends on the risk a real LED would face if it broke down: the engine works out the
+  resistance the rest of the circuit presents across the LED (`Ctx.drivingOhms`, one extra solve with the step's
+  factors), and the current it would allow past 5 V. Behind 1 kΩ on 9 V that is a few milliamps: "it takes no harm"
+  (`data.risk: "none"`). Straight across a battery it is amps: "it could be damaged" (`data.risk: "damage"`).
 - Damage starts above 2.5 x `maxmA` (50 mA): rate `((I / 50 mA)^2 - 1) / 3` per second, so about 1 s at 100 mA and a
   few milliseconds at the 1 A a 9 V battery pushes straight through it. Dead LEDs are open circuits.
 
@@ -506,6 +547,54 @@ in shutdown (`died`, `overheat`; real parts last longer, but a lab should show w
 costs). Above 35 V in (`overvoltage`) or connected backwards (`reverse`) it is destroyed. Output oscillation without
 its capacitors is not modelled.
 
+### Microcontroller board (`mcuboard`)
+
+An Uno-style board: a 5 V chip with 20 I/O pins (D0 to D13, A0 to A5 = 14 to 19 in a program), running a bench C
+program from `@ohmland/code` inside the simulator (in the worker in the browser), on simulated time.
+
+```ts
+{ id: "U1", kind: "mcuboard", pins: { d7: "n7", gnd: "gnd" }, program: blinkSource, upload: 3 }
+```
+
+- **Pins.** An output is the 5 V rail or GND behind 25 Ω (a red LED through 470 Ω gets about 6.3 mA; 4.85 V at
+  6 mA). An input is almost nothing: a bare one floats and picks up hum like a logic chip's (a hand nearby, `proximity`,
+  makes it flicker); `INPUT_PULLUP` adds 35 kΩ to 5 V (datasheet 20 to 50 kΩ). Each pin has protection diodes to
+  both rails (20 Ω). `digitalRead` goes through a Schmitt trigger: HIGH above 0.52 of the supply rising, LOW below 0.44
+  falling (2.6 V and 2.2 V at 5 V, inside the datasheet's 0.6 and 0.3 bands that the snapshot reports).
+  `analogRead` samples the pin's node voltage against the 5V rail (10 bits). PWM (`analogWrite`) on 3, 9, 10, 11 runs
+  at 490 Hz and on 5, 6 at 977 Hz, with real edges, so an LED's eye-averaged glow follows the duty.
+- **Power.** USB gives 5.0 V behind 0.3 Ω through a fuse that trips at a short or a back-feed (warning `usb-fuse`, it
+  resets once that is gone). The jack takes a battery (`jackVolts`, 1.7 Ω) through a protection diode to VIN and a
+  5 V regulator with 1.1 V dropout. `power: "off"` unplugs both; then a supply on the 5V or VIN pin powers the board.
+  The board itself draws about 45 mA. The chip runs above 2.7 V; coming up, the program starts from `setup()`. The
+  program survives power cycles (flash).
+- **USB serial.** Pin 0 sits on the USB serial chip's transmit line through 1 kΩ (so a button on pin 0 fights it:
+  warning `serial-pins`). `Serial.print` sends 10 bits a character at the baud rate with a 64-character buffer; the
+  program waits when it is full, as on the board. Lines come out as `serial` events (merged per snapshot) and the last
+  600 characters as `extra.serial`. Pin 1 idles HIGH while the serial port is on.
+- **Lamps.** L follows pin 13 through a buffer and 1 kΩ (it does not load the pin); ON follows 5V. Both are eye-averaged
+  and appear as parts `U1:L` and `U1:ON`.
+- **Abuse.** A pin over 20 mA for 20 ms warns (`overload`); over 40 mA it wears out at `((I / 40 mA)^2 - 1) / 2` per
+  second and burns out (`died` with `pin`; an LED with no resistor kills its pin in under a second, the board works on);
+  more than 200 mA through all pins, or more than 6 V on 5V (a 9 V battery on the 5V pin), kills the chip.
+- **The program in lockstep with the solver.** Each statement costs 1 µs of board time, a pin call 4 µs, `analogRead`
+  112 µs, `delay(ms)` exactly that. The interpreter runs up to 2 ms ahead of the solver; every pin change it makes is
+  queued at its exact time (a breakpoint, a soft edge), so `delay(1000)` blinks with a 2.000011 s period. A read may
+  use the circuit as solved up to 100 µs earlier; a read further ahead, or one after a pin change the solver has not
+  reached, waits for the solver (so a busy read loop costs about 10,000 solver steps a simulated second, and contact
+  bounce is seen). A pin changing more than twice within a millisecond (HIGH, LOW in a loop with no delay, about
+  100 kHz) is replayed as one pulse per millisecond with the same share of time high: LEDs, meters and eyes see the
+  same, at a small fraction of the cost. `millis()` is a 32-bit unsigned count; `setInput(id, "millis", ms)` jumps it.
+- **Uploads and rebuilds.** A rebuild with the same `program`, `upload`, `clockStart` and `seed` keeps the program
+  running where it was (pin states, clock, variables, serial in flight). A new `upload` number or a changed program
+  resets the board and runs the new program; `setInput(id, "reset", true)` is the reset button. A program that does
+  not compile leaves the board idle with every pin an input, and `extra.error` gives the first mistake as
+  `"line:col sentence"` (the editor should not upload it; this is a safety net).
+- **Cost** (plain Node, per simulated second): a busy `digitalRead` loop about 80 ms, a `millis()` check loop about
+  75 ms (the interpreter: about 16 million statements a second), a loop toggling a pin with no delay about 100 ms,
+  a program waiting in `delay` about 4 ms. A circuit with no capacitors or coils now restarts at full steps after a
+  digital edge (there is nothing to integrate), which is what makes PWM and fast toggles cheap.
+
 ## Audio
 
 When a speaker exists and someone listens with `onAudio`, each speaker's coil voltage goes through its acoustic
@@ -524,6 +613,8 @@ All optional, nothing renamed. Fields: resistor `tolerance` (default now 0.05) a
 damage events; `data.to` on `clicked`. Input keys `replaceFuse` and `replace`; type `InputValue`. `run()` speeds up
 to 3600.
 
+Edge watch, also additive: `Netlist.watch` (type `WatchSpec`) and `Snapshot.edges` (type `EdgeLog`).
+
 For the later units, also additive: kinds `inductor`, `timer555`, `logic` (models `74HC00`, `74HC02`, `74HC04`,
 `74HC08`, `74HC14`, `74HC27`, `74HC32`, `74HC74`, `74HC86`, `74HC393`, `4026B`), `sevenseg`, `regulator7805`; field
 `bounce` on switch, pushbutton, spdt and dpdt (type `Bounce`); input keys `bounce` and `proximity`; types
@@ -532,6 +623,12 @@ For the later units, also additive: kinds `inductor`, `timer555`, `logic` (model
 `digitOf`, `MAINS_HZ`; new `cause` values (`overload`, `oscillating`, `undervoltage`, `thermal-shutdown`) and
 `data.segment`, `data.pin`. One default changed: electrolytics under 100 µF leak less (see "Capacitor"); parts from
 100 µF up are unchanged, and every Unit 1 and 2 lab replay still passes.
+
+For Unit 5's board, also additive: kind `mcuboard` (types `McuPin`, `McuPower`), event type `serial`, input keys
+`power`, `reset` and `millis` (`power` joins the live inputs carried across rebuilds), exports `MCU_PINS`, `MCU`,
+`mcuPin` and `McuPinState`, and `Device.subStates()` (parts built into another part, listed in the snapshot as
+`<id>:<name>`). One engine change: a circuit with no capacitors or coils restarts at full steps after a digital edge
+(every other test still passes unchanged). The package now depends on `@ohmland/code` (pure TypeScript, no DOM).
 
 ## Performance
 
@@ -593,6 +690,10 @@ from a microsecond) and giving a counter's outputs one shared delay per clock ed
   timing errors from the engine's error control are about 0.1 to 0.3% at a kilohertz.
 - Only the 4026B represents the 4000B family so far; the family's numbers are there for more parts.
 - The 7805 wears out after about 90 s of thermal cycling, sooner than a real one, on purpose (see its section).
+- The board has no bootloader pause after a reset, no interrupts and no timer registers; the serial TX pin idles HIGH
+  instead of carrying the bits; `millis()` counts true milliseconds (the real one steps by 1.024 ms and sometimes jumps
+  by 2); a pin toggling faster than twice a millisecond is replayed as a pulse per millisecond (see the section).
+  The CI referee in `packages/code/README.md` is how bench C is held to the real chip.
 
 ## Tests
 
@@ -613,3 +714,10 @@ phantom power through an input, floating inputs, touch and hum, mid-rail supply 
 flip-flop, the 393 ripple and mod-6 reset, bounce miscounting against a NOR latch, 4026B counters into displays with
 carry, the 4000B supply range, abuse, the oscillation guard and Schmitt thresholds), `display.test.ts`,
 `regulator.test.ts`, `inductor.test.ts`, `bounce.test.ts`, and the counter chain in `perf.test.ts`.
+
+`mcu.test.ts` (the microcontroller board): blink drives an LED through 470 Ω at 5.5 to 7 mA with a 2.000 s period,
+L follows pin 13 without loading it, a button reads LOW through the pull-up and lights L, a free input floats and
+flickers with a hand near, PWM brightness (0, 64, 255), HIGH and LOW with no wait looks steady and stays cheap,
+a bouncing button over-counts on the serial monitor and the 50 ms wait counts right, uploads and rebuilds, the day-49
+clock jump, USB, jack and off, an LED with no resistor burns its pin, 9 V on 5V kills the chip, `analogRead` of a
+divider, pins 0 and 1, and a program that does not compile.

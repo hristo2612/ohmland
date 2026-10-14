@@ -10,7 +10,7 @@ import { LabelsContext, mergeLabels } from "../labels";
 import { anchorPosition, benchBounds, fitCamera, workCenter } from "../layout";
 import { connectivity } from "../netlist";
 import { BenchStoreContext, createBenchStore, useBench, type BenchStore } from "../store";
-import { heldOf } from "../seats";
+import { heldOf, hiddenParts } from "../seats";
 import type { BenchAction, BenchState, PlacedPart, Quality, Vec3 } from "../types";
 import { Breadboard, XRAY_HEX } from "../models/Breadboard";
 import { RoomLight } from "../models/common";
@@ -28,6 +28,7 @@ import type { Pick } from "./pick";
 import { PaperRenderer, PaperUpkeep, SoftShadows, type ShadowArea } from "./Render";
 import { SpotlightRig, ViewRig, type ViewApi } from "./viewRig";
 import { LeadView, MeterView, PartView, TargetMarker, WireView, makeFloor, snapshotKey } from "./views";
+import { BoxWires3D, Overlays3D } from "./Overlays3D";
 
 export type BenchProps = BenchRendererProps & {
   /** Initial camera. Defaults to a framing of the work area. */
@@ -57,6 +58,8 @@ export function Bench(props: BenchProps) {
   const [store] = useState(() => props.store ?? createBenchStore(props.initial));
   const labels = useMemo(() => mergeLabels(props.labels), [props.labels]);
   const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const elementRef = useRef<HTMLDivElement | null>(null);
+  elementRef.current = element;
   const palette = useReadPalette(element, props.theme);
   const api = useRef<InteractionApi | null>(null);
   const view = useRef<ViewApi | null>(null);
@@ -83,7 +86,15 @@ export function Bench(props: BenchProps) {
   const controller = useMemo<Bench3DController>(
     () => ({
       project: (t) => view.current?.project(t) ?? null,
-      projectClient: (t) => api.current?.project(t as string) ?? null,
+      // Any target (a part, a mark, an anchor) in page coordinates, as the ink view's projectClient gives it.
+      projectClient: (t) => {
+        const p = typeof t === "string" ? view.current?.project(t) : null;
+        if (p && elementRef.current) {
+          const r = elementRef.current.getBoundingClientRect();
+          return { x: p.x + r.left, y: p.y + r.top };
+        }
+        return api.current?.project(t as string) ?? null;
+      },
       onViewChange: (cb) => {
         listeners.add(cb);
         return () => listeners.delete(cb);
@@ -466,6 +477,20 @@ function BenchScene({
   }, [ui.hover, conn, bench.board]);
 
   const hl = useMemo(() => new Set(highlight ?? []), [highlight]);
+  // Parts shut in a box are not drawn; gates on a lead ride that lead's cable.
+  const hidden = useMemo(() => hiddenParts(bench), [bench]);
+  const gatesOn = useMemo(() => {
+    const out = new Map<string, PlacedPart[]>();
+    for (const p of bench.parts) {
+      if (p.kind !== "gate" || !p.params.on || !bench.leads.some((l) => l.id === p.params.on)) continue;
+      const list = out.get(p.params.on) ?? [];
+      list.push(p);
+      out.set(p.params.on, list);
+    }
+    return out;
+  }, [bench]);
+  const riding = useMemo(() => new Set([...gatesOn.values()].flat().map((p) => p.id)), [gatesOn]);
+  const selectedPart = ui.selection?.type === "part" ? ui.selection.id : null;
   // Parts sitting in holders take their pose from the holder.
   const holders = useMemo(() => {
     const out = new Map<string, PlacedPart>();
@@ -497,7 +522,7 @@ function BenchScene({
       <ReadySignal onReady={onReady} />
       <RoomLight.Provider value={ambient}>
       {bench.board && <Breadboard spec={bench.board} xray={ui.xray} litStrips={xr?.strips} litHoles={xr?.holes} />}
-      {bench.parts.map((p) => (
+      {bench.parts.filter((p) => !hidden.has(p.id) && !riding.has(p.id)).map((p) => (
         <PartView
           key={p.id}
           part={p}
@@ -523,8 +548,13 @@ function BenchScene({
           hinted={hl.has(l.id)}
           open={{ a: leadOpen(l.id), b: leadOpen(l.id) }}
           floor={floor}
+          gates={gatesOn.get(l.id)}
+          selectedPart={selectedPart}
+          hintedParts={hl}
         />
       ))}
+      <BoxWires3D bench={bench} />
+      <Overlays3D bench={bench} store={store} floor={floor} />
       {bench.meter && <MeterView meter={bench.meter} bench={bench} selected={ui.selection?.type === "meter"} floor={floor} />}
       </RoomLight.Provider>
       {draftFrom && (

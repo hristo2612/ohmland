@@ -1,0 +1,18 @@
+{
+  "name": "@ohmland/code",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Bench C: the small C-like language of Ohmland's microcontroller board. Parser, checker, formatter, blocks and a virtual-time interpreter. Pure TypeScript, no DOM.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "5.0.4"
+  }
+}

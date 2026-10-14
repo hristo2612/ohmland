@@ -55,15 +55,18 @@ function boardCentre(bench: BenchState | undefined, holder: PlacedPart): Vec2 | 
 }
 
 /**
- * World position (mm, y up) and turn of a part in a seat. Pass the bench for holders that can stand in the board, so
- * the seat follows the holes rather than the holder's stored position.
+ * World position (mm, y up) and turn of a part in a seat, and whether it lies on its back (see SeatDef.place). Pass the
+ * bench for holders that can stand in the board, so the seat follows the holes rather than the holder's stored
+ * position.
  */
-export function seatPose(holder: PlacedPart, seat: SeatDef, held: PlacedPart, bench?: BenchState): { origin: Vec3; rot: number } {
+export function seatPose(holder: PlacedPart, seat: SeatDef, held: PlacedPart, bench?: BenchState): { origin: Vec3; rot: number; lie?: boolean } {
   const centre = boardCentre(bench, holder);
   const p = seat.place(held, { board: !!centre });
   const [rx, rz] = rotateXZ(p.at[0], p.at[2], holder.rot);
   const base = centre ?? holder.pos;
-  return { origin: [base[0] + rx, p.at[1], base[1] + rz], rot: (((holder.rot + (p.rot ?? 0)) % 360) + 360) % 360 };
+  const out: { origin: Vec3; rot: number; lie?: boolean } = { origin: [base[0] + rx, p.at[1], base[1] + rz], rot: (((holder.rot + (p.rot ?? 0)) % 360) + 360) % 360 };
+  if (p.lie) out.lie = true;
+  return out;
 }
 
 /** The leads a seat joins: a held part's lead -> the holder's lead it touches. */
@@ -89,6 +92,19 @@ export function seatNear(bench: BenchState, part: PlacedPart, to: Vec2, reach = 
     }
   }
   return best ? { holder: best.holder, seat: best.seat } : null;
+}
+
+/**
+ * Parts out of sight inside a closed box (the box's lid is shut): the views draw nothing of them and no clip, probe or
+ * pointer can reach them. They still conduct.
+ */
+export function hiddenParts(bench: BenchState): Set<string> {
+  const out = new Set<string>();
+  for (const p of bench.parts) {
+    if (p.kind !== "box" || p.params.lid) continue;
+    for (const id of Object.values(heldOf(p))) if (id) out.add(id);
+  }
+  return out;
 }
 
 /** Desk spot a part is pushed out to when another one takes its seat: in front of the holder. */
