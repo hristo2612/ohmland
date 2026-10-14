@@ -1,137 +1,54 @@
-# Blueprint: docs/curriculum/unit-1.md, L6.
+# Blueprint: docs/curriculum/unit-1.md, L6. A bench lesson (docs/LESSONS.md), split per
+# docs/curriculum/conversion-guide.md, B3: this is the kept half (the code); measuring and tolerance are in the-liar.
+# One idea: two digit stripes, then the number of zeros. Lab: content/labs/reading-the-stripes.ts.
+format: bench
 id: reading-the-stripes
-version: 1
+version: 2
 title: Reading the stripes
-summary: Decode resistor colour bands, check them with the meter, and catch an out-of-spec part.
-minutes: 13
+summary: Crack the resistor colour code with a chart, then label a bag of resistors by their stripes alone.
+minutes: 6
+lab: reading-the-stripes
 unlocks:
-  parts: [resistor]
+  parts: []
   isle: resistor
-steps:
-  - type: hook
-    body: |
-      Resistors are far too small for printed numbers, so they wear coloured stripes instead. Each colour stands for a
-      digit, and the stripes together spell out the value. Learn the code and you can read a resistor at a glance, no
-      meter needed. The robot has tipped out a bag of five resistors. One of them, it whispers, is not telling the
-      truth about its value.
-    visual: { kind: part, part: resistor }
-    predict:
-      prompt: Two resistors have identical stripes. Will the meter show exactly the same number for both?
-      options:
-        - Yes, exactly
-        - Close, but a little different
-        - Completely different
-    mascot: Stripes, not numbers. Let's crack the code.
 
-  - type: lab
-    lab: reading-the-stripes
+start:
+  title: Crack the stripes
+  say: Resistors wear stripes, not numbers. Let's crack the code.
+  go: Crack it
 
-  - type: explain
-    cards:
-      - title: The colour code
-        body: |
-          Each colour is a digit: black 0, brown 1, red 2, orange 3, yellow 4, green 5, blue 6, violet 7, grey 8,
-          white 9. Red through violet runs in rainbow order, which helps it stick. Hold the resistor with the gold or
-          silver stripe on the right. The first two stripes are digits, and the third says how many zeros to add. A
-          gold third stripe means divide by 10 instead.
-        # Blueprint widget: color-code (rotate a 3D resistor, tap each band, plus a "read this one" drill). The
-        # resistor explorer is the closest widget that exists today.
-        widget: { kind: resistor-explorer, props: { ohms: 470 } }
-      - title: Tolerance
-        body: |
-          No factory makes perfect resistors. The last stripe promises how close the real value will be: gold means
-          within 5%, silver within 10%. A 470 Ω gold-stripe resistor can measure anywhere from 446.5 Ω to 493.5 Ω and
-          still be fine. Precision resistors carry five stripes (three digits, a multiplier, then tolerance), often
-          with brown for 1%.
-      - title: Why 47 and not 50?
-        body: |
-          Resistor values come from preferred-value series. The oldest, E6, has six steps per decade: 10, 15, 22, 33,
-          47 and 68, times any power of ten. They are spaced so each value's 20% tolerance range nearly meets the next.
-          Finer series add steps: E12 adds 12, 18, 27, 39, 56 and 82. That is why 470 Ω and 4.7 kΩ turn up everywhere.
+beats:
+  - say: Yellow, violet, brown. Use the chart. How many ohms?
+    objective: Crack one
+    spot: [CH1]
+    do: decode-yellow
+    done: 470 Ω. Code cracked!
+    note: { at: CH1, text: "4, 7, then one zero" }
+    rule: Gold on the right. Digits, then zeros.
 
-  - type: quiz
-    items:
-      - id: read-4k7
-        type: color-code
-        mode: read
-        prompt: What value do these stripes spell out?
-        ohms: 4700
-        bands: 4
-        hint: Yellow is 4, violet is 7. How many zeros does red add?
-        explain: "Yellow 4, violet 7, and red means two zeros: 4,700 Ω, which is 4.7 kΩ. Gold is ±5%."
+  - say: Now label all five. Stripes only.
+    objective: Sort the bag
+    do: sort-the-bag
+    done: Five for five.
 
-      - id: build-330
-        type: color-code
-        mode: build
-        prompt: Give a 330 Ω, 5% resistor its stripes.
-        ohms: 330
-        bands: 4
-        hint: How many zeros follow 33 in 330?
-        explain: 3, 3, then one zero (brown) makes 330. Gold for 5%.
+  - say: Quick one. Which end do you read from?
+    pick: { options: [the gold end, the other end], answer: the other end, on: R3 }
+    wrong: { the gold end: "Gold goes on the right. Start from the left." }
 
-      - id: in-spec
-        type: choice
-        prompt: A 2.2 kΩ resistor with a gold stripe measures 2,290 Ω. Is it within tolerance?
-        options:
-          - text: "Yes"
-            correct: true
-            why: 5% of 2,200 is 110, so anything from 2,090 to 2,310 Ω is fine.
-          - text: No, it's 90 Ω too high
-            why: 90 Ω is only about 4% of 2,200 Ω, inside the 5% allowance.
-          - text: You need a datasheet to tell
-            why: The gold stripe already tells you the tolerance.
-        explain: Work out the allowed range from the tolerance stripe, then compare.
+  - say: And what does the third stripe count?
+    pick: { options: [a third digit, the zeros], answer: the zeros }
+    wrong: { a third digit: "Only two digits here. Look at brown." }
 
-      - id: odd-one-out
-        type: choice
-        prompt: "Which of these is **not** an E6 preferred value: 15, 33, 40, 68?"
-        options:
-          - text: "40"
-            correct: true
-            why: The E6 values are 10, 15, 22, 33, 47 and 68. 40 falls between 33 and 47.
-          - text: "15"
-            why: 15 is in the E6 series.
-          - text: "33"
-            why: 33 is in the E6 series.
-          - text: "68"
-            why: 68 is in the E6 series.
-        explain: E6 is 10, 15, 22, 33, 47, 68, then repeats times ten.
+secret:
+  task: tiny-gold
+  say: Curious? This one has gold in third place.
+  done: 4.7 Ω. Gold there divides by ten.
+  note: { at: R6, text: "gold third: divide by ten" }
 
-      - id: wrong-end
-        type: choice
-        prompt: Lee reads a resistor as gold, red, violet, yellow and gets nonsense. What went wrong?
-        options:
-          - text: Lee read it from the wrong end
-            correct: true
-            why: "The gold tolerance stripe goes on the right. Read the other way, it is yellow, violet, red, gold: 4.7 kΩ."
-          - text: The resistor is faulty
-            why: The stripes are fine. They were just read backwards.
-          - text: Gold means zero
-            why: Gold is a tolerance (or a divide-by-10 multiplier), never a first digit.
-        explain: Put the gold or silver stripe on the right, then read left to right.
+fixit:
+  say: Fix-it time. Two labels lie about their stripes.
+  tasks:
+    - task: fix-labels
 
-      - id: body-colour
-        type: choice
-        prompt: Two resistors have identical stripes. One has a blue body, the other a beige body. What does that tell you about their values?
-        options:
-          - text: "Nothing: the stripes set the value"
-            correct: true
-            why: Body colour depends on the type and maker, not the value.
-          - text: The blue one has a higher value
-            why: Body colour never encodes the value.
-          - text: The blue one is exactly 1%
-            why: Blue bodies are common on precision parts, but only the stripes are a promise.
-        explain: Ignore the body colour. Read the stripes.
-
-  - type: wrap
-    rules:
-      - Gold or silver stripe on the right, then read left to right.
-      - Two digits, then the number of zeros.
-      - Gold means ±5%, silver means ±10%.
-      - A real value close to the label is normal. Outside tolerance is not.
-    realWorld:
-      parts:
-        - An assorted resistor kit
-        - A multimeter
-      safety:
-        - "Safe. Wear glasses when trimming resistor leads: the clipped ends can fly."
+end:
+  say: Stripes cracked. No meter needed.
