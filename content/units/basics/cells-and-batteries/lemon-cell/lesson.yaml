@@ -24,7 +24,7 @@ beats:
   - say: Red probe on the copper, black on the zinc.
     do: make-a-cell
     tool: meter
-    note: { at: FC1, text: "a lemon cell: 0.94 V" }
+    note: { at: FC1, text: "a lemon cell: about 0.9 V" }
     rule: Two different metals in juice make a cell.
 
   - say: Swap the probes. Guess first.

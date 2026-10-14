@@ -4,7 +4,7 @@
 format: bench
 id: meet-the-meter
 version: 2
-title: The black box
+title: The sealed box
 summary: Plug in a meter, read a sealed box in volts, and find out which side is plus.
 minutes: 8
 lab: meet-the-meter
@@ -13,7 +13,7 @@ unlocks:
   isle: meter-kiosk
 
 start:
-  title: The black box
+  title: The sealed box
   say: Is there a battery in this box? Which side is plus?
   go: Let's find out
 
