@@ -26,7 +26,7 @@ beats:
     note: { at: C1, text: "µF: a millionth of a farad" }
 
   - say: Fill it once more, then let go. Guess first.
-    spot: [D1, C1]
+    spot: [S1, D1, C1]
     guess: { options: [Out at once, Fades away, Flickers], answer: Fades away }
     do: fade
     done: C1 kept it lit all by itself.

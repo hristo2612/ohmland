@@ -39,7 +39,7 @@ export default defineLab({
   bench: {
     board: "full",
     splitRails: true,
-    frame: ["desk:-80,-28", "desk:56,28"],
+    frame: ["desk:-84,-30", "desk:66,30"],
     parts: [
       { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "rail+:3", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "S1", kind: "pushbutton", at: "e34", params: { cap: "red" }, locked: true, label: "Button S1" },
