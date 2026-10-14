@@ -9,7 +9,7 @@ import { boardGeometry, boardOrigin } from "../board";
 import { BOARD_TOP, GATE } from "../dims";
 import { METER, anchorPosition, isOnBoard } from "../layout";
 import { parseAnchor } from "../anchors";
-import { UPRIGHT_KINDS, partMarks, rotateXZ } from "../parts";
+import { UPRIGHT_KINDS, partDef, partMarks, rotateXZ } from "../parts";
 import type { BenchStore } from "../store";
 import type { BenchState, Vec3 } from "../types";
 import { prefersReducedMotion } from "../three/anim";
@@ -586,6 +586,41 @@ function spotCompanions(bench: BenchState, id: string): string[] {
 
 type Ring = { key: string; box: THREE.Box3; y: number };
 
+const viewEye = new THREE.Vector3();
+
+/** In the board: every lead in a hole, or a probe pen standing on its tip in one (the ring lies on the board). */
+function standsInBoard(bench: BenchState, part: BenchState["parts"][number]): boolean {
+  if (isOnBoard(bench, part)) return true;
+  const nose = partDef(part.kind).nose;
+  return !!bench.board && !!nose && !!part.holes?.[nose];
+}
+
+/**
+ * Where a part shows on the ring's plane, seen from the camera: every vertex above the plane slid down its view ray
+ * onto it, so a standing part (a probe pen on its tip, an open lid) is ringed where it shows, not only round its feet.
+ */
+function seenFootprint(root: THREE.Object3D, box: THREE.Box3, y: number, eye: THREE.Vector3): THREE.Box3 {
+  const out = new THREE.Box3();
+  const v = new THREE.Vector3();
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || !m.visible || !m.layers.isEnabled(0) || (m as THREE.InstancedMesh).isInstancedMesh || isEffect(m)) return;
+    const pos = m.geometry?.getAttribute("position");
+    if (!pos) return;
+    // A few hundred points of each mesh are plenty for a ring.
+    const step = Math.max(1, Math.floor(pos.count / 300));
+    for (let i = 0; i < pos.count; i += step) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+      const t = v.y <= y || eye.y <= v.y ? 1 : (eye.y - y) / (eye.y - v.y);
+      out.expandByPoint(new THREE.Vector3(eye.x + (v.x - eye.x) * t, box.min.y, eye.z + (v.z - eye.z) * t));
+    }
+  });
+  if (out.isEmpty()) return box;
+  out.min.y = box.min.y;
+  out.max.y = box.max.y;
+  return out;
+}
+
 /**
  * Owns the spotlight's look: which objects are on the spotlight layer (re-checked every frame while it shows, so
  * models that re-mount stay lifted), the veil amount (eased) and the rings.
@@ -596,7 +631,7 @@ export function SpotlightRig({ store, targets, spot, palette }: { store: BenchSt
   const lifted = useRef(new Set<THREE.Object3D>());
   const roots = useRef<THREE.Object3D[]>([]);
   /** The bench and targets the rings were worked out for, and how many more frames to work them out again. */
-  const seen = useRef<{ bench: BenchState | null; targets: string[] | null; settle: number }>({ bench: null, targets: null, settle: 0 });
+  const seen = useRef<{ bench: BenchState | null; targets: string[] | null; settle: number; eye: THREE.Vector3 }>({ bench: null, targets: null, settle: 0, eye: new THREE.Vector3() });
   const [rings, setRings] = useState<Ring[]>([]);
   const ringGroup = useRef<THREE.Group>(null);
   const material = useMemo(() => ringMaterial(palette.red), [palette.red]);
@@ -618,6 +653,12 @@ export function SpotlightRig({ store, targets, spot, palette }: { store: BenchSt
       s.bench = bench;
       s.targets = targets;
       s.settle = 3;
+    }
+    // Rings lie where the camera sees their parts: when it moves, they follow.
+    const eye = get().camera.getWorldPosition(viewEye);
+    if (targets && s.eye.distanceTo(eye) > Math.max(2, eye.length() * 0.01)) {
+      s.eye.copy(eye);
+      s.settle = Math.max(s.settle, 1);
     }
     if (targets && s.settle > 0) {
       s.settle--;
@@ -643,7 +684,10 @@ export function SpotlightRig({ store, targets, spot, palette }: { store: BenchSt
           }
           const part = bench.parts.find((x) => x.id === parsed.id);
           const box = obj ? contentBox(obj) : null;
-          if (box && !box.isEmpty()) next.push({ key: t, box, y: part && isOnBoard(bench, part) ? BOARD_TOP : 0 });
+          if (box && !box.isEmpty()) {
+            const y = part && standsInBoard(bench, part) ? BOARD_TOP : 0;
+            next.push({ key: t, box: obj ? seenFootprint(obj, box, y, s.eye) : box, y });
+          }
         } else if (parsed.type === "lead" || parsed.type === "wire") {
           const obj = scene.getObjectByName(`${parsed.type}:${parsed.id}`);
           if (obj) r.push(obj);
