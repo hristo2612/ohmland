@@ -16,9 +16,14 @@ decide everything else: how many things are on a screen, how lessons are built, 
 
 - The learner does something within the first 5 seconds of every lesson.
 - Concrete before abstract: touch it, see it, then name it, then (maybe) a number, then (rarely) a formula.
-- Most lines are under 12 words. A lesson has fewer than 150 words of text in total. If a sentence can be replaced by
-  something the learner can see or try, replace it.
-- No walls of text, no reading before doing, no explanation the learner didn't just earn.
+- Short and complete, never telegraphic. A robot line is one whole sentence the learner can act on: what to do, where,
+  and what to look for, with any new word named as it appears. That takes about 15 to 22 words; a note on the bench
+  takes 6, a rule 8. A lesson's main path is about 200 to 300 words (the cap is 320). A fragment ("Probes on the
+  skin.") saves four words and costs the learner the move.
+- If a sentence can be replaced by something the learner can see or try, replace it, but only when the bench really
+  shows it. A bench that shows only the result does not show the move: say the move.
+- No walls of text, no reading before doing, no explanation the learner didn't just earn. A short "because" on a
+  result is earned: the learner just made it happen.
 
 ## 3. Isolate one difficulty
 

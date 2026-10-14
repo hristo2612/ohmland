@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { buildBench } from "../../lab/build";
 import type { BenchLessonData } from "../../content/load";
-import { benchLessonSchema } from "../../content/schema";
+import { benchLessonSchema, LESSON_MAX_WORDS, WORDS } from "../../content/schema";
 import { answerKeys, holeName, isMomentDone, momentsOf, notesToSave, noteText, pinNamesBefore, progressOf, recordTry, rulesFound, savedNotes, scoreOf } from "./flow";
 import { parseNote } from "../../lab/notes";
 import { choiceScale, judgeJoined, namedParts, resolveAnchor } from "./marks";
@@ -102,10 +102,12 @@ describe("bench lesson flow", () => {
 
 describe("bench lesson schema", () => {
   it("keeps lines short and lessons under budget", () => {
-    const long = "one two three four five six seven eight nine ten eleven twelve thirteen";
-    expect(() => lesson({ start: { say: long } })).toThrow(/at most 12 words/);
-    const beats = Array.from({ length: 14 }, () => ({ say: "one two three four five six seven eight nine ten eleven" }));
+    const words = (n: number) => Array.from({ length: n }, (_, i) => `w${i}`).join(" ");
+    expect(() => lesson({ start: { say: words(WORDS.say + 1) } })).toThrow(new RegExp(`at most ${WORDS.say} words`));
+    const beats = Array.from({ length: 16 }, () => ({ say: words(Math.ceil(LESSON_MAX_WORDS / 16)) }));
     expect(() => lesson({ beats })).toThrow(/main path/);
+    // The watch line belongs to the try-out copies: the course says what to look for in the line itself.
+    expect(() => lesson({ beats: [{ say: "Tap it.", watch: "Look at the lamp." }] })).toThrow(/watch line/);
   });
 
   it("allows one thing per beat and one pop-up per lesson", () => {

@@ -1,0 +1,58 @@
+# Words a complete beginner does not know yet. Every one must be introduced at its first use in the course: by a
+# `meet` beat, by a note on the bench, or in the line itself with a short naming phrase right after it ("the probes,
+# the two pointed tips", "Ω, ohms", "OL means over the limit"). apps/web/src/lesson/bench/lessons.test.ts walks the
+# course in order and reports each term at its first use when that use does not introduce it (docs/LESSONS.md,
+# "Writing beats"; docs/curriculum/voice-rewrite.md).
+#
+# `forms` are the spellings to look for, whole words only. A form in lower case matches any case ("Range" too); a form
+# with a capital or a symbol matches exactly, so "LED" never matches "led", and "Ω" never matches inside "kΩ".
+terms:
+  # The bench and its tools
+  - { term: meter, forms: [meter, meters, multimeter] }
+  - { term: probe, forms: [probe, probes] }
+  - { term: dial, forms: [dial] }
+  - { term: range, forms: [range, ranges] }
+  - { term: OL, forms: [OL] }
+  - { term: COM, forms: [COM] }
+  - { term: lead, forms: [lead, leads] }
+  - { term: clip, forms: [clip, clips] }
+  - { term: snap, forms: [snap, snaps] }
+  - { term: terminal, forms: [terminal, terminals] }
+  - { term: breadboard, forms: [breadboard, breadboards] }
+  - { term: strip, forms: [strip, strips] }
+  - { term: rail, forms: [rail, rails] }
+  - { term: jumper, forms: [jumper, jumpers] }
+  - { term: scope, forms: [scope, oscilloscope] }
+  - { term: solder, forms: [solder, soldering] }
+  - { term: perfboard, forms: [perfboard] }
+  # Parts and their legs
+  - { term: resistor, forms: [resistor, resistors] }
+  - { term: LED, forms: [LED, LEDs] }
+  - { term: anode, forms: [anode] }
+  - { term: cathode, forms: [cathode] }
+  - { term: diode, forms: [diode, diodes] }
+  - { term: capacitor, forms: [capacitor, capacitors] }
+  - { term: transistor, forms: [transistor, transistors] }
+  - { term: collector, forms: [collector] }
+  - { term: emitter, forms: [emitter] }
+  - { term: potentiometer, forms: [potentiometer, pot] }
+  - { term: relay, forms: [relay, relays] }
+  - { term: coil, forms: [coil, coils] }
+  - { term: fuse, forms: [fuse, fuses] }
+  - { term: pin, forms: [pin, pins] }
+  # Quantities and their units
+  - { term: volt, forms: [volt, volts] }
+  - { term: amp, forms: [amp, amps] }
+  - { term: milliamp, forms: [mA, milliamp, milliamps] }
+  - { term: ohm, forms: [Ω, ohm, ohms] }
+  - { term: kilohm, forms: [kΩ, kilohm, kilohms] }
+  - { term: megohm, forms: [MΩ, megohm, megohms] }
+  - { term: watt, forms: [watt, watts] }
+  - { term: microfarad, forms: [µF, microfarad, microfarads] }
+  - { term: hertz, forms: [Hz, hertz] }
+  - { term: resistance, forms: [resistance] }
+  - { term: current, forms: [current] }
+  - { term: voltage, forms: [voltage] }
+  - { term: series, forms: [series] }
+  - { term: parallel, forms: [parallel] }
+  - { term: short circuit, forms: [short circuit, shortcut] }

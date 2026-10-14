@@ -1,13 +1,14 @@
 # How to write a bench lesson
 
 A bench lesson keeps the learner at the bench the whole time. There is no hook page, no explain cards and no quiz
-page: the robot says one short line, the learner does one thing on the bench, and the bench answers. Discoveries are
+page: the robot says one clear line, the learner does one thing on the bench, and the bench answers. Discoveries are
 drawn onto the parts, rules are stamped quietly under the robot's line (and slide into the notebook as the beat ends),
 and checks are taps and picks on the bench. At the end the notebook page fills itself in and is signed off.
 
 Read `docs/DESIGN-PRINCIPLES.md` first: it decides how much goes on a screen and how much we say. Wording rules are in
-`docs/CONTENT.md`, the lab file in `docs/LABS.md`. The reference lessons are
-`content/units/start-here/first-cases/welcome-to-the-bench` and Start here's Tool cases in
+`docs/CONTENT.md`, the lab file in `docs/LABS.md`, and how the robot talks in "Writing beats" below. The reference
+lessons for the voice are `content/units/start-here/first-cases/welcome-to-the-bench` and
+`content/units/basics/resistance/what-resists`; for structure, also Start here's Tool cases in
 `content/units/start-here/tool-cases/` (meet-the-meter, milli-and-kilo, how-a-breadboard-works, parts-drawer,
 first-glow), each with its lab in `content/labs/<id>.ts`.
 
@@ -31,26 +32,28 @@ unlocks: { parts: [led-red], isle: led-lamp }
 
 start:                        # the first screen, over the bench
   title: Wake the robot's face            # the mission (optional, 5 words)
-  say: My face is one LED. Dark for weeks. Wire me a glow?
+  say: My face is one LED, and it has been dark for weeks. Will you wire me a glow?
   go: Let's wire it                       # the button (optional, 4 words; default "Start")
 
 beats:
-  - say: This is an LED. Tap it.          # the robot's line (12 words at most)
+  # Why first (a lesson's first beat, an objective's first beat, a new part): a purpose sentence, then the step.
+  - say: My face needs a tiny lamp. This is an LED, a lamp that glows on a small flow. Tap it.
     objective: Make it glow               # starts an objective (optional): eyes fill per objective
     meet: D1                              # three-period lesson, first period: name a part
     note: { at: D1, text: LED }           # for meet: the name written onto the part
-  - say: Clip a loop. Plus, resistor, LED, minus.
+  # A clear sentence (every other beat): the verb, the things, and where they go. 22 words at most.
+  - say: "Clip a loop: battery plus to the resistor, the resistor to the LED's long leg, and its short leg to minus."
     do: build-loop                        # a lab task: the beat ends when its goal is met
-    done: It glows! First light on this island in ages.   # the robot's reaction
+    done: It glows, because flow now runs from plus, through both parts, and back to minus.   # may carry a "because"
     note: { at: R1, text: holds it to about 5 mA }        # a discovery drawn onto the part (6 words)
-  - say: Want me brighter? Try another resistor.
+  - say: Want me brighter? Drag the slider on the card to try another resistor, and watch my face.
     popup: { widget: resistor-slider, at: R1, props: { part: R1, led: D1, values: [470, 1000, 1500] } }
-  - say: Quick one. Tap the long leg.
+  - say: Which LED leg goes toward plus? Tap the longer of its two legs.
     tap: { answer: D1.anode, among: [D1.anode, D1.cathode] }   # a check on the bench, graded on the first try
-    wrong: { D1.cathode: "That's the short leg. Try the other." }
+    wrong: { D1.cathode: "That's the short leg. Tap the other, longer one." }   # takes the line's place: stands alone
     note: { at: D1.anode, text: "long leg: anode, toward plus" }
     rule: "LED: long leg to plus."        # stamped under the line, then into the notebook (8 words)
-  - say: Swap the LED's legs. Guess first.
+  - say: Guess what the LED will do, then turn it round so its two legs swap clips.
     guess: { options: [It still glows, It goes dark, It burns out], answer: It goes dark }   # before the action
     do: flip-led
     note: { at: D1, text: "backwards: blocked" }
@@ -58,20 +61,20 @@ beats:
 
 secret:                       # the bonus, offered after the beats (and found any time by experimenting)
   task: no-resistor           # a bonus task in the lab
-  say: Curious? Leave the resistor out. It's free here.
-  done: Pop. That LED gave its life for science.
+  say: "Bonus: let's see what the resistor is for. Take it out of the loop, since parts are free here."
+  done: Pop. With nothing to hold the flow back, that LED gave its life for science.
   spot: [R1, D1]              # the parts in play, as on a beat (optional)
   note: { at: D1, text: about 1 A for a blink }
   rule: Every LED needs a resistor.
 
 fixit:                        # the closing check: a broken bench to repair, relaxed (the clock is opt-in)
-  say: Fix-it time. No glow here. Why?
+  say: Fix-it time, to test your eye for legs. This LED stays dark. Find out why and fix it.
   tasks:
     - task: fix-reversed      # a lab task with a `setup` that breaks the bench
   timer: 60                   # seconds on the optional clock (default 60)
 
 end:
-  say: You built that from scratch. My face approves.
+  say: You built this circuit from scratch, and my face approves.
 ```
 
 ### A beat
@@ -98,9 +101,8 @@ when one fixed answer is right.
 
 Optional, on any beat:
 
-- `watch`: a quieter second line under the robot's, in graphite, while the learner acts: what to look for, or why
-  ("Watch the screen as the skin gets wet."). It counts toward the main path's words. A guess beat shows it once the
-  guess is made.
+- `watch` (try-out copies only, `content/variants`; the course's schema refuses it): a quieter second line under the
+  robot's, in graphite, while the learner acts. In the course, what to look for goes in the robot's line itself.
 - `objective`: starts an objective (a few words). The robot's eyes fill in equal steps as each objective (and the
   fix-it round) finishes, and the current objective's name shows as a quiet kicker. Objectives are never listed.
 - `spot: [parts]`: the parts in play. The bench frames and spotlights them. While a beat's task is open (and its tool,
@@ -119,7 +121,10 @@ Optional, on any beat:
 - `done`, `note`, `rule`: the discovery. A beat with any of them ends on a Next button so the learner can read it; a
   beat without one moves on by itself after a beat of the robot's success line. A beat with nothing to do draws its
   `note` and stamps its `rule` as it begins, beside its line, and the learner taps Next when they have read it.
-- `hint` (checks) and `wrong` (lines for particular wrong taps or chips). A `do` beat uses its lab task's `hints`.
+- `hint` (checks) and `wrong` (lines for particular wrong taps or chips). A `do` beat uses its lab task's `hints`. A
+  hint the learner asks for (the Hint link) is written under the robot's line, which stays. A `wrong` line, a check's
+  `hint` after a wrong answer, and a lab task's nudge take the line's place, so each must stand alone: name the thing
+  again rather than "it" or "that".
 - `then` (checks): bench steps, written as the lab's solution steps, applied once the tap, pick or number is right,
   the way a setup is applied: `then: [{ do: param, part: PL1, params: { wheel1: 3 } }]` turns a padlock's first wheel
   to the digit just found. Use steps that set a state (`param`, `flip` with `to`, `clip`): a resumed lesson applies
@@ -157,7 +162,7 @@ The bench corrects the learner, not a grade. A wrong tap is never marked wrong: 
 for a moment:
 
 ```ts
-nudges: [{ when: (lab) => backwards(lab), say: "Dark? Turn the LED around. Long leg to plus." }],
+nudges: [{ when: (lab) => backwards(lab), say: "The LED is in backwards. Turn it round so its long leg faces plus." }],
 ```
 
 A simulator warning (a shorted battery, a part running hot) never prints its long explanation in a lesson. The part
@@ -195,19 +200,75 @@ exactly the lab's required tasks, in the lab's order. Only the task of the curre
 bonus task) can complete. `apps/web/src/lesson/bench/lessons.test.ts` checks this, the setups, the tools and that every
 anchor exists on the bench.
 
+## Writing beats
+
+Every beat must leave a complete beginner (a 12-year-old who has never touched electronics) knowing three things: what
+to do, where to do it, and what to look for. The robot gets there in one of two ways, chosen by the beat.
+
+**Why first.** Open each new idea with one short sentence of purpose, then the step. Use it on:
+
+- the first beat of the lesson,
+- the first beat of each objective,
+- a beat that brings in a new part (a `meet`, or the part's first job),
+- the secret's line and the fix-it's line.
+
+A `done` line on any beat may carry a short "because", so the result reads as a discovery rather than a report.
+
+**Clear sentence.** Every other beat is one complete, concrete instruction: the verb, the thing, and where it is
+("Drag the red clip off the battery's plastic wrapper and onto its plus (+) snap"). Name a new word the moment it
+appears, with a short phrase right after it ("the probes, the meter's two pointed tips"; "Ω, ohms"; "OL means over the
+limit"). Use the screen's own labels, spelled as the screen spells them: WET, Beep, Ω, Range, ON.
+
+Never:
+
+- Write a state as if it were an order. "Probes on the skin." reads as something to do; the learner hunts for a move
+  that is not there. Say "The probes already touch the skin patch", then the real step.
+- Start a beat with "it", "that", "this" or "its" pointing at something from an earlier beat. The note that named it
+  has faded and the camera has moved: name the thing again ("the loose clip", "the black probe").
+- Leave the result unplaced. Say where it shows: "the screen says", "the lamp".
+- Telegraph. "Quick one.", "Still dark.", "Fix-it time. Why?" are fragments; write sentences.
+
+Keep it short: 22 words at most for a robot line (both why-first sentences together), 6 for a note, 8 for a rule.
+Short and complete beats short and cryptic, and a little longer and clear beats both. Notes and rules stay field notes
+("loop: metal all the way round"): they label the bench, they do not instruct. Hints, nudges, `wrong` lines and the
+lab's success lines follow the same voice.
+
+Before and after (the first two from the reference lessons):
+
+| Before | After |
+|---|---|
+| Probes on the skin. Turn the dial to Ω. | Let's measure dry skin. The probes, the meter's two pointed tips, already touch the skin patch: turn the dial to Ω, ohms. (why first) |
+| Move that clip onto the metal snap. | Drag the red clip off the battery's plastic wrapper and onto its plus (+) snap, the other metal stud. (clear sentence) |
+| Almost a million ohms! | The screen says 0.840 MΩ: almost a million ohms, because dry skin is a poor path for flow. (done, with because) |
+| Clip it back. | Put the loose clip back on the metal it came from, so the loop is closed again. |
+| Fix-it time. Dry skin reads OL. Fix it. | Fix-it time. OL means over the limit: the skin's ohms are too big for the meter's range. Get a real number. |
+| Probe the two brass posts. | Touch the red probe to one brass post on the box and the black probe to the other. |
+| Tap the k on the resistor's tag. | Big numbers get short names. Find the letter k on the resistor's tag, and tap it. (why first, a new objective) |
+| Set 20 V. | Turn the dial to V⎓, for battery volts, then pick 20 V under Range. |
+| Dark? Turn the LED around. | The LED is in backwards. Turn it round so its long leg faces plus. (a nudge that stands alone) |
+
+`apps/web/src/lesson/bench/lessons.test.ts` checks first uses: `content/glossary.yaml` lists the jargon (probe, dial,
+Ω, snap, lead, OL, range, kΩ and about 40 more), and the course, walked in order, must introduce each term where it is
+first used: in a `meet` beat, a note, or the word with a short naming phrase next to it. It reports while the course is
+rewritten (`--silent=false` shows the list) and fails for the lessons already in this voice
+(`docs/curriculum/voice-rewrite.md`).
+
 ## Budgets
 
 The build fails a lesson that breaks them (`apps/web/src/content/schema.ts`):
 
 | Thing | Limit |
 |---|---|
-| Robot line (`say`, `done`, the start line) | 12 words |
+| Robot line (`say`, `done`, the start line, the secret's and the fix-it's) | 22 words |
 | Note on a part | 6 words, lower case field-note style |
 | Rule | 8 words; 3 rules at most per lesson (1 or 2 is better) |
 | Chip (guess, pick, start button) | 4 words; 2 or 3 guess chips |
-| Main path (start, every beat's line, done, note, rule and chips, the secret, the fix-it, the sign-off) | under 150 words |
-| On demand (`hint`, `wrong`) | 12 words each, under 60 words in all |
+| Main path (start, every beat's line, done, note, rule and chips, the secret, the fix-it, the sign-off) | 320 words |
+| On demand (`hint`, `wrong`) | 22 words each, 120 words in all |
 | Pop-up cards | one per lesson, only when it is truly hands-on |
+
+The reference lessons use about 245 and 280 words on the main path for six beats with a secret and a fix-it: most
+lessons land between 180 and 300, and the cap is not a target. The lab's hints, nudges and success lines are not counted, but keep each to a robot line.
 
 The learner acts within 5 seconds: the start screen has one button, and the first beat asks for a bench action.
 
@@ -215,7 +276,8 @@ The learner acts within 5 seconds: the start screen has one button, and the firs
 
 Use the three-period lesson. "This is a resistor." (`meet`, or a note on the part at the moment it works.) "Tap the
 resistor." (a `tap` check; a wrong tap names what was tapped.) "What is this?" (a `pick` with `on`, near the end).
-One new part per lesson.
+One new part per lesson. Tool words (probe, dial, snap, clip, range) are named in the line as they first appear, with a
+short phrase after them, the same way.
 
 ## XP and progress
 
@@ -242,6 +304,9 @@ reword the lab's task hints, nudges and success lines (`labLines`). They play at
 (listed at `/variants/<set>`, linked from nowhere, not indexed) as a trial: nothing is saved or earned. A variant with
 `coach: true` turns on the coach mark: as a `do` beat starts, and after a quiet spell, an ink ghost draws the first move
 of the beat's task on the bench (`CoachMark.tsx`), never in a fix-it, the secret or a check.
+
+The `voice` set tried four voices; the course took two of them, "clear sentences" and "why first", mixed as in
+"Writing beats". The watch line and the coach mark stay for the try-out pages only: real lessons never use them.
 
 ## Trying a lesson
 

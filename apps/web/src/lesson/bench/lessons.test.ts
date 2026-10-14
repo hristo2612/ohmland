@@ -4,10 +4,13 @@
  * steps, and every anchor a beat names (and every terminal it traces from) exists on the bench. The content loader cannot see the TypeScript labs, so
  * this is where the two meet.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { parse as parseYaml } from "yaml";
 import { partLegs, type BenchState } from "@ohmland/bench/core";
 import { targetPoint } from "@ohmland/bench/view";
-import { loadCourse, type BenchLessonData } from "../../content/load";
+import { findContentDir, loadCourse, type BenchLessonData } from "../../content/load";
 import { loadVariants, type VariantLesson } from "../../content/variants";
 import { resolveAttach } from "../../lab/anchors";
 import { buildBench } from "../../lab/build";
@@ -15,6 +18,7 @@ import { isOptional, type LabDefinition, type SolutionStep } from "../../lab/def
 import { applyStep, solutionSegments } from "../../lab/steps";
 import { paletteItem } from "../../lab/code/blocks";
 import { uploadError } from "../../lab/mcu";
+import { firstUses, useOf, type FirstUse, type GlossaryTerm } from "./firstUse";
 import { momentsOf } from "./flow";
 import { resolveAnchor } from "./marks";
 
@@ -165,4 +169,48 @@ describe("bench lessons", () => {
       });
     });
   }
+});
+
+/**
+ * The first-use check's mode. While the voice rewrite is under way (docs/curriculum/voice-rewrite.md) it reports the
+ * course's terms used before they are introduced and fails only for the lessons in STRICT_LESSONS. Set FIRST_USE_MODE
+ * to "strict" once the rewrite lands. OHMLAND_FIRST_USE=strict runs it strict without editing this file, and
+ * OHMLAND_FIRST_USE=<lesson-id>,<lesson-id> also holds those lessons to it.
+ */
+const FIRST_USE_MODE = "report" as "report" | "strict";
+/** Lessons already in the new voice: a term they use first must be introduced there. */
+const STRICT_LESSONS = ["welcome-to-the-bench", "what-resists"];
+
+describe("first use of a term (content/glossary.yaml)", () => {
+  const env = process.env["OHMLAND_FIRST_USE"] ?? "";
+  const strict = FIRST_USE_MODE === "strict" || env === "strict";
+  const held = new Set([...STRICT_LESSONS, ...env.split(",").map((s) => s.trim()).filter(Boolean)]);
+  const glossary = (parseYaml(readFileSync(join(findContentDir(), "glossary.yaml"), "utf8")) as { terms: GlossaryTerm[] }).terms;
+  const course = loadCourse().lessons.filter((l): l is BenchLessonData => l.format === "bench");
+  const taskLines = (lab: string, id: string) => {
+    const t = labs.get(lab)?.tasks.find((x) => x.id === id);
+    return t ? [...t.hints, ...(t.nudges ?? []).map((n) => n.say), t.success] : [];
+  };
+  const show = (f: FirstUse) => `${f.unit}/${f.lesson} ${f.where}: ${f.term} in "${f.line}"`;
+
+  it("tells a naming phrase from a plain use", () => {
+    const probe = { term: "probe", forms: ["probe", "probes"] };
+    const ohm = { term: "ohm", forms: ["Ω", "ohm", "ohms"] };
+    expect(useOf(probe, "Touch the probes, the two pointed tips, to the skin.")).toEqual({ used: true, named: true });
+    expect(useOf(probe, "Probes on the skin.")).toEqual({ used: true, named: false });
+    expect(useOf(probe, "Move the probe, then read the screen.").named).toBe(false);
+    expect(useOf(ohm, "Turn the dial to Ω, ohms.").named).toBe(true);
+    expect(useOf(ohm, "The screen says 46 kΩ.").used).toBe(false);
+    expect(useOf({ term: "LED", forms: ["LED"] }, "The robot led the way.").used).toBe(false);
+  });
+
+  it("introduces every term at its first use", () => {
+    const flags = firstUses(course, glossary, taskLines);
+    if (flags.length && !strict) {
+      const units = [...new Set(flags.map((f) => f.unit))].map((u) => `${u} ${flags.filter((f) => f.unit === u).length}`);
+      console.warn(`First use (report mode): ${flags.length} terms used before they are introduced (${units.join(", ")}).\n  ${flags.map(show).join("\n  ")}`);
+    }
+    const failing = strict ? flags : flags.filter((f) => held.has(f.lesson));
+    expect(failing.map(show), "name each new word as it first appears (docs/LESSONS.md, Writing beats)").toEqual([]);
+  });
 });

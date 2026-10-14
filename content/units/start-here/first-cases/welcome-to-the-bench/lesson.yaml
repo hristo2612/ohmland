@@ -1,5 +1,7 @@
 # Blueprint: docs/curriculum/start-here.md, SH1 "The dark lamp". A bench lesson (docs/LESSONS.md).
 # One idea: flow needs a closed loop, metal on metal all the way round. Lab: content/labs/welcome-to-the-bench.ts.
+# A reference lesson for the voice (docs/LESSONS.md, "Writing beats"; docs/curriculum/voice-rewrite.md): why first on
+# the first beat of each objective, the secret and the fix-it; one clear instruction on every other beat.
 format: bench
 id: welcome-to-the-bench
 version: 3
@@ -13,49 +15,52 @@ unlocks:
 
 start:
   title: The dark lamp
-  say: My desk lamp is dark. Take the case?
+  say: My desk lamp won't light. Will you help me find out why?
   go: Take the case
 
 beats:
-  - say: Flip its switch.
+  - say: Let's try the easy fix first. Flip the switch, the silver lever on the wooden block, over to ON.
     objective: Find the gap
     do: close-the-switch
 
-  - say: Still dark. Tap the battery's minus snap.
+  - say: Tap the battery's minus (−) snap, the metal stud the black wire is clipped to. My pencil will trace the path from there.
     tap: { answer: B1.neg, among: [B1.pos, B1.neg] }
     trace: B1.neg
-    wrong: { B1.pos: "That's plus. Minus is the other snap." }
-    note: { at: TL1.a, text: "plastic: a gap" }
+    wrong: { B1.pos: "That's the plus (+) snap. Tap the other metal stud, the one with the black wire." }
+    done: My pencil stops at the red clip, the jaws on the red wire, because it bites plastic, not metal.
+    note: { at: TL1.a, text: "this clip bites plastic: a gap" }
 
-  - say: Move that clip onto the metal snap.
+  - say: Drag the red clip off the battery's plastic wrapper and onto its plus (+) snap, the other metal stud.
     do: find-the-gap
     trace: B1.neg
+    done: It glows, because electricity can now flow through metal all the way round.
     note: { at: D1, text: "loop: metal all the way round" }
-    rule: Flow needs a closed loop.
+    rule: Flow needs a closed loop of metal.
 
-  - say: Unclip a lead far from the lamp. Guess first.
+  - say: Let's test the loop rule. Guess what the lamp will do, then pull the black clip off the lamp.
     objective: Break it, mend it
     guess: { options: [It stays lit, It dims, It goes dark], answer: It goes dark }
     do: break-the-loop
-    done: Dark at once.
+    done: Dark at once, because one gap anywhere breaks the whole loop.
     note: { at: D1, text: "one gap, all dark" }
 
-  - say: Clip it back.
+  - say: Put the loose clip back on the metal it came from, so the loop is closed again.
     do: mend-the-loop
 
-  - say: What is this, all the way round?
+  - say: What do we call a metal path that goes all the way round and back?
     pick: { options: [a loop, a lamp, a line], answer: a loop }
+    wrong: { a lamp: "The lamp is one stop on the path. What is the whole path called?", a line: "A line has two ends. This path has none: it comes back round." }
 
 secret:
   task: swap-battery-leads
-  say: Curious? Swap the battery's two clips.
-  done: Dark, and nothing broke.
+  say: "Bonus: let's see if the way round matters. Swap the battery's two clips, red onto minus and black onto plus."
+  done: Dark, but nothing broke, because this lamp only lets flow through one way.
   note: { at: D1, text: "backwards: dark, no harm" }
 
 fixit:
-  say: Fix-it time. Switch on, still dark. Your turn.
+  say: "Fix-it time, to test your eye. The switch is on, but the lamp stays dark: find the gap."
   tasks:
     - task: fix-it
 
 end:
-  say: Case closed. First light in ages.
+  say: "Case closed. You followed the loop and found the gap: first light in ages."
