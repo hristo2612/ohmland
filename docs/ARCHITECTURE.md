@@ -281,7 +281,9 @@ offers earns every achievement. The store evaluates them after a lesson
 completes, after every fried part and on every lab event, and stores only `{ at }` per unlocked id. Fried parts are recorded with
 `recordFried(kind, label, lessonId, { silent? })`, which the lab runtime calls when the simulator reports a dead part.
 Labs also send `labEvent({ type: "task" | "trigger", ... })`: an achievement with `labEvent: "<name>"` unlocks when
-a lab fires that trigger (docs/LABS.md, Achievements).
+a lab fires that trigger (docs/LABS.md, Achievements). Outside lessons a new achievement toasts. A bench lesson holds
+them (`holdAchievements(true)` while it is open): nothing toasts over the bench, and `completeLesson` lists what the
+lesson earned on the way in its finale's tally, with its XP in the lesson's total.
 
 Merge on sign-in (device + cloud, `progress/merge.ts`, also used by "Import progress"): earliest `at` per lesson,
 union of tasks, max `firstTry`, max `version` and `items`, newest in-progress entry per lesson, union of achievements

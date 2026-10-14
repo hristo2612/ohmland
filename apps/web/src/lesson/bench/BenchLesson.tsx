@@ -13,7 +13,6 @@ import { m } from "../../i18n";
 import { Dialog } from "../../components/Dialog";
 import { Icon } from "../../components/Icon";
 import { IconButton } from "../../components/IconButton";
-import { toast } from "../../components/toast-store";
 import { BenchSurfaceChunk, INK_RENDERER, readViewPref, resolveView, storeViewPref, type BenchViewKind, type BenchViewPref } from "../../lab/bench-view";
 import type { NoteSpec, SolutionStep } from "../../lab/define";
 import { loadLab } from "../../lab/labs";
@@ -349,10 +348,18 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       });
       pendingThen.current = moments.slice(lastTask + 1, at).flatMap((mo) => (checkOf(a, mo.key)?.done ? stepsOf(mo) : []));
       enter(at, a);
-      toast({ title: m.lesson.resumed, icon: "play", duration: 3500 });
+      // No toast over the bench: the bench and the robot's line show where the learner is.
+      window.setTimeout(() => announce(`${m.lesson.resumed} ${moments[at]!.say}`), 0);
     }
     setRestored(true);
-  }, [ready, restored, lesson.id, lesson.version, lesson.lab, moments, enter]);
+  }, [ready, restored, lesson.id, lesson.version, lesson.lab, moments, enter, announce]);
+
+  // Achievements earned on the way wait for the finale's tally: nothing toasts over the bench mid-discovery.
+  useEffect(() => {
+    const store = useLearner.getState();
+    store.holdAchievements(true);
+    return () => store.holdAchievements(false);
+  }, []);
 
   useEffect(() => {
     if (!restored || completion) return;
