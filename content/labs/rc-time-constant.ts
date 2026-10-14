@@ -1,12 +1,16 @@
-// Blueprint: docs/curriculum/unit-2.md, Lesson 11. Slide switch S1 (rows 4 to 6) picks plus (charge) or minus
-// (discharge) for row 5; R1 (1 kΩ) runs from row 5 to row 10, and C1 (1,000 µF) bends its legs from row 10 down
-// to the minus rail. The meter sits across C1; the data logger starts a new run each time S1 is thrown, and its
-// cursor reads off time and voltage. The learner types each τ into the notebook; goals compare it with this circuit's
-// own τ: the resistor's and the capacitor's actual values (electrolytics can be 20% off their print).
+// Blueprint: docs/curriculum/unit-2.md, Lesson 11; conversion: docs/curriculum/conversion-guide.md, C2 lesson 11. The
+// lab of a bench lesson (docs/LESSONS.md): content/units/switching/capacitors/rc-time-constant/lesson.yaml.
+// One idea: τ = R × C sets how fast a capacitor fills and empties.
+//
+// Slide switch S1 (rows 4 to 6) picks plus (charge) or minus (discharge) for row 5; R1 (1 kΩ) runs from row 5 to row
+// 10, and C1 (1,000 µF) bends its legs from row 10 down to the minus rail. The data logger starts a new run each time
+// S1 is thrown, and its cursor reads off time and voltage. The learner types each τ into the notebook box; goals
+// compare it with this circuit's own τ: the resistor's and the capacitor's actual values (electrolytics can be 20% off
+// their print). The fix-it is the timer as the last check left it: 10 kΩ with 1,000 µF, about 10 s.
 //
 // Measured in the simulator: τ = 1.01 s with R1 and C1, 10.2 s with the 10 kΩ, 2.25 s with 2.2 kΩ and C1 (each
 // part a little off its marking, as real ones are).
-import { defineLab, type LabView } from "@ohmland/lab";
+import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 
 /** The timing pair: a resistor from the switch's pole to a node, and an electrolytic from that node to minus. */
 function timing(lab: LabView): { r: string; c: string } | null {
@@ -42,6 +46,9 @@ function measured(lab: LabView, note: string, key: string, tol: number, ohms?: n
   return true;
 }
 
+/** The fix-it bench: the timer as the last check left it (10 kΩ with 1,000 µF, about 10 s), switched to empty. */
+const TEN_SECOND_TIMER: SolutionStep[] = [{ do: "flip", part: "S1", to: "b" }];
+
 export default defineLab({
   id: "rc-time-constant",
   title: "Counting in taus",
@@ -65,7 +72,6 @@ export default defineLab({
       { id: "C2", kind: "electrolytic-cap", params: { farads: 470e-6, volts: 16 }, count: 1, label: "470 µF" },
     ],
     instruments: [
-      { kind: "meter", at: "desk:-178,22", rot: 16, mode: "dcv", tips: { red: "desk:-52,48", black: "desk:-40,54" } },
       {
         kind: "logger",
         traces: [{ label: "C1", volts: "C1.pos" }],
@@ -79,10 +85,7 @@ export default defineLab({
     ],
   },
   mascot: {
-    start: "Tau: the only Greek letter with a stopwatch.",
-    hint: "Drag the logger's cursor to where the curve crosses the voltage you want.",
-    success: "Sixty-three percent. Every single tau.",
-    exit: "Same curve, different stretch. Capacitors are very consistent.",
+    hint: "Drag the logger's cursor to where the curve crosses that voltage.",
   },
   triggers: {
     // Every τ the learner typed was within 5% of the circuit's own.
@@ -90,26 +93,33 @@ export default defineLab({
   },
   tasks: [
     {
+      id: "charge-it",
+      prompt: "Slide S1 to charge, and watch the logger.",
+      // Charging, and most of the way there: past 8.4 V is nearly three τ.
+      goal: (lab) => !lab.closed("S1") && (lab.volts("C1.pos") ?? 0) > 8.4,
+      hints: ["Slide S1 toward the + rail.", "Then wait. It takes a few seconds."],
+      highlight: ["S1"],
+      success: "Fast, then slower and slower.",
+    },
+    {
       id: "find-tau",
-      prompt:
-        "Charge C1 with S1. How many seconds until it reaches **5.69 V**?",
+      prompt: "When did C1 pass 5.69 V? Type the seconds.",
       note: { id: "tau1", label: "Charging τ", unit: "s" },
       goal: (lab) => measured(lab, "tau1", "e1", 0.1, 1000),
       hints: ["Drag the logger's cursor to where the curve crosses 5.69 V.", "5.69 V is 63.2% of 9 V. Time counts from the slide."],
-      highlight: ["S1"],
-      success: "About one second. And 1 kΩ × 1,000 µF = 1 s.",
+      success: "About one second.",
     },
     {
       id: "discharge-tau",
-      prompt: "Fill it fully, slide S1 back. When does C1 reach **3.31 V**?",
+      prompt: "Slide S1 back. When does C1 fall to 3.31 V?",
       note: { id: "tau2", label: "Discharging τ", unit: "s" },
       goal: (lab) => measured(lab, "tau2", "e2", 0.1, 1000),
       hints: ["Wait until the curve flattens near 9 V first.", "3.31 V is 36.8% of 9 V: what's left after one τ."],
-      success: "Same τ going down: 63% of the way to zero.",
+      success: "Same τ going down.",
     },
     {
       id: "ten-times-slower",
-      prompt: "Swap R1 for **10 kΩ**. Predict τ, then measure it.",
+      prompt: "Swap R1 for the 10 kΩ. Time it again.",
       note: { id: "tau3", label: "τ with 10 kΩ", unit: "s" },
       goal: (lab) => measured(lab, "tau3", "e3", 0.1, 10000),
       hints: ["Empty C1 first: slide to discharge and wait.", "This one takes a while: about ten seconds to reach 5.69 V."],
@@ -117,26 +127,29 @@ export default defineLab({
     },
     {
       id: "hit-the-target",
-      prompt: "Pick a resistor and capacitor for a τ of about **2.2 s**.",
+      prompt: "This timer should take 2.2 s. Fix it, then time it.",
+      setup: TEN_SECOND_TIMER,
       note: { id: "tau4", label: "Your τ", unit: "s" },
       goal: (lab) => {
         const t = tau(lab);
+        // The 10 s timer first (the setup), then a pair whose τ is about 2.2 s, timed.
+        if (!t || t.nominal < 2.1 || t.nominal > 2.3) lab.memory["slow"] = true;
         const x = lab.note("tau4");
-        if (!t || x === null || t.nominal < 2.1 || t.nominal > 2.3 || Math.abs(x - 2.2) > 0.44) return false;
+        if (lab.memory["slow"] !== true || !t || x === null || t.nominal < 2.1 || t.nominal > 2.3 || Math.abs(x - 2.2) > 0.44) return false;
         lab.shared["e4"] = Math.abs(x - t.real) / t.real;
         return true;
       },
-      hints: ["τ = R × C. Try pairs.", "There are two good answers on this tray."],
-      success: "2.2 kΩ × 1,000 µF, or 4.7 kΩ × 470 µF. Same timing.",
-      notice: "Measured τ lands near R × C: electrolytics can be 20% off.",
+      hints: ["τ = R × C. Which pair on the tray makes 2.2 s?", "2.2 kΩ with 1,000 µF, or 4.7 kΩ with 470 µF."],
+      success: "Fixed.",
     },
   ],
   solution: [
     { do: "flip", part: "S1", to: "a" },
-    { do: "wait", seconds: 1.5 },
+    { do: "wait", seconds: 3 },
+    { do: "check", task: "charge-it" },
     { do: "note", id: "tau1", value: "1.01" },
     { do: "check", task: "find-tau" },
-    { do: "wait", seconds: 5 },
+    { do: "wait", seconds: 3 },
     { do: "flip", part: "S1", to: "b" },
     { do: "wait", seconds: 1.5 },
     { do: "note", id: "tau2", value: "1.01" },
@@ -148,7 +161,7 @@ export default defineLab({
     { do: "wait", seconds: 2 },
     { do: "note", id: "tau3", value: "10.2" },
     { do: "check", task: "ten-times-slower" },
-    { do: "flip", part: "S1", to: "b" },
+    ...TEN_SECOND_TIMER,
     { do: "remove", part: "R4" },
     { do: "place", part: "R2", kind: "resistor", at: "e5-e10", params: { ohms: 2200 } },
     { do: "wait", seconds: 6 },
