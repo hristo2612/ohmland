@@ -1,100 +1,39 @@
-/* Achievements and the Hall of Fried Parts. Tokens only. */
+/* Achievements (a page of stamps) and the Hall of Fried Parts (a page of taped-in parts). Tokens only. */
 
-.ach, .hall { display: grid; gap: var(--space-6); }
-.ach__head, .hall__head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-4); }
-.hall__head p { margin-top: var(--space-2); max-width: var(--read-max); }
+.level-line { display: grid; gap: var(--s-2); max-width: 420px; }
+.level-line__top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-4); }
+.level-line__name { font-size: var(--text-lg); line-height: var(--lh-lg); font-weight: var(--weight-strong); }
+.level-line__xp { color: var(--blue); font-family: var(--font-hand); font-size: var(--text-xl); line-height: var(--lh-xl); white-space: nowrap; }
 
-.ach__grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-4); }
-.ach-card {
-  display: flex;
-  gap: var(--space-4);
-  padding: var(--space-5);
-  border: var(--border) solid var(--line);
-  border-radius: var(--radius-l);
-  background: var(--surface);
-  box-shadow: var(--shadow-1);
-}
-.ach-card[data-state="locked"] { background: transparent; border-style: dashed; box-shadow: none; }
-.ach-card__icon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 56px;
-  height: 56px;
-  border-radius: var(--radius-l);
-  background: linear-gradient(150deg, var(--primary), var(--copper));
-  color: var(--primary-ink);
-  box-shadow: var(--shadow-button);
-}
-.ach-card[data-state="locked"] .ach-card__icon { background: var(--surface-sunk); color: var(--ink-3); box-shadow: none; }
-.ach-card__text { display: grid; gap: var(--space-1); align-content: start; min-width: 0; }
-.ach-card__title { font-size: var(--text-subheading); }
-.ach-card[data-state="locked"] .ach-card__title { color: var(--ink-2); }
-.ach-card__meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-2); }
-.ach-card__date { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--good); font-weight: var(--weight-semibold); }
+.ach, .hall { display: grid; gap: var(--s-8); }
+.ach__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-2) var(--s-4); padding-bottom: var(--s-3); border-bottom: var(--border-1) solid var(--rule); }
 
-/* The shelf */
-.shelf {
-  padding: var(--space-8) var(--space-6) var(--space-6);
-  border-radius: var(--radius-xl);
-  background: var(--bg-band);
-  background-image: radial-gradient(var(--dot-grid) 1.2px, transparent 1.4px);
-  background-size: 18px 18px;
-  border: var(--border) solid var(--line);
-}
-.shelf__row {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  row-gap: var(--space-8);
-}
-.shelf__item {
+.stamps { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: var(--s-8) var(--s-6); list-style: none; }
+.stamps__item { display: grid; justify-items: center; align-content: start; gap: var(--s-2); text-align: center; }
+.stamps__item .stamp { margin-bottom: var(--s-2); }
+.stamps__title { font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: var(--weight-strong); text-wrap: balance; }
+.stamps__item[data-state="todo"] .stamps__title { color: var(--ink-2); font-weight: var(--weight-body); }
+.stamps__how { color: var(--ink-3); font-size: var(--text-xs); line-height: var(--lh-xs); text-wrap: balance; max-width: 22ch; }
+
+.taped { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: var(--s-12) var(--s-6); padding-top: var(--s-3); list-style: none; }
+.taped__item {
   position: relative;
   display: grid;
   justify-items: center;
-  gap: var(--space-3);
-  padding: 0 var(--space-2);
-  animation: rise var(--dur-3) var(--ease-out) both;
-  animation-delay: calc(var(--i) * var(--dur-fast) * 0.5);
-}
-/* The plank each part stands on. */
-.shelf__item::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 84px;
-  height: 10px;
-  background: linear-gradient(var(--pcb-edge), var(--pcb-edge-lo));
-  box-shadow: var(--shadow-1);
-}
-.shelf__part { position: relative; display: grid; place-items: end center; height: 84px; }
-.shelf__plaque {
-  display: grid;
-  justify-items: center;
-  gap: var(--space-1);
-  margin-top: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-s);
-  background: var(--surface);
-  border: var(--border) solid var(--line);
+  gap: var(--s-2);
+  padding: var(--s-6) var(--s-4) var(--s-4);
+  background: var(--paper-slip);
+  border: var(--border-1) solid var(--rule-soft);
   text-align: center;
-  font-size: var(--text-caption);
-  line-height: var(--leading-caption);
-  max-width: 150px;
+  rotate: var(--tilt, 0deg);
 }
-.shelf__label { font-weight: var(--weight-semibold); font-size: var(--text-small); }
-.shelf__date { color: var(--accent-ink); }
-.shelf__where { color: var(--ink-2); }
-@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.taped__label { margin-top: var(--s-2); font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: var(--weight-strong); text-wrap: balance; }
+.taped__where { color: var(--ink-2); font-size: var(--text-xs); line-height: var(--lh-xs); text-wrap: balance; }
 
-.hall__empty { gap: var(--space-4); }
-.hall__empty .say { align-items: center; }
+.hall__empty { display: grid; justify-items: start; gap: var(--s-6); padding: var(--s-6) 0; }
 
-@media (max-width: 640px) {
-  .shelf { padding: var(--space-6) var(--space-3) var(--space-4); }
-  .shelf__row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hall__empty .say { flex-direction: column; }
+@media (max-width: 720px) {
+  .stamps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-6) var(--s-4); }
+  .taped { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-8) var(--s-4); }
+  .hall__empty .say { flex-direction: column; align-items: flex-start; }
 }

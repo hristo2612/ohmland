@@ -1,39 +1,31 @@
 /**
- * The course map's island card: the learner's own island, small and live, linking to /isle. It loads when the card
- * comes into view; until then (and if 3D is unavailable) the sky holds its place.
+ * The course map's island: the learner's own island, live, standing on the page's own grid paper (`paper: "clear"`).
+ * It loads when it comes into view; until then the paper is simply empty, and where 3D is unavailable the ink sketch
+ * (IsleArt) stands in, its landmarks drawn as they are built.
  */
 import { useEffect, useRef, useState } from "react";
 import type { IsleView } from "@ohmland/isle";
-import { Icon } from "../components/Icon";
-import { Skeleton } from "../components/Skeleton";
+import { IsleArt, type IsleArtLandmark } from "../components/IsleArt";
 import type { CourseOutline } from "../content/outline";
-import { m } from "../i18n";
 import { prefersReducedMotion } from "../progress/prefs";
 import { useLearner, useLearnerReady } from "../progress/useLearner";
-import { completedModules } from "../progress/xp";
-import { timeOption, whenVisible } from "./env";
+import { onThemeChange, pageTime, whenVisible } from "./env";
 import { loadIsle } from "./load";
-import "./isle-frames.css";
 
 type Runtime = Awaited<ReturnType<typeof loadIsle>>;
 
-export default function IsleCard({ outline }: { outline: CourseOutline }) {
+export default function IsleCard({ outline, label, landmarks }: { outline: CourseOutline; label: string; landmarks: IsleArtLandmark[] }) {
   const ready = useLearnerReady(outline);
   const learner = useLearner((s) => s.learner);
-  const frame = useRef<HTMLDivElement>(null);
   const live = useRef<HTMLDivElement>(null);
   const view = useRef<IsleView | null>(null);
   const runtime = useRef<Runtime | null>(null);
   const shownKey = useRef("");
-  const [shown, setShown] = useState(false);
-
-  const lessons = outline.order.filter((id) => learner.lessons[id]).length;
-  const modules = completedModules(learner, outline).length;
+  const [status, setStatus] = useState<"waiting" | "shown" | "failed">("waiting");
 
   useEffect(() => {
-    const el = frame.current;
     const host = live.current;
-    if (!ready || !el || !host) return;
+    if (!ready || !host) return;
     let cancelled = false;
     const cleanups: (() => void)[] = [];
     const start = async () => {
@@ -46,9 +38,10 @@ export default function IsleCard({ outline }: { outline: CourseOutline }) {
           interactive: false,
           quality: "low",
           muted: true,
+          paper: "clear",
           reducedMotion: prefersReducedMotion(),
           messages: rt.isleMessages(outline),
-          ...timeOption(),
+          time: pageTime(),
         });
         if (cancelled) {
           v.dispose();
@@ -56,13 +49,13 @@ export default function IsleCard({ outline }: { outline: CourseOutline }) {
         }
         view.current = v;
         shownKey.current = `${seed}:${events.length}`;
-        cleanups.push(rt.pauseWhenHidden(v), () => v.dispose());
-        requestAnimationFrame(() => requestAnimationFrame(() => !cancelled && setShown(true)));
+        cleanups.push(rt.pauseWhenHidden(v), onThemeChange(() => v.setTime(pageTime())), () => v.dispose());
+        requestAnimationFrame(() => requestAnimationFrame(() => !cancelled && setStatus("shown")));
       } catch {
-        // the sky stays; the card still links to the island
+        if (!cancelled) setStatus("failed");
       }
     };
-    cleanups.push(whenVisible(el, () => void start()));
+    cleanups.push(whenVisible(host, () => void start()));
     return () => {
       cancelled = true;
       for (const c of cleanups) c();
@@ -83,18 +76,8 @@ export default function IsleCard({ outline }: { outline: CourseOutline }) {
   }, [learner, outline]);
 
   return (
-    <a className="isle-card card card--raised card--interactive" href="/isle">
-      <div className="isle-frame isle-card__frame" ref={frame} data-live={shown || undefined}>
-        <div className="isle-frame__live" ref={live} aria-hidden="true" />
-      </div>
-      <span className="isle-card__text">
-        <span className="eyebrow">{m.map.isleTitle}</span>
-        {ready ? <span className="small muted">{m.isle.cardCounts(lessons, modules)}</span> : <Skeleton shape="text" width="80%" />}
-        <span className="isle-card__link">
-          {m.map.isleLink}
-          <Icon name="arrow-right" size={16} />
-        </span>
-      </span>
+    <a className="isle-card" href="/isle" aria-label={label} data-status={status}>
+      {status === "failed" ? <IsleArt landmarks={landmarks} /> : <div className="isle-card__live" ref={live} aria-hidden="true" />}
     </a>
   );
 }

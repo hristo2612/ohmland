@@ -19,11 +19,6 @@ export function onThemeChange(cb: () => void): () => void {
   };
 }
 
-/** The learner asked the browser to save data: keep stills instead of loading the 3D island for decoration. */
-export function savesData(): boolean {
-  return !!(navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
-}
-
 /** Runs `fn` when the browser is idle (or soon, where idle callbacks are missing). Returns the cancel. */
 export function whenIdle(fn: () => void, timeout = 1500): () => void {
   if (typeof requestIdleCallback === "function") {
@@ -58,15 +53,17 @@ export function timeFromQuery(): Date | undefined {
   return d;
 }
 
-/** The `time` mount option when the page has a `?time=` override, else nothing (the isle follows the clock). */
-export function timeOption(): { time: Date } | Record<string, never> {
-  const time = timeFromQuery();
-  return time ? { time } : {};
-}
-
 /** Noon or midnight today, for islands that follow the theme rather than the clock. */
 export function themeTime(dark: boolean): Date {
   const d = new Date();
   d.setHours(dark ? 23 : 12, 0, 0, 0);
   return d;
+}
+
+/**
+ * The time an island on a page should show: the `?time=` override (screenshots), else noon or midnight to match the
+ * page's theme, so a night page has a night island.
+ */
+export function pageTime(): Date {
+  return timeFromQuery() ?? themeTime(isDarkTheme());
 }

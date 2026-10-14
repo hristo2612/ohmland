@@ -38,7 +38,7 @@ export const prepare = (): void => {
 /** The renderer that draws `view` today. */
 const rendered = (view: BenchViewKind): BenchViewKind => (view === "ink" && !INK_RENDERER ? "3d" : view);
 
-type Hub = BenchController & { inner(): BenchController | null };
+type Hub = BenchController & { inner(): BenchController | null; refocus(): void };
 
 export default function BenchSurface({ view, runtime, tray, quality, readOnly, highlight, locked, frame, controllerRef, onReady }: BenchSurfaceProps) {
   const [ready, setReady] = useState(false);
@@ -56,7 +56,8 @@ export default function BenchSurface({ view, runtime, tray, quality, readOnly, h
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [standIn, ready]);
 
-  // The tray comes and goes with the lesson's beats: frame the bench again for the room that is left.
+  // The tray comes and goes with the lesson's beats: frame what was framed (the parts in play, or the whole bench)
+  // again for the room that is left.
   const hasTray = tray.length > 0;
   const firstTray = useRef(true);
   useEffect(() => {
@@ -67,7 +68,7 @@ export default function BenchSurface({ view, runtime, tray, quality, readOnly, h
     }
     const raf = requestAnimationFrame(() => {
       if (standIn) inner3d()?.topView();
-      else inner3d()?.resetView();
+      else hub.current?.refocus();
     });
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,7 +1,6 @@
 ---
 import Page from "../layouts/Page.astro";
-import ProgressCard from "../components/ProgressCard";
-import { AchievementGrid, HallOfFriedParts } from "../components/AchievementsView";
+import { AchievementGrid, HallOfFriedParts, LevelLine } from "../components/AchievementsView";
 import { getCourse } from "../content/load";
 import { m } from "../i18n";
 
@@ -10,27 +9,19 @@ const firstLab = course.lessons.find((l) => l.format === "bench" || l.steps.some
 ---
 
 <Page title={m.achievements.title} active="achievements">
-  <div class="container">
-    <header class="page-head ach-page__head">
-      <div>
+  <div class="sheet">
+    <div class="sheet__main ach-page">
+      <header class="page-head">
         <h1>{m.achievements.title}</h1>
-        <p class="lead">{m.achievements.lead}</p>
-      </div>
-      <div class="ach-page__card">
-        <ProgressCard client:load outline={course.outline} />
-      </div>
-    </header>
-    <div class="ach-page__body">
-      <HallOfFriedParts client:load outline={course.outline} firstLabHref={firstLab?.href ?? "/learn"} />
+        <LevelLine client:load outline={course.outline} />
+      </header>
       <AchievementGrid client:load outline={course.outline} />
+      <HallOfFriedParts client:load outline={course.outline} firstLabHref={firstLab?.href ?? "/learn"} />
     </div>
   </div>
 </Page>
 
 <style>
-  .ach-page__head { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--space-8); align-items: center; }
-  .ach-page__body { display: grid; gap: var(--space-16); }
-  @media (max-width: 860px) {
-    .ach-page__head { grid-template-columns: 1fr; }
-  }
+  .ach-page { display: grid; gap: var(--s-16); }
+  .ach-page .page-head { padding-bottom: 0; }
 </style>
