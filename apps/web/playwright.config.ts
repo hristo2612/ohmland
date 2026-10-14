@@ -8,6 +8,9 @@ export default defineConfig({
   testIgnore: "accounts/**",
   timeout: 60_000,
   fullyParallel: true,
+  // The 3D bench renders in software (SwiftShader). More than two browsers at once starve it, and picking in the
+  // 3D view then misses: keep the suite steady rather than fast.
+  workers: Number(process.env.OHMLAND_E2E_WORKERS ?? 2),
   reporter: process.env.CI ? "github" : "list",
   use: {
     baseURL: `http://localhost:${PORT}`,
