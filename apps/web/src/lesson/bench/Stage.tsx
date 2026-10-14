@@ -254,18 +254,22 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         let b = start?.bench ?? runtime.store.getState().bench;
         // The setup's own inputs (a meter's mode or range, a switch) go after the checkpoint's, so they win.
         const inputs = [...(start?.inputs ?? [])];
-        // Its views and overlays (flow dots, push, x-ray) and the loop tracer show the bench it sets up.
+        // Its views and overlays (flow dots, push, x-ray), its controls (time back to normal speed) and the loop tracer
+        // show the bench it sets up.
         const views: { name: "flow" | "electrons" | "push" | "xray"; on: boolean }[] = [];
+        const controls: { id: string; value: number }[] = [];
         let trace: string | null | undefined;
         for (const step of task.setup) {
           const e = applyStep(b, step);
           b = e.bench;
           for (const { after: _after, ...i } of e.inputs) inputs.push(i);
           if (e.view) views.push(e.view);
+          if (e.control) controls.push(e.control);
           if (e.trace !== undefined) trace = e.trace;
         }
         runtime.loadBench(b);
         for (const i of inputs) runtime.setInput(i.id, i.key, i.value);
+        for (const c of controls) runtime.setControl(c.id, c.value);
         for (const v of views) runtime.setView(v.name, v.on);
         // The tracer runs on the bench as set up, so it goes last.
         if (trace !== undefined) runtime.trace(trace);
