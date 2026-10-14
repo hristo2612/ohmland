@@ -8,3 +8,4 @@ isle:
   seed: 0
 modules:
   - first-cases
+  - push-and-squeeze
