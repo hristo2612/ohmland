@@ -192,7 +192,7 @@ async function pages(browser, url) {
         await shot(page, `${name}-${size}-${theme}`);
         if (name === "isle" && wanted(`isle-label-${size}-${theme}`)) {
           // tap the module's landmark (where the seeded island puts it) for its label
-          const [x, y] = size === "phone" ? [212, 300] : [760, 150];
+          const [x, y] = size === "phone" ? [215, 410] : [545, 370];
           await page.mouse.click(x, y);
           await page.waitForTimeout(500);
           await shot(page, `isle-label-${size}-${theme}`);

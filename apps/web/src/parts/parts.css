@@ -51,6 +51,7 @@
 .part-icon--burned .pi-led, .part-icon--burned .pi-red, .part-icon--burned .pi-cap { fill: var(--sk-led-dead); }
 .part-icon--burned .pi-body, .part-icon--burned .pi-lemon, .part-icon--burned .pi-batt-label { fill: var(--sk-shade); }
 .part-icon--burned .pi-shine { opacity: 0.25; }
+.part-icon--burned [class^="pi-band-"] { opacity: 0.4; }
 .pi-char { fill: var(--sk-char); opacity: 0.4; }
 .pi-smoke { fill: none; stroke: var(--sk-smoke); stroke-width: 1.75px; stroke-linecap: round; }
 

@@ -296,7 +296,9 @@ const L = m.landing;
       light(true);
       if (root.dataset.motion === "reduce") return;
       e.preventDefault();
-      const ms = parseFloat(getComputedStyle(root).getPropertyValue("--dur-turn")) || 0;
+      // the token may come back as "440ms" or, minified, ".44s"
+      const raw = getComputedStyle(root).getPropertyValue("--dur-turn").trim();
+      const ms = (parseFloat(raw) || 0) * (raw.endsWith("ms") ? 1 : 1000);
       root.dataset.turning = "";
       setTimeout(() => location.assign(link.href), ms);
     });

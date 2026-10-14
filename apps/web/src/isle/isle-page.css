@@ -20,12 +20,12 @@
   padding: env(safe-area-inset-top) var(--gutter) 0;
 }
 .isle-bar__group { display: flex; align-items: center; gap: var(--s-1); min-width: 0; }
-.isle-bar__group--title { gap: var(--s-3); }
+.isle-bar__group--title { flex: 1; gap: var(--s-3); }
 .isle-bar__title { display: grid; min-width: 0; }
 .isle-bar__title h1 { font-size: var(--text-lg); line-height: var(--lh-lg); }
 .isle-bar__counts { display: flex; flex-wrap: wrap; gap: 0 var(--s-3); color: var(--ink-2); font-size: var(--text-xs); line-height: var(--lh-xs); }
 .isle-bar__counts span { display: inline-flex; align-items: center; gap: var(--s-1); white-space: nowrap; }
-.isle-bar__tools { border: var(--border-1) solid var(--rule-soft); background: var(--paper-slip); }
+.isle-bar__tools { flex: none; border: var(--border-1) solid var(--rule-soft); background: var(--paper-slip); }
 .isle-bar__sep { width: var(--border-1); height: 24px; margin-inline: var(--s-1); background: var(--rule-soft); }
 
 /* The stage: the island stands on the page itself, under a pencil rule. */
@@ -136,7 +136,9 @@
 
 @media (max-width: 720px) {
   .isle-bar { gap: var(--s-2); min-height: 64px; }
-  .isle-bar__counts { flex-wrap: nowrap; }
+  .isle-bar__title h1 { font-size: var(--text-md); line-height: var(--lh-sm); }
+  .isle-bar__counts { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .isle-bar__tools .icon-btn { width: 40px; }
   .isle-bar__sep { display: none; }
   .isle-hint { display: none; }
 }
