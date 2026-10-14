@@ -1,12 +1,13 @@
 // Blueprint: docs/curriculum/unit-4.md, CH17, as narrowed by docs/curriculum/unit-3.md 8.2 (the 7805 is taught in
 // Unit 3's steady-five): a bench lesson (docs/LESSONS.md), content/units/chips/logic/five-volts-exactly. One idea: a
-// logic input reads high near plus and low near minus; left floating it reads noise, so a resistor ties it down.
-// Half board. The logic rail: VR1 (7805) at the left end turns the battery's 9.4 V into 5 V on the far rails. U1, a
-// 74HC08, has gate 4's inputs (pins 13 and 12) joined: a gate that copies its input onto pin 11, which lights D1
-// through 1 kΩ. Its other inputs are tied to minus. Trimmer RV1 across the 5 V rail feeds the input through the
-// knob's wire W1. Everything in play sits in the far half. The learner sweeps the knob, pulls the wire out (the input floats and follows a hand's
-// hum: the Knob and Hand sliders), then ties the input down with the 10 kΩ waiting on the shelf. Spare chip U9 sits on 5 V for
-// the secret (moved to 9 V it dies). The fix-it bench lifts the pull-down's far end into an empty strip.
+// logic input reads high near plus and low near minus; left floating it reads noise, so a resistor ties it down. Half
+// board. The logic rail: VR1 (7805) at the left end turns the battery's 9.4 V into 5 V on the far rails. U1, a 74HC08,
+// has gate 4's inputs (pins 13 and 12) joined: a gate that copies its input onto pin 11, which lights D1 through 1 kΩ.
+// Its other inputs are tied to minus. Trimmer RV1 across the 5 V rail feeds the input through the knob's wire W1.
+// Everything in play sits in the far half. The learner sweeps the knob, pulls the wire out (the input floats and
+// follows a hand's hum: the Knob and Hand sliders), then ties the input down with the 10 kΩ waiting on the shelf. Spare
+// chip U9 sits on 5 V for the secret (moved to 9 V it dies). The fix-it bench lifts the pull-down's far end into an
+// empty strip.
 import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 import { gateChip, logicRail, seen, wire } from "./lib/chip-bench";
 

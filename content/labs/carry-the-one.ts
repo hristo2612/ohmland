@@ -1,12 +1,11 @@
 // Blueprint: docs/curriculum/unit-4.md, CH15; a bench lesson (docs/LESSONS.md):
-// content/units/chips/counters/carry-the-one. One idea: a counter's carry out rises as it rolls from 9 to 0, so it
-// can clock the next digit.
-// Full board, 9.4 V. Bare chips (the plug-in digit modules do not exist yet): the tens counter U2 (pin 1 at e4) with
-// its display DS2 at columns 15 to 19, the ones display DS1 at 25 to 29 with its counter U1 (pin 1 at e33) to its
-// right, and U3, a 555 clock at e46 (10 kΩ, 68 kΩ, 1 µF, about 9.9 Hz), clocking U1. Both resets and inhibits sit on minus.
-// The tens clock wire W3 starts on the minus rail; the learner moves it to the ones' carry out (U1 pin 5). The secret
-// swaps the 1 µF for 0.1 µF: the ones blur, the tens tick as fast as the ones did. The fix-it bench puts the tens
-// clock on the clock line.
+// content/units/chips/counters/carry-the-one. One idea: a counter's carry out rises as it rolls from 9 to 0, so it can
+// clock the next digit. Full board, 9.4 V. Bare chips (the plug-in digit modules do not exist yet): the tens counter U2
+// (pin 1 at e4) with its display DS2 at columns 15 to 19, the ones display DS1 at 25 to 29 with its counter U1 (pin 1
+// at e33) to its right, and U3, a 555 clock at e46 (10 kΩ, 68 kΩ, 1 µF, about 9.9 Hz), clocking U1. Both resets and
+// inhibits sit on minus. The tens clock wire W3 starts on the minus rail; the learner moves it to the ones' carry out
+// (U1 pin 5). The secret swaps the 1 µF for 0.1 µF: the ones blur, the tens tick as fast as the ones did. The fix-it
+// bench puts the tens clock on the clock line.
 import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 import { count, digit, seen, wire } from "./lib/chip-bench";
 
