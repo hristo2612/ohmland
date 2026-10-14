@@ -19,6 +19,7 @@ import type { PaperPalette } from "../three/paper";
 import type { FocusOptions, Inset, ScreenPoint } from "../view/controller";
 import { meterSpot, parseTarget, targetPoint } from "../view/targets";
 import { frameWithParts } from "../view/framing";
+import { heldOf, holderOf } from "../seats";
 
 export type ViewApi = {
   /** Element-relative CSS px of a target or a world point. */
@@ -570,6 +571,19 @@ function ringMaterial(color: string): THREE.ShaderMaterial {
 
 const RING_GEO = new THREE.PlaneGeometry(1, 1);
 
+const sameRings = (a: Ring[], b: Ring[]) =>
+  a.length === b.length && a.every((r, i) => r.key === b[i]!.key && r.y === b[i]!.y && r.box.equals(b[i]!.box));
+
+/** The parts that come into the spotlight with a part: what it holds, and the holder it sits in. */
+function spotCompanions(bench: BenchState, id: string): string[] {
+  const part = bench.parts.find((p) => p.id === id);
+  if (!part) return [];
+  const out = Object.values(heldOf(part)).filter((x): x is string => !!x);
+  const holder = holderOf(bench, id);
+  if (holder) out.push(holder.holder.id);
+  return out;
+}
+
 type Ring = { key: string; box: THREE.Box3; y: number };
 
 /**
@@ -581,7 +595,8 @@ export function SpotlightRig({ store, targets, spot, palette }: { store: BenchSt
   const invalidate = useThree((s) => s.invalidate);
   const lifted = useRef(new Set<THREE.Object3D>());
   const roots = useRef<THREE.Object3D[]>([]);
-  const seen = useRef<{ bench: BenchState | null; targets: string[] | null }>({ bench: null, targets: null });
+  /** The bench and targets the rings were worked out for, and how many more frames to work them out again. */
+  const seen = useRef<{ bench: BenchState | null; targets: string[] | null; settle: number }>({ bench: null, targets: null, settle: 0 });
   const [rings, setRings] = useState<Ring[]>([]);
   const ringGroup = useRef<THREE.Group>(null);
   const material = useMemo(() => ringMaterial(palette.red), [palette.red]);
@@ -597,10 +612,16 @@ export function SpotlightRig({ store, targets, spot, palette }: { store: BenchSt
     const scene = get().scene;
     const bench = store.getState().bench;
     const s = seen.current;
-    // Rings and lifted roots follow the models: work them out again after the bench or the targets change.
+    // Rings and lifted roots follow the models: work them out again after the bench or the targets change, and for a
+    // few frames after that, while the models catch up (a part stood in a hole, an opened box's contents mount).
     if (targets && (s.bench !== bench || s.targets !== targets)) {
       s.bench = bench;
       s.targets = targets;
+      s.settle = 3;
+    }
+    if (targets && s.settle > 0) {
+      s.settle--;
+      if (s.settle > 0) invalidate();
       const r: THREE.Object3D[] = [];
       const next: Ring[] = [];
       for (const t of targets) {
@@ -609,6 +630,11 @@ export function SpotlightRig({ store, targets, spot, palette }: { store: BenchSt
         if (parsed.type === "part") {
           const obj = scene.getObjectByName(`part:${parsed.id}`);
           if (obj) r.push(obj);
+          // A holder brings what it holds (an open box's contents), and a seated part its holder, as in ink.
+          for (const id of spotCompanions(bench, parsed.id)) {
+            const o = scene.getObjectByName(`part:${id}`);
+            if (o) r.push(o);
+          }
           const isMeter = !!bench.meter && parsed.id === bench.meter.id;
           if (isMeter && parsed.sub) {
             const p = meterSpot(bench, parsed.sub);
@@ -632,7 +658,7 @@ export function SpotlightRig({ store, targets, spot, palette }: { store: BenchSt
         }
       }
       roots.current = r;
-      setRings(next);
+      setRings((prev) => (sameRings(prev, next) ? prev : next));
     }
     if (!targets && s.targets) {
       s.targets = null;
