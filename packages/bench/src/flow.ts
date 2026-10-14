@@ -177,13 +177,30 @@ export type GateCounts = Record<string, number>;
  * the next one, so two gates on one series loop always agree.
  */
 export function advanceGates(prev: GateCounts, bench: BenchState, snapshot: Snapshot | null, dt: number): GateCounts {
-  const out: GateCounts = {};
+  // A gate clipped on, moved or taken off starts every gate's count again, so gates clipped at different moments
+  // count side by side from the same zero (the same flow, the same number).
+  const sig = clipSignature(bench);
+  const restart = prev[CLIPPED] !== undefined && prev[CLIPPED] !== sig;
+  const out: GateCounts = { [CLIPPED]: sig };
   for (const p of bench.parts) {
     if (p.kind !== "gate") continue;
-    const before = prev[p.id] ?? 0;
+    const before = restart ? 0 : (prev[p.id] ?? 0);
     out[p.id] = dt > 0 && dt < 5 ? before + dotRate(gateAmps(bench, snapshot, p.id)) * dt : before;
   }
   return out;
+}
+
+/** The key in GateCounts that remembers which gates sit on which leads (not a part id: "#" is not allowed in one). */
+const CLIPPED = "#clipped";
+
+/** Which gates are clipped on which leads, as one number. */
+function clipSignature(bench: BenchState): number {
+  let h = 0;
+  for (const p of bench.parts) {
+    if (p.kind !== "gate" || !p.params.on) continue;
+    for (const ch of `${p.id}>${p.params.on};`) h = (Math.imul(h, 31) + ch.charCodeAt(0)) | 0;
+  }
+  return h;
 }
 
 /** A current written for a gate's readout: "0.0075 A" or "7.5 mA". */

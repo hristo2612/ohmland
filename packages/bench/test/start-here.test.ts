@@ -226,6 +226,15 @@ describe("gates", () => {
     const c = counts as Record<string, number>;
     expect(c.G1).toBeCloseTo(c.G2!, 6);
     expect(c.G1).toBeCloseTo(dotRate(7.5e-3), 0);
+    // A gate clipped on later starts both counts again, so the two read the same number.
+    let one = lampLoop();
+    [one] = addPart(one, "gate", { on: "TL3", at: 0.5 }, { pos: [0, 0] }, "G1");
+    let late: Record<string, number> = {};
+    for (let k = 0; k < 30; k++) late = advanceGates(late, one, s, 1 / 30);
+    expect(late.G1).toBeGreaterThan(1);
+    for (let k = 0; k < 30; k++) late = advanceGates(late, b, s, 1 / 30);
+    expect(late.G1).toBeCloseTo(late.G2!, 6);
+    expect(late.G1).toBeCloseTo(c.G1!, 6);
     expect(dotSpeed(0.7e-3)).toBeLessThan(dotSpeed(16e-3) / 2.5);
     expect(dotSpeed(0)).toBe(0);
     expect(dotSpeed(10)).toBe(40);
