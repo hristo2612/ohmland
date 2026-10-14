@@ -1,0 +1,15 @@
+id: tool-cases
+title: Tool cases
+summary: A black box, a padlock, a secret wiring job, a mixed-up drawer and a torn blueprint.
+landmark:
+  id: meter-tower
+  name: the Meter Tower
+  # The module schema has no fields for these yet (blueprint section 2.1):
+  # caption: A tower with a glowing display rises by the bridge.
+  # mascot: Now the island can measure itself.
+lessons:
+  - meet-the-meter
+  - milli-and-kilo
+  - how-a-breadboard-works
+  - parts-drawer
+  - first-glow

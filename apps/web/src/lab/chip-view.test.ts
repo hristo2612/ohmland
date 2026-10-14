@@ -130,7 +130,9 @@ describe("history: presses, counts, widths and duty", () => {
 
 describe("views, refused parts and watch specs", () => {
   it("a view is on while the session says so; refused parts from the runtime and the bench", () => {
-    const lab = view({ panelViews: new Set(["xray:U1"]), rejected: ["U9"], bench: { ...bench(), rejected: ["U8"] } as BenchState });
+    // U8: a surface mount chip lying on the board (its legs are too close together for the holes).
+    const soic = { id: "U8", kind: "chip", params: { model: "555", package: "soic" }, pos: [0, 0], rot: 0 } as unknown as PlacedPart;
+    const lab = view({ panelViews: new Set(["xray:U1"]), rejected: ["U9"], bench: { ...bench(), parts: [...bench().parts, soic] } });
     expect(lab.view("xray:U1")).toBe(true);
     expect(lab.view("xray:U2")).toBe(false);
     expect([...lab.bench.rejected].sort()).toEqual(["U8", "U9"]);

@@ -2,8 +2,6 @@ id: wires-and-power
 title: Wires and power
 summary: Bare ends, sleeved splices, an adapter's plus and a steady 5 V.
 # Reveal caption: A pylon strings sleeved cables across the island, carrying a steady 5 V.
-# cable-pylon is new (docs/curriculum/unit-3.md, IC2). Until the isle catalog has it, the island builds one of the
-# unit's other landmarks in its place.
 landmark:
   id: cable-pylon
   name: the Cable Pylon

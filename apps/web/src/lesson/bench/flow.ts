@@ -22,6 +22,10 @@ export type Moment = {
   part?: string;
   /** The one instrument or panel the moment shows (a beat's, the fix-it round's or the secret's `tool`). */
   tool?: string;
+  /** The parts in play (a beat's or the secret's `spot`). */
+  spot?: string[];
+  /** Unit 5: what the beat's code drawer offers (its palette) and starts from (its program). */
+  code?: { palette?: string[]; program?: string };
   /** The terminal the loop tracer runs from once the moment's action is done (or as it begins, with no action). */
   trace?: string;
   done?: string;
@@ -51,6 +55,8 @@ export function momentsOf(lesson: BenchLessonData): Moment[] {
     if (beat.do) m.task = beat.do;
     if (beat.meet) m.part = beat.meet;
     if (beat.tool) m.tool = beat.tool;
+    if (beat.spot) m.spot = beat.spot;
+    if (beat.palette || beat.program) m.code = { ...(beat.palette ? { palette: beat.palette } : {}), ...(beat.program ? { program: beat.program } : {}) };
     if (beat.trace) m.trace = beat.trace;
     if (beat.done) m.done = beat.done;
     if (beat.note) m.note = beat.note;
@@ -65,6 +71,7 @@ export function momentsOf(lesson: BenchLessonData): Moment[] {
     if (s.note) m.note = s.note;
     if (s.rule) m.rule = s.rule;
     if (s.tool) m.tool = s.tool;
+    if (s.spot) m.spot = s.spot;
     out.push(m);
   }
   const fixit = lesson.fixit;

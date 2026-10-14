@@ -354,10 +354,40 @@ export type BenchConfig = {
    * and sealed box, what is on at the start, and which toggles the lab's panel offers the learner.
    */
   overlays?: { flow?: "current" | "electrons"; push?: boolean; offer?: OverlayName[] };
+  /** The code drawer of a microcontroller board (Unit 5): `tool: code` in a lesson, beside `serial` and `millis`. */
+  code?: CodeConfig;
+};
+
+/**
+ * The code drawer (Unit 5, docs/LABS.md "Code"): the board it uploads to, the program it starts with (a draft in the
+ * drawer until the learner presses Upload), the blocks its palette offers and whether it offers the text view.
+ */
+export type CodeConfig = {
+  /** The microcontroller board's part id ("U1"). */
+  board: string;
+  /** The program in the drawer at the start (bench C). Default: the program on the board, else an empty setup and loop. */
+  source?: string;
+  /**
+   * The blocks the palette offers outside a lesson: a block's name ("delay", "digitalWrite", "every", "if") or steps
+   * written in bench C ("digitalWrite(13, LOW);"). In a bench lesson each beat offers its own (`palette` on the beat;
+   * a beat without one offers none). Default: none (the learner edits what is there).
+   */
+  palette?: string[];
+  /** Offer the text view beside the blocks (default true; lessons before the text view leave it out). */
+  text?: boolean;
 };
 
 /** The overlays a learner can switch: flow dots, the dots as electrons, the push view. */
 export type OverlayName = "flow" | "electrons" | "push";
+
+/**
+ * Views a panel or tool turns on while it is open, for `lab.view(name)`: a chip's x-ray ("xray:U1"), the code
+ * drawer's text view ("code:text"), a board's millis readout ("millis:U1") and its serial monitor ("serial:U1").
+ */
+export type PanelViewName = `xray:${string}` | "code:text" | `millis:${string}` | `serial:${string}`;
+
+/** Whether a view name belongs to a panel or tool rather than an overlay on the bench. */
+export const isPanelView = (name: string): name is PanelViewName => /^(xray|millis|serial):./.test(name) || name === "code:text";
 
 /** The views and overlays that are on, as `lab.view(name)` reads them. */
 export type LabViews = { flow: "off" | "current" | "electrons"; push: boolean; xray: boolean; trace: string | null };
@@ -434,7 +464,13 @@ export type Nudge = { when: (lab: LabView) => boolean; say: string };
 export type SolutionStep =
   /** `holes` puts the legs in those holes one by one (a perfboard's "PB1:C7"; flying leads), as a bench config's do. */
   | { do: "place"; part: string; kind: BenchPartKind; at: Spot; params?: Record<string, unknown>; rot?: number; holes?: Record<string, string> }
+  /** With `at`, `holes` puts every leg in its hole one by one (a perfboard's "PB1:C7"), as a bench config's do. */
   | { do: "move"; part: string; at: Spot; rot?: number; holes?: Record<string, string> }
+  /**
+   * Move only these flying leads into these holes (null takes one out), keeping the others where they are: the
+   * logic probe's tip from hole to hole, its supply leads left on the rails.
+   */
+  | { do: "move"; part: string; holes: Record<string, Spot | null>; at?: undefined; rot?: undefined }
   | { do: "rotate"; part: string }
   | { do: "remove"; part: string }
   /** Add a clip lead (from the tray) between two points; either end may be null (lying on the desk). */
@@ -468,10 +504,17 @@ export type SolutionStep =
   /** Let a histogram's auto-roller roll `times` (default its `rolls`); the next step waits for it. */
   | { do: "roll"; id: string; times?: number }
   /**
-   * Switch an overlay or view on or off, as its toggle would: flow dots, electrons, push, the board's x-ray, or a
-   * chip's x-ray panel ("xray:U1").
+   * Switch an overlay or view on or off, as its toggle would: flow dots, electrons, push, the board's x-ray, a chip's
+   * x-ray panel ("xray:U1"), the code drawer's text view ("code:text"), a board's millis readout ("millis:U1") or
+   * serial monitor ("serial:U1").
    */
-  | { do: "view"; name: OverlayName | "xray" | `xray:${string}`; on: boolean }
+  | { do: "view"; name: OverlayName | "xray" | PanelViewName; on: boolean }
+  /**
+   * The code drawer (Unit 5): write this program for the board and press Upload. A program with a mistake is refused,
+   * as the drawer refuses it (the board keeps what it had; `lab.code(part).errorsSeen` notes the mistake); one that
+   * compiles goes to the board, which restarts, even when it is the same program again.
+   */
+  | { do: "code"; part: string; source: string }
   /** Run the loop tracer from a terminal ("B1.neg"), as tapping it would; null clears the ink. */
   | { do: "trace"; from: Attach | null }
   /** The static toy: rub a balloon, comb or spoon back and forth on the scarf, `strokes` times (default 6). */
@@ -755,10 +798,78 @@ export type LabView = {
   rolls(id: string): RollsView;
   /** The scope's last single-shot capture (times in seconds from the trigger), or null. */
   capture(): CaptureView | null;
+
+  // Unit 5: the microcontroller board and its code drawer (docs/LABS.md, "Code").
+  /** A microcontroller board: power, the program on it and its state, its clock, uploads. Null for anything else. */
+  board(id: string): BoardView | null;
+  /** Uploads to a board since the lab started: the drawer's Upload, a solution's code step, a setup's program. */
+  uploads(board: string): number;
+  /** What a board printed to the serial monitor since its last upload. */
+  serial(board: string): SerialView;
+  /** A board's `millis()` now (a 32-bit count of milliseconds), or null when it is not a board. */
+  millis(board: string): number | null;
+  /** The code drawer of a board: the view open, the program in it, the mistake Upload last refused, every kind met. */
+  code(board: string): CodeView;
 };
 
-/** A chip pin as `lab.pin` reads it. */
-export type ChipPin = { n: number; name: string; node: NodeId | null; volts: number | undefined; level: Level };
+/**
+ * A chip pin as `lab.pin` reads it. A microcontroller board's pin (`lab.pin("U1", 13)`, `lab.pin("U1", "A0")`) also
+ * says how the program drives it (`mode`), the current out of it in mA and whether it burned out.
+ */
+export type ChipPin = {
+  n: number;
+  name: string;
+  node: NodeId | null;
+  volts: number | undefined;
+  level: Level;
+  mode?: "INPUT" | "INPUT_PULLUP" | "OUTPUT" | "PWM";
+  mA?: number;
+  dead?: boolean;
+};
+
+/** A microcontroller board as `lab.board(id)` reads it. */
+export type BoardView = {
+  power: "usb" | "jack" | "off";
+  powered: boolean;
+  /** "none" (nothing uploaded), "running", "error" (does not compile), "stopped" (stopped while running), "off". */
+  program: "none" | "running" | "error" | "stopped" | "off";
+  /** The program on the board (its last upload), or null. */
+  source: string | null;
+  /** Why the program is not running: "line:col sentence", or what stopped it. Null while it runs. */
+  error: string | null;
+  /** The line of the program running now, or null. */
+  line: number | null;
+  /** `millis()` now. */
+  millis: number;
+  uploads: number;
+  /** Times `millis()` rolled over from 4,294,967,295 to 0 since the last upload (the day-49 jump). */
+  wraps: number;
+};
+
+/** What a board printed since its last upload: the finished lines (with when each ended) and the text so far. */
+export type SerialView = {
+  lines: string[];
+  /** Simulated seconds at which each line in `lines` finished. */
+  times: number[];
+  /** The line still being printed (`Serial.print` without a line end yet), or "". */
+  partial: string;
+  /** Every line and the one still being printed, as the monitor shows them. */
+  text: string;
+};
+
+/** The code drawer as `lab.code(board)` reads it. */
+export type CodeView = {
+  /** The view the drawer shows: the blocks, or the text. */
+  view: "blocks" | "text";
+  /** The program in the drawer now, uploaded or not. */
+  source: string;
+  /** The mistake the last Upload was refused for, or null once a program went up. */
+  error: { line: number; col: number; kind: string; message: string } | null;
+  /** Kinds of mistakes Upload refused in this visit ("case", "semicolon" ...), oldest first, each once. */
+  errorsSeen: string[];
+  /** Upload presses in this visit, refused ones too. */
+  attempts: number;
+};
 
 /** Crossings of a node. `exact` is false when the node is not watched (counted from the snapshots, which miss fast edges). */
 export type EdgeCount = { rises: number; falls: number; times: [number, 0 | 1][]; exact: boolean; high: boolean };
@@ -818,6 +929,8 @@ export function defineLab(def: LabDefinition): LabDefinition {
   }
   for (const s of def.solution) if (s.do === "roll" && !def.panels?.some((p) => p.id === s.id && p.kind === "histogram")) fail(`solution rolls unknown histogram "${s.id}"`);
   for (const s of def.solution) if (s.do === "panel" && !panels.has(s.id)) fail(`solution answers unknown panel "${s.id}"`);
+  const code = def.bench.code;
+  if (code && !def.bench.parts.some((p) => p.id === code.board && p.kind === "mcu-board")) fail(`the code drawer's board "${code.board}" is not a microcontroller board on the bench`);
   return def;
 }
 

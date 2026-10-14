@@ -5,9 +5,11 @@
  */
 import { advanceGates, benchToNetlist, type BenchNetlist, type BenchState, type GateCounts, type StationState } from "@ohmland/bench/core";
 import type { SimEvent, Snapshot, WatchSpec } from "@ohmland/sim";
+import type { Diagnostic } from "@ohmland/code";
 import type { BuiltBench, SimInput } from "./build";
 import {
   isOptional,
+  isPanelView,
   type CaptureView,
   type LabDefinition,
   type LabTask,
@@ -15,6 +17,7 @@ import {
   type LabViews,
   type OverlayName,
   type PanelConfig,
+  type PanelViewName,
   type PanelState,
   type Reading,
   type RollsView,
@@ -24,6 +27,7 @@ import {
   type TriggerSpec,
 } from "./define";
 import { emptyPanel, panelSize, readFaces, solutionAnswer, submitPanel, updateAutoPanel, updateXrayPanel, wiringKey, type AutoMemory } from "./panels";
+import { McuTracker } from "./mcu";
 import { EdgeTrack, lastBurst, seededRandom, tallyOf } from "./signals";
 import { createLabView, hallKind, readingTags } from "./view";
 import { watchKey, watchRequests, watchSpecs } from "./watch";
@@ -117,8 +121,10 @@ export class LabSession {
   doneAt: Record<string, { t: number; meter: LabView["meter"] }> = {};
   private memory = new Map<string, Record<string, unknown>>();
   private shared: Record<string, unknown> = {};
-  /** Chip x-ray panels that are open ("xray:U1"); `lab.view` reads them with the overlays. */
+  /** Panel views that are open (a chip's "xray:U1", "code:text", "millis:U1"); `lab.view` reads them with the overlays. */
   panelViews = new Set<string>();
+  /** Microcontroller boards (uploads, serial lines, clock wraps) and their code drawers. */
+  readonly mcu: McuTracker;
   /** Parts the board refused to seat in this visit. */
   rejected: string[] = [];
   /** Edge logs of the watched nodes, by watch key. */
@@ -143,6 +149,7 @@ export class LabSession {
     for (const t of lab.tasks) this.status[t.id] = done.includes(t.id) ? "done" : "todo";
     for (const c of built.controls) this.controls[c.id] = c.value;
     this.bench = built.bench;
+    this.mcu = new McuTracker(built.bench, lab.bench.code);
     this.watchReq = watchRequests(lab, built.scope, built.stopwatch);
     this.net = this.withWatch(benchToNetlist(this.bench));
     this.topo = benchToNetlist(this.bench, { leadOhms: 0 });
@@ -157,9 +164,9 @@ export class LabSession {
     if (o) this.views = { ...this.views, flow: o.flow ?? "off", push: !!o.push };
   }
 
-  /** Switches a view or overlay on or off (from a toggle, the store, or a solution step), or a chip's x-ray panel. */
-  setView(name: OverlayName | "xray" | `xray:${string}`, on: boolean): void {
-    if (name.startsWith("xray:")) {
+  /** Switches a view or overlay on or off (from a toggle, the store, or a solution step), or a panel's view. */
+  setView(name: OverlayName | "xray" | PanelViewName, on: boolean): void {
+    if (isPanelView(name)) {
       if (on) this.panelViews.add(name);
       else this.panelViews.delete(name);
       return;
@@ -178,6 +185,7 @@ export class LabSession {
 
   /** The bench changed: rebuild the netlists. Returns the netlist for the simulator. */
   setBench(bench: BenchState): BenchNetlist {
+    this.mcu.setBench(bench, this.snapshot);
     this.bench = bench;
     this.net = this.withWatch(benchToNetlist(bench));
     this.topo = benchToNetlist(bench, { leadOhms: 0 });
@@ -315,6 +323,7 @@ export class LabSession {
     if (this.tapper) this.tapper = { ...this.tapper, on: false, pressed: false };
     this.tracks.clear();
     this.capture = null;
+    this.mcu.resetCircuit();
     for (const id of Object.keys(this.timingViews)) this.timingViews[id] = { ...this.timingViews[id]!, burst: null };
     for (const st of Object.values(this.rolls)) Object.assign(st, { roller: null, readAt: null, wasClosed: false });
   }
@@ -352,7 +361,25 @@ export class LabSession {
       rolls: Object.fromEntries(Object.keys(this.rolls).map((id) => [id, this.rollsView(id)!])),
       capture: this.capture,
       rejected: this.rejected,
+      boards: this.mcu.boards,
+      codes: this.mcu.codes,
     });
+  }
+
+  /** An Upload press in the code drawer (or a solution's code step): refused with its first mistake, or gone up. */
+  noteUpload(board: string, source: string, error: Diagnostic | null): void {
+    this.mcu.noteAttempt(board, this.bench, source, error);
+  }
+
+  /** The program in a board's code drawer changed (not uploaded yet). */
+  setDraft(board: string, source: string): void {
+    this.mcu.code(board, this.bench).source = source;
+  }
+
+  /** The code drawer switched between its blocks and its text. */
+  setCodeView(board: string, view: "blocks" | "text"): void {
+    this.mcu.code(board, this.bench).view = view;
+    this.setView("code:text", view === "text");
   }
 
   private memoryFor(key: string): Record<string, unknown> {
@@ -381,6 +408,8 @@ export class LabSession {
     this.history.push(s);
     while (this.history.length && this.history[0]!.t < s.t - HISTORY_SECONDS) this.history.shift();
     this.ingestEdges(s, prevT ?? s.t);
+    // Serial lines and clock wraps (the code tools re-render on `mcu.version`).
+    this.mcu.ingest(s);
     // Gates count the dots that ride past them.
     if (this.bench.parts.some((p) => p.kind === "gate")) this.gates = advanceGates(this.gates, this.bench, s, prevT === undefined ? 0 : s.t - prevT);
 

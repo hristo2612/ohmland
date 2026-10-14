@@ -11,7 +11,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "@playwright/test";
-import { MODULE_ONE, WEBGL_ARGS, seedLearner } from "./seed.mjs";
+import { SEED_MODULE, WEBGL_ARGS, seedLearner } from "./seed.mjs";
 
 const args = Object.fromEntries(
   process.argv.slice(2).map((a) => {
@@ -272,7 +272,7 @@ async function lesson() {
   console.log("lesson: bench lessons are shot by scripts/lesson-shots.mjs");
 }
 
-/** Finishes the first module's last lesson (resumed at its wrap step), which builds the module's landmark. */
+/** Finishes the seeded module's last lesson (resumed at its sign-off), which builds the module's landmark. */
 async function moduleReveal(browser, url) {
   if (ONLY && !ONLY.has("reveal-module")) return;
   for (const size of SIZES)
@@ -280,8 +280,9 @@ async function moduleReveal(browser, url) {
       if (!wanted(`reveal-module-${size}-${theme}`)) continue;
       const { context, page } = await newPage(browser, size, theme);
       await seedLearner(page, url, "wrap");
-      await page.goto(`${url}${withClock(`/learn/basics/${MODULE_ONE[3]}`, theme)}`, { waitUntil: "networkidle" });
-      await page.waitForSelector("[data-step-type=wrap]");
+      const last = SEED_MODULE.lessons[SEED_MODULE.lessons.length - 1].id;
+      await page.goto(`${url}${withClock(`/learn/${SEED_MODULE.unit}/${last}`, theme)}`, { waitUntil: "networkidle" });
+      await page.waitForSelector('.bl[data-moment="end"]');
       await page.locator("[data-primary]").click();
       await revealShown(page);
       await shot(page, `reveal-module-${size}-${theme}`);

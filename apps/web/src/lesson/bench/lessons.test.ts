@@ -12,6 +12,8 @@ import { resolveAttach } from "../../lab/anchors";
 import { buildBench } from "../../lab/build";
 import { isOptional, type LabDefinition, type SolutionStep } from "../../lab/define";
 import { applyStep, solutionSegments } from "../../lab/steps";
+import { paletteItem } from "../../lab/code/blocks";
+import { uploadError } from "../../lab/mcu";
 import { momentsOf } from "./flow";
 import { resolveAnchor } from "./marks";
 
@@ -80,8 +82,17 @@ describe("bench lessons", () => {
         if (built.tapper) have.add("tapper");
         if (built.controls.length) have.add("controls");
         if (built.overlays?.offer?.length) have.add("views");
+        if (built.bench.parts.some((p) => p.kind === "mcu-board")) for (const t of ["code", "serial", "millis"]) have.add(t);
         const tools = [...lesson.beats.map((b) => b.tool), lesson.fixit?.tool, lesson.secret?.tool];
         for (const tool of tools) if (tool) expect(have.has(tool), `tool "${tool}"`).toBe(true);
+      });
+
+      it("offers palettes and programs the code drawer can read", () => {
+        for (const b of lesson.beats) {
+          for (const entry of b.palette ?? []) expect(paletteItem(entry), `palette entry "${entry}"`).not.toBeNull();
+          if (b.program) expect(uploadError(b.program), `program of "${b.say}"`).toBeNull();
+        }
+        for (const entry of lab.bench.code?.palette ?? []) expect(paletteItem(entry), `lab palette entry "${entry}"`).not.toBeNull();
       });
 
       it("points only at things on the bench", () => {
@@ -97,6 +108,7 @@ describe("bench lessons", () => {
           for (const a of [b.tap?.answer ?? [], b.tap?.among ?? []].flat()) anchors.add(a);
         }
         if (lesson.secret?.note && lesson.secret.note.at !== "tap") anchors.add(lesson.secret.note.at);
+        for (const s of lesson.secret?.spot ?? []) anchors.add(s);
         // A mark (part:M1/dial) must be one its part really has.
         const on = (b: BenchState, a: string) => (/^part:[^/]+\//.test(a) ? targetPoint(b, a) !== null : resolveAnchor(b, a) !== null);
         for (const a of anchors) expect(all.some((b) => on(b, a)), `"${a}" on the bench`).toBe(true);

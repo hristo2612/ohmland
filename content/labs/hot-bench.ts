@@ -67,7 +67,7 @@ export default defineLab({
       },
       hints: ["The same switch turns it off.", "Slide the time-lapse up and watch the tip's number."],
       highlight: ["spot:ST1.power"],
-      nudges: [{ when: (lab) => !!iron(lab) && !iron(lab)!.on && lab.control("lapse") <= 1.5, say: "Still hot. Speed up time." }],
+      nudges: [{ when: (lab) => !!iron(lab) && !iron(lab)!.on && (lab.control("lapse") ?? 1) <= 1.5, say: "Still hot. Speed up time." }],
       success: "Cool at last. That took minutes.",
     },
     {

@@ -2,6 +2,7 @@
 // Pure: shared by ops (seating on drop), layout (poses) and the netlist (contacts).
 
 import { boardGeometry, holeWorld } from "./board";
+import { BIN, DRAWER, TRAY } from "./dims";
 import { partDef, rotateXZ, type SeatDef } from "./parts";
 import type { BenchState, Held, PlacedPart, Vec2, Vec3 } from "./types";
 
@@ -75,11 +76,33 @@ export function seatJoins(seat: SeatDef, held: PlacedPart): Readonly<Record<stri
   return typeof j === "function" ? j(held) : (j ?? {});
 }
 
+/** A bin, sorting tray or parts drawer under a desk point: a big drop target (its footprint, in mm). */
+function binUnder(h: PlacedPart, to: Vec2): boolean {
+  if (h.kind !== "bin") return false;
+  const [w, d] = h.params.style === "tray" ? [TRAY.w, TRAY.d] : h.params.style === "drawer" ? [DRAWER.w, DRAWER.d] : [BIN.w, BIN.d];
+  const [lx, lz] = rotateXZ(to[0] - h.pos[0], to[1] - h.pos[1], -h.rot);
+  return Math.abs(lx) <= w / 2 && Math.abs(lz) <= d / 2;
+}
+
 /**
  * The nearest seat that accepts `part` within `reach` mm of a desk point (a full seat only when nothing else is free).
  * `freeOnly`: never a seat another part sits in (a drop by hand never pushes a part out).
  */
 export function seatNear(bench: BenchState, part: PlacedPart, to: Vec2, reach = SEAT_REACH, freeOnly = false): { holder: PlacedPart; seat: SeatDef } | null {
+  // Dropped anywhere on a bin, a tray or a drawer: its nearest free seat, however far (sorting is one big target).
+  for (const h of bench.parts) {
+    if (h.id === part.id || !binUnder(h, to)) continue;
+    const held = heldOf(h);
+    const seats = seatsOf(h).filter((s) => seatFits(s, part));
+    const free = seats.filter((s) => !held[s.name] || held[s.name] === part.id);
+    const pool = free.length || freeOnly ? free : seats;
+    if (!pool.length) continue;
+    const dist = (s: SeatDef) => {
+      const o = seatPose(h, s, part, bench).origin;
+      return Math.hypot(o[0] - to[0], o[2] - to[1]);
+    };
+    return { holder: h, seat: pool.reduce((a, b) => (dist(b) < dist(a) ? b : a)) };
+  }
   let best: { holder: PlacedPart; seat: SeatDef; d: number } | null = null;
   for (const h of bench.parts) {
     if (h.id === part.id) continue;

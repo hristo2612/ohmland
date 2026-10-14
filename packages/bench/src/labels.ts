@@ -279,6 +279,7 @@ export const DEFAULT_LABELS: BenchLabels = {
   },
   actions: {
     "card.erase": "Erase",
+    "cup.salt": "Add salt",
     "solder-braid.snip": "Snip used end",
     "wire-stripper.strip": "Strip",
     "hookup-wire.twist": "Twist",
@@ -348,4 +349,15 @@ export const LabelsContext = createContext<BenchLabels>(DEFAULT_LABELS);
 
 export function useLabels(): BenchLabels {
   return useContext(LabelsContext);
+}
+
+/**
+ * What the selection bar calls a part after its id: the words printed on it (a tag's text, a bin's or box's label), its
+ * value (ohms, farads, a chip's number), the name the lab gave it ("AA cell"), else its kind ("9 V battery").
+ */
+export function partShownName(part: { id: string; kind: string; params: unknown }, detail: string | undefined, names: Readonly<Record<string, string>>, kindName: string | undefined): string {
+  const p = part.params as { text?: unknown; label?: unknown };
+  if (part.kind === "tag" && typeof p.text === "string" && p.text) return p.text;
+  if (typeof p.label === "string" && p.label && part.kind !== "chip") return p.label;
+  return detail ?? names[part.id] ?? kindName ?? part.kind;
 }

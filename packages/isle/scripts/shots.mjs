@@ -2,13 +2,14 @@
 //
 //   node scripts/shots.mjs [--out dir] [--only name] [--variants notebook:day,notebook:night,classic:day]
 //                          [--views desktop,phone] [--small] [--zoom 3] [--query only=switching]
-//                          [--reveal] [--look notebook] [--time day] [--robot] [--perf]
+//                          [--reveal] [--look notebook] [--time day] [--robot] [--perf] [--gallery all|name;name=kinds]
 //
 // Starts the playground with Vite and drives headless Chromium (WebGL through SwiftShader). Saves one PNG per shot
 // (<size>-<look>-<time>-<view>.png), contact-sheet.png and a compact contact-sheet.jpg in the output folder (default:
 // screenshots/out, not committed). --small also saves reduced copies, --reveal frames of a lesson and a module reveal
 // in --look at --time, --robot the robot on its own in both looks, --perf the draw calls and triangles of a 300-lesson
-// isle in --look (its frame rate needs a GPU: scripts/perf.mjs).
+// isle in --look (its frame rate needs a GPU: scripts/perf.mjs). --gallery shoots pieces and landmarks up close instead
+// (gallery-<name>-<look>-<time>.png): "all" for every preset below, or presets and "name=kinds" sets joined by ";".
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -88,6 +89,53 @@ async function shoot(view, size, { look, time }) {
   await ctx.close();
   if (errors.length) console.warn(`  errors in ${size.name}:`, errors.slice(0, 3));
   return { file, stats };
+}
+
+// --gallery: pieces and landmarks side by side on a small board (playground/gallery.html), every variant and tier,
+// in each --variants look and time (default notebook day and night). A preset name or "name=kinds;name=kinds".
+const GALLERY = {
+  "start-here": "spark-gap|pump-house",
+  permanent: "iron-stand,solder-spool,regulator",
+  chips: "chip-block,reed-gate,seven-seg|logic-chip,dice-block",
+  beyond: "coil-bolt,magnet,antenna,mcu-board",
+  "solder-forge": "solder-forge",
+  "cable-pylon": "cable-pylon",
+  "perfboard-pier": "perfboard-pier",
+  "timer-factory": "timer-factory",
+  "alarm-lighthouse": "alarm-lighthouse",
+  "counter-billboard": "counter-billboard",
+  "logic-castle": "logic-castle",
+  "dice-arcade": "dice-arcade",
+  "coil-windmill": "coil-windmill",
+  "radio-mast": "radio-mast",
+  "microcontroller-hq": "microcontroller-hq",
+  "led-sundial": "led-sundial",
+};
+const galleryArg = opt("--gallery", "");
+if (galleryArg) {
+  const sets =
+    galleryArg === "all"
+      ? Object.entries(GALLERY)
+      : galleryArg.split(";").map((s) => (s.includes("=") ? s.split("=") : [s, GALLERY[s] ?? s]));
+  const variants = args.includes("--variants") ? VARIANTS : [{ look: "notebook", time: "day" }, { look: "notebook", time: "night" }];
+  for (const [name, kinds] of sets)
+    for (const { look: lk, time } of variants) {
+      const ctx = await browser.newContext({ viewport: { width: 1280, height: 760 }, deviceScaleFactor: 2 });
+      const page = await ctx.newPage();
+      const errors = [];
+      page.on("pageerror", (e) => errors.push(String(e)));
+      page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+      await page.goto(`${base}gallery.html?kinds=${encodeURIComponent(kinds)}&time=${time}&look=${lk}${zoom ? `&zoom=${zoom}` : ""}`);
+      await page.waitForFunction(() => window.__gallery?.ready === true, null, { timeout: 120_000 });
+      await page.waitForTimeout(600);
+      const file = join(out, `gallery-${name}-${lk}-${time}.png`);
+      writeFileSync(file, await page.screenshot({ type: "png" }));
+      console.log(`${file}${errors.length ? `  errors: ${errors.slice(0, 3).join(" | ")}` : ""}`);
+      await ctx.close();
+    }
+  await browser.close();
+  await server.close();
+  process.exit(0);
 }
 
 const shots = [];

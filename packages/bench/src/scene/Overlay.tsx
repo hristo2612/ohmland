@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { chipDetail } from "../chips";
 import { formatFarads, formatOhms } from "../colorCode";
 import { useLabels } from "../labels";
-import type { BenchLabels } from "../labels";
+import { partShownName, type BenchLabels } from "../labels";
 import { DIAL_MODES } from "../layout";
 import * as ops from "../ops";
 import { isThrowSwitch, partDef } from "../parts";
@@ -114,14 +114,11 @@ export function itemLabel(item: TrayItem, labels: BenchLabels): { name: string; 
   return { name: item.label ? item.label : name, detail: item.label ? undefined : detail };
 }
 
-function partTitle(part: PlacedPart, labels: BenchLabels): string {
-  const base = labels.partName[part.kind];
+function partTitle(part: PlacedPart, labels: BenchLabels, names: Readonly<Record<string, string>>): string {
   const p = part.params as Record<string, unknown>;
-  if (part.kind === "resistor") return `${part.id} · ${formatOhms(p.ohms as number)}`;
-  if (part.kind === "ceramic-cap" || part.kind === "electrolytic-cap") return `${part.id} · ${formatFarads(p.farads as number)}`;
-  const chip = chipDetail(part.kind, p);
-  if (chip) return `${part.id} · ${chip}`;
-  return `${part.id} · ${base}`;
+  const detail =
+    part.kind === "resistor" ? formatOhms(p.ohms as number) : part.kind === "ceramic-cap" || part.kind === "electrolytic-cap" ? formatFarads(p.farads as number) : chipDetail(part.kind, p);
+  return `${part.id} · ${partShownName(part, detail, names, labels.partName[part.kind])}`;
 }
 
 function Btn({ label, icon, onClick, pressed, disabled, compact, onPointerDown, onPointerUp }: {
@@ -180,6 +177,7 @@ export function Overlay({
   const s = store.getState();
   const sel = ui.selection;
   const selPart = sel?.type === "part" ? bench.parts.find((p) => p.id === sel.id) : undefined;
+  const names = useBench((s) => s.names);
   const selWire = sel?.type === "wire" ? bench.wires.find((w) => w.id === sel.id) : undefined;
   const selLead = sel?.type === "lead" ? bench.leads.find((l) => l.id === sel.id) : undefined;
   // The tray steps aside once everything in it has been placed.
@@ -322,7 +320,7 @@ export function Overlay({
   if (bench.board) tools.push(<Btn key="xray" label={labels.xray} icon={<ToolIcon name="xray" />} pressed={ui.xray} compact={compact} onClick={() => s.setUi({ xray: !ui.xray })} />);
   const history = !readOnly && (canUndo || canRedo);
 
-  const selName = selPart ? partTitle(selPart, labels) : selWire ? `${selWire.id} · ${labels.colors[selWire.color]}` : selLead ? `${selLead.id} · ${labels.testLead}` : sel?.type === "meter" ? labels.meter : "";
+  const selName = selPart ? partTitle(selPart, labels, names) : selWire ? `${selWire.id} · ${labels.colors[selWire.color]}` : selLead ? `${selLead.id} · ${labels.testLead}` : sel?.type === "meter" ? labels.meter : "";
 
   return (
     <div className={`ohb-ui${compact ? " ohb-compact" : ""}${showTray ? "" : " ohb-notray"}`} data-bench-ui="">

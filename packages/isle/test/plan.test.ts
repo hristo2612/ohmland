@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { DECK, isLandmark, isPiece } from "../src/catalog";
+import { DECK, LANDMARKS, PIECES, isLandmark, isPiece, tiersOf } from "../src/catalog";
 import { madeUp, seedFrom, type IsleEvent } from "../src/events";
+import { EN } from "../src/messages";
 import { atan2, cos, hypot, rng, sin } from "../src/math";
 import { footCells, key, makeIsle, planHash, roadCells } from "../src/plan";
 
@@ -38,11 +39,58 @@ describe("the isle plan", () => {
     expect(plan.islands.map((i) => i.unit)).toEqual(["basics", "switching", "permanent", "chips", "beyond"]);
   });
 
+  it("gives Start here its own island, with the spark gap, the pump house and the meter tower", () => {
+    const lesson = (id: string): IsleEvent => ({ type: "lesson", unit: "start-here", piece: "led-lamp", title: "", id });
+    const module = (landmark: string): IsleEvent => ({ type: "module", unit: "start-here", landmark, title: "", id: landmark });
+    const events = [lesson("a"), module("spark-gap"), lesson("b"), module("pump-house"), lesson("c"), module("meter-tower")];
+    const plan = makeIsle(5, [...events, { type: "lesson", unit: "basics", piece: "resistor", title: "", id: "d" }]);
+    expect(plan.islands.map((i) => i.unit)).toEqual(["start-here", "basics"]);
+    const marks = plan.items.filter((i) => i.landmark && i.island === 0).map((i) => i.kind);
+    expect(marks).toEqual(["spark-gap", "pump-house", "meter-tower"]);
+    expect(marks.every(isLandmark)).toBe(true);
+  });
+
   it("deals the fallback deck without the same piece twice in a row", () => {
     const events: IsleEvent[] = Array.from({ length: 200 }, (_, i) => ({ type: "lesson", unit: "basics", piece: "", title: "", id: `l${i}` }));
     const placed = makeIsle(3, events).items.filter((i) => i.story[0]!.type === "lesson");
     for (let i = 1; i < placed.length; i++) expect(placed[i]!.kind).not.toBe(placed[i - 1]!.kind);
     expect(new Set(placed.map((p) => p.kind)).size).toBeGreaterThan(DECK.length / 2);
+  });
+
+  it("keeps every isle that names none of the kinds added since Unit 3 to 5 were drawn", () => {
+    // Known and unknown pieces, unknown landmarks (the fallback rotation) and an unknown unit, over every older unit;
+    // one module on each later island, so their landmarks never rise. Pinned before the new kinds were added.
+    const pieces = ["resistor", "", "led-lamp", "nope", "capacitor", "wire-spool", "", "heatsink", "relay", "header-fence"];
+    const events: IsleEvent[] = [];
+    ["basics", "switching", "permanent", "chips", "beyond", "unit-x"].forEach((unit, u) => {
+      const modules = ["basics", "switching", "unit-x"].includes(unit) ? 3 : 1;
+      for (let m = 0; m < modules; m++) {
+        for (let i = 0; i < 5; i++) events.push({ type: "lesson", unit, piece: pieces[(i * 3 + u + m) % pieces.length]!, title: `L${u}.${m}.${i}`, id: `${unit}-${m}-${i}` });
+        const landmark = m === 1 && unit === "switching" ? "relay-clocktower" : `mystery-${m}`;
+        events.push({ type: "module", unit, landmark, title: `M${u}.${m}`, id: `${unit}-m${m}` });
+      }
+    });
+    expect(planHash(makeIsle(424242, events))).toBe("6bf0a82e2d8d8447");
+  });
+
+  it("builds Unit 3's island under either of its ids", () => {
+    const at = (unit: string): IsleEvent[] => [
+      { type: "lesson", unit: "basics", piece: "resistor", title: "", id: "a" },
+      { type: "lesson", unit, piece: "iron-stand", title: "", id: "b" },
+      { type: "module", unit, landmark: "nope", title: "", id: "c" },
+    ];
+    const plan = makeIsle(9, at("making-it-permanent"));
+    expect(plan.islands.map((i) => i.unit)).toEqual(["basics", "permanent"]);
+    expect(planHash(plan)).toBe(planHash(makeIsle(9, at("permanent"))));
+    expect(plan.items.find((i) => i.landmark)?.kind).toBe("solder-forge");
+  });
+
+  it("names every piece, and every tier of every landmark", () => {
+    for (const kind of [...PIECES, ...LANDMARKS]) {
+      const name = EN.names[kind];
+      expect(name, kind).toBeDefined();
+      if (isLandmark(kind) && tiersOf(kind) > 1) expect(Array.isArray(name) ? name.length : 1, kind).toBe(tiersOf(kind));
+    }
   });
 
   it("never puts two things on the same ground, nor anything on a trace or off the board", () => {

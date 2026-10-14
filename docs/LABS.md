@@ -5,9 +5,10 @@ solution that proves the tasks can be done. This guide covers the lab file. For 
 `docs/ARCHITECTURE.md` (Labs, Workbench, Simulator); for wording rules see `docs/CONTENT.md`.
 
 The reference labs are `content/labs/welcome-to-the-bench.ts` (a pre-wired loop on the desk),
-`content/labs/first-glow.ts` (a loop built from the tray, a part to burn out, a fix-it bench) and
-`content/labs/how-a-breadboard-works.ts` (parts that come into play on a breadboard). They are bench lessons' labs
-(`docs/LESSONS.md`). Copy one to start.
+`content/labs/first-glow.ts` (a torn drawing to mend, a breadboard build from the tray, a fix-it bench),
+`content/labs/how-a-breadboard-works.ts` (a breadboard lamp that starts wrong, a jumper to slide) and, for Start here's
+props, `content/labs/milli-and-kilo.ts` (a gate, tags, the padlocked cabinet) and `content/labs/parts-drawer.ts`
+(symbol drawers and a tester with a gap). They are bench lessons' labs (`docs/LESSONS.md`). Copy one to start.
 
 ## The file
 
@@ -108,7 +109,8 @@ back to the desk; two charged balloons will not come closer than about 4.5 cm.
 Holders (`holder`, `station`, `fruit`, `bin`, `box`, `schematic`) have **seats**: a part dropped on one goes in (the one already there
 pops out), and a seated part's leads touch the holder's contacts. Props have **settings** (moisture, the test load,
 the pencil line) on their selection bar, and some have clickable spots on the model (the skin's moisture tabs, the
-tester's load switch); dragging along a pencil card draws or shades its line. Dropping a part right onto one of its
+tester's load switch); dragging along a pencil card draws or shades its line, and a cup's "Add salt" stirs in a pinch
+(`salt` counts them; each adds a parallel 7.5 kΩ). Dropping a part right onto one of its
 own kind swaps the two, clips and probe tips included (a fresh LED for a dead one, an old battery for a fresh one).
 
 **Unit 3 kinds** (soldering, perfboard, wire, wall power; models, numbers and screenshots in
@@ -256,6 +258,56 @@ The simulator places a chip's edges exactly, but a switch or button acting on a 
 end of the solver's first 1 µs step after it, so a slow-motion replay of a button-clocked counter shows about half a
 microsecond between the clock edge and the ripple. Chip-driven clocks (a 555) are exact.
 
+## Code (Unit 5)
+
+A microcontroller board (`kind: "mcu-board"`, the simulator's `mcuboard`: packages/bench and packages/sim READMEs)
+runs a program in bench C (packages/code). The lab names the board its **code drawer** works on, the program the
+drawer starts with and, for use outside a lesson, the blocks its palette offers:
+
+```ts
+bench: {
+  parts: [{ id: "U1", kind: "mcu-board", at: "desk:-110,-4", locked: true }, ...],
+  code: { board: "U1", source: START, palette: ["digitalWrite(7, LOW);", "delay"], text: false },
+}
+```
+
+| Field | |
+|---|---|
+| `board` | The board's part id. |
+| `source` | The program in the drawer at the start, not yet uploaded (default: the board's `program` param, else an empty `setup` and `loop`). Put a program on the board from the start with the part's `params: { program, upload: 1 }`. |
+| `palette` | Blocks offered outside a lesson: a block's name (`pinMode`, `digitalWrite`, `analogWrite`, `delay`, `every`, `if`, `if-else`, `while`, `for`, `Serial.begin`, `Serial.print`, `Serial.println`, `randomSeed`, `count`, `comment`) or steps written in bench C. Declarations at the start of an entry are globals it needs (`unsigned long last = 0;`), added at the top of the program unless already declared; each `every` block gets a clock variable of its own (`last`, `last2` ...). In a bench lesson each beat brings its own `palette` (docs/LESSONS.md); a beat without one offers none. |
+| `text` | `false` hides the text view (lessons before the text view, lesson 14). |
+
+The drawer shows the program as ink blocks and, beside them on a wide screen (in their place on a phone), as text
+(CodeMirror 6, its own lazy chunk). Both are views of one tree: an edit in either redraws the other. Upload is the
+one primary action: a program with a mistake is refused at once, the mistake shown as `line:col` and a sentence (in
+the text and on its block); a good one plays a short upload, then the board restarts and runs it. An upload is not a
+bench edit: undo leaves the program on the board. Two more tools sit beside the drawer, one at a time in a lesson's
+dock: the serial monitor (`tool: serial`, what the board printed since its last upload, with simulated times) and the
+`millis()` readout (`tool: millis`, with a jump to nine seconds before day 49's wrap).
+
+Solutions upload with a **code step**: `{ do: "code", part: "U1", source: BLINK }` does what Upload does. A program
+with a mistake is refused (the board keeps what it had, `lab.code("U1").errorsSeen` notes the kind), one that
+compiles goes up and the board restarts, even when it is the same program again. Raw inputs work as for any part:
+`{ do: "set", part: "U1", key: "millis", value: 4294967296 - 9000 }` is the day-49 jump, `key: "reset"` the reset
+button, `key: "power"` (`"usb"`, `"jack"`, `"off"`) the cable. A task's `setup` can upload a broken program for a
+fix-it round the same way; the drawer then shows it.
+
+| Helper | |
+|---|---|
+| `lab.board(id)` | `{ power, powered, program, source, error, line, millis, uploads, wraps }`: `program` is `"none"`, `"running"`, `"error"`, `"stopped"` or `"off"`; `source` the program on the board; `error` `"line:col sentence"`; `wraps` how often `millis()` rolled over since the last upload. Null for other parts |
+| `lab.uploads(board)` | Uploads since the lab started (Upload, code steps, setups and "Show me" alike) |
+| `lab.serial(board)` | `{ lines, times, partial, text }`: the lines printed since the last upload, when each ended (simulated seconds), the line still being printed, and all of it as the monitor shows it |
+| `lab.millis(board)` | `millis()` now |
+| `lab.code(board)` | The drawer: `{ view: "blocks" \| "text", source, error, errorsSeen, attempts }`; `error` is `{ line, col, kind, message }` from the last refused Upload (null once one goes up), `errorsSeen` the kinds met in this visit (`"case"`, `"semicolon"` ...: packages/code README) |
+| `lab.pin("U1", 13)`, `lab.pin("U1", "A0")` | A board pin: `{ n, name: "D13", node, volts, level: "H" \| "L" \| "Z", mode: "INPUT" \| "INPUT_PULLUP" \| "OUTPUT" \| "PWM", mA, dead }` |
+| History `pin:U1:13` | The pin as the program reads it, 1 HIGH and 0 LOW: `lab.periods("pin:U1:7", 0.5)`, `lab.stats("pin:U1:2")`. The board's lamps are parts: `lab.isLit("U1:L")`, `lab.blinkPeriod("U1:L")` |
+| `lab.view("code:text")`, `lab.view("millis:U1")`, `lab.view("serial:U1")` | The drawer's text is open; the readout or the monitor is on screen |
+
+`content/labs/mcu-demo.ts` is the reference: a board with an LED on pin 7, a first upload, a blink and a bonus that
+prints. `apps/web/src/lab/mcu.test.ts` replays code steps (refused and good uploads, pin traces, serial lines, the
+day-49 wrap).
+
 ## Tasks
 
 ```ts
@@ -330,7 +382,8 @@ microsecond between the clock edge and the ripple. Chip-driven clocks (a 555) ar
 | `lab.logged(tag)`, `lab.readings(tag?)`, `lab.readingsLog` | Stable meter readings in the notebook (see below) |
 | `lab.gate(id)`, `lab.gateUnit(id)`, `lab.gateTicks(id)` | The current through the lead a gate is on (amps, 0 off a lead); its number mode's unit; the dots it has counted. History source `gate:G1` (`lab.stats("gate:G1")`) |
 | `lab.lidOpen(id)` | A sealed box's (or the cabinet's) lid is open |
-| `lab.view(name)` | A view is on: `"push"`, `"flow"`, `"electrons"`, `"xray"` (the board's), `"xray:XA"` (that AA cut open), `"xray:U1"` (a chip's x-ray panel open), `"trace"` |
+| `lab.view(name)` | A view is on: `"push"`, `"flow"`, `"electrons"`, `"xray"` (the board's), `"xray:XA"` (that AA cut open), `"xray:U1"` (a chip's x-ray panel open), `"trace"`, `"code:text"`, `"millis:U1"`, `"serial:U1"` (see Code) |
+| `lab.board`, `lab.uploads`, `lab.serial`, `lab.millis`, `lab.code` | The microcontroller board and its code drawer (see Code) |
 | `lab.trace(from)` | The loop tracer from a terminal, worked out on the bench as it is: `{ closed, gap, parts, leads }` (`gap` is what the last clip bites, a loose clip, or an open switch's lead) |
 | `lab.tagShown(id)` | What a tag shows now ("10 kΩ" or, tapped, "10,000 Ω"); a sealed box's tag too |
 | `lab.drawing(id)` | A schematic card: `{ complete, pieces: [{ id, seated, turn, right }] }`, complete once the torn piece sits in its gap the right way round |
@@ -380,6 +433,11 @@ fire a named trigger once per visit. An achievement in `apps/web/src/progress/ac
 `labEvent: "name"` unlocks when it fires. The runtime also fires `relay-clicked`, `relay-worn-out`,
 `capacitor-reversed-died` and `speaker-concert-a` by itself, in every lab and on the free-build bench.
 
+Renaming or moving a task an achievement names breaks it: the achievement's `refs` list every lesson, task and trigger
+it uses, and `apps/web/src/progress/achievements.test.ts` fails when one no longer exists or no learner can reach it.
+A bonus task in a bench lesson only completes when it is the lesson's secret or fires a trigger. The solution test
+also fails when a lab's solution never fires a trigger the lab declares.
+
 ## Solutions
 
 Every lab ships a solution: bench actions, as data. `apps/web/src/lab/solutions.test.ts` replays each one with the
@@ -390,7 +448,8 @@ An empty solution is reported as skipped.
 |---|---|
 | `{ do: "lead", id?, from, to, color? }` | A clip lead from the tray between two attach points (either may be null) |
 | `{ do: "clip", lead, end: "a" \| "b", to }` | Move one clip (`to: null` unclips it) |
-| `{ do: "place", part, kind, at, params?, holes? }`, `{ do: "move", part, at, holes? }`, `rotate`, `remove` | Parts. `holes` puts the legs in those holes one by one, as the bench config does: a perfboard's `{ a: "PB1:A8", b: "PB1:A4" }`, or a battery's snap leads |
+| `{ do: "place", part, kind, at, params?, holes? }`, `{ do: "move", part, at, holes? }`, `rotate`, `remove` | Parts. For a part on flying leads, `at` lists a hole per lead in order (a lead left out comes out of its hole): `"a22-top+:57-top-:58"`. With `at`, `holes` puts every leg in its hole one by one, as the bench config does: a perfboard's `{ a: "PB1:A8", b: "PB1:A4" }` |
+| `{ do: "move", part, holes: { tip: "a22" } }` | Move only the named flying leads (null takes one out), keeping the rest: the logic probe's tip from hole to hole with its supply leads left on the rails. A probe pen always stands at its tip, as a drag puts it |
 | `{ do: "wire", from, to }`, `{ do: "unwire", wire }` | Breadboard jumpers |
 | `{ do: "probe", red?, black?, mode?, range? }`, `{ do: "plug", probe, socket }`, `{ do: "dial", mode, range? }` | The meter |
 | `{ do: "flip", part, to? }`, `{ do: "press", part, seconds? }`, `{ do: "set", part, key, value }` | Switches, buttons, raw inputs |
@@ -399,7 +458,8 @@ An empty solution is reported as skipped.
 | `{ do: "panel", id, value }`, `{ do: "tapper", on }` | Submit a panel answer (a pin map names the legs as wired inside, e.g. `{ coil1: "coil" }`); work the auto-tapper. The chip panels take `"open"` and `"close"` (x-ray), `"replay"` (timing), `{ roll: n }` and `"clear"` (histogram) |
 | `{ do: "roll", id, times? }` | Let a histogram's auto-roller roll (the replay waits until it is done) |
 | `{ do: "replace", part }`, `{ do: "replaceFuse" }`, `{ do: "wait", seconds }` | |
-| `{ do: "view", name, on }`, `{ do: "trace", from }` | Switch an overlay (`"flow"`, `"electrons"`, `"push"`, `"xray"`) or a chip's x-ray panel (`"xray:U1"`); run the tracer from a terminal (null clears it) |
+| `{ do: "view", name, on }`, `{ do: "trace", from }` | Switch an overlay (`"flow"`, `"electrons"`, `"push"`, `"xray"`), a chip's x-ray panel (`"xray:U1"`) or a code tool's view (`"code:text"`, `"millis:U1"`, `"serial:U1"`); run the tracer from a terminal (null clears it) |
+| `{ do: "code", part, source }` | Upload a program to a microcontroller board, as the code drawer's Upload does (see Code) |
 | `{ do: "rub", part, on, strokes? }` | The static toy: rub a balloon (comb, spoon) back and forth on the scarf. A `move` to a desk spot moves it as a drag would (over the scarf it rubs, at the wall it sticks or falls) |
 | `{ do: "check", task }` | By here, this task is done. Also splits the solution for "Show me" |
 
@@ -437,3 +497,6 @@ check needs to name a chip pin (`chipPinRef(anchor, bench, netlist)` gives its n
   `part(id)`, `meter()`, `project(anchor)`) for poking at it from the console; the e2e helpers in
   `apps/web/e2e/lab.ts` use it to click and drag like a learner.
 - `node apps/web/scripts/lab-shots.mjs` takes the curated lab screenshots.
+- `pnpm dev`, open `/dev/code-drawer`: the mcu-demo lab in the bench lesson player with the code drawer, the serial
+  monitor and the millis readout docked (a dev-only page, never built). `BASE_URL=http://localhost:4321 node
+  apps/web/scripts/code-shots.mjs` screenshots it on desktop and phone.

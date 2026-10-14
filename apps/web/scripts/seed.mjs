@@ -3,32 +3,43 @@
 /** SwiftShader gives headless Chromium WebGL, so the 3D island draws in screenshots and tests. */
 export const WEBGL_ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"];
 
-/** The first module of the course (Your meter): its lessons in order, and the step index of the last one's wrap. */
-export const MODULE_ONE = ["how-a-breadboard-works", "welcome-to-the-bench", "meet-the-meter", "tiny-and-huge-numbers"];
-export const MODULE_ONE_WRAP = 4;
+/**
+ * The module the seeded learners work through: Start here's Tool cases, which builds the Meter Tower. Its bench lessons
+ * in order (version and lab tasks, as a finished record keeps them), and the step its last lesson's sign-off is at
+ * (first-glow: five beats, the secret and one fix-it bench come first; a saved step is the moment's index plus 1).
+ */
+export const SEED_MODULE = {
+  unit: "start-here",
+  lessons: [
+    { id: "meet-the-meter", version: 2, firstTry: 2, items: 3, tasks: ["plug-in", "set-dial", "read-battery", "swap-probes", "open-the-box", "fix-it"] },
+    { id: "milli-and-kilo", version: 1, firstTry: 5, items: 5, tasks: ["tap-the-a", "tap-the-k", "open-padlock", "fix-it"] },
+    { id: "how-a-breadboard-works", version: 2, firstTry: 3, items: 4, tasks: ["xray-on", "fix-led", "rail-slide", "fix-it"] },
+    { id: "parts-drawer", version: 1, firstTry: 2, items: 2, tasks: ["file-battery", "test-switch", "led-both-ways", "test-resistor", "file-all", "fix-it"] },
+    { id: "first-glow", version: 3, firstTry: 2, items: 2, tasks: ["mend-blueprint", "build-loop", "move-it", "flip-led"] },
+  ],
+  endStep: 8,
+};
 
 /**
  * Writes a learner record for `origin` (visits it first, since IndexedDB is per origin).
- *   one     the first lesson done, the second (a bench lesson) in progress at its second beat, some achievements
- *           and fried parts
- *   module  the whole first module done, so its landmark (the Meter Tower) is built too
- *   wrap    one lesson short of the first module: its last lesson resumes at the wrap step, and finishing it builds
- *           the module's landmark
+ *   one     the module's first lesson done, the second (a bench lesson) in progress at its second beat, some
+ *           achievements and fried parts
+ *   module  the whole module done, so its landmark (the Meter Tower) is built too
+ *   wrap    one lesson short of the module: its last lesson resumes at its sign-off, and finishing it builds the
+ *           module's landmark
  */
 export async function seedLearner(page, origin, kind = "one") {
   await page.goto(origin + "/404");
   await page.evaluate(
-    async ({ kind, lessonIds, wrapStep }) => {
+    async ({ kind, lessons: lessons_, endStep }) => {
       // a fixed clock, so the island (seeded by the first lesson's time) looks the same in every run
       const now = Date.parse("2026-10-10T09:30:00.000Z");
       const iso = (d) => new Date(now - d * 86400000).toISOString();
-      const [zero, first, second, third] = lessonIds;
-      const lessons = { [zero]: { at: iso(4), version: 1, firstTry: 3, items: 3, tasks: ["fix-led", "rail-slide"] } };
-      if (kind !== "one") lessons[first] = { at: iso(3), version: 2, firstTry: 1, items: 1, tasks: ["close-the-switch", "break-the-loop", "mend-the-loop", "fix-switch"] };
-      if (kind !== "one") lessons[second] = { at: iso(2), version: 1, firstTry: 4, items: 6, tasks: ["plug-in", "set-dial", "read-battery", "swap-probes"] };
-      if (kind === "module") lessons[third] = { at: iso(1), version: 1, firstTry: 5, items: 6, tasks: ["over-the-limit", "climb-a-range", "aa-cell", "kilo-ohms"] };
-      const inProgress =
-        kind === "one" ? { [first]: { step: 2, answers: {}, at: iso(0), version: 2 } } : kind === "wrap" ? { [third]: { step: wrapStep, answers: {}, at: iso(0), version: 1 } } : {};
+      const last = lessons_.length - 1;
+      const done = kind === "one" ? lessons_.slice(0, 1) : kind === "wrap" ? lessons_.slice(0, last) : lessons_;
+      const lessons = Object.fromEntries(done.map((l, i) => [l.id, { at: iso(done.length - i), version: l.version, firstTry: l.firstTry, items: l.items, tasks: l.tasks }]));
+      const resume = (l, step) => ({ [l.id]: { step, answers: {}, at: iso(0), version: l.version } });
+      const inProgress = kind === "one" ? resume(lessons_[1], 2) : kind === "wrap" ? resume(lessons_[last], endStep) : {};
       const state = {
         v: 1,
         lessons,
@@ -55,6 +66,6 @@ export async function seedLearner(page, origin, kind = "one") {
         req.onerror = () => reject(req.error);
       });
     },
-    { kind, lessonIds: MODULE_ONE, wrapStep: MODULE_ONE_WRAP },
+    { kind, lessons: SEED_MODULE.lessons, endStep: SEED_MODULE.endStep },
   );
 }

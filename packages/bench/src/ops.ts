@@ -41,6 +41,18 @@ export function nextId(bench: BenchState, prefix: string): string {
   for (let i = 1; ; i++) if (!used.has(`${prefix}${i}`)) return `${prefix}${i}`;
 }
 
+/**
+ * The id for a thing placed from a tray item that declares `wanted`: that id while it is free, else the next free one
+ * counting on from it ("R8" placed, the item's second "R9"), so a tray item of two places the ids the lab names.
+ */
+export function trayId(bench: BenchState, wanted: string | undefined): string | undefined {
+  if (!wanted || !nextIdTaken(bench, wanted)) return wanted;
+  const m = /^(.*?)(\d+)$/.exec(wanted);
+  if (!m) return undefined;
+  for (let n = Number(m[2]) + 1; n < Number(m[2]) + 100; n++) if (!nextIdTaken(bench, `${m[1]}${n}`)) return `${m[1]}${n}`;
+  return undefined;
+}
+
 /** Whether an id is already used by a part, wire, lead or the meter. */
 export function nextIdTaken(bench: BenchState, id: string): boolean {
   return bench.parts.some((p) => p.id === id) || bench.wires.some((w) => w.id === id) || bench.leads.some((l) => l.id === id) || bench.meter?.id === id;
@@ -391,6 +403,8 @@ export function swapTarget(bench: BenchState, id: string, reach = 9): PlacedPart
   let bestD = reach;
   for (const p of bench.parts) {
     if (p.id === id || p.kind !== part.kind || isOnBoard(bench, p)) continue;
+    // A part filed in a bin, tray or drawer is not swapped out: the dropped one goes into a free seat beside it.
+    if (holderOf(bench, p.id)?.holder.kind === "bin") continue;
     const d = Math.hypot(p.pos[0] - part.pos[0], p.pos[1] - part.pos[1]);
     if (d < bestD) {
       bestD = d;

@@ -1,5 +1,6 @@
-// Screenshots of every moment of the bench lessons (first-glow, how-a-breadboard-works, welcome-to-the-bench),
-// played on the real bench like a learner: desktop and phone, light and dark, 3D and ink views.
+// Screenshots of every moment of the bench lessons (Start here: welcome-to-the-bench and the Tool cases), played on the
+// real bench like a learner: desktop and phone, light and dark, 3D and ink views. Moves too fine for a phone (or a drag
+// that misses on a crowded bench) are played through the lab hook, so a run always reaches the end.
 //
 //   pnpm build && node scripts/lesson-shots.mjs                       into ./screenshots-lessons
 //   node scripts/lesson-shots.mjs --lessons=first-glow --sizes=desktop --themes=light --views=3d
@@ -14,14 +15,21 @@ import { WEBGL_ARGS } from "./seed.mjs";
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/, "").split("=")).map(([k, v]) => [k, v ?? "true"]));
 const OUT = args.out ?? "screenshots-lessons";
+const PATHS = {
+  "welcome-to-the-bench": "start-here/welcome-to-the-bench",
+  "meet-the-meter": "start-here/meet-the-meter",
+  "milli-and-kilo": "start-here/milli-and-kilo",
+  "how-a-breadboard-works": "start-here/how-a-breadboard-works",
+  "parts-drawer": "start-here/parts-drawer",
+  "first-glow": "start-here/first-glow",
+};
 const PORT = Number(args.port ?? 4393);
-const LESSONS = (args.lessons ?? "first-glow,how-a-breadboard-works,welcome-to-the-bench").split(",");
+const LESSONS = (args.lessons ?? Object.keys(PATHS).join(",")).split(",");
 const SIZES = (args.sizes ?? "desktop,phone").split(",");
 const THEMES = (args.themes ?? "light,dark").split(",");
 const VIEWS = (args.views ?? "3d,ink").split(",");
 const PARALLEL = Number(args.parallel ?? 3);
 const VIEWPORTS = { desktop: { width: 1440, height: 900 }, phone: { width: 390, height: 844 } };
-const PATHS = { "first-glow": "basics/first-glow", "how-a-breadboard-works": "basics/how-a-breadboard-works", "welcome-to-the-bench": "basics/welcome-to-the-bench" };
 
 async function startServer() {
   if (process.env.BASE_URL) return { url: process.env.BASE_URL, stop: () => {} };
@@ -131,149 +139,465 @@ const settle = (page, ms = 900) => page.waitForTimeout(ms);
 
 // ---- The lessons -------------------------------------------------------------------------------------------------
 
-async function firstGlow(page, shot) {
+/** A solution step through the lab hook (for moves too fine for a phone, or not a learner's to make). */
+async function step(page, s) {
+  await page.evaluate((x) => window.ohmlandLab.step(x), s);
+  await page.waitForTimeout(250);
+}
+async function clickTarget(page, target) {
+  const p = await project(page, target);
+  await page.mouse.click(p.x, p.y);
+}
+/** Drags a part by its body onto a target (a drawer, a seat, a hole). On a phone the lab hook moves it to `at`. */
+async function movePart(page, part, target, at) {
+  if (fine(page)) return step(page, { do: "move", part, at });
+  await drag(page, await project(page, `part:${part}`), await project(page, target));
+}
+/** Waits for a task; when the learner's move did not land (a drag on a crowded bench), plays the solution step. */
+async function doneOr(page, task, fallback) {
+  try {
+    await page.waitForFunction((t) => window.ohmlandLab.status()[t] === "done", task, { timeout: 4000 });
+  } catch {
+    console.warn(`  ${task}: the move did not land, playing it through the lab hook`);
+    for (const s of fallback) await step(page, s);
+    await page.waitForFunction((t) => window.ohmlandLab.status()[t] === "done", task, { timeout: 8000 });
+  }
+}
+/** Turns the meter's dial on its panel in the tool dock, else through the lab hook. */
+async function dialTo(page, mode, label, range) {
+  const radio = page.locator(".bl-tool").getByRole("radio", { name: label });
+  if (await radio.count()) {
+    await radio.click();
+    if (range) await page.locator(".bl-tool select").selectOption(range);
+  } else await step(page, { do: "dial", mode, ...(range ? { range } : {}) });
+}
+/** Touches the probe tips to two points (through the lab hook: a tip is a thin target right by its lead's plug). */
+const probe = (page, red, black) => step(page, { do: "probe", red, black });
+
+async function meetTheMeter(page, shot) {
   await shot("01-start");
   await primary(page).click();
   await at(page, "b0");
+  await settle(page, 1200);
+  await shot("02-meter");
+  await step(page, { do: "plug", probe: "black", socket: "com" });
+  await step(page, { do: "plug", probe: "red", socket: "vohm" });
+  await at(page, "b0", "done");
   await settle(page);
-  await shot("02-meet");
-  await page.locator('[data-tap="D1"]').click();
+  await shot("03-plugged");
+  await primary(page).click();
   await at(page, "b1");
   await settle(page);
-  await shot("03-build");
-  const red = await leadFromTray(page, "Red", "pin:B1.pos");
-  await clipTo(page, red, "a", "pin:R1.a");
-  await shot("04-build-one-lead");
-  const green = await leadFromTray(page, "Green", "pin:R1.b");
-  await clipTo(page, green, "a", "pin:D1.anode");
-  const black = await leadFromTray(page, "Black", "pin:D1.cathode");
-  await clipTo(page, black, "a", "pin:B1.neg");
+  await shot("04-dial");
+  await dialTo(page, "dcv", "DC volts", "20V");
   await at(page, "b1", "done");
   await settle(page);
-  await shot("05-glow");
+  await shot("05-dial-note");
   await primary(page).click();
   await at(page, "b2");
   await settle(page);
-  await shot("06-popup");
-  await page.locator(".bl-slider__range").focus();
-  await page.keyboard.press("Home");
-  await settle(page, 1500);
-  await shot("07-popup-470");
-  await primary(page).click();
-  await at(page, "b3");
-  await settle(page);
-  await shot("08-tap-check");
-  await page.locator('[data-tap="D1.cathode"]').click();
+  await shot("06-which-letter");
+  await page.locator("[data-pick='0']").click();
   await settle(page, 500);
-  await shot("09-tap-wrong");
-  await page.locator('[data-tap="D1.anode"]').click();
+  await shot("07-which-letter-wrong");
+  await page.locator("[data-pick='1']").click();
+  await at(page, "b3", "guess");
+  await settle(page);
+  await shot("08-guess");
+  await page.locator("[data-guess='2']").click();
+  await settle(page, 600);
+  await probe(page, "BX.t2", "BX.t1");
+  await doneOr(page, "read-battery", [{ do: "probe", red: "BX.t2", black: "BX.t1" }]);
   await at(page, "b3", "done");
   await settle(page);
-  await shot("10-anode-rule");
+  await shot("09-reading");
   await primary(page).click();
-  await at(page, "b4", "guess");
-  await settle(page, 500);
-  await shot("11-guess");
-  await page.locator("[data-guess='1']").click();
-  await settle(page, 1200);
-  // A lead from the tray drops its b clip on the first point; the a clip was then moved to the second.
-  await swapClips(page, [green, "a", "pin:D1.anode"], [black, "b", "pin:D1.cathode"]);
+  await at(page, "b4");
+  await probe(page, "BX.t1", "BX.t2");
+  await doneOr(page, "swap-probes", [{ do: "probe", red: "BX.t1", black: "BX.t2" }]);
   await at(page, "b4", "done");
   await settle(page);
-  await shot("12-flipped");
+  await shot("10-minus-rule");
   await primary(page).click();
   await at(page, "b5");
-  await settle(page, 1200);
-  await swapClips(page, [green, "a", "pin:D1.cathode"], [black, "b", "pin:D1.anode"]);
+  await settle(page);
+  await shot("11-tap-plus");
+  await page.locator('[data-tap="BX.t1"]').click();
+  await settle(page, 500);
+  await shot("12-tap-plus-wrong");
+  await page.locator('[data-tap="BX.t2"]').click();
+  await at(page, "b6");
+  await settle(page);
+  await shot("13-open");
+  await clickTarget(page, "part:BX/lid");
+  await doneOr(page, "open-the-box", [{ do: "param", part: "BX", params: { lid: true } }]);
+  await at(page, "b6", "done");
+  await settle(page);
+  await shot("14-opened");
+  await primary(page).click();
+  await at(page, "b7");
+  await settle(page);
+  await shot("15-what-is-this");
+  await page.locator("[data-pick='0']").click();
   await at(page, "secret");
   await settle(page);
-  await shot("13-secret");
-  await clipTo(page, green, "b", "pin:R1.a");
+  await shot("16-secret");
+  await probe(page, "B2.pos", "B2.neg");
+  await doneOr(page, "tired-battery", [{ do: "probe", red: "B2.pos", black: "B2.neg" }]);
   await at(page, "secret", "done");
   await settle(page);
-  await shot("14-fried");
+  await shot("17-secret-found");
   await primary(page).click();
   await at(page, "fix0");
   await settle(page, 1500);
-  await shot("15-fixit");
-  await page.locator(".bl-clock").click();
-  await settle(page, 400);
-  await shot("16-fixit-clock");
-  await page.waitForFunction(() => (window.ohmlandLab.part("D1")?.glow ?? 0) < 0.01);
-  // The fix-it bench starts from the canonical loop (TL1 to TL3), with the battery's clips swapped.
-  await swapClips(page, ["TL2", "b", "pin:D1.anode"], ["TL3", "a", "pin:D1.cathode"]);
+  await shot("18-fixit");
+  await dialTo(page, "dcv", "DC volts", "20V");
+  await at(page, "end");
+  await settle(page);
+  await shot("19-end");
+  await finish(page, shot, 20);
+}
+
+async function milliAndKilo(page, shot) {
+  await shot("01-start");
+  await primary(page).click();
+  await at(page, "b0");
+  await settle(page, 1200);
+  await shot("02-gate");
+  await clickTarget(page, "part:G1/unit");
+  await doneOr(page, "tap-the-a", [{ do: "param", part: "G1", params: { unit: "mA" } }]);
+  await at(page, "b0", "done");
+  await settle(page);
+  await shot("03-milli");
+  await primary(page).click();
+  await at(page, "b1");
+  await settle(page);
+  await shot("04-tag");
+  await clickTarget(page, "part:L0/text");
+  await doneOr(page, "tap-the-k", [{ do: "param", part: "L0", params: { alt: true } }]);
+  await at(page, "b1", "done");
+  await settle(page);
+  await shot("05-kilo-rule");
+  await primary(page).click();
+  await at(page, "b2");
+  await settle(page);
+  await shot("06-show-me-milli");
+  await page.locator('[data-tap="L1"]').click();
+  await settle(page, 500);
+  await shot("07-show-me-milli-wrong");
+  await page.locator('[data-tap="L2"]').click();
+  await at(page, "b3");
+  await settle(page);
+  await shot("08-wheel-one");
+  await page.locator("[data-pick='1']").click();
+  await settle(page, 500);
+  await shot("09-wheel-one-wrong");
+  await page.locator("[data-pick='2']").click();
+  await at(page, "b4");
+  await settle(page);
+  await shot("10-wheel-two");
+  await page.locator("[data-pick='1']").click();
+  await at(page, "b5");
+  await settle(page);
+  await page.locator("[data-pick='2']").click();
+  await at(page, "b6");
+  await settle(page, 1200);
+  await shot("11-padlock-set");
+  await clickTarget(page, "part:CAB/lid");
+  await doneOr(page, "open-padlock", [{ do: "param", part: "CAB", params: { lid: true } }]);
+  await at(page, "b6", "done");
+  await settle(page);
+  await shot("12-cabinet-open");
+  await primary(page).click();
+  await at(page, "b7");
+  await settle(page);
+  await shot("13-what-does-k-mean");
+  await page.locator("[data-pick='0']").click();
+  await at(page, "secret");
+  await settle(page);
+  await shot("14-secret");
+  await clickTarget(page, "part:L4/text");
+  await doneOr(page, "mega", [{ do: "param", part: "L4", params: { alt: true } }]);
+  await at(page, "secret", "done");
+  await settle(page);
+  await shot("15-mega");
+  await primary(page).click();
+  await at(page, "fix0");
+  await settle(page, 1500);
+  await shot("16-fixit");
+  await step(page, { do: "move", part: "L6", at: "desk:-206,96" });
+  await movePart(page, "L1", "part:BN1", "in:BN1");
+  await doneOr(page, "fix-it", [{ do: "move", part: "L1", at: "in:BN1" }]);
   await at(page, "end");
   await settle(page);
   await shot("17-end");
-  await page.locator("[data-notebook-button]").click();
-  await settle(page, 600);
-  await shot("18-notebook");
-  await page.keyboard.press("Escape");
-  await finish(page, shot, 19);
+  await finish(page, shot, 18);
 }
 
 async function breadboard(page, shot) {
   await shot("01-start");
   await primary(page).click();
   await at(page, "b0");
-  await settle(page);
-  await shot("02-tap-any-hole");
-  await tapHole(page, "c7");
+  await settle(page, 1200);
+  await shot("02-xray-button");
+  await page.getByRole("button", { name: "X-ray" }).first().click();
   await at(page, "b0", "done");
   await settle(page);
-  await shot("03-hole-name");
+  await shot("03-strips");
   await primary(page).click();
   await at(page, "b1");
   await settle(page);
-  await shot("04-xray");
-  await tapHole(page, "h9");
+  await tapHole(page, "c7");
   await at(page, "b1", "done");
   await settle(page);
-  await shot("05-xray-strip");
+  await shot("04-holds-hands");
   await primary(page).click();
   await at(page, "b2");
   await settle(page);
-  await shot("06-game");
-  await tapHole(page, "d14");
+  await shot("05-why-dark");
+  await page.locator("[data-pick='0']").click();
   await at(page, "b3");
-  await settle(page);
-  await shot("07-game-two");
-  await tapHole(page, "f18");
-  await settle(page, 500);
-  await shot("08-game-wrong");
-  await tapHole(page, "a18");
+  await settle(page, 1200);
+  await shot("06-move-the-leg");
+  await rotateLed(page);
+  await doneOr(page, "fix-led", [{ do: "rotate", part: "D1" }]);
   await at(page, "b3", "done");
-  await settle(page, 300);
-  await shot("09-channel-right");
+  await settle(page);
+  await shot("07-glows-rule");
+  await primary(page).click();
   await at(page, "b4");
-  await tapHole(page, "bp27");
+  await settle(page);
+  await shot("08-rail");
+  if (fine(page)) {
+    await step(page, { do: "unwire", wire: "W1" });
+    await step(page, { do: "wire", id: "W1", from: "a11", to: "rail-:26", color: "black" });
+  } else await drag(page, await project(page, "wire:W1.b"), await project(page, "hole:bn26"));
+  await doneOr(page, "rail-slide", [{ do: "unwire", wire: "W1" }, { do: "wire", id: "W1", from: "a11", to: "rail-:26", color: "black" }]);
   await at(page, "b4", "done");
   await settle(page);
-  await shot("10-rail-rule");
+  await shot("09-rail-note");
   await primary(page).click();
   await at(page, "b5");
-  await settle(page, 1500);
-  await shot("11-led-wrong");
-  await rotateLed(page);
-  await at(page, "b5", "done");
   await settle(page);
-  await shot("12-led-right");
-  await primary(page).click();
+  await shot("10-game");
+  await tapHole(page, "d14");
   await at(page, "b6");
   await settle(page);
-  await shot("13-rails");
-  await drag(page, await project(page, "wire:W1.b"), await project(page, "hole:bn26"));
-  await at(page, "b6", "done");
+  await tapHole(page, "f18");
+  await settle(page, 500);
+  await shot("11-game-wrong");
+  await tapHole(page, "a18");
+  await at(page, "b7");
   await settle(page);
-  await shot("14-rails-done");
-  await primary(page).click();
+  await tapHole(page, "bp27");
   await at(page, "secret");
   await settle(page);
-  await shot("15-secret");
+  await shot("13-secret");
   await page.locator(".bl-link", { hasText: "Skip" }).click();
+  await at(page, "fix0");
+  await settle(page, 1500);
+  await shot("14-fixit");
+  if (fine(page)) {
+    await step(page, { do: "unwire", wire: "W1" });
+    await step(page, { do: "wire", id: "W1", from: "a11", to: "rail-:11", color: "black" });
+  } else await drag(page, await project(page, "wire:W1.b"), await project(page, "hole:bn10"));
+  await doneOr(page, "fix-it", [{ do: "unwire", wire: "W1" }, { do: "wire", id: "W1", from: "a11", to: "rail-:11", color: "black" }]);
   await at(page, "end");
   await settle(page);
-  await shot("16-end");
+  await shot("15-end");
+  await finish(page, shot, 16);
+}
+
+async function partsDrawer(page, shot) {
+  await shot("01-start");
+  await primary(page).click();
+  await at(page, "b0");
+  await settle(page, 1200);
+  await shot("02-battery");
+  await movePart(page, "B2", "part:DRB", "in:DRB");
+  await doneOr(page, "file-battery", [{ do: "move", part: "B2", at: "in:DRB" }]);
+  await at(page, "b0", "done");
+  await settle(page);
+  await shot("03-battery-filed");
+  await primary(page).click();
+  await at(page, "b1");
+  await settle(page);
+  await shot("04-switch");
+  await clipTo(page, "TL2", "b", "pin:S2.com");
+  await clipTo(page, "TL3", "a", "pin:S2.b");
+  await settle(page, 600);
+  await shot("05-switch-in-gap");
+  await step(page, { do: "flip", part: "S2", to: "b" });
+  await doneOr(page, "test-switch", [{ do: "clip", lead: "TL2", end: "b", to: "S2.com" }, { do: "clip", lead: "TL3", end: "a", to: "S2.b" }, { do: "flip", part: "S2", to: "a" }, { do: "flip", part: "S2", to: "b" }]);
+  await at(page, "b1", "done");
+  await settle(page);
+  await shot("06-switch-note");
+  await primary(page).click();
+  await at(page, "b2");
+  await settle(page);
+  await clipTo(page, "TL2", "b", "pin:D1.anode");
+  await clipTo(page, "TL3", "a", "pin:D1.cathode");
+  await settle(page, 600);
+  await shot("07-led-lit");
+  await step(page, { do: "clip", lead: "TL2", end: "b", to: "D1.cathode" });
+  await step(page, { do: "clip", lead: "TL3", end: "a", to: "D1.anode" });
+  await doneOr(page, "led-both-ways", [
+    { do: "clip", lead: "TL2", end: "b", to: "D1.anode" },
+    { do: "clip", lead: "TL3", end: "a", to: "D1.cathode" },
+    { do: "clip", lead: "TL2", end: "b", to: "D1.cathode" },
+    { do: "clip", lead: "TL3", end: "a", to: "D1.anode" },
+  ]);
+  await at(page, "b2", "done");
+  await settle(page);
+  await shot("08-led-rule");
+  await primary(page).click();
+  await at(page, "b3");
+  await settle(page);
+  await shot("09-triangle");
+  await primary(page).click();
+  await at(page, "b4");
+  await settle(page);
+  await clipTo(page, "TL2", "b", "pin:RB.a");
+  await clipTo(page, "TL3", "a", "pin:RB.b");
+  await doneOr(page, "test-resistor", [{ do: "clip", lead: "TL2", end: "b", to: "RB.a" }, { do: "clip", lead: "TL3", end: "a", to: "RB.b" }]);
+  await at(page, "b4", "done");
+  await settle(page);
+  await shot("10-resistor-dim");
+  await primary(page).click();
+  await at(page, "b5");
+  await settle(page);
+  await shot("11-file-them");
+  await step(page, { do: "clip", lead: "TL2", end: "b", to: null });
+  await step(page, { do: "clip", lead: "TL3", end: "a", to: null });
+  // A wrong drawer first: the resistor will not go in with the switch.
+  await movePart(page, "RB", "part:DRS", "in:DRS");
+  await settle(page, 600);
+  await shot("12-wrong-drawer");
+  await movePart(page, "RB", "part:DRR", "in:DRR");
+  await movePart(page, "S2", "part:DRS", "in:DRS");
+  await movePart(page, "D1", "part:DRL", "in:DRL");
+  await doneOr(page, "file-all", [
+    { do: "move", part: "S2", at: "in:DRS" },
+    { do: "move", part: "D1", at: "in:DRL" },
+    { do: "move", part: "RB", at: "in:DRR" },
+  ]);
+  await at(page, "b6");
+  await settle(page);
+  await shot("13-show-me-led-symbol");
+  await page.locator('[data-tap="part:DRB/face"]').click();
+  await settle(page, 500);
+  await shot("14-show-me-wrong");
+  await page.locator('[data-tap="part:DRL/face"]').click();
+  await at(page, "b7");
+  await settle(page);
+  await shot("15-what-is-this");
+  await page.locator("[data-pick='0']").click();
+  await at(page, "secret");
+  await settle(page);
+  await shot("16-secret");
+  await movePart(page, "PB1", "part:DRS", "in:DRS");
+  await doneOr(page, "button-drawer", [{ do: "move", part: "PB1", at: "in:DRS" }]);
+  await at(page, "secret", "done");
+  await settle(page);
+  await shot("17-secret-found");
+  await primary(page).click();
+  await at(page, "fix0");
+  await settle(page, 1500);
+  await shot("18-fixit");
+  await movePart(page, "S2", "part:DRR", "in:DRR");
+  await movePart(page, "RB", "part:DRS", "in:DRS");
+  await doneOr(page, "fix-it", [{ do: "move", part: "S2", at: "in:DRR" }, { do: "move", part: "RB", at: "in:DRS" }]);
+  await at(page, "end");
+  await settle(page);
+  await shot("19-end");
+  await finish(page, shot, 20);
+}
+
+/**
+ * Drags a tray item (by its visible text) onto the board, centred on the given holes (two for an LED, so each leg lands
+ * in one); on a phone the lab hook places it.
+ */
+async function fromTray(page, text, holes, place) {
+  if (fine(page)) return step(page, place);
+  const box = await page.locator(".ohb-tray .ohb-item, .ohi-tray .ohi-item", { hasText: text }).first().boundingBox();
+  const pts = await Promise.all(holes.map((h) => project(page, `hole:${h}`)));
+  const to = { x: pts.reduce((n, p) => n + p.x, 0) / pts.length, y: pts.reduce((n, p) => n + p.y, 0) / pts.length };
+  await drag(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, to);
+}
+
+async function firstGlow(page, shot) {
+  await shot("01-start");
+  await primary(page).click();
+  await at(page, "b0");
+  await settle(page, 1200);
+  await shot("02-torn");
+  await movePart(page, "PC", "part:CARD/D1", "in:CARD");
+  await settle(page, 600);
+  await shot("03-piece-in");
+  for (let i = 0; i < 2; i++) {
+    await clickTarget(page, "part:PC");
+    await settle(page, 300);
+  }
+  await doneOr(page, "mend-blueprint", [{ do: "move", part: "PC", at: "in:CARD" }, { do: "param", part: "PC", params: { turn: 90 } }]);
+  await at(page, "b0", "done");
+  await settle(page);
+  await shot("04-mended");
+  await primary(page).click();
+  await at(page, "b1");
+  await settle(page, 1200);
+  await shot("05-build");
+  await fromTray(page, "1 kΩ", ["c7"], { do: "place", part: "R1", kind: "resistor", at: "c5", params: { ohms: 1000 } });
+  await settle(page, 600);
+  await shot("06-resistor-in");
+  await fromTray(page, "LED", ["d9", "d10"], { do: "place", part: "D1", kind: "led", at: "d9", params: { color: "red", maxmA: 50 } });
+  await doneOr(page, "build-loop", [
+    { do: "remove", part: "R1" },
+    { do: "remove", part: "D1" },
+    { do: "place", part: "R1", kind: "resistor", at: "c5", params: { ohms: 1000 } },
+    { do: "place", part: "D1", kind: "led", at: "d9", params: { color: "red", maxmA: 50 } },
+  ]);
+  await at(page, "b1", "done");
+  await settle(page);
+  await shot("07-glow");
+  await primary(page).click();
+  await at(page, "b2");
+  await settle(page);
+  await shot("08-zigzag");
+  await page.locator('[data-tap="D1"]').click();
+  await settle(page, 500);
+  await shot("09-zigzag-wrong");
+  await page.locator('[data-tap="R1"]').click();
+  await at(page, "b3", "guess");
+  await settle(page);
+  await shot("10-guess");
+  await page.locator("[data-guess='1']").click();
+  await settle(page, 600);
+  await step(page, { do: "move", part: "D1", at: "b9" });
+  await doneOr(page, "move-it", [{ do: "move", part: "D1", at: "b9" }]);
+  await at(page, "b3", "done");
+  await settle(page);
+  await shot("11-drawing-stayed");
+  await primary(page).click();
+  await at(page, "b4");
+  await settle(page);
+  await shot("12-what-does-it-show");
+  await page.locator("[data-pick='0']").click();
+  await at(page, "secret");
+  await settle(page);
+  await shot("13-secret");
+  await page.locator(".bl-link", { hasText: "Skip" }).click();
+  await at(page, "fix0");
+  await settle(page, 1500);
+  await shot("14-fixit");
+  await step(page, { do: "move", part: "D1", at: "b9", rot: 0 });
+  await doneOr(page, "flip-led", [{ do: "move", part: "D1", at: "b9", rot: 0 }]);
+  await at(page, "end");
+  await settle(page);
+  await shot("15-end");
+  await page.locator("[data-notebook-button]").click();
+  await settle(page, 600);
+  await shot("16-notebook");
+  await page.keyboard.press("Escape");
   await finish(page, shot, 17);
 }
 
@@ -284,39 +608,45 @@ async function welcome(page, shot) {
   await settle(page, 1200);
   await shot("02-switch");
   await flipBlockSwitch(page, "S1");
-  await at(page, "b0", "done");
+  await at(page, "b1");
   await settle(page);
-  await shot("03-glow");
-  await primary(page).click();
-  await at(page, "b1", "guess");
-  await shot("04-guess");
-  await page.locator("[data-guess='2']").click();
-  await unclip(page, "TL2", "a");
+  await shot("03-still-dark");
+  await page.locator('[data-tap="B1.neg"]').click();
   await at(page, "b1", "done");
-  await settle(page);
-  await shot("05-dark-rule");
+  await settle(page, 1500);
+  await shot("04-tracer-gap");
   await primary(page).click();
   await at(page, "b2");
-  await clipTo(page, "TL2", "a", "pin:S1.b");
-  await at(page, "b3");
-  await settle(page);
-  await shot("06-what-is-this");
-  await page.locator("[data-pick='0']").click();
+  await clipTo(page, "TL1", "a", "pin:B1.pos");
+  await at(page, "b2", "done");
+  await settle(page, 1500);
+  await shot("05-loop-rule");
+  await primary(page).click();
+  await at(page, "b3", "guess");
+  await shot("06-guess");
+  await page.locator("[data-guess='2']").click();
+  await unclip(page, "TL2", "a");
   await at(page, "b3", "done");
   await settle(page);
-  await shot("07-switch-rule");
+  await shot("07-dark");
   await primary(page).click();
+  await at(page, "b4");
+  await clipTo(page, "TL2", "a", "pin:S1.b");
+  await at(page, "b5");
+  await settle(page);
+  await shot("08-what-is-this");
+  await page.locator("[data-pick='0']").click();
   await at(page, "secret");
   await settle(page);
-  await shot("08-secret");
+  await shot("09-secret");
   await page.locator(".bl-link", { hasText: "Skip" }).click();
   await at(page, "fix0");
   await settle(page, 1500);
-  await shot("09-fixit");
+  await shot("10-fixit");
   await page.waitForFunction(() => (window.ohmlandLab.part("D1")?.glow ?? 0) < 0.01);
   await clipTo(page, "TL2", "a", "pin:S1.b");
   await at(page, "end");
-  await finish(page, shot, 10);
+  await finish(page, shot, 11);
 }
 
 async function finish(page, shot, n) {
@@ -335,7 +665,14 @@ async function finish(page, shot, n) {
   await shot(`${n + 1}-finale`);
 }
 
-const PLAY = { "first-glow": firstGlow, "how-a-breadboard-works": breadboard, "welcome-to-the-bench": welcome };
+const PLAY = {
+  "welcome-to-the-bench": welcome,
+  "meet-the-meter": meetTheMeter,
+  "milli-and-kilo": milliAndKilo,
+  "how-a-breadboard-works": breadboard,
+  "parts-drawer": partsDrawer,
+  "first-glow": firstGlow,
+};
 
 async function run(browser, base, lesson, size, theme, view) {
   const context = await browser.newContext({ viewport: VIEWPORTS[size], colorScheme: theme, reducedMotion: "reduce", deviceScaleFactor: 1, hasTouch: size === "phone" });

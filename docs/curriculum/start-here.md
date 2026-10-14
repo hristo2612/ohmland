@@ -530,6 +530,21 @@ shows the tired one."
 Landmark `meter-tower` (moved from Basics). Summary for `module.yaml`: "A black box, a padlock, a secret wiring job, a
 mixed-up drawer and a torn blueprint."
 
+**As built (wave 1).** The lesson files in `content/units/start-here/tool-cases/` are the source of truth; where they
+differ from the beats below, it is on purpose:
+
+- SH10 keeps its first id, `how-a-breadboard-works` (and its lab's): a new id would drop finished lessons and island
+  pieces, since nothing maps old ids to new ones. Its secret stays the rail short (`short-the-rails`) rather than the
+  continuity beep, which would need a meter on a bench framed for the board; its "What is this?" check is left out
+  (a ring on one hole read as "a hole", not "a strip"), so the three hole taps are its checks.
+- SH8: beat 4 is a chip pick ("Which letter counts flow?" V, A, Ω): the dial's sectors are not tap targets.
+- SH9: the kilo tag is the lamp resistor's own "1 kΩ" tag (no knob box), and the fix-it files a "4.7 kΩ" tag into a
+  tray labelled "4,700 Ω" (the wrong "470 Ω" tag is in it) instead of typing the label.
+- SH11: the secret is a bench action, not a chip: "which drawer takes this button?" (the switch drawer: a button is a
+  switch too). The fix-it swaps two drawers' symbol cards, so the switch and the resistor sit in the wrong drawers.
+- SH12: the board has its two jumpers in; the learner places the resistor and the LED from the tray. The "tap a symbol,
+  its part lights up" beat waits for the player; the "Same circuit?" check is a pick ("So what does a drawing show?").
+
 ---
 
 ### SH8. `meet-the-meter`: The black box

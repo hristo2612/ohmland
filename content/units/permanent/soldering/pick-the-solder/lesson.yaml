@@ -10,7 +10,7 @@ minutes: 6
 lab: pick-the-solder
 unlocks:
   parts: [solder]
-  isle: wire-spool # TODO piece: solder-spool
+  isle: solder-spool
 
 start:
   title: Two spools

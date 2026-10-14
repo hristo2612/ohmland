@@ -177,6 +177,21 @@ export function waterOhms(water: WaterKind): number {
   return WATER_OHMS[water];
 }
 
+/**
+ * A pinch of salt stirred into a cup: its ions alone would conduct like 7.5 kΩ between the probes. Conductances add,
+ * so a pinch in tap water (30 to 40 kΩ) brings it to about 6 kΩ, and each pinch after that lowers it further.
+ */
+const PINCH_OHMS = 7_500;
+/** The most pinches a cup takes (about 750 Ω): past that the water is as salty as it gets here. */
+export const SALT_MAX = 10;
+
+/** Resistance between a cup's two probes: its water, plus whatever salt was stirred in. */
+export function cupOhms(params: { water: WaterKind; ohms?: number; salt?: number }): number {
+  const base = params.ohms ?? waterOhms(params.water);
+  const salt = Math.max(0, Math.min(SALT_MAX, params.salt ?? 0));
+  return 1 / (1 / base + salt / PINCH_OHMS);
+}
+
 const line = (...legs: string[]): FootprintLeg[] => legs.map((leg, i) => ({ leg, dx: i, dz: 0 }));
 
 /** Upright parts resting on their legs: legs centred on the footprint, ends on the desk. */
@@ -565,9 +580,9 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     legs: ["a", "b"],
     defaults: { water: "tap" },
     deskLegs: () => ({ a: [-12, CUP.water, 2], b: [12, CUP.water, 2] }),
-    toSpecs: (p, n) => [
-      { id: p.id, kind: "probe-resistance", pins: { a: n("a"), b: n("b") }, ohms: p.params.ohms ?? waterOhms(p.params.water) },
-    ],
+    // A pinch of salt from the selection bar, one per press.
+    actions: [{ id: "salt", apply: (pp) => ({ salt: Math.min(SALT_MAX, ((pp["salt"] as number | undefined) ?? 0) + 1) }) }],
+    toSpecs: (p, n) => [{ id: p.id, kind: "probe-resistance", pins: { a: n("a"), b: n("b") }, ohms: cupOhms(p.params) }],
   },
   lemon: {
     kind: "lemon",
@@ -1119,6 +1134,12 @@ export function partSpots(part: Pick<PlacedPart, "kind" | "params">): Record<str
  * clock face): a beat about one of them frames it close, and the 3D view keeps it upright on a tall screen.
  */
 export const PRINTED_KINDS: ReadonlySet<string> = new Set(["chart", "tag", "card", "schematic", "bin", "clock"]);
+
+/**
+ * Parts read the right way up: the printed props, a chip's printed number, a display's digits, a regulator's type, a
+ * DIP switch's numbers. A beat about one of them never turns the 3D view a quarter on a tall screen.
+ */
+export const UPRIGHT_KINDS: ReadonlySet<string> = new Set([...PRINTED_KINDS, "chip", "sevenseg", "regulator7805", "dip-switch"]);
 
 /** Named points on this part for `part:<id>/<name>` targets (local mm). */
 export function partMarks(part: Pick<PlacedPart, "kind" | "params">): Record<string, Vec3> {

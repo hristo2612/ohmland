@@ -8,7 +8,7 @@ import type { CourseOutline } from "../content/outline";
 import { emptyOutline } from "../content/outline";
 import { m } from "../i18n";
 import { toast } from "../components/toast-store";
-import { evaluateAchievements, type Achievement, type LabEvent } from "./achievements";
+import { evaluateAchievements, type EarnedAchievement, type LabEvent } from "./achievements";
 import { totalXp } from "./derive";
 import { levelProgress, type LevelProgress } from "./levels";
 import { mergeLearners } from "./merge";
@@ -33,7 +33,7 @@ export type Completion = {
     firstTry: number;
     tasks: number;
     modules: string[];
-    achievements: Achievement[];
+    achievements: EarnedAchievement[];
     total: number;
   };
   newParts: string[];
@@ -55,9 +55,9 @@ export type LearnerStoreState = {
   clearProgress(lessonId: string): void;
   completeLesson(input: CompleteInput): Completion;
   /** Adds a part to the Hall of Fried Parts. `silent` skips the toast (the lab shows its own card). */
-  recordFried(kind: string, label: string, lessonId: string | null, opts?: { silent?: boolean }): { earned: Achievement[] };
+  recordFried(kind: string, label: string, lessonId: string | null, opts?: { silent?: boolean }): { earned: EarnedAchievement[] };
   /** A lab event (task done, achievement trigger): evaluates achievements against it and toasts what unlocks. */
-  labEvent(event: LabEvent): { earned: Achievement[] };
+  labEvent(event: LabEvent): { earned: EarnedAchievement[] };
   setSettings(patch: Partial<Settings>): void;
   /** Saves a free-build bench under a new id (or replaces `id`). Returns the id. */
   saveBench(name: string, bench: unknown, id?: string): string;

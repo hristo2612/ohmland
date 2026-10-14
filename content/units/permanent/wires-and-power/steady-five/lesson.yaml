@@ -11,7 +11,7 @@ minutes: 8
 lab: steady-five
 unlocks:
   parts: [regulator-7805]
-  isle: diode # TODO piece: regulator
+  isle: regulator
 
 start:
   title: Five, exactly

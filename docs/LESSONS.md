@@ -7,8 +7,9 @@ the notebook page fills itself in and is signed off.
 
 Read `docs/DESIGN-PRINCIPLES.md` first: it decides how much goes on a screen and how much we say. Wording rules are in
 `docs/CONTENT.md`, the lab file in `docs/LABS.md`. The reference lessons are
-`content/units/basics/current-and-leds/first-glow`, `content/units/basics/your-meter/welcome-to-the-bench` and
-`content/units/basics/your-meter/how-a-breadboard-works`, each with its lab in `content/labs/<id>.ts`.
+`content/units/start-here/first-cases/welcome-to-the-bench` and Start here's Tool cases in
+`content/units/start-here/tool-cases/` (meet-the-meter, milli-and-kilo, how-a-breadboard-works, parts-drawer,
+first-glow), each with its lab in `content/labs/<id>.ts`.
 
 ## Two files
 
@@ -59,6 +60,7 @@ secret:                       # the bonus, offered after the beats (and found an
   task: no-resistor           # a bonus task in the lab
   say: Curious? Leave the resistor out. It's free here.
   done: Pop. That LED gave its life for science.
+  spot: [R1, D1]              # the parts in play, as on a beat (optional)
   note: { at: D1, text: about 1 A for a blink }
   rule: Every LED needs a resistor.
 
@@ -99,7 +101,8 @@ Optional, on any beat:
 - `objective`: starts an objective (a few words). The robot's eyes fill in equal steps as each objective (and the
   fix-it round) finishes, and the current objective's name shows as a quiet kicker. Objectives are never listed.
 - `spot: [parts]`: the parts in play. The bench frames and spotlights them. Meet, tap and pick beats spot their part by
-  themselves; leave `spot` out when the result shows somewhere else (a switch that lights a lamp).
+  themselves; leave `spot` out when the result shows somewhere else (a switch that lights a lamp). The secret takes a
+  `spot` too (`secret: { spot: [R1, D1], ... }`).
 - `guess` (only with `do`): an ungraded prediction just before the action. The notebook keeps it in blue ink.
 - `done`, `note`, `rule`: the discovery. A beat with any of them ends on a Next button so the learner can read it; a
   beat without one moves on by itself after a beat of the robot's success line. A beat with nothing to do draws its
@@ -110,11 +113,19 @@ Optional, on any beat:
   to the digit just found. Use steps that set a state (`param`, `flip` with `to`, `clip`): a resumed lesson applies
   them again. A step that needs the bench to keep its new state through a later task's setup belongs in the lab's
   solution as well.
+- `palette` and `program` (with `tool: code`, Unit 5): the blocks the drawer offers in this beat, each a block's name
+  or steps in bench C (`palette: ["digitalWrite(13, LOW);", delay]`: one block, not a toolbox; a beat without a
+  palette offers none), and a program the drawer starts the beat from (once per visit; the learner's edits after that
+  are theirs). A code beat's one action is one edit, then Upload; its task's goal reads the bench (the lamp, the serial
+  lines), not the code. Hide the text view until lesson 14 with the lab's `code: { text: false }` (docs/LABS.md, Code).
 - `xray: true`: the breadboard's metal strips show during the beat.
 - `trace: B1.neg`: the loop tracer runs from that terminal once the beat's action is done (the right tap on it, the
   task's goal met), or as the beat begins when it has nothing to do. Its red pencil line clears when the beat ends.
 - `tool`: the one instrument or panel the beat needs: `meter`, `scope`, `logger`, `stopwatch`, `tapper`, `controls`,
-  `views` (the lab's overlay toggles, Flow, Electrons and Push, from `overlays.offer`) or a lab panel id. Without it, a lab panel tied to the beat's task (its `show`) appears. Never two at once. The
+  `views` (the lab's overlay toggles, Flow, Electrons and Push, from `overlays.offer`), the microcontroller board's
+  `code` (the code drawer), `serial` (the serial monitor) or `millis` (its clock, with the day-49 jump), or a lab
+  panel id. Without it, a lab panel tied to the beat's task (its `show`) appears. Never two at once. A tool stays
+  open into the next beat that names it too (through that beat's guess), and closes when the next beat does not. The
   fix-it round and the secret take a `tool` too (`fixit: { tool: meter, ... }`, `secret: { tool: meter, ... }`): the
   meter's range, for one, can only be changed on its panel.
 
@@ -136,11 +147,15 @@ for a moment:
 nudges: [{ when: (lab) => backwards(lab), say: "Dark? Turn the LED around. Long leg to plus." }],
 ```
 
+After a `setup` puts a broken bench down (a fix-it), its task's nudges wait for the learner's first move on the bench:
+the broken bench matches them from the start, and a nudge before the learner has tried would give the fix away.
+
 ## Fix-it benches and parts that come into play
 
 A lab task's `setup` is a list of solution steps the lesson applies when the task's beat begins, on top of the bench
-the solution reaches at the previous check: the fix-it round's broken circuit, or parts that come into play halfway
-(the breadboard's LED). The solution must start that task's steps with the same steps: spread one const into both.
+the solution reaches at the previous check: the fix-it round's broken circuit (first-glow's LED turned round), or parts
+that come into play halfway (milli-and-kilo's padlock wheels, all set before the lid can lift). The solution must start
+that task's steps with the same steps: spread one const into both.
 
 ```ts
 const SWAP_BATTERY: SolutionStep[] = [{ do: "clip", lead: "TL1", end: "a", to: "B1.neg" }, { do: "clip", lead: "TL3", end: "b", to: "B1.pos" }];

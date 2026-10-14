@@ -28,6 +28,7 @@ import { buildModel, partBounds, targetOwners, targetPoint, targetRect, targetsR
 import { InkOverlay, partDetail, useFollow } from "./Overlay";
 import { INK_CSS } from "./styles";
 import { InkView } from "./view";
+import { TagSlips, type SlipProjector } from "../view/TagSlips";
 import { SolderOverlay, type SolderViewApi } from "../solder/overlay/SolderOverlay";
 import { IronLayer, ScorchLayer } from "./kinds/solder";
 
@@ -102,6 +103,10 @@ export function BenchInk(props: BenchInkProps) {
   useEffect(() => {
     store.setState({ locked: lockedKey ? lockedKey.split(",") : [] });
   }, [store, lockedKey]);
+  const namesKey = JSON.stringify(props.names ?? {});
+  useEffect(() => {
+    store.setState({ names: JSON.parse(namesKey) as Record<string, string> });
+  }, [store, namesKey]);
   const frameKey = props.frame ? props.frame.join(",") : "";
   useLayoutEffect(() => {
     if (props.frame !== undefined) store.setState({ frame: frameKey ? (frameKey.split(",").map(Number) as [number, number, number, number]) : null });
@@ -210,8 +215,12 @@ export function BenchInk(props: BenchInkProps) {
       const hw = Math.max(MIN, r[2] - r[0]) / 2;
       const hh = Math.max(MIN, r[3] - r[1]) / 2;
       const p = f.padding ?? 48;
+      // The tray, the chrome and a docked panel come first; the margin round the targets takes at most a fifth of
+      // the room they leave on each side, so the targets never shrink to nothing beside a tray and a dock.
       const base = padNow();
-      view.fit(growRect([cx - hw, cz - hh, cx + hw, cz + hh], 3), { top: base.top + p * 0.5, right: base.right + p, bottom: base.bottom + p * 0.5, left: base.left + p }, { instant, max: 18 });
+      const px = Math.min(p, Math.max(0, view.vp.w - base.left - base.right) * 0.2);
+      const py = Math.min(p * 0.5, Math.max(0, view.vp.h - base.top - base.bottom) * 0.2);
+      view.fit(growRect([cx - hw, cz - hh, cx + hw, cz + hh], 3), { top: base.top + py, right: base.right + px, bottom: base.bottom + py, left: base.left + px }, { instant, max: 18 });
     },
     [view, fitHomeNow, padNow],
   );
@@ -270,6 +279,20 @@ export function BenchInk(props: BenchInkProps) {
       },
       onViewChange: (cb) => view.onChange(cb),
       desk: (x, y) => view.toWorld(x, y),
+    }),
+    [view],
+  );
+
+  // Readable tags on a phone (view/TagSlips.tsx): where a target is now, and when the view moves.
+  const slipProjector = useMemo<SlipProjector>(
+    () => ({
+      project: (t) => {
+        const p = targetPoint(modelRef.current, t);
+        if (!p) return null;
+        const [x, y] = view.toScreen(p[0], p[1]);
+        return { x, y, visible: x >= 0 && y >= 0 && x <= view.vp.w && y <= view.vp.h };
+      },
+      onViewChange: (cb) => view.onChange(cb),
     }),
     [view],
   );
@@ -510,6 +533,7 @@ export function BenchInk(props: BenchInkProps) {
               {hoverAnchor ? hoverAnchor.slice(5) : ""}
             </div>
             <Readouts store={store} model={model} view={view} labels={labels} />
+            <TagSlips store={store} spot={spot} compact={compact} projector={slipProjector} />
             <InkOverlay
               store={store}
               labels={labels}

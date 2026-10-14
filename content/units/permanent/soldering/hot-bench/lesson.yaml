@@ -10,7 +10,7 @@ minutes: 6
 lab: hot-bench
 unlocks:
   parts: [soldering-iron]
-  isle: battery # TODO piece: iron-stand
+  isle: iron-stand
 
 start:
   title: The hot end

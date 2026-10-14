@@ -1,6 +1,6 @@
 id: resistance
 title: Resistance
-summary: What resists current, how to measure it on everyday things, and how resistors announce their values.
+summary: Pick a meter range, measure skin and water, draw a resistor, and read what a resistor tells you.
 landmark:
   id: resistor-hall
   name: Resistor Hall
@@ -8,6 +8,9 @@ landmark:
   # caption: A long hall striped in every colour of the code. You can read every value on its walls.
   # mascot: Brown, black, red. That's a thousand ohms of hall.
 lessons:
+  - tiny-and-huge-numbers
   - what-resists
+  - salt-and-water
   - draw-a-resistor
   - reading-the-stripes
+  - the-liar

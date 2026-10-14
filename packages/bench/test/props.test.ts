@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createSimulation, type PartSpec } from "@ohmland/sim";
 import { benchToNetlist } from "../src/netlist";
-import { defaultMeter, emptyBench, movePart, penStroke, seatPart, swapParts } from "../src/ops";
+import { actionParams, defaultMeter, emptyBench, movePart, penStroke, seatPart, swapParts } from "../src/ops";
 import { skinOhms } from "../src/parts";
 import { holderOf } from "../src/seats";
 import type { BenchState, PlacedPart } from "../src/types";
@@ -70,6 +70,16 @@ describe("material props", () => {
     expect(Number(ohmsBetween(card(5, 2), "pin:P1.p0", "pin:P1.p10", "200k"))).toBeCloseTo(52, 0);
     // Past the end of the line the probe touches bare card.
     expect(ohmsBetween(card(5, 1), "pin:P1.p0", "pin:P1.p14", "2M")).toBe("OL");
+  });
+
+  it("lowers a cup's resistance with each pinch of salt", () => {
+    const cup = (salt: number) => ({ ...emptyBench(null), parts: [part("WC1", "cup", { water: "tap", ohms: 40_000, salt })] });
+    expect(Number(ohmsBetween(cup(0), "pin:WC1.a", "pin:WC1.b", "200k"))).toBeCloseTo(40.0, 0);
+    // A pinch is a parallel 7.5 kΩ: 40 kΩ with one is about 6.3 kΩ, with two about 3.4 kΩ.
+    expect(Number(ohmsBetween(cup(1), "pin:WC1.a", "pin:WC1.b", "20k"))).toBeCloseTo(6.32, 1);
+    expect(Number(ohmsBetween(cup(2), "pin:WC1.a", "pin:WC1.b", "20k"))).toBeCloseTo(3.43, 1);
+    expect(actionParams({ ...cup(9) }, "WC1", "salt")).toEqual({ salt: 10 });
+    expect(actionParams({ ...cup(10) }, "WC1", "salt")).toEqual({ salt: 10 });
   });
 
   it("draws, shades and extends a pencil line stroke by stroke", () => {

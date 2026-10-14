@@ -2,12 +2,11 @@
 # Its island is Bareboard Isle. The unit schema has no field for an island name yet, so the name lives in the summary.
 id: basics
 title: Basics
-summary: Set up a bench on Bareboard Isle, learn your meter, then master resistance, current, voltage, power and cells.
+summary: On Bareboard Isle, master resistance, current, voltage, power and cells.
 isle:
   theme: green-board
   seed: 1
 modules:
-  - your-meter
   - resistance
   - current-and-leds
   - voltage-and-ohms-law

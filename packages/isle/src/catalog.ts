@@ -3,9 +3,21 @@
  * names a landmark. Pure data, no three.js.
  */
 
-/** Units in course order. Each is its own island; the first one the learner reaches is the main island. */
-export const UNITS = ["basics", "switching", "permanent", "chips", "beyond"] as const;
+/**
+ * Units in course order, by the id of their folder in content/units. Each is its own island; the first one the learner
+ * reaches is the main island.
+ */
+export const UNITS = ["start-here", "basics", "switching", "permanent", "chips", "beyond"] as const;
 export type UnitId = (typeof UNITS)[number];
+
+/**
+ * Other ids a unit has gone by. content/course.yaml lists Unit 3 among its upcoming units as `making-it-permanent`,
+ * while its blueprint (docs/curriculum/unit-3.md, IC1) and this catalog call it `permanent`: either id builds the same
+ * island.
+ */
+const UNIT_ALIASES: Record<string, UnitId> = { "making-it-permanent": "permanent" };
+/** The catalog's id for a unit id: an alias resolves to its unit, any other id stays as it is. */
+export const unitOf = (u: string): string => UNIT_ALIASES[u] ?? u;
 
 /** Pieces: one per finished lesson. */
 export const PIECES = [
@@ -34,18 +46,47 @@ export const PIECES = [
   "moss",
   "tuft",
   "lemon-tree",
+  // Making it permanent
+  "iron-stand",
+  "solder-spool",
+  "regulator",
+  // Chips
+  "chip-block",
+  "reed-gate",
+  "seven-seg",
+  "logic-chip",
+  "dice-block",
+  // Beyond
+  "coil-bolt",
+  "magnet",
+  "antenna",
+  "mcu-board",
 ] as const;
 export type PieceId = (typeof PIECES)[number];
 
-/** Landmarks: one per finished module, grouped by the unit whose island they suit. */
+/** Landmarks: one per finished module, grouped by the unit whose island they suit, in the order its modules build them. */
 export const LANDMARKS_BY_UNIT: Record<UnitId, readonly string[]> = {
+  "start-here": ["spark-gap", "pump-house", "meter-tower"],
+  basics: ["resistor-hall", "lighthouse", "observatory", "power-station", "lemon-grove"],
+  switching: ["switchyard", "relay-clocktower", "breadboard-plaza", "capacitor-water-tower", "transistor-gatehouse", "siren-tower"],
+  permanent: ["solder-forge", "cable-pylon", "perfboard-pier"],
+  chips: ["timer-factory", "alarm-lighthouse", "counter-billboard", "logic-castle", "dice-arcade"],
+  beyond: ["coil-windmill", "radio-mast", "microcontroller-hq", "led-sundial"],
+};
+export const LANDMARKS = Object.values(LANDMARKS_BY_UNIT).flat();
+
+/**
+ * What a module whose landmark id is unknown builds: the next landmark of its unit in this rotation (Basics' for an
+ * unknown unit). Frozen: an isle must not change when the catalog grows, so a new landmark is never added here and a
+ * landmark that moves to another unit keeps its place. A unit that is not here rotates through its own landmarks.
+ */
+const FALLBACK: Record<string, readonly string[]> = {
   basics: ["meter-tower", "resistor-hall", "lighthouse", "observatory", "power-station", "lemon-grove"],
   switching: ["switchyard", "relay-clocktower", "breadboard-plaza", "capacitor-water-tower", "transistor-gatehouse", "siren-tower"],
   permanent: ["solder-forge", "perfboard-pier"],
   chips: ["timer-factory", "logic-castle", "counter-billboard", "dice-arcade"],
   beyond: ["coil-windmill", "radio-mast", "microcontroller-hq"],
 };
-export const LANDMARKS = Object.values(LANDMARKS_BY_UNIT).flat();
 export type LandmarkId = string;
 
 /** Kinds the planner places on its own. */
@@ -78,10 +119,24 @@ const PIECE_FOOT: Record<PieceId, number> = {
   moss: 0.4,
   tuft: 0.4,
   "lemon-tree": 0.9,
+  "iron-stand": 0.9,
+  "solder-spool": 0.9,
+  regulator: 0.9,
+  "chip-block": 0.9,
+  "reed-gate": 0.9,
+  "seven-seg": 0.9,
+  "logic-chip": 0.9,
+  "dice-block": 0.9,
+  "coil-bolt": 0.9,
+  magnet: 0.9,
+  antenna: 0.9,
+  "mcu-board": 1.4,
 };
 
 /** Landmark footprint radius and how many visual tiers it has (it rises a tier with later modules on its island). */
 const LANDMARK_SPEC: Record<string, { foot: number; tiers: number }> = {
+  "spark-gap": { foot: 2.3, tiers: 2 },
+  "pump-house": { foot: 2.6, tiers: 2 },
   "meter-tower": { foot: 2.3, tiers: 3 },
   "resistor-hall": { foot: 2.8, tiers: 2 },
   lighthouse: { foot: 2.3, tiers: 3 },
@@ -94,15 +149,18 @@ const LANDMARK_SPEC: Record<string, { foot: number; tiers: number }> = {
   "capacitor-water-tower": { foot: 2.3, tiers: 2 },
   "transistor-gatehouse": { foot: 2.6, tiers: 2 },
   "siren-tower": { foot: 2.3, tiers: 2 },
-  "solder-forge": { foot: 2.6, tiers: 1 },
-  "perfboard-pier": { foot: 2.6, tiers: 1 },
-  "timer-factory": { foot: 2.9, tiers: 1 },
-  "logic-castle": { foot: 2.9, tiers: 1 },
-  "counter-billboard": { foot: 2.3, tiers: 1 },
-  "dice-arcade": { foot: 2.3, tiers: 1 },
-  "coil-windmill": { foot: 2.3, tiers: 1 },
-  "radio-mast": { foot: 2.3, tiers: 1 },
-  "microcontroller-hq": { foot: 2.9, tiers: 1 },
+  "solder-forge": { foot: 2.6, tiers: 3 },
+  "cable-pylon": { foot: 2.3, tiers: 2 },
+  "perfboard-pier": { foot: 2.6, tiers: 2 },
+  "timer-factory": { foot: 2.9, tiers: 2 },
+  "alarm-lighthouse": { foot: 2.3, tiers: 3 },
+  "counter-billboard": { foot: 2.3, tiers: 2 },
+  "logic-castle": { foot: 2.9, tiers: 3 },
+  "dice-arcade": { foot: 2.3, tiers: 2 },
+  "coil-windmill": { foot: 2.3, tiers: 2 },
+  "radio-mast": { foot: 2.3, tiers: 3 },
+  "microcontroller-hq": { foot: 2.9, tiers: 2 },
+  "led-sundial": { foot: 2.6, tiers: 2 },
 };
 
 /** How many looks a piece has (colour of an LED, bands of a resistor...), picked by the island's generator. */
@@ -123,9 +181,19 @@ const VARIANTS: Partial<Record<string, number>> = {
   moss: 3,
   tuft: 3,
   "lemon-tree": 2,
+  "solder-spool": 2,
+  "chip-block": 2,
+  "seven-seg": 3,
+  "logic-chip": 3,
+  "dice-block": 3,
+  magnet: 2,
+  "mcu-board": 2,
 };
 
-/** The fallback deck for a lesson without a known piece: weight per piece. Never the same piece twice in a row. */
+/**
+ * The fallback deck for a lesson without a known piece: weight per piece. Never the same piece twice in a row. Frozen
+ * like the landmark rotation: a new piece is never dealt from here.
+ */
 export const DECK: { kind: PieceId; w: number }[] = [
   { kind: "resistor", w: 3 },
   { kind: "led-lamp", w: 3 },
@@ -178,6 +246,15 @@ export const REF: Partial<Record<string, string>> = {
   "wire-spool": "W",
   heatsink: "HS",
   "header-fence": "J",
+  regulator: "VR",
+  "chip-block": "IC",
+  "reed-gate": "SW",
+  "seven-seg": "DS",
+  "logic-chip": "IC",
+  "dice-block": "DS",
+  "coil-bolt": "L",
+  antenna: "ANT",
+  "mcu-board": "A",
 };
 
 const PIECE_SET = new Set<string>(PIECES);
@@ -195,9 +272,10 @@ export function footOf(kind: string): number {
 export const tiersOf = (kind: string): number => LANDMARK_SPEC[kind]?.tiers ?? 1;
 export const variantsOf = (kind: string): number => VARIANTS[kind] ?? 1;
 
-/** The landmark a module builds: its own id when known, else the unit's next landmark in turn. */
+/** The landmark a module builds: its own id when known, else the unit's next landmark in turn (see FALLBACK). */
 export function landmarkFor(unit: string, id: string, n: number): string {
   if (isLandmark(id)) return id;
-  const list = isUnit(unit) ? LANDMARKS_BY_UNIT[unit] : LANDMARKS_BY_UNIT.basics;
+  const u = unitOf(unit);
+  const list = FALLBACK[u] ?? (isUnit(u) ? LANDMARKS_BY_UNIT[u] : FALLBACK.basics!);
   return list[n % list.length]!;
 }
