@@ -60,13 +60,15 @@
 .btn--danger:hover { background: var(--red-wash); }
 
 .btn:not(:disabled, [aria-disabled="true"]):active { transform: translateY(1px); }
+/* Not available yet: a faint solid outline. (Dashed means "optional" or "still to come", never "disabled".) */
 .btn:disabled, .btn[aria-disabled="true"] {
   cursor: not-allowed;
   background: transparent;
   color: var(--ink-3);
-  border: var(--border-1) dashed var(--ink-3);
+  border: var(--border-1) solid color-mix(in srgb, var(--ink-3) 40%, transparent);
+  box-shadow: none;
 }
-.btn--tertiary:disabled { border: 0; text-decoration-style: dashed; }
+.btn--tertiary:disabled { border: 0; text-decoration-color: color-mix(in srgb, var(--ink-3) 40%, transparent); }
 
 /* Icon buttons ------------------------------------------------------------------------------------------------- */
 .icon-btn {

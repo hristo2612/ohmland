@@ -861,6 +861,13 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   } else if (moment.action === "task" || moment.action === "meet") {
     action = (
       <div className="bl-help">
+        {/* The fix-it clock is the learner's choice: a quiet link beside Hint, never a button that looks like the task. */}
+        {moment.fix && moment.fix.index === 0 && (
+          <button type="button" className="bl-link bl-clock" aria-pressed={!!clock} onClick={() => setClock((c) => (c ? null : { end: Date.now() + moment.fix!.timer * 1000, left: moment.fix!.timer }))}>
+            <Icon name="clock" size={18} />
+            {clock ? m.lessonBench.fixit.raceOn : m.lessonBench.fixit.race}
+          </button>
+        )}
         {hintsLeft && (
           <button type="button" className="bl-link" onClick={onHint}>
             <Icon name="hint" size={18} />
@@ -1012,12 +1019,6 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               <p className="bl-guess">
                 <span className="bl-guess__k">{m.lessonBench.guessLabel}</span> <span className="bl-hand bl-hand--blue">{guessPicked}</span>
               </p>
-            )}
-            {fix && phase === "act" && fix.index === 0 && (
-              <button type="button" className="bl-clock" aria-pressed={!!clock} onClick={() => setClock((c) => (c ? null : { end: Date.now() + fix.timer * 1000, left: fix.timer }))}>
-                <Icon name="clock" size={18} />
-                {clock ? m.lessonBench.fixit.raceOn : m.lessonBench.fixit.race}
-              </button>
             )}
             {clock && (
               <p className="bl-clock__left" role="timer" aria-live="off">

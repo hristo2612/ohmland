@@ -203,7 +203,7 @@
 .bl-chip:hover:not(:disabled) { background: var(--bl-blue-wash); }
 .bl-chip:active:not(:disabled) { transform: translate(1px, 1px); }
 .bl-chip:disabled { color: var(--bl-ink-3); box-shadow: none; text-decoration: line-through; text-decoration-color: var(--bl-red); cursor: default; }
-.bl-chip:focus-visible, .bl-link:focus-visible, .bl-clock:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.bl-chip:focus-visible, .bl-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .bl-link {
   display: inline-flex;
   align-items: center;
@@ -252,21 +252,9 @@
   white-space: nowrap;
 }
 
-.bl-clock {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--bl-s-2);
-  align-self: flex-start;
-  min-height: 36px;
-  padding: 0 var(--bl-s-3);
-  border: 1px dashed var(--bl-rule);
-  background: transparent;
-  color: var(--bl-ink-2);
-  font: inherit;
-  font-size: var(--bl-text-sm);
-  cursor: pointer;
-}
-.bl-clock[aria-pressed="true"] { border-style: solid; color: var(--bl-ink); }
+/* The optional fix-it clock: a quiet link beside Hint (a dashed border would read as "not available"). */
+.bl-clock { color: var(--bl-ink-2); }
+.bl-clock[aria-pressed="true"] { color: var(--bl-blue); text-decoration: none; }
 .bl-clock__left { margin: 0; color: var(--bl-blue); font-family: var(--bl-mono); font-size: var(--bl-text-xl); }
 
 
