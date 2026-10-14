@@ -376,6 +376,37 @@
 .sandbox__build { display: flex; align-items: center; gap: var(--space-2); }
 .sandbox__build-name { flex: 1; min-width: 0; display: grid; font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
 .sandbox__watch { display: flex; align-items: center; gap: var(--space-2); color: var(--ink-2); font-weight: var(--weight-semibold); }
+/* A new learner's first line: the robot's invitation, and the way to the first lesson under it. */
+.sandbox__start { display: grid; justify-items: start; gap: var(--space-3); }
+/* The settings button and its slip: the graphics choice, folded away. */
+.sandbox__settings { position: relative; }
+.sandbox__menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: var(--z-menu);
+  display: grid;
+  gap: var(--space-2);
+  width: 220px;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border: var(--border-1) solid var(--rule);
+  background: var(--paper-slip);
+  box-shadow: var(--slip-shadow-lift);
+}
+.sandbox__menu-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: var(--border-1) solid var(--rule-soft); }
+.sandbox__menu-opt {
+  appearance: none;
+  min-height: var(--tap);
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-xs);
+}
+.sandbox__menu-opt + .sandbox__menu-opt { border-left: var(--border-1) solid var(--rule-soft); }
+.sandbox__menu-opt:hover { color: var(--ink); background: var(--paper-sunk); }
+.sandbox__menu-opt[aria-checked="true"] { color: var(--ink); font-weight: var(--weight-strong); background: var(--paper-sunk); box-shadow: inset 0 -3px 0 var(--blue); }
+.sandbox__menu-opt:focus-visible { outline-offset: -2px; }
 @media (max-width: 860px) {
   .sandbox.lab { grid-template-rows: minmax(0, 58%) minmax(0, 42%); }
   .sandbox .lab__panel { margin-top: 0; }
