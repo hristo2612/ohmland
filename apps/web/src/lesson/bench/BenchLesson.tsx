@@ -915,7 +915,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               marks={marks}
               check={check}
               popup={popup}
-              tool={started && phase !== "guess" ? (moment.beat?.tool ?? null) : null}
+              tool={started && phase !== "guess" ? (moment.tool ?? null) : null}
               keyboardOpen={keyboard}
               onApi={setApi}
               onBenchReady={() => setBenchReady(true)}
