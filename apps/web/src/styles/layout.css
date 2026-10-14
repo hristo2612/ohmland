@@ -68,7 +68,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
-  height: 40px;
+  height: var(--tap);
   padding: 0 var(--s-2) 2px var(--s-3);
   border: var(--border-1) solid var(--rule);
   border-radius: var(--radius-0);
@@ -139,7 +139,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--s-1);
-  min-height: 40px;
+  min-height: var(--tap);
   padding: 0 var(--s-1);
   border: 0;
   background: transparent;
@@ -187,7 +187,8 @@ main:focus { outline: none; }
   line-height: var(--lh-xs);
 }
 .site-footer__links { display: flex; flex-wrap: wrap; gap: var(--s-6); list-style: none; }
-.site-footer a { color: var(--ink-2); text-underline-offset: 4px; }
+/* the link's box, not just its words, is the target */
+.site-footer a { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--ink-2); text-underline-offset: 4px; }
 .site-footer a:hover { color: var(--ink); }
 
 /* The phone's bottom bar: Learn, Isle, your notebook */

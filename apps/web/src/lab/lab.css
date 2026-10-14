@@ -145,7 +145,7 @@
 .lab__meterbar span { width: 18px; height: 6px; border-radius: var(--radius-full); background: var(--line-strong); transition: background-color var(--dur-2) var(--ease-out); }
 .lab__meterbar span[data-done] { background: var(--good); }
 .lab__tools { display: flex; align-items: center; gap: var(--space-1); flex: none; }
-.lab__quality { min-height: 36px; }
+.lab__quality { min-height: var(--tap); }
 
 .lab__scroll {
   flex: 1;
