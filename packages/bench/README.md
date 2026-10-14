@@ -1,14 +1,20 @@
 # @ohmland/bench
 
-The 3D lab workbench for Ohmland: a warm wooden desk with a solderless breadboard, procedural part models,
-a handheld multimeter, crocodile test leads and jumper wires. Learners drag parts from a tray, snap them into the
-board, wire it up and probe it. The simulator (`@ohmland/sim`) drives what they see: LEDs glow, resistors smoke,
+The lab workbench for Ohmland: a solderless breadboard, procedural part models, a handheld multimeter, mini clip
+test leads and jumper wires on a sheet of the notebook's grid paper. Learners drag parts from a tray, snap them into
+the board, wire it up and probe it. The simulator (`@ohmland/sim`) drives what they see: LEDs glow, resistors smoke,
 fuses blow, relays click, the meter reads.
 
-React Three Fiber components, consumed from source (`"exports": { ".": "./src/index.ts" }`). Every model is built in
-code: no downloaded model or image files, no third-party model libraries.
+Two interchangeable views draw the same bench (docs/BENCH-VIEWS.md): the 3D bench on paper (this package's React
+Three Fiber scene) and the 2D ink bench (`src/ink`). `<BenchView>` switches between them on one store.
+
+Consumed from source (`"exports"`: `.` everything, `./core` the pure half, `./view` the view switcher and controller
+types without three.js). Every model is built in code: no downloaded model or image files, no third-party model
+libraries.
 
 ![Bench](screenshots/bench-desktop.png)
+
+![First glow, spotlight on the LED and resistor](screenshots/spotlight.png)
 
 ## Quick start
 
@@ -32,6 +38,40 @@ function Lab({ sim }) {
 
 `<Bench />` fills its parent; give the parent a size.
 
+## Two views: `<BenchView>`
+
+```tsx
+import { BenchView, type BenchController } from "@ohmland/bench/view"; // no three.js until the 3D view is shown
+
+const ctrl = useRef<BenchController | null>(null);
+<BenchView view={settings.benchView === "ink" ? "ink" : "3d"} store={runtime.store} tray={tray} controllerRef={ctrl} />;
+ctrl.current?.focus(["part:R1", "part:D1"]);
+ctrl.current?.spotlight(["part:D1"]);
+```
+
+`BenchView` takes the `<Bench>` props plus `view: "3d" | "ink"` and lazy-loads the renderer (`preloadBenchView(view)`
+warms it). It keeps one store for its life, so switching views loses nothing; while the next renderer's code loads,
+the current one stays on screen. Its `controllerRef` receives a hub that stays the same object across switches:
+overlays subscribe to `onViewChange` once, and the last `focus` and `spotlight` carry over to the new view.
+`hub.inner()` is the active view's own controller (in 3D, a `Bench3DController`).
+
+### `BenchController`
+
+| Method | |
+|---|---|
+| `project(target)` | `{ x, y, visible }` in CSS px relative to the bench element (null for an unknown target). Cheap: call it from every overlay on every view change. |
+| `onViewChange(cb)` | Called once per drawn frame in which the camera, the canvas size or the bench changed (so overlays follow drags too). Returns an unsubscribe. |
+| `focus(targets, { padding?, instant? })` | Frames the targets from the front (turned a quarter on tall screens when they are wide), with some bench around them; smooth unless reduced motion or `instant`. An empty list frames the work area. |
+| `spotlight(targets \| null)` | Lays a veil of the page colour over everything else (their ink fades with it) and rings each target in red pencil. `null` lifts it. |
+
+Targets: `part:D1` (a part, from its rendered model; `part:M1` is the meter), `part:M1/display`, `part:M1/dial`,
+`part:M1/com` (any socket), `lead:TL1` and `wire:W1` (whole), and any anchor: `hole:e12`, `pin:R1.a`, `wire:W1.b`,
+`lead:TL1.a`, `probe:red`, `socket:com`. `parseTarget` and `targetPoint` (a renderer-free point) are exported for
+other views.
+
+`Bench3DController` adds `project([x, y, z])` for world points, `projectClient(target)` (page coordinates, for tests),
+`topView()`, `resetView()`, `atHome()`, `pickAt(x, y)` and `stats()` (draw calls of the last frame, all passes).
+
 ## Public API
 
 ### `<Bench />`
@@ -44,14 +84,16 @@ function Lab({ sim }) {
 | `snapshot` | `Snapshot \| null` | Latest simulator snapshot. Reads `glow`, `health`, `closed`, `display`, `unit` per part id. Leave it out when you own the store and set `snapshot` on it yourself (the lab runtime does, 30 times a second, without re-rendering React above the canvas). |
 | `onChange` | `(bench) => void` | After every committed change (not during a drag, and not for the initial bench). Rebuild the netlist here. |
 | `onAction` | `(action: BenchAction) => void` | Every user action. `type: "input"` actions (pushbutton `pressed`, switch `to`, trimmer `position`, meter `mode`) are meant for `sim.setInput`. |
-| `quality` | `"high" \| "low"` | High: soft shadows, bloom, outline, glass transmission, DPR up to 2. Low: no shadows or post-processing, sprite halos for glow, DPR up to 1.5. |
+| `quality` | `"high" \| "low"` | High: ink outlines, bloom, the key light's soft shadow map, DPR up to 2. Low: no post-processing (so no ink lines), contact shadows only, DPR up to 1.5. Both draw the paper and the contact shadows. |
 | `readOnly` | `boolean` | Camera only; no tray, no edits. |
 | `locked` | `string[]` | Part ids that cannot be moved, rotated or deleted (switches still flip, buttons still press). |
-| `highlight` | `string[]` | Part ids (pulsing amber frame) or anchors such as `"hole:e12"`, `"pin:R1.a"` (pulsing ring) for lab hints. |
+| `highlight` | `string[]` | Part ids (pulsing red pencil frame) or anchors such as `"hole:e12"`, `"pin:R1.a"` (pulsing ring) for lab hints. |
 | `labels` | `Partial<BenchLabels>` | Translated UI strings (see `DEFAULT_LABELS`). |
-| `camera` | `{ position, target }` | Initial camera; defaults to a fit of the whole bench. |
+| `camera` | `{ position, target }` | Initial camera; defaults to a framing of the work area (measured from the rendered models on the first frame). |
 | `frame` | `[x0, z0, x1, z1] \| null` | Desk rectangle (mm) that the first camera and reset view frame, instead of the whole bench. |
-| `controllerRef` | `Ref<BenchController>` | `topView()`, `resetView()`, `project(anchor)` (page coordinates), `pickAt(x, y)` (what is under a point), `stats()` (draw calls). |
+| `theme` | `"light" \| "dark"` | Page colours. By default the bench reads the page's notebook tokens (`--paper`, `--grid`, `--ink`, `--blue`, `--red`, ...) and follows theme changes. |
+| `margin` | `boolean` | The notebook's rose margin line, a few cells left of the work area (default true). |
+| `controllerRef` | `Ref<BenchController>` | Receives a `Bench3DController` (above). |
 | `onReady` | `() => void` | After the first frames have rendered. |
 
 Interaction: drag parts from the tray (or tap a tray item, then tap the bench). Drag a part to move it; its leads snap
@@ -67,8 +109,31 @@ dial), `R` rotates, `Delete` removes, `Space` presses a selected pushbutton or f
 `T` top view, `Escape` cancels, `Ctrl/Cmd+Z` undo, `Ctrl/Cmd+Shift+Z` redo.
 
 Camera: left drag orbits (limited to the front half and above the desk), right drag pans within the work area, wheel
-or pinch zooms toward the cursor. Rendering is on demand: nothing is drawn while nothing changes, except while smoke
-or a hint pulse animates.
+or pinch zooms toward the cursor. A double click or double tap on a part frames it; on the empty desk it frames the
+work area again. The first view, and the view after a resize while the learner has not moved the camera, frames the
+work area: the lab's `frame` when it sets one, else the board, the parts, the meter and the leads that hold
+something. Rendering is on demand: nothing is drawn while nothing changes, except while smoke or a hint pulse
+animates.
+
+Chrome is quiet and appears only when it means something: Wire and X-ray with a breadboard, undo and redo once there is
+history, "reset view" once the camera has moved, the selection bar while something is selected, the tray while it
+holds something left to place (one column for up to seven items).
+
+### The paper look
+
+- The desk is grid paper drawn in a shader (5 mm cells, about 24 CSS px at a lab's usual framing, rules about one pixel
+  wide from any distance) in the page colour exactly: the page is unlit and a tone curve leaves colours below 0.94
+  alone. The rose margin line sits left of the work area.
+- Light is soft and low in contrast: a strong sky fill, one gentle key light and a cool rim. Materials are made matte
+  and slightly quieter as they first appear (`paperizeMaterial`); metals turn a soft pencil grey; resistor bands keep
+  their exact colours. Glass is plain see-through plastic.
+- Contact shadows under everything on the page and on the board, plus the key light's shadow map on high quality, are
+  drawn again only when the bench changes: orbiting the camera redraws neither.
+- Ink: on high quality a screen-space pass draws a pen line just outside every silhouette from the depth buffer
+  alone (no second render of the scene), 1.6 CSS px wide. It was chosen over inverted hulls from the design study
+  (`design/round2/lessons/bench-look`): it looks the same, costs one full-screen pass instead of doubling the draw
+  calls, and does not outline each mesh of a part separately.
+- Glows are a tinted wash on a light page and add light on the night page (or with the room lights down).
 
 ### `benchToNetlist(bench, opts?)`
 
@@ -238,24 +303,28 @@ pnpm --filter @ohmland/bench dev     # vite playground, http://localhost:5199
   also lists the live netlist and the action log.
 - `?scene=clips` a section-one bench with no board, everything joined by crocodile leads; `?scene=smoke` a small
   board with an overloaded resistor; `?scene=empty`, `?scene=half` (400-point board); `?scene=props` every lab
-  prop on one desk.
+  prop on one desk; `?scene=modules` the desk modules; `?scene=glow` the first-glow loop (`glow0` before it is
+  wired).
+- A toggle above the bench switches between the 3D and ink views on the same store (`view=ink` starts in ink,
+  `toggle=0` hides it). `theme=dark` shows the night page.
 - `?mode=gallery` every part in rows (`&rows=0-3`, `&row=2`, `&focus=4` for a close-up).
 - `?mode=preview` a few `<PartPreview>` turntables.
 - Screenshot helpers: `q=low`, `panel=0`, `tray=0`, `glow=0.8`, `health=R1:smoking,D1:dead`, `display=OL`,
-  `unit=kΩ`, `closed=1`, `hover=hole:e12`, `xray=1`, `select=R1`, `hint=R1,hole:e12`, `cam=x,y,z&target=x,y,z`.
+  `unit=kΩ`, `closed=1`, `hover=hole:e12`, `xray=1`, `select=R1`, `hint=R1,hole:e12`, `cam=x,y,z&target=x,y,z`,
+  `focus=part:R1,part:D1` (or `all`), `spot=part:D1`.
 
 ## Tests and screenshots
 
 ```bash
-pnpm --filter @ohmland/bench test        # Vitest: netlist, snapping, colour code
+pnpm --filter @ohmland/bench test        # Vitest: netlist, snapping, colour code, controller hub, targets
 pnpm --filter @ohmland/bench typecheck
-pnpm --filter @ohmland/bench shots       # Playwright: interaction check + screenshots into screenshots/
+pnpm --filter @ohmland/bench shots       # Playwright: interaction, controller and view switch checks + screenshots
 ```
 
 The Playwright run starts the playground itself. On macOS headless Chromium renders WebGL through Metal; elsewhere the
 config switches to SwiftShader (`--use-angle=swiftshader --enable-unsafe-swiftshader`). If Chromium is missing:
-`pnpm --filter @ohmland/bench exec playwright install chromium`. Screenshots are quantised to stay small when
-ImageMagick (`magick`) is installed.
+`pnpm --filter @ohmland/bench exec playwright install chromium`. Screenshots are quantised (undithered) to stay small
+when ImageMagick (`magick`) is installed. `BENCH_PORT=5400 pnpm shots` uses another port.
 
 ## Notes
 
@@ -270,9 +339,15 @@ ImageMagick (`magick`) is installed.
   loose clip toward the middle of the work area, so it stays in view.
 
 - Scale is real: 1 scene unit is 1 mm, board pitch 2.54 mm, 9 V battery 48.5 x 26.5 x 17.5 mm, 5 mm LED with a
-  5.8 mm rim, 1/4 W resistor 6.3 mm long. Shapes are simplified but proportioned after datasheet packages.
+  5.8 mm rim, 1/4 W resistor 6.3 mm long. Shapes are simplified but proportioned after datasheet packages. Test
+  leads use mini clips (26 mm, a 6 mm sleeve) on 1.8 mm cable, so they do not dwarf what they hold; at a full lab
+  framing a resistor is about 40 px long on a 1440 px bench, so lessons `focus()` the parts in play to read bands.
 - Colour bands follow the standard code (4 bands: two digits, multiplier, gold 5 %; 5 bands: three digits,
   multiplier, brown 1 %), drawn as raised rings with metallic gold and silver.
 - Performance: one instanced draw for all 830 hole pits and one for the x-ray strips, shared geometries and
-  materials, render on demand, DPR capped at 2 (1.5 on low). A populated board is about 180 draw calls.
+  materials, render on demand, DPR capped at 2 (1.5 on low), shadows redrawn only when the bench changes. The demo
+  bench (a populated board, the meter with its probes, a lead) draws about 200 calls a frame on high (scene, ink,
+  bloom, tone) and 180 on low. Orbiting it at 1440 x 900 @2x in headless Chromium on an M-series Mac holds 60 fps with
+  the CPU throttled 4x (uncapped: about 450 fps on high, 650 on low; p95 frame 3.4 ms on high). Dragging a part, which
+  redraws the contact shadows every frame, also holds 60 fps at 4x throttling (p95 frame 19 ms uncapped).
 - The bench never imports the simulator at runtime; it only uses its types.

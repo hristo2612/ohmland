@@ -109,13 +109,18 @@ export function BananaPlug({ color }: { color: "red" | "black" }) {
 
 // ---------------------------------------------------------------------------------------------------------------
 // Crocodile clip: jaw tip at the origin, the clip extends along -x, jaws open in +-y. Cable leaves at -x CLIP_LEN.
+// A mini clip with a slim sleeve (in the style of a mini grabber): about 26 mm long and 6 mm across, so it holds a
+// 0.6 mm lead without hiding the part it holds.
 
-export const CLIP_LEN = 37;
-const HINGE = -12.5;
+export const CLIP_LEN = 26;
+const HINGE = -8.6;
+/** The jaws are drawn at full size and scaled to the mini clip. */
+const JAW_SCALE: [number, number, number] = [0.68, 0.62, 0.56];
 
 function jawGeometry(): THREE.BufferGeometry {
   return memoGeo("clip-jaw", () => {
     // Side profile (x along the clip, y up) of the upper jaw, with teeth on the lower edge near the tip.
+    const H = -12.5;
     const s = new THREE.Shape();
     s.moveTo(0.3, 0.05);
     for (let i = 0; i < 8; i++) {
@@ -123,14 +128,14 @@ function jawGeometry(): THREE.BufferGeometry {
       s.lineTo(x - 0.62, -0.42);
       s.lineTo(x - 1.25, 0.05);
     }
-    s.lineTo(HINGE + 0.6, 0.15);
-    s.lineTo(HINGE - 2, 0.9);
+    s.lineTo(H + 0.6, 0.15);
+    s.lineTo(H - 2, 0.9);
     s.lineTo(-20, 1.7);
     s.lineTo(-26.5, 2.6);
     s.lineTo(-27.2, 3.1);
     s.lineTo(-26.2, 3.4);
     s.lineTo(-19.5, 2.8);
-    s.lineTo(HINGE - 0.5, 2.55);
+    s.lineTo(H - 0.5, 2.55);
     s.lineTo(-6, 2.1);
     s.lineTo(-1.2, 1.25);
     s.lineTo(0.3, 0.05);
@@ -140,29 +145,33 @@ function jawGeometry(): THREE.BufferGeometry {
     const p = g.attributes.position!;
     for (let i = 0; i < p.count; i++) {
       const x = p.getX(i);
-      if (x > HINGE) {
-        const t = Math.min(1, Math.max(0, -x / -HINGE));
+      if (x > H) {
+        const t = Math.min(1, Math.max(0, -x / -H));
         p.setZ(i, p.getZ(i) * (0.5 + 0.5 * t));
       }
     }
+    // To the mini clip's size (scaled in the geometry so normals stay right and the hinge sits at HINGE).
+    g.scale(...JAW_SCALE);
+    g.translate(-HINGE, 0, 0);
     g.computeVertexNormals();
     return g;
   });
 }
 
-function bootGeometry(): THREE.BufferGeometry {
-  return memoGeo("clip-boot", () => {
-    // Lathe along +y, later laid along -x: flared mouth, ribbed grip, taper to the cable.
+function sleeveGeometry(): THREE.BufferGeometry {
+  return memoGeo("clip-sleeve", () => {
+    // Lathe along +y, later laid along -x: a slim insulating sleeve with a small lip, three grip rings and a taper
+    // down to the cable.
     const pts: [number, number][] = [
-      [4.7, 0],
-      [5.0, 0.8],
-      [4.75, 2.4],
-      [4.35, 4.5],
+      [2.65, 0],
+      [3.0, 0.5],
+      [2.9, 1.6],
+      [2.75, 3.0],
     ];
-    for (let y = 6; y <= 14; y += 2) pts.push([4.45, y - 0.5], [4.7, y], [4.45, y + 0.5]);
-    pts.push([4.3, 16.5], [3.4, 19.5], [2.4, 22.5], [1.8, 24.6], [1.55, 25.4]);
-    const g = latheY(pts, 32);
-    g.scale(1, 1, 0.86);
+    for (let y = 5; y <= 11; y += 2) pts.push([2.78, y - 0.45], [2.98, y], [2.78, y + 0.45]);
+    pts.push([2.72, 13.2], [2.25, 15.4], [1.55, 17.2], [1.15, 18.4], [1.0, 18.9]);
+    const g = latheY(pts, 28);
+    g.scale(1, 1, 0.9);
     return g;
   });
 }
@@ -173,19 +182,19 @@ export function AlligatorClip({ color, open = 0 }: { color: string; open?: numbe
     <group>
       <group position={[HINGE, 0, 0]}>
         <group rotation={[0, 0, ang]}>
-          <mesh geometry={jawGeometry()} material={mat.nickel()} position={[-HINGE, 0, 0]} castShadow />
+          <mesh geometry={jawGeometry()} material={mat.nickel()} castShadow />
         </group>
         <group rotation={[0, 0, -ang]} scale={[1, -1, 1]}>
-          <mesh geometry={jawGeometry()} material={mat.nickel()} position={[-HINGE, 0, 0]} castShadow />
+          <mesh geometry={jawGeometry()} material={mat.nickel()} castShadow />
         </group>
         {/* Spring coil at the hinge. */}
         <mesh rotation={[Math.PI / 2, 0, 0]} material={mat.steel()}>
-          <torusGeometry args={[1.0, 0.32, 8, 20]} />
+          <torusGeometry args={[0.7, 0.22, 8, 18]} />
         </mesh>
       </group>
-      {/* Soft boot over the back half. */}
-      <group position={[-11.6, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <mesh geometry={bootGeometry()} material={mat.rubber(WIRE_HEX[color] ?? color)} castShadow />
+      {/* Slim sleeve over the back half. */}
+      <group position={[-7.1, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <mesh geometry={sleeveGeometry()} material={mat.rubber(WIRE_HEX[color] ?? color)} castShadow />
       </group>
     </group>
   );

@@ -1,0 +1,76 @@
+// The controller every bench view implements (docs/BENCH-VIEWS.md). No React, no three.js.
+
+/** CSS px relative to the bench element. `visible` is false when the point is off screen or behind the camera. */
+export type ScreenPoint = { x: number; y: number; visible: boolean };
+
+export type FocusOptions = { padding?: number; instant?: boolean };
+
+export interface BenchController {
+  /** Where an anchor ("pin:R1.a", "part:D1", "hole:e12", "probe:red", "part:M1/display") is on screen right now. */
+  project(anchor: string): ScreenPoint | null;
+  /** Subscribe to camera or layout changes so overlays can reposition. Returns an unsubscribe. */
+  onViewChange(cb: () => void): () => void;
+  /** Frame these parts or anchors nicely (smooth unless reduced motion). Empty array: frame the whole work area. */
+  focus(targets: string[], opts?: FocusOptions): void;
+  /** Temporarily emphasise parts (glow ring, dim the rest). */
+  spotlight(targets: string[] | null): void;
+}
+
+/** Which renderer draws the bench. */
+export type BenchViewKind = "3d" | "ink";
+
+/**
+ * A controller that stays the same object while the view behind it changes. Overlays subscribe once; when a new
+ * renderer attaches, subscribers hear a view change and the last focus and spotlight are applied to it.
+ */
+export type BenchControllerHub = BenchController & {
+  /** Point the hub at the active renderer's controller (null while none is mounted). */
+  attach(inner: BenchController | null): void;
+  /** The renderer's own controller, with any view-specific extras. */
+  inner(): BenchController | null;
+};
+
+export function createControllerHub(): BenchControllerHub {
+  const listeners = new Set<() => void>();
+  let inner: BenchController | null = null;
+  let unsub: (() => void) | null = null;
+  let lastFocus: { targets: string[]; opts?: FocusOptions } | null = null;
+  let lastSpot: string[] | null = null;
+  const notify = () => {
+    for (const cb of [...listeners]) {
+      try {
+        cb();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+  return {
+    project: (anchor) => inner?.project(anchor) ?? null,
+    onViewChange: (cb) => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
+    focus: (targets, opts) => {
+      lastFocus = { targets: [...targets], opts };
+      inner?.focus(targets, opts);
+    },
+    spotlight: (targets) => {
+      lastSpot = targets ? [...targets] : null;
+      inner?.spotlight(targets);
+    },
+    attach: (next) => {
+      if (next === inner) return;
+      unsub?.();
+      unsub = null;
+      inner = next;
+      if (next) {
+        unsub = next.onViewChange(notify);
+        if (lastSpot) next.spotlight(lastSpot);
+        if (lastFocus) next.focus(lastFocus.targets, { ...lastFocus.opts, instant: true });
+      }
+      notify();
+    },
+    inner: () => inner,
+  };
+}
