@@ -389,7 +389,7 @@ export function BenchInk(props: BenchInkProps) {
         <DefsContext.Provider value={defsId}>
           <div
             ref={setElement}
-            className={className ? `ohi-root ${className}` : "ohi-root"}
+            className={className ? `ohi-root ohb-ink ${className}` : "ohi-root ohb-ink"}
             data-quality={quality}
             data-theme={props.theme}
             tabIndex={0}
