@@ -1,0 +1,64 @@
+# Blueprint: docs/curriculum/unit-4.md, CH11. A bench lesson (docs/LESSONS.md).
+# One idea: a trigger held low keeps a 555 on for as long as it is held; a capacitor in the line turns a held low into
+# a short dip, so the timer ends on time. New: the reed switch. Lab: content/labs/door-left-open.ts.
+format: bench
+id: door-left-open
+version: 1
+title: The door left open
+summary: Guard a door with a reed switch and a 555, find why an open door keeps the lamp on, and fix it with a capacitor.
+minutes: 7
+lab: door-left-open
+unlocks:
+  parts: [reed-switch]
+  isle: reed-gate
+
+start:
+  title: The door left open
+  say: My lighthouse guards the door. Let's test it.
+  go: Test the door
+
+beats:
+  - say: Open the door.
+    objective: Guard the door
+    do: door-opens
+    note: { at: part:DR1/reed, text: "reed switch: a magnet shuts it" }
+
+  - say: Leave it open. Watch the warning lamp.
+    guess: { options: [Out after 3 s, It never ends], answer: It never ends }
+    do: stuck-on
+    note: { at: U1.2, text: "held low: the glow never ends" }
+
+  - say: Shut the door.
+    objective: Make a dip
+    do: door-shut
+
+  - say: Swap the yellow jumper for the 0.47 µF.
+    spot: [W2, U1]
+    do: cap-in
+
+  - say: Open it again, and leave it open.
+    do: dip-it
+    note: { at: C2, text: "held low in, short dip out" }
+    rule: A trigger wants a dip, not a hold.
+
+  - say: Show me the reed switch.
+    objective: Name the reed
+    tap: { answer: part:DR1/reed, among: [part:DR1/reed, part:DR1/magnet, R2] }
+    wrong: { "part:DR1/magnet": "That rides the door. The switch stays on the frame." }
+
+  - say: What is this?
+    pick: { on: part:DR1/reed, options: [A reed switch, A relay, A diode], answer: A reed switch }
+
+secret:
+  task: cut-wire
+  say: Curious? Shut the door, then unclip the sensor wire.
+  done: It lit. A cut wire counts as open.
+  note: { at: DR1, text: "cut wire: same as open door" }
+
+fixit:
+  say: My window doesn't count. Fix it.
+  tasks:
+    - task: fix-window
+
+end:
+  say: No door stays secret now.

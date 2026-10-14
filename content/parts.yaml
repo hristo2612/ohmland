@@ -296,7 +296,7 @@ parts:
     icon: capacitor
     blurb: A little can that stores a lot of charge for its size. It has a right way round.
     facts:
-      - Values run from about 1 µF to thousands of µF. Tolerance is often ±20%.
+      - "Values run from about 1 µF to thousands of µF. Tolerance is often ±20%: a 3 s delay it sets may run 2.4 to 3.6 s."
       - "Capacitance is in farads (F). 1 µF is a millionth of a farad, and 1,000 nF = 1 µF."
       - The stripe of minus signs and the shorter leg mark the negative side.
       - Reversed, or pushed past its voltage rating, it leaks, heats up and can vent.
@@ -407,3 +407,16 @@ parts:
       - It drops about 0.6 to 0.7 V when it conducts a few milliamps.
       - "Rated for about 100 V in reverse and 200 mA forward: a signal diode, not a power diode."
       - "Across a 555's R2, band toward pin 6, it makes the flash shorter than the gap (a duty cycle under 50%)."
+
+  # description: Two springy contacts sealed in a small glass tube. A magnet nearby pulls them together. On a door frame,
+  # with a magnet on the door, it makes a sensor: shut, the loop is closed; opened (or the wire cut), the loop breaks.
+  - id: reed-switch
+    name: Reed switch
+    icon: switch
+    blurb: Two springy contacts in a glass tube that close when a magnet comes near. The door guard's sensor.
+    facts:
+      - Normally open (NO) reeds close while a magnet is near; the magnet goes on the door, the reed on the frame.
+      - "Wired so a shut door closes the loop, any opening, or a cut wire, breaks it: the alarm notices both."
+      - The glass is fragile; bend the leads gently, away from the tube.
+      - Its contacts are rated for small currents; let it signal a chip, not run a lamp or motor.
+      - "Several on one alarm go in series: every door and window must be shut to close the loop."
