@@ -39,6 +39,7 @@
 .pi-wire--red { stroke: var(--sk-wire-red); }
 .pi-wire--black { stroke: var(--sk-wire-black); }
 .pi-wire--yellow { stroke: var(--sk-wire-wire); }
+.pi-seg { fill: var(--sk-led); stroke: none; }
 .pi-tx { fill: var(--sk-battery); font-family: var(--font-serif); font-size: 9px; font-weight: var(--weight-heavy); }
 .pi-tx--lcd { fill: var(--ink); font-size: 8px; font-weight: var(--weight-strong); font-variant-numeric: tabular-nums lining-nums; }
 
@@ -48,7 +49,7 @@
 .part-icon--locked .pi-wire-edge { stroke-width: 1.5px; }
 .part-icon--locked .pi-wire { display: none; }
 /* Burned out: the colour goes, a scorch and a crack stay. */
-.part-icon--burned .pi-led, .part-icon--burned .pi-red, .part-icon--burned .pi-cap { fill: var(--sk-led-dead); }
+.part-icon--burned .pi-led, .part-icon--burned .pi-red, .part-icon--burned .pi-cap, .part-icon--burned .pi-seg { fill: var(--sk-led-dead); }
 .part-icon--burned .pi-body, .part-icon--burned .pi-lemon, .part-icon--burned .pi-batt-label { fill: var(--sk-shade); }
 .part-icon--burned .pi-shine { opacity: 0.25; }
 .part-icon--burned [class^="pi-band-"] { opacity: 0.4; }

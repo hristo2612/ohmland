@@ -23,8 +23,9 @@ describe("lab solutions", () => {
   it("finds the labs", () => {
     expect(labs.length).toBeGreaterThan(0);
     // 18 classic Unit 1 labs, plus how-a-breadboard-works (at the start of Your meter until Start here exists), plus
-    // the split halves count-the-watts, big-current and how-long.
-    expect(BASICS.size).toBe(22);
+    // the split halves salt-and-water, the-liar, share-the-push, use-the-law, end-to-end, count-the-watts, big-current
+    // and how-long.
+    expect(BASICS.size).toBe(27);
   });
 
   for (const { file, lab } of labs) {
@@ -45,6 +46,9 @@ describe("lab solutions", () => {
       expect(r.problems, "steps that did not apply").toEqual([]);
       expect(r.failedChecks, "checkpoints not done in time").toEqual([]);
       expect(r.missing, "required tasks never done").toEqual([]);
+      // An achievement trigger that the lab's own solution never fires may be one no learner can fire either.
+      const triggers = [...Object.keys(lab.triggers ?? {}), ...lab.tasks.flatMap((t) => (t.trigger ? [t.trigger] : []))];
+      expect(r.triggers, "achievement triggers the solution never fires").toEqual(expect.arrayContaining(triggers));
     });
   }
 });

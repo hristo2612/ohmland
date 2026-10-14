@@ -202,10 +202,16 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   );
 
   // Nudges: the current task's typical mistakes, said once the bench has shown one for a moment.
-  const nudge = useRef<{ task: string | null; since: number | null; said: string | null; at: number }>({ task: null, since: null, said: null, at: 0 });
+  // `quiet`: the learner's action count when a setup put a broken bench down. Until they act, its nudges keep quiet:
+  // the broken bench itself matches them, and saying one then would give the fix away.
+  const nudge = useRef<{ task: string | null; since: number | null; said: string | null; at: number; quiet: number | null }>({ task: null, since: null, said: null, at: 0, quiet: null });
   function tickNudges() {
     const n = nudge.current;
     if (++n.at % 6) return;
+    if (n.quiet !== null) {
+      if (runtime.actions === n.quiet) return;
+      n.quiet = null;
+    }
     const task = gate.current.task ? lab.tasks.find((t) => t.id === gate.current.task) : undefined;
     if (!task?.nudges?.length || runtime.session.status[task.id] === "done") return;
     if (n.task !== task.id) Object.assign(n, { task: task.id, since: null, said: null });
@@ -290,6 +296,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         const start = runtime.checkpoint(taskId);
         // The setup's own inputs (a meter's mode or range, a switch) go after the checkpoint's, so they win.
         loadSteps(start?.bench ?? runtime.store.getState().bench, task.setup, start?.inputs ?? [], true);
+        Object.assign(nudge.current, { quiet: runtime.actions, since: null, said: null });
       },
       applySteps(steps) {
         if (steps.length) loadSteps(runtime.store.getState().bench, steps, [], false);
@@ -333,7 +340,9 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         if (leg) return legNameOf(b, id, leg);
         const [partId = "", mark] = id.split("/");
         if (mark) return markNameOf(b, partId, mark);
-        return (built.labels[id] ?? id).toLowerCase();
+        // Written mid-sentence: an ordinary first word loses its capital ("Red LED" -> "red LED"); units, symbols
+        // and part numbers stay as they are ("4.7 kΩ tag", "2.2 MΩ", "NE555").
+        return (built.labels[id] ?? id).replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase());
       },
       holeFor(text) {
         const b = runtime.store.getState().bench;
@@ -397,12 +406,14 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     const box = stage.getBoundingClientRect();
     const w = box.width - (inset.right ?? 0);
     const free = Math.max(0, Math.min(w, box.height - (inset.bottom ?? 0)));
-    // A part in play keeps some bench around it: close enough to tell its legs apart, never a lone close-up. On a
-    // phone one big printed prop (a colour chart, a pencil card) fills the bench instead, so its print can be read; a
+    // A part in play keeps some bench around it: close enough to tell its legs apart and tap them, never a lone
+    // close-up (both views frame at least about 24 mm of bench). A phone is narrow, so a smaller share of it goes to
+    // the margin, and one big printed prop (a colour chart, a pencil card) fills the bench so its print can be read; a
     // value tag is small and reads with the usual margin.
+    const phone = w < 640;
     const one = spotted.length === 1 && framed.length === 1 ? b.parts.find((p) => `part:${p.id}` === spotted[0]) : undefined;
-    const close = w < 640 && !!one && PRINTED_KINDS.has(one.kind) && one.kind !== "tag";
-    const padding = close ? 8 : Math.round(free * 0.3);
+    const close = phone && !!one && PRINTED_KINDS.has(one.kind) && one.kind !== "tag";
+    const padding = close ? 8 : Math.round(free * (phone ? 0.12 : 0.3));
     c.focus(framed, framed.length ? { padding, inset } : { inset });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spotKey, frameKey, runtime, benchReady, dockKey]);

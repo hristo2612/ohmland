@@ -178,7 +178,39 @@ const DRAW: Record<PartIconKind, () => ReactNode> = {
       <path className="pi-ray" d="M57 22c3 6 3 14 0 20M61 17c5 9 5 21 0 30" />
     </>
   ),
+  // A DIP chip from above: pins along both long sides, the notch and the pin 1 dot at the left end, print on top.
+  chip: () => (
+    <>
+      {[17, 27, 37, 47].map((x) => (
+        <g key={x}>
+          <rect className="pi-f pi-metal" x={x - 2.5} y="9" width="5" height="8" rx="0.5" />
+          <rect className="pi-f pi-metal" x={x - 2.5} y="47" width="5" height="8" rx="0.5" />
+        </g>
+      ))}
+      <rect className="pi-f pi-chip" x="8" y="16" width="48" height="32" rx="2" />
+      <path className="pi-f pi-sunk" d="M8 28a4 4 0 0 1 0 8z" />
+      <circle className="pi-f pi-slip" cx="14.5" cy="42" r="1.6" />
+      <path className="pi-paper-ln" d="M22 28.5h22M22 35.5h14" />
+    </>
+  ),
+  // A seven-segment display: a dark face with an 8 and its point lit, pins top and bottom.
+  "seven-segment": () => (
+    <>
+      {LEGS([22, 32, 42], 4, 9)}
+      {LEGS([22, 32, 42], 55, 60)}
+      <rect className="pi-f pi-chip" x="13" y="9" width="38" height="46" rx="2" />
+      <path className="pi-seg" d={`${seg(24, 15, 40, 15)}${seg(41, 16, 41, 31)}${seg(41, 33, 41, 48)}${seg(24, 49, 40, 49)}${seg(23, 33, 23, 48)}${seg(23, 16, 23, 31)}${seg(24, 32, 40, 32)}`} />
+      <circle className="pi-seg" cx="46" cy="49" r="1.8" />
+    </>
+  ),
 };
+
+/** A segment of a seven-segment digit: a slim lozenge from (x0, y0) to (x1, y1), along x or along y. */
+function seg(x0: number, y0: number, x1: number, y1: number): string {
+  const w = 1.6;
+  if (y0 === y1) return `M${x0} ${y0}l${w} ${-w}H${x1 - w}l${w} ${w}l${-w} ${w}H${x0 + w}z`;
+  return `M${x0} ${y0}l${w} ${w}V${y1 - w}l${-w} ${w}l${-w} ${-w}V${y0 + w}z`;
+}
 
 /** Scorch, a crack and a wisp of smoke, for the Hall of Fried Parts. */
 function Scorch() {

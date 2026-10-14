@@ -108,7 +108,8 @@ back to the desk; two charged balloons will not come closer than about 4.5 cm.
 Holders (`holder`, `station`, `fruit`, `bin`, `box`, `schematic`) have **seats**: a part dropped on one goes in (the one already there
 pops out), and a seated part's leads touch the holder's contacts. Props have **settings** (moisture, the test load,
 the pencil line) on their selection bar, and some have clickable spots on the model (the skin's moisture tabs, the
-tester's load switch); dragging along a pencil card draws or shades its line. Dropping a part right onto one of its
+tester's load switch); dragging along a pencil card draws or shades its line, and a cup's "Add salt" stirs in a pinch
+(`salt` counts them; each adds a parallel 7.5 kΩ). Dropping a part right onto one of its
 own kind swaps the two, clips and probe tips included (a fresh LED for a dead one, an old battery for a fresh one).
 
 **Unit 3 kinds** (soldering, perfboard, wire, wall power; models, numbers and screenshots in
@@ -430,6 +431,11 @@ A task's `trigger`, a lab's `triggers: { name: (lab) => boolean }` (checked on e
 fire a named trigger once per visit. An achievement in `apps/web/src/progress/achievements.ts` with
 `labEvent: "name"` unlocks when it fires. The runtime also fires `relay-clicked`, `relay-worn-out`,
 `capacitor-reversed-died` and `speaker-concert-a` by itself, in every lab and on the free-build bench.
+
+Renaming or moving a task an achievement names breaks it: the achievement's `refs` list every lesson, task and trigger
+it uses, and `apps/web/src/progress/achievements.test.ts` fails when one no longer exists or no learner can reach it.
+A bonus task in a bench lesson only completes when it is the lesson's secret or fires a trigger. The solution test
+also fails when a lab's solution never fires a trigger the lab declares.
 
 ## Solutions
 

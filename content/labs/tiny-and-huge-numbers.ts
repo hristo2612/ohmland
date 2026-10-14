@@ -1,79 +1,106 @@
-// Blueprint: docs/curriculum/unit-1.md, L3. A 9 V battery, an AA cell in its cradle and a loose 470 Ω resistor
-// (really 466 Ω), with the meter's leads already in COM and VΩ.
-import { defineLab } from "@ohmland/lab";
+// Blueprint: docs/curriculum/unit-1.md, L3, trimmed for a bench lesson (docs/curriculum/conversion-guide.md, B3):
+// content/units/basics/resistance/tiny-and-huge-numbers/lesson.yaml walks these tasks in order.
+// One idea: a range is the biggest number the meter can show, and OL means go up. The probes start on the 9 V
+// battery with the meter off but already on its 2 V range, so turning the dial to volts shows OL at once.
+import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 import { rangeIs, readsIn, showsOL } from "./lib/meter";
+
+const volts = (lab: LabView) => lab.meter?.mode === "dcv";
+const onBattery = (lab: LabView) => volts(lab) && lab.across("B1");
+const onCell = (lab: LabView) => volts(lab) && lab.across("X1");
+/** On a bigger range than it needs: it fits, with fewer digits. */
+const tooBig = (lab: LabView) => rangeIs(lab, "200V") || rangeIs(lab, "600V");
+
+/** The fix-it bench: the AA on the 200 V range, which shows a blunt 1.6. */
+const BLUNT: SolutionStep[] = [{ do: "dial", mode: "dcv", range: "200V" }];
 
 export default defineLab({
   id: "tiny-and-huge-numbers",
-  title: "Tiny numbers, huge numbers",
+  title: "Pick the right range",
   bench: {
     board: "none",
+    frame: ["desk:-104,-34", "desk:118,58"],
     parts: [
       { id: "B1", kind: "battery", at: "desk:-74,4", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
       // An AA cell lying in a small cradle, end caps showing.
-      { id: "X1", kind: "battery", at: "desk:-14,34", params: { size: "aa", chem: "alkaline", emf: 1.58, internalOhms: 0.15, mAh: 2500 }, locked: true, label: "AA cell" },
-      // Lying loose with both leads exposed.
-      { id: "R1", kind: "resistor", at: "desk:-10,-36", params: { ohms: 470, watts: 0.25, actualOhms: 466 }, locked: true, label: "470 Ω resistor" },
+      { id: "X1", kind: "battery", at: "desk:-10,36", params: { size: "aa", chem: "alkaline", emf: 1.58, internalOhms: 0.15, mAh: 2500 }, locked: true, label: "AA cell" },
     ],
     tray: [],
-    instruments: [{ kind: "meter", at: "desk:76,2", mode: "off" }],
+    instruments: [{ kind: "meter", at: "desk:76,2", mode: "off", range: "2V", probes: { red: "B1.pos", black: "B1.neg" } }],
   },
   mascot: {
-    start: "Big numbers, tiny numbers. Let's tame them both.",
-    hint: "OL? Nothing's broken. Turn the dial up one step.",
-    success: "Kilo, mega, milli, micro. You speak fluent meter now.",
+    hint: "OL? Nothing's broken. Turn the range up one step.",
   },
   tasks: [
     {
       id: "over-the-limit",
-      prompt: "DC volts, **2 V** range. Measure the 9 V battery.",
-      goal: (lab) => lab.meter?.mode === "dcv" && rangeIs(lab, "2V") && lab.across("B1") && showsOL(lab),
-      hints: ["Red on the round terminal, black on the six-sided one.", "DC volts on the dial, then 2 V in the range list."],
-      highlight: ["pin:B1.pos", "pin:B1.neg"],
-      success: "OL: over limit. 9 V is too big for 2 V. The meter is fine.",
+      prompt: "Turn the dial to DC volts.",
+      goal: (lab) => onBattery(lab) && rangeIs(lab, "2V") && showsOL(lab),
+      hints: ["Tap V on the meter's dial."],
+      highlight: ["part:M1/dial"],
+      nudges: [{ when: (lab) => volts(lab) && !rangeIs(lab, "2V"), say: "Keep the 2 V range for this one." }],
+      success: "OL: over limit.",
     },
     {
       id: "climb-a-range",
       prompt: "Go up one range at a time until you see a number.",
-      goal: (lab) => lab.meter?.mode === "dcv" && rangeIs(lab, "20V") && lab.across("B1") && readsIn(lab, 9.0, 9.6),
+      goal: (lab) => onBattery(lab) && rangeIs(lab, "20V") && readsIn(lab, 9.0, 9.6),
       hints: ["The next range up from 2 V is 20 V."],
-      success: "20 V: the smallest range above 9 V gives the most digits.",
-      notice: "On 200 V the same battery shows one decimal place.",
+      nudges: [
+        { when: (lab) => onBattery(lab) && tooBig(lab), say: "It fits. One step lower shows more digits." },
+        { when: (lab) => onBattery(lab) && rangeIs(lab, "200mV"), say: "That's smaller still. Go the other way." },
+      ],
+      success: "20 V: the first range that fits.",
     },
     {
       id: "aa-cell",
       prompt: "Measure the AA cell. Most digits, no OL.",
-      goal: (lab) => lab.meter?.mode === "dcv" && rangeIs(lab, "2V") && lab.across("X1") && readsIn(lab, 1.4, 1.65),
-      hints: ["An AA cell is about 1.5 V.", "The smallest range above 1.5 V wins."],
+      goal: (lab) => onCell(lab) && rangeIs(lab, "2V") && readsIn(lab, 1.4, 1.65),
+      hints: ["Move both probes to the AA. Red on its bump.", "An AA is about 1.5 V. Which range just fits that?"],
       highlight: ["pin:X1.pos", "pin:X1.neg"],
-      success: "About 1.58 V. That's 1,580 millivolts too.",
+      nudges: [
+        { when: (lab) => onCell(lab) && showsOL(lab), say: "OL. Up one range." },
+        { when: (lab) => onCell(lab) && (rangeIs(lab, "20V") || tooBig(lab)), say: "It fits. Can a smaller range fit too?" },
+      ],
+      success: "1.580 V.",
     },
     {
-      id: "kilo-ohms",
-      prompt: "**Ω, 2k range**. Probe the resistor's ends. Type its value in plain ohms.",
+      id: "fix-aa",
+      prompt: "The AA reads a blunt 1.6. Get more digits.",
+      setup: BLUNT,
+      // Blunt first (the setup), then sharp: a bench that never left 2 V does not count.
       goal: (lab) => {
-        const n = lab.note("ohms");
-        return lab.meter?.mode === "ohm" && rangeIs(lab, "2k") && lab.across("R1", "either") && n !== null && n >= 455 && n <= 480;
+        if (tooBig(lab)) lab.memory["blunt"] = true;
+        return lab.memory["blunt"] === true && onCell(lab) && rangeIs(lab, "2V") && readsIn(lab, 1.4, 1.65);
       },
-      note: { id: "ohms", label: "The resistor, in ohms", unit: "Ω" },
-      hints: ["k means a thousand.", "0.466 thousand ohms is 466 ohms."],
-      highlight: ["pin:R1.a", "pin:R1.b"],
-      success: "466 Ω. Same as 0.466 kΩ.",
-      notice: "Resistors don't care which probe is which.",
+      hints: ["1.6 fits in a much smaller range.", "Step the range down until just before OL."],
+      highlight: ["part:M1/dial"],
+      nudges: [{ when: (lab) => onCell(lab) && showsOL(lab), say: "Too far down. One step back up." }],
+      success: "Fixed.",
+    },
+    {
+      id: "two-hundred",
+      prompt: "Try the 200 V range on the 9 V battery.",
+      goal: (lab) => onBattery(lab) && rangeIs(lab, "200V") && readsIn(lab, 9.0, 9.6),
+      hints: ["Probes back on the 9 V battery, then pick 200 V."],
+      success: "9.4: it works, with fewer digits.",
+      bonus: true,
     },
   ],
   solution: [
-    { do: "dial", mode: "dcv", range: "2V" },
-    { do: "probe", red: "B1.pos", black: "B1.neg" },
+    { do: "dial", mode: "dcv" },
     { do: "check", task: "over-the-limit" },
     { do: "dial", mode: "dcv", range: "20V" },
     { do: "check", task: "climb-a-range" },
-    { do: "dial", mode: "dcv", range: "2V" },
     { do: "probe", red: "X1.pos", black: "X1.neg" },
+    { do: "dial", mode: "dcv", range: "2V" },
     { do: "check", task: "aa-cell" },
-    { do: "dial", mode: "ohm", range: "2k" },
-    { do: "probe", red: "R1.a", black: "R1.b" },
-    { do: "note", id: "ohms", value: "466" },
-    { do: "check", task: "kilo-ohms" },
+    ...BLUNT,
+    { do: "dial", mode: "dcv", range: "2V" },
+    { do: "check", task: "fix-aa" },
+    // The secret: back on the 9 V battery, one range too big.
+    { do: "probe", red: "B1.pos", black: "B1.neg" },
+    { do: "dial", mode: "dcv", range: "200V" },
+    { do: "check", task: "two-hundred" },
   ],
 });

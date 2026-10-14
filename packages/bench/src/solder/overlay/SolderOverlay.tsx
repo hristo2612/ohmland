@@ -58,6 +58,9 @@ type Drag =
 
 type Mode = "none" | "bend" | "link";
 
+/** What the drag handlers read from a pointer event (React's or the window's). */
+type PointerLike = { pointerId: number; clientX: number; clientY: number; stopPropagation(): void };
+
 export type SolderOverlayProps = {
   store: BenchStore;
   view: SolderViewApi;
@@ -166,7 +169,13 @@ function SolderLayer({ store, view, compact, readOnly = false, tray = false }: S
   const spool = spoolOf(bench);
   const braid = bench.parts.find((p) => p.kind === "solder-braid");
   const flipped = bench.parts.filter((p): p is PlacedPartOf<"perfboard"> => p.kind === "perfboard" && !!p.params.flipped);
-  const [drag, setDrag] = useState<Drag | null>(null);
+  const [drag, setDragState] = useState<Drag | null>(null);
+  // The drag in progress, for the window listeners below: they outlive the render that started it.
+  const dragRef = useRef<Drag | null>(null);
+  const setDrag = (d: Drag | null) => {
+    dragRef.current = d;
+    setDragState(d);
+  };
   const [mag, setMag] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("none");
   const [said, setSaid] = useState("");
@@ -217,13 +226,37 @@ function SolderLayer({ store, view, compact, readOnly = false, tray = false }: S
 
   // ---- Pointer handling -----------------------------------------------------------------------------------------
 
+  // A drag is followed on the window, not on the element it began on: the iron's grip disappears from under the
+  // pointer as soon as the iron is lifted (the drawn iron follows the hand instead), which ends its pointer capture,
+  // so a drop on the bare desk lands on the view's canvas. Listening in the capture phase also keeps the views from
+  // seeing a drag that belongs to the overlay.
+  const live = useRef<{ move(e: PointerLike): void; up(e: PointerLike): void } | null>(null);
+  const unlisten = useRef<(() => void) | null>(null);
+  const listen = () => {
+    if (unlisten.current) return;
+    const move = (e: PointerEvent) => live.current?.move(e);
+    const up = (e: PointerEvent) => live.current?.up(e);
+    window.addEventListener("pointermove", move, true);
+    window.addEventListener("pointerup", up, true);
+    window.addEventListener("pointercancel", up, true);
+    unlisten.current = () => {
+      window.removeEventListener("pointermove", move, true);
+      window.removeEventListener("pointerup", up, true);
+      window.removeEventListener("pointercancel", up, true);
+      unlisten.current = null;
+    };
+  };
+  useEffect(() => () => unlisten.current?.(), []);
+
   const begin = (e: RPointerEvent, d: Drag) => {
     e.stopPropagation();
     e.preventDefault();
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
     setDrag(d);
+    listen();
   };
-  const onMove = (e: RPointerEvent) => {
+  const onMove = (e: PointerLike) => {
+    const drag = dragRef.current;
     if (!drag || e.pointerId !== drag.id) return;
     e.stopPropagation();
     const { x, y } = local(e);
@@ -250,7 +283,8 @@ function SolderLayer({ store, view, compact, readOnly = false, tray = false }: S
       setDrag({ ...drag, x, y, near: nearest(x, y, (s) => s.kind === "pad" && s.host === board && s.id !== drag.from) });
     }
   };
-  const onUp = (e: RPointerEvent) => {
+  const onUp = (e: PointerLike) => {
+    const drag = dragRef.current;
     if (!drag || e.pointerId !== drag.id) return;
     e.stopPropagation();
     const { x, y } = local(e);
@@ -284,7 +318,9 @@ function SolderLayer({ store, view, compact, readOnly = false, tray = false }: S
       }
     }
     setDrag(null);
+    unlisten.current?.();
   };
+  live.current = { move: onMove, up: onUp };
 
   const openMag = (spot: string) => {
     const r = readJoint(store.getState().bench, store.getState().station, spot);
@@ -404,9 +440,6 @@ function SolderLayer({ store, view, compact, readOnly = false, tray = false }: S
       // Both views leave pointer events from their own chrome alone.
       data-ink-ui=""
       data-bench-ui=""
-      onPointerMove={onMove}
-      onPointerUp={onUp}
-      onPointerCancel={onUp}
       onKeyDown={(e) => {
         if (onToolKey(e.key.toLowerCase(), true)) {
           e.preventDefault();
