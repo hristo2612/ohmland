@@ -256,7 +256,7 @@ export function solderBench(opts: { top?: boolean; joints?: "some" | "all" | "no
           ["C8", "F8"],
         ],
       },
-      pos: [120, -20],
+      pos: [82, 28],
       rot: 0,
     },
   ] as BenchState["parts"];

@@ -61,11 +61,13 @@ const record = (page: Page, board: string, pad: string) =>
     { board, pad },
   );
 
+/** Save a screenshot: 3D shots quantised to 256 colours (as the other bench shots), flat ink drawings as they are. */
 async function shot(page: Page, name: string) {
   const path = `${OUT}/${name}.png`;
   await page.screenshot({ path });
   try {
-    execFileSync("magick", [path, "-strip", "-define", "png:compression-level=9", path]);
+    if (name.includes("-3d-")) execFileSync("magick", [path, "-strip", "-dither", "None", "-colors", "256", "-define", "png:compression-level=9", `PNG8:${path}`]);
+    else execFileSync("magick", [path, "-strip", "-define", "png:compression-level=9", path]);
   } catch {
     // ImageMagick is optional.
   }

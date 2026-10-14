@@ -581,7 +581,13 @@ function SolderLayer({ store, view, compact, readOnly = false, tray = false }: S
             </button>
           </h3>
           <JointSide look={magRead.look as JointLook} lead={!mag.includes("HW")} />
-          <p>{magRead.phase === "molten" ? L.phase.molten : `${L.shape[magRead.look.shape]}, ${L.finish[magRead.look.finish]}`}</p>
+          <p>
+            {magRead.phase === "molten"
+              ? L.phase.molten
+              : magRead.look.finish === "bright" || magRead.look.finish === "satin"
+                ? `${L.shape[magRead.look.shape]}, ${L.finish[magRead.look.finish]}`
+                : L.shape[magRead.look.shape]}
+          </p>
         </div>
       )}
       <div className="ohs-say" aria-live="polite">
