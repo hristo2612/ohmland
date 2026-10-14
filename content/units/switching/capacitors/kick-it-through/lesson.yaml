@@ -1,0 +1,60 @@
+# Blueprint: docs/curriculum/unit-2.md, Lessons 10 and 12 (blocking and coupling); conversion:
+# docs/curriculum/conversion-guide.md, C2 lesson 12b. A bench lesson (docs/LESSONS.md). One idea: in line, a
+# capacitor passes a change and blocks a steady push. New part: the ceramic capacitor.
+# Lab: content/labs/kick-it-through.ts.
+format: bench
+id: kick-it-through
+version: 1
+title: One flash per press
+summary: In line, a capacitor blocks a steady push but lets a sudden change through, once.
+minutes: 7
+lab: kick-it-through
+unlocks:
+  parts: [ceramic-capacitor]
+  isle: ceramic-cap
+
+start:
+  title: One flash per press
+  say: In line, capacitors do something odd. Let's catch them at it.
+  go: Show me
+
+beats:
+  - say: This is a ceramic capacitor. Tap it.
+    objective: Block the steady push
+    meet: CA
+    note: { at: CA, text: ceramic capacitor }
+
+  - say: Swap the white wire for the ceramic. Watch my lamp.
+    spot: [D1, CA]
+    do: ceramic-blocks
+    done: Dark. A steady push can't get through.
+    note: { at: CA, text: "charged at once, then blocks" }
+
+  - say: Hold S2 for three seconds. How long will D2 glow?
+    objective: Kick a change through
+    tool: scope
+    guess: { options: [All three seconds, A quick flash, Not at all], answer: A quick flash }
+    do: one-flash
+    done: A flash, then dark. You're still pressing!
+    note: { at: C2, text: "stripe leg jumps, then sags" }
+    rule: In line, a capacitor passes changes only.
+
+  - say: Press S2 again. Then the white button, then S2.
+    do: no-encore
+    note: { at: S3, text: "empties C2: a fresh change" }
+
+  - say: Smoothing sat across the supply. Where does C2 sit?
+    pick: { on: C2, options: [Across the supply, In line], answer: In line }
+
+  - say: Which one is the ceramic? Tap it.
+    tap: { answer: CA, among: [CA, C2] }
+    wrong:
+      C2: "That's an electrolytic, with a stripe. Find the bead."
+
+fixit:
+  say: Fix-it time. My button flashes once, then never again.
+  tasks:
+    - task: fix-reset
+
+end:
+  say: Steady pushes stop. Changes kick through. One flash each.
