@@ -37,9 +37,11 @@ beats:
       S2.a: That end beeps in one position only.
       S2.b: That end beeps in one position only.
 
-  - say: And this leg?
-    pick: { on: S2.b, options: [The pole, A throw], answer: A throw }
-    wrong: { The pole: "It never swaps partners. It's where the pole lands." }
+  - say: S2 has one pole. How many throws?
+    pick: { on: S2, options: ["One", "Two", "Three"], answer: "Two" }
+    wrong:
+      "One": Count the places the pole can land.
+      "Three": The pole itself isn't a throw.
     note: { at: S2, text: "SPDT: one pole, two throws" }
 
 secret:

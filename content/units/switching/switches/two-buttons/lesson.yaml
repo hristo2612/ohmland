@@ -20,13 +20,11 @@ start:
 beats:
   - say: Probe S3. Then hold it down and probe again.
     objective: Test the twins
-    spot: [S3]
     do: probe-s3
     done: Silence, then a beep. It joins while pressed.
     note: { at: S3, text: "normally open: joins when pressed" }
 
   - say: Now S4, released and held. Guess first.
-    spot: [S4]
     guess: { options: [Same as S3, The opposite], answer: The opposite }
     do: probe-s4
     done: Beep, then silence. The opposite!

@@ -21,7 +21,6 @@ start:
 beats:
   - say: Probe every pair, both slider positions. How many pairs? Guess first.
     objective: Map every pair
-    spot: [SW]
     guess: { options: ["6", "15", "36"], answer: "15" }
     do: map-pairs
     done: Fifteen pairs. Two beep in each position.

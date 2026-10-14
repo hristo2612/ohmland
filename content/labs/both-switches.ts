@@ -26,7 +26,7 @@ export default defineLab({
   title: "Both must agree",
   bench: {
     board: "none",
-    frame: ["desk:-140,-70", "desk:110,66"],
+    frame: ["desk:-140,-70", "desk:170,66"],
     parts: [
       { id: "B1", kind: "battery", at: "desk:-118,6", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "R1", kind: "resistor", at: "desk:-52,-44", params: { ohms: 470 }, locked: true, label: "470 Ω resistor" },

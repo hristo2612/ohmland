@@ -14,9 +14,9 @@ const pressed = (lab: LabView, id: string) => lab.part(id)?.extra?.["pressed"] =
 /** The fix-it bench: a doorbell lamp (battery, resistor, LED) wired through S4, the normally closed button. */
 const LAMP_ON_NC: SolutionStep[] = [
   { do: "probe", red: null, black: null, mode: "off" },
-  { do: "place", part: "B1", kind: "battery", at: "desk:-118,40", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 } },
-  { do: "place", part: "R1", kind: "resistor", at: "desk:-22,62", params: { ohms: 1000 } },
-  { do: "place", part: "D1", kind: "led", at: "desk:32,58", rot: 180, params: { color: "yellow" } },
+  { do: "place", part: "B1", kind: "battery", at: "desk:-104,34", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 } },
+  { do: "place", part: "R1", kind: "resistor", at: "desk:-34,62", params: { ohms: 1000 } },
+  { do: "place", part: "D1", kind: "led", at: "desk:18,58", rot: 180, params: { color: "yellow" } },
   { do: "lead", id: "TL1", from: "B1.pos", to: "S4.a1", color: "red" },
   { do: "lead", id: "TL2", from: "S4.b1", to: "R1.a", color: "yellow" },
   { do: "lead", id: "TL3", from: "R1.b", to: "D1.anode", color: "green" },
@@ -30,8 +30,8 @@ export default defineLab({
     board: "none",
     frame: ["desk:-140,-40", "desk:150,84"],
     parts: [
-      { id: "S3", kind: "pushbutton", at: "desk:-74,-8", params: { base: true, tag: "S3" }, locked: true, label: "Button S3" },
-      { id: "S4", kind: "pushbutton", at: "desk:-14,-8", params: { base: true, normallyClosed: true, tag: "S4" }, locked: true, label: "Button S4" },
+      { id: "S3", kind: "pushbutton", at: "desk:-70,-30", params: { base: true, tag: "S3" }, locked: true, label: "Button S3" },
+      { id: "S4", kind: "pushbutton", at: "desk:-10,-30", params: { base: true, normallyClosed: true, tag: "S4" }, locked: true, label: "Button S4" },
     ],
     tray: [],
     instruments: [{ kind: "meter", at: "desk:104,-14", rot: -18, mode: "continuity" }],
