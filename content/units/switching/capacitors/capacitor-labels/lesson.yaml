@@ -48,6 +48,7 @@ beats:
     pick: { options: [The 16 V can, The 6.3 V can], answer: The 16 V can }
     wrong:
       The 6.3 V can: "9 V is over its 6.3 V limit."
+    note: { at: CB, text: "µF: millionths of a farad" }
     rule: Stay under the voltage on the can.
 
 secret:

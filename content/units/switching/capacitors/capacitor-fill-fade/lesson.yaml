@@ -23,7 +23,7 @@ beats:
     spot: [S1, D1]
     do: fill
     done: It crept up, slow and steady.
-    note: { at: C1, text: "µF: a millionth of a farad" }
+    note: { at: C1, text: fills slowly through the resistor }
 
   - say: Fill it once more, then let go. Guess first.
     spot: [S1, D1, C1]
