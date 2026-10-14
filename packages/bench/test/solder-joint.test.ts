@@ -3,7 +3,8 @@
 import { describe, expect, it } from "vitest";
 import { ALLOYS, FEED_RATE, type Alloy } from "../src/solder/alloys";
 import { IRON, feedTip, freshIron, stepIron, takeBead, tinFactor, wipeTip, type IronState, type Tinning } from "../src/solder/iron";
-import { contactOhms, jointElectric, jointLook, newJoint, stepJoint, tugResult, verdictOf, type Joint, type WorkKind } from "../src/solder/joint";
+import { contactOhms, judge, jointElectric, jointLook, newJoint, stepJoint, tugResult, verdictOf, type Joint, type Verdict, type WorkKind } from "../src/solder/joint";
+import { madeJoint } from "../src/solder/station";
 
 const DT = 0.02;
 
@@ -352,5 +353,17 @@ describe("the joint: what goes wrong", () => {
     r.step(0.5);
     expect(r.joint.phase).toBe("molten");
     expect(jointLook(r.joint).molten).toBe(true);
+  });
+});
+
+describe("madeJoint (lab setups)", () => {
+  it("makes a record the model judges the way it says, for every verdict", () => {
+    const all: Verdict[] = ["good", "cold", "disturbed", "too-much", "too-little", "bridge", "burnt"];
+    for (const alloy of ["leaded", "lead-free"] as Alloy[]) {
+      for (const v of all) {
+        const rec = madeJoint(v, { alloy, bridgeTo: "C8" });
+        expect(judge({ ...newJoint("pad"), ...rec, phase: "set" }), `${alloy} ${v}`).toBe(v);
+      }
+    }
   });
 });

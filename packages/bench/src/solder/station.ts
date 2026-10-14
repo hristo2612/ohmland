@@ -131,6 +131,34 @@ export function jointRecord(j: Joint): JointRecord {
   };
 }
 
+/**
+ * A joint as if it had been made and judged `verdict`: for lab setups and solutions (`{ do: "param", part: "PB1",
+ * params: { joints: { C7: madeJoint("good") } } }`), which cannot hold an iron. A bridge needs `bridgeTo` (a pad).
+ */
+export function madeJoint(verdict: Verdict, opts: { alloy?: Alloy; kind?: Joint["kind"]; bridgeTo?: string } = {}): JointRecord {
+  const kind = opts.kind ?? "pad";
+  const alloy = opts.alloy ?? "lead-free";
+  const ideal = WORK[kind].ideal;
+  const melt = ALLOYS[alloy].liquidus;
+  const base: JointRecord = { kind, alloy, volume: ideal, wetted: 0.95, peakC: melt + 60, moved: false, fedAt: "work", bridgeTo: null, lifted: false, coldTouch: false, flux: 0.3, verdict };
+  switch (verdict) {
+    case "too-much":
+      return { ...base, volume: ideal * 2.1 };
+    case "too-little":
+      return { ...base, volume: ideal * 0.35 };
+    case "cold":
+      return { ...base, wetted: 0.3, peakC: melt + 5 };
+    case "disturbed":
+      return { ...base, moved: true };
+    case "bridge":
+      return { ...base, volume: ideal * 2.8, bridgeTo: opts.bridgeTo ?? null };
+    case "burnt":
+      return { ...base, peakC: 440, flux: 0 };
+    default:
+      return base;
+  }
+}
+
 const sameRecord = (a: JointRecord | null, b: JointRecord) => !!a && JSON.stringify(a) === JSON.stringify(b);
 
 /** Pads next to a pad, busiest first (solder runs to the pad that has metal on it). */

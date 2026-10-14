@@ -55,6 +55,7 @@ export {
   holdIron,
   jointRecord,
   layBraid,
+  madeJoint,
   magnify,
   meltC,
   placeIron,

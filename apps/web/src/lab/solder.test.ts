@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { benchOps, bendLeg, createStation, emptyBench, feedAt, placeIron, stepStation, stripEnd, type BenchState, type PlacedPart } from "@ohmland/bench/core";
+import { buildBench } from "./build";
 import { solderLab } from "./solder";
 
 /** MP10's lamp: the plan card, the board copper side up, legs bent to meet in tack mode. */
@@ -89,5 +90,20 @@ describe("lab.solder", () => {
     const onWire = benchOps.movePart(b, "T1", [10, 1]);
     expect(solderLab(onWire, null).tube("T1")).toMatchObject({ on: "HW1", shrink: 0, split: false });
     expect(lab.adapter("AD1")).toEqual({ into: null, type: "unregulated", centre: "minus", volts: 9 });
+  });
+
+  it("a lab config puts legs through perfboard holes", () => {
+    const built = buildBench({
+      board: "none",
+      parts: [
+        { id: "PB1", kind: "perfboard", at: "desk:0,0", params: { cols: 10, rows: 6 } },
+        { id: "D1", kind: "led", params: { color: "red" }, holes: { anode: "PB1:C7", cathode: "PB1:C8" } },
+      ],
+      tray: [],
+      instruments: [],
+    });
+    expect(built.warnings).toEqual([]);
+    expect(built.bench.parts.find((p) => p.id === "D1")!.holes).toEqual({ anode: "PB1:C7", cathode: "PB1:C8" });
+    expect(solderLab(built.bench, null).board("PB1")!.legs.map((l) => l.pad)).toEqual(["C7", "C8"]);
   });
 });

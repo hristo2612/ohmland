@@ -224,7 +224,7 @@ export function solderLab(bench: BenchState, station: StationState | null): Sold
   };
 }
 
-/** True when the joint at a spot has set and is sound (good, or too much solder that still holds). */
+/** True when the joint at a spot has set and is good. */
 export function soundJoint(lab: { solder: SolderLab }, spot: string): boolean {
   const j = lab.solder.joint(spot);
   return !!j && j.state === "set" && j.verdict === "good";
