@@ -1,8 +1,8 @@
 // Start here, case 9: "The prefix padlock" (docs/curriculum/start-here.md, SH9). A bench lesson (docs/LESSONS.md): its
 // tasks are the beats of content/units/start-here/tool-cases/milli-and-kilo/lesson.yaml, in the same order.
 // One idea: a prefix moves the decimal point three places. k is a thousand, m is a thousandth.
-// The lamp loop runs with a gate in number mode on the lead into the lamp (0.0075 A, about 7.5 mA) and a tag on its
-// resistor ("1 kΩ"). The parts cabinet is locked by a three-wheel padlock whose clues are three tags on the desk.
+// The lamp loop runs with a gate in number mode on the lead into the lamp (it reads 0.007552 A, or 7.55 mA) and a tag
+// on its resistor ("1 kΩ"). The parts cabinet is locked by a three-wheel padlock whose clues are three tags on the desk.
 import { defineLab, type SolutionStep } from "@ohmland/lab";
 
 const WHEELS = ["4,700 Ω", "0.02 A", "9,000 mV"];
@@ -27,7 +27,7 @@ export default defineLab({
     board: "none",
     frame: ["desk:-236,-96", "desk:150,172"],
     parts: [
-      // The lamp loop, lit from the start: about 7.5 mA through the 1 kΩ resistor and the red LED.
+      // The lamp loop, lit from the start: 7.55 mA through the 1 kΩ resistor and the red LED.
       { id: "B1", kind: "battery", at: "desk:-206,4", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 volt battery" },
       { id: "R1", kind: "resistor", at: "desk:-142,-48", params: { ohms: 1000, watts: 0.25 }, locked: true, label: "1 kilohm resistor" },
       { id: "D1", kind: "led", at: "desk:-92,22", rot: 180, params: { color: "red", maxmA: 50 }, locked: true, label: "Red LED" },
@@ -63,7 +63,7 @@ export default defineLab({
       goal: (lab) => lab.gateUnit("G1") === "mA",
       hints: ["The A sits at the right end of the gate's paper flag.", "Tap that A once."],
       highlight: ["G1"],
-      success: "7.5 mA.",
+      success: "7.55 mA.",
     },
     {
       id: "tap-the-k",
