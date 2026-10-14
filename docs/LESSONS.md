@@ -104,7 +104,9 @@ Optional, on any beat:
   themselves; leave `spot` out when the result shows somewhere else (a switch that lights a lamp). The secret and the fix-it
   take a `spot` too (`secret: { spot: [R1, D1], ... }`, `fixit: { spot: [R3, D1], ... }`, framed through every fix-it
   task).
-- `guess` (only with `do`): an ungraded prediction just before the action. The notebook keeps it in blue ink.
+- `guess` (only with `do`): an ungraded prediction just before the action. The notebook keeps it in blue ink. When
+  the beat is done the robot starts its line with how it went ("Called it." or "You guessed it stays lit."), so write
+  the `done` line to follow that.
 - `done`, `note`, `rule`: the discovery. A beat with any of them ends on a Next button so the learner can read it; a
   beat without one moves on by itself after a beat of the robot's success line. A beat with nothing to do draws its
   `note` and stamps its `rule` as it begins, beside its line, and the learner taps Next when they have read it.
@@ -213,9 +215,14 @@ Nothing new to learn: a graded check right on the first try counts like a quiz i
 
 ## The notebook page
 
-It fills itself in: rules found, guesses against what happened, checks and whether they were right first time, the
-fix-it round (and the time left if the learner raced the clock), parts that went to the Hall of Fried Parts. The
-learner can open it any time from the bar; at the end it is the signed-off summary. Nothing to write.
+It fills itself in: rules found, guesses against what happened, checks and which try they came right on, the fix-it
+round (and the time left if the learner raced the clock), parts that went to the Hall of Fried Parts. The learner can
+open it any time from the bar (on a phone it also holds the 3D and Ink switch); at the end it is the signed-off
+summary. Nothing to write.
+
+A part that dies while the learner works gets "off to the Hall" in red pencil and a Replace control beside it on the
+bench, for that beat only: a part fried on purpose (a fuse blown to be probed next) stays fried. Achievements a lesson
+earns on the way never toast over the bench; the finale lists them.
 
 ## Trying a lesson
 
