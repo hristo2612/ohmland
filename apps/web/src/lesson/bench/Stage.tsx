@@ -9,12 +9,12 @@
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useStore } from "zustand";
 import { boardGeometry, trayLeft, type BenchState } from "@ohmland/bench/core";
-import { isOptional, type LabDefinition, type LabTask } from "../../lab/define";
+import { isOptional, type LabDefinition, type LabTask, type SolutionStep } from "../../lab/define";
 import { m } from "../../i18n";
 import { useLearner } from "../../progress/store";
 import { prefersReducedMotion } from "../../progress/prefs";
 import { LabAudio } from "../../lab/audio";
-import { buildBench } from "../../lab/build";
+import { buildBench, type SimInput } from "../../lab/build";
 import { BenchSurfaceChunk, type BenchController, type BenchViewKind } from "../../lab/bench-view";
 import { ConnectionsPanel, ControlsPanel, MeterPanel, ScopePanel, ViewsPanel } from "../../lab/instruments";
 import { LabPanels } from "../../lab/panels-ui";
@@ -44,6 +44,8 @@ export type StageApi = {
   task(id: string): LabTask | undefined;
   /** Puts the bench where this task starts (the solution's state at the previous check) and applies its setup. */
   applySetup(taskId: string): void;
+  /** Applies bench steps on top of the bench as it is now (a check's `then`), the way a setup's are applied. */
+  applySteps(steps: readonly SolutionStep[]): void;
   showMe(taskId: string): void;
   skip(taskIds: string[]): void;
   replace(card: FriedCard): void;
@@ -245,8 +247,35 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
 
   const controllerRef = useRef<BenchController | null>(null);
 
-  const api = useMemo<StageApi>(
-    () => ({
+  const api = useMemo<StageApi>(() => {
+    /**
+     * Puts `base` with `steps` applied on the bench (a task's setup, a check's `then`): their inputs after `before`, so
+     * they win; their views and overlays (flow dots, push, x-ray) and controls (time back to normal speed); the loop
+     * tracer last, on the bench as it now is. A setup starts the circuit fresh; a check's steps carry on from the bench
+     * as it is (a charged capacitor stays charged). Neither can be undone.
+     */
+    const loadSteps = (base: BenchState, steps: readonly SolutionStep[], before: SimInput[], fresh: boolean) => {
+      let b = base;
+      const inputs = [...before];
+      const views: { name: "flow" | "electrons" | "push" | "xray"; on: boolean }[] = [];
+      const controls: { id: string; value: number }[] = [];
+      let trace: string | null | undefined;
+      for (const step of steps) {
+        const e = applyStep(b, step);
+        b = e.bench;
+        for (const { after: _after, ...i } of e.inputs) inputs.push(i);
+        if (e.view) views.push(e.view);
+        if (e.control) controls.push(e.control);
+        if (e.trace !== undefined) trace = e.trace;
+      }
+      if (fresh) runtime.loadBench(b);
+      else runtime.store.getState().load(b);
+      for (const i of inputs) runtime.setInput(i.id, i.key, i.value);
+      for (const c of controls) runtime.setControl(c.id, c.value);
+      for (const v of views) runtime.setView(v.name, v.on);
+      if (trace !== undefined) runtime.trace(trace);
+    };
+    return {
       lab,
       runtime,
       task: (id) => lab.tasks.find((t) => t.id === id),
@@ -254,28 +283,11 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         const task = lab.tasks.find((t) => t.id === taskId);
         if (!task?.setup?.length) return;
         const start = runtime.checkpoint(taskId);
-        let b = start?.bench ?? runtime.store.getState().bench;
         // The setup's own inputs (a meter's mode or range, a switch) go after the checkpoint's, so they win.
-        const inputs = [...(start?.inputs ?? [])];
-        // Its views and overlays (flow dots, push, x-ray), its controls (time back to normal speed) and the loop tracer
-        // show the bench it sets up.
-        const views: { name: "flow" | "electrons" | "push" | "xray"; on: boolean }[] = [];
-        const controls: { id: string; value: number }[] = [];
-        let trace: string | null | undefined;
-        for (const step of task.setup) {
-          const e = applyStep(b, step);
-          b = e.bench;
-          for (const { after: _after, ...i } of e.inputs) inputs.push(i);
-          if (e.view) views.push(e.view);
-          if (e.control) controls.push(e.control);
-          if (e.trace !== undefined) trace = e.trace;
-        }
-        runtime.loadBench(b);
-        for (const i of inputs) runtime.setInput(i.id, i.key, i.value);
-        for (const c of controls) runtime.setControl(c.id, c.value);
-        for (const v of views) runtime.setView(v.name, v.on);
-        // The tracer runs on the bench as set up, so it goes last.
-        if (trace !== undefined) runtime.trace(trace);
+        loadSteps(start?.bench ?? runtime.store.getState().bench, task.setup, start?.inputs ?? [], true);
+      },
+      applySteps(steps) {
+        if (steps.length) loadSteps(runtime.store.getState().bench, steps, [], false);
       },
       showMe(taskId) {
         void runtime.showMe(taskId);
@@ -323,9 +335,8 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         const id = rail ? `${rail[1] === "+" ? "bp" : "bn"}${rail[2]}` : t;
         return boardGeometry(b.board).holes.has(id) ? id : null;
       },
-    }),
-    [lab, runtime, built],
-  );
+    };
+  }, [lab, runtime, built]);
   useEffect(() => {
     cb.current.onApi(api);
     return () => cb.current.onApi(null);

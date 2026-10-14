@@ -105,6 +105,11 @@ Optional, on any beat:
   beat without one moves on by itself after a beat of the robot's success line. A beat with nothing to do draws its
   `note` and stamps its `rule` as it begins, beside its line, and the learner taps Next when they have read it.
 - `hint` (checks) and `wrong` (lines for particular wrong taps or chips). A `do` beat uses its lab task's `hints`.
+- `then` (checks): bench steps, written as the lab's solution steps, applied once the tap, pick or number is right,
+  the way a setup is applied: `then: [{ do: param, part: PL1, params: { wheel1: 3 } }]` turns a padlock's first wheel
+  to the digit just found. Use steps that set a state (`param`, `flip` with `to`, `clip`): a resumed lesson applies
+  them again. A step that needs the bench to keep its new state through a later task's setup belongs in the lab's
+  solution as well.
 - `xray: true`: the breadboard's metal strips show during the beat.
 - `trace: B1.neg`: the loop tracer runs from that terminal once the beat's action is done (the right tap on it, the
   task's goal met), or as the beat begins when it has nothing to do. Its red pencil line clears when the beat ends.
