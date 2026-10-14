@@ -27,6 +27,210 @@ function probe(s: Shape, x: number, z: number, y: number, h: number, col: Col): 
   s.box(0.375, Q, 0.375, col, x, y + h - 0.25, z);
 }
 
+/** An insulator post: a stack of white ceramic sheds round a cream core, standing on y; returns its top. */
+function ceramicStack(s: Shape, x: number, z: number, y: number, sheds: number): number {
+  for (let i = 0; i < sheds; i++) {
+    s.cyl(0.25, 0.125, "cream", x, y + i * 0.25, z);
+    s.cyl(0.375, 0.125, "white", x, y + i * 0.25 + 0.125, z);
+  }
+  return y + sheds * 0.25;
+}
+
+/**
+ * A copper horn rising from (x0, y0) and curving outwards (sx: which way) to x0 + sx * spread at y0 + h, drawn in rows
+ * of 1/8, each row wide enough to meet the next, so the curve stays one unbroken rod.
+ */
+function horn(s: Shape, x0: number, y0: number, h: number, spread: number, sx: number): void {
+  const rows = Math.round(h / Q);
+  const at = (j: number) => x0 + sx * spread * (j / rows) ** 2;
+  for (let j = 0; j < rows; j++) {
+    const a = at(j);
+    const b = at(j + 1);
+    const lo = Math.min(a, b) - Q;
+    const hi = Math.max(a, b) + Q;
+    s.box(hi - lo, Q, 0.25, "copper", (lo + hi) / 2, y0 + j * Q, 0);
+  }
+}
+
+/** A small spark across a gap from x0 to x1 at height y: a jagged bolt of light, white hot in the middle. */
+function spark(s: Shape, x0: number, x1: number, y: number, size = 1.8): void {
+  const n = Math.max(2, Math.round((x1 - x0) / Q));
+  const zig = [0, 1, 2, 1, 0, 1, 2, 3, 2, 1];
+  for (let i = 0; i < n; i++) {
+    const x = x0 + (i + 0.5) * Q;
+    const mid = Math.abs(i + 0.5 - n / 2) < 1;
+    s.box(Q, mid ? 0.25 : Q, Q, mid ? "ledWhite" : "#BFE0FF", x, y + zig[i % zig.length]! * (Q / 2) - (mid ? Q / 2 : 0), 0, { glow: true, day: mid ? "#E6F2FF" : "#9CC9F2" });
+  }
+  s.light((x0 + x1) / 2, y + 0.125, 0, "ledBlue", size);
+}
+
+function sparkGap(s: Shape, t: number): Built {
+  const tall = t >= 1;
+  plinth(s, 3.0, tall ? 2.5 : 2.0);
+  // the two insulator posts on their footings: red for plus, black for minus
+  const px = 0.75;
+  let top = 0;
+  for (const sx of [-1, 1]) {
+    const c: Col = sx > 0 ? "red" : "ink";
+    s.box(0.75, 0.25, 0.75, c, sx * px, 0.125, 0);
+    // its feed cable runs back across the plinth
+    s.box(Q, Q, 0.625, c, sx * px, 0.125, -0.6875);
+    top = ceramicStack(s, sx * px, 0, 0.375, tall ? 6 : 4);
+    s.box(0.5, Q, 0.5, "copperDark", sx * px, top, 0);
+  }
+  // the horns rise from the inner edge of each post and curve apart: the gap is narrowest at the bottom
+  const y0 = top + Q;
+  const hh = tall ? 2.375 : 1.75;
+  const spread = tall ? 1.0 : 0.875;
+  const hx = 0.5;
+  for (const sx of [-1, 1]) horn(s, sx * hx, y0, hh, spread, sx);
+  spark(s, -hx + Q, hx - Q, y0 + 0.25);
+  if (tall) {
+    // a second, fainter spark higher up, where the gap is wider (the arc climbs, as on a Jacob's ladder)
+    const yy = y0 + 1.125;
+    const gx = hx + spread * (1.125 / hh) ** 2;
+    spark(s, -gx + Q, gx - Q, yy, 1.4);
+    // the control hut at the back, a window on the gap, a beacon on its mast
+    s.box(1.125, 0.75, 0.625, "cream", 0.875, 0.125, -0.875);
+    s.roof(1.25, 0.75, 0.25, "charcoal", 0.875, 0.875, -0.875, 2);
+    s.window(0.25, 0.25, 1.125, 0.375, -0.5625);
+    s.window(0.25, 0.25, 1.4375 + Q / 2, 0.375, -0.875, 1);
+    s.box(Q, 1.125, Q, "steel", 0.375, 1.0, -1.0625);
+    beacon(s, 0.375, 2.125, -1.0625);
+  }
+  return done(s, y0 + hh + 0.25, tall ? [1.625, 1.375] : [1.625, 1.125]);
+}
+
+/** A glowing marble (a charge going round): a rounded amber bead three voxels across, its bottom at y. */
+function marble(s: Shape, x: number, y: number, z: number): void {
+  const o = { glow: true, day: "#F5B93E" } as const;
+  s.box(0.375, 0.25, 0.25, "amber", x, y + 0.0625, z, o);
+  s.box(0.25, 0.375, 0.25, "amber", x, y, z, o);
+  s.box(0.25, 0.25, 0.375, "amber", x, y + 0.0625, z, o);
+  s.light(x, y + 0.2, z, "amber", 1.0);
+}
+
+/**
+ * A marble run along corners in (x, z), sloping evenly down from y0 to y1: two silver rails on copper sleepers in
+ * short steps, with steel posts under the corners. Returns the top of the rails every quarter, for marbles.
+ */
+function marbleRun(s: Shape, pts: [number, number][], y0: number, y1: number): [number, number, number][] {
+  const legs = pts.slice(1).map((p, i) => [pts[i]!, p] as const);
+  const len = legs.reduce((a, [p, q]) => a + Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]), 0);
+  const yAt = (r: number) => y0 + (y1 - y0) * (r / len);
+  const out: [number, number, number][] = [];
+  let run = 0;
+  for (const [[ax, az], [bx, bz]] of legs) {
+    const l = Math.abs(bx - ax) + Math.abs(bz - az);
+    const n = Math.round(l / 0.25);
+    const alongX = bx !== ax;
+    for (let i = 0; i < n; i++) {
+      const k = (i + 0.5) / n;
+      const x = ax + (bx - ax) * k;
+      const z = az + (bz - az) * k;
+      const y = yAt(run + l * k);
+      for (const o of [-0.125, 0.125]) {
+        if (alongX) s.box(0.375, Q, Q, "silver", x, y, z + o);
+        else s.box(Q, Q, 0.375, "silver", x + o, y, z);
+      }
+      if (i % 2 === 0) s.box(alongX ? Q : 0.5, Q / 2, alongX ? 0.5 : Q, "copperDark", x, y - Q / 2, z);
+      out.push([x, y + Q, z]);
+    }
+    run += l;
+  }
+  // the corners, and posts under them
+  run = 0;
+  pts.forEach(([x, z], i) => {
+    if (i > 0) run += Math.abs(x - pts[i - 1]![0]) + Math.abs(z - pts[i - 1]![1]);
+    if (i === 0 || i === pts.length - 1) return;
+    const y = yAt(run);
+    s.box(0.375, Q, 0.375, "silver", x, y, z);
+    s.box(Q, y - 0.1875, Q, "steel", x, 0.125, z);
+  });
+  return out;
+}
+
+/** A pixel ring standing in the xy plane at depth z: centre (x, yc), radius R to the middle of a rail t thick. */
+function hoop(s: Shape, x: number, yc: number, z: number, R: number, t: number, col: Col, depth: number): void {
+  const n = Math.ceil((R + t / 2) / Q);
+  for (let j = -n; j < n; j++) {
+    const y = (j + 0.5) * Q;
+    let run0: number | null = null;
+    for (let i = -n; i <= n; i++) {
+      const d = Math.hypot((i + 0.5) * Q, y);
+      const inside = i < n && d >= R - t / 2 && d <= R + t / 2;
+      if (inside && run0 === null) run0 = i;
+      if (!inside && run0 !== null) {
+        const w = (i - run0) * Q;
+        s.box(w, Q, depth, col, x + run0 * Q + w / 2, yc + j * Q, z);
+        run0 = null;
+      }
+    }
+  }
+}
+
+function pumpHouse(s: Shape, t: number): Built {
+  const tall = t >= 1;
+  plinth(s, 3.75, 2.75);
+  // the pump's tower is a 9 V battery: black, a blue label, the snap terminals on its roof
+  const bx = -0.875;
+  const bz = -0.5;
+  const w = 1.25;
+  const d = 0.875;
+  const H = tall ? 3.0 : 2.25;
+  s.box(w, H * 0.4, d, "black", bx, 0.125, bz);
+  s.box(w, Q / 2, d, "silver", bx, 0.125 + H * 0.4, bz);
+  s.box(w, H * 0.6 - 0.1875, d, "blue", bx, 0.1875 + H * 0.4, bz);
+  s.box(w, Q, d, "charcoal", bx, H, bz);
+  s.text("9V", "white", bx, H - 0.125, bz + d / 2 + Q / 4, 1);
+  s.box(0.375, 0.125, 0.375, "silver", bx - 0.3125, H + Q, bz);
+  s.box(0.25, 0.125, 0.25, "steel", bx - 0.3125, H + 0.25, bz);
+  s.cyl(0.125, 0.25, "silver", bx + 0.3125, H + Q, bz);
+  // the pump house at its foot
+  const hz = 0.4375;
+  s.box(1.25, 0.75, 1.0, "cream", -1.0, 0.125, hz);
+  s.roof(1.5, 1.25, 0.375, "copper", -1.0, 0.875, hz, 2);
+  door(s, tall ? -1.25 : -1.0, hz + 0.5 + Q / 2, 0.375, 0.625);
+  if (tall) {
+    s.window(0.25, 0.25, -0.6875, 0.375, hz + 0.5 + Q / 2);
+    s.window(0.375, 0.25, -1.625 - Q / 2, 0.375, hz, -1);
+    for (const y of [1.5, 2.25]) s.window(0.25, 0.375, bx - w / 2 - Q / 2, y, bz, -1);
+  }
+  // the lift beside the battery: a steel shaft with the marbles riding up the slot in its face, the head on top
+  const lx = 0.0;
+  s.box(0.5, H, 0.5, "steel", lx, 0.125, bz);
+  s.box(0.25, H - 0.125, Q, "charcoal", lx, 0.125, bz + 0.25);
+  s.box(0.625, 0.25, 0.625, "steel", lx, H + 0.125, bz);
+  s.xdisc(0.25, Q, "copper", lx + 0.3125 + Q / 2, H + 0.25, bz);
+  const lifted = tall ? [0.625, 1.375, 2.125] : [0.625, 1.375];
+  for (const y of lifted) marble(s, lx, y, bz + 0.375);
+  // the run: out along the back, round the front and home to the foot of the lift
+  const path: [number, number][] = [
+    [lx + 0.25, bz],
+    [1.5, bz],
+    [1.5, 0.875],
+    [lx, 0.875],
+    [lx, bz + 0.5],
+  ];
+  const bed = marbleRun(s, path, H - 0.25, 0.375);
+  for (const i of tall ? [2, 8, 17] : [3, 11]) {
+    const p = bed[i];
+    if (p) marble(s, p[0], p[1], p[2]);
+  }
+  let top = H + 0.5;
+  if (tall) {
+    // a loop the loop on the front run, a marble at its top
+    const p = bed.find(([x, , z]) => z === 0.875 && Math.abs(x - 0.75) < 0.2);
+    if (p) {
+      const R = 0.5;
+      hoop(s, p[0], p[1] + R, p[2], R, Q, "silver", 0.375);
+      marble(s, p[0], p[1] + 2 * R - 0.4375, p[2]);
+    }
+    top = H + 0.6;
+  }
+  return done(s, top, [2.0, 1.5]);
+}
+
 function meterTower(s: Shape, t: number): Built {
   plinth(s, 3.25, 2.25);
   const w = 2.25;
@@ -677,6 +881,10 @@ function microcontrollerHq(s: Shape): Built {
 
 export function buildLandmark(s: Shape, kind: string, tier: number): Built {
   switch (kind) {
+    case "spark-gap":
+      return sparkGap(s, tier);
+    case "pump-house":
+      return pumpHouse(s, tier);
     case "meter-tower":
       return meterTower(s, tier);
     case "resistor-hall":
