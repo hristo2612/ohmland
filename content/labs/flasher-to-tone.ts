@@ -8,9 +8,9 @@
 // learner swaps the cross-coupling capacitors for smaller and smaller ceramics, marked only with their codes (105,
 // 104, 103); the scope shows Q2's collector and reads the speaker's pitch.
 //
-// Measured in the simulator: 10 µF ticks about 2.4 times a second (two clicks per 0.8 s cycle); 1 µF flutters near
-// 10 Hz; 100 nF hums near 130 Hz with both LEDs steady; 10 nF sings near 1.26 kHz. One 104 with one 103 gives about
-// 220 Hz. Bypassing R7 does not kill Q3, but it settles near 120 °C.
+// Measured in the simulator: 10 µF ticks about 2.4 times a second (two clicks per 0.8 s cycle); 1 µF flutters at
+// 10 to 13 Hz; 100 nF hums at 126 to 131 Hz with both LEDs steady; 10 nF sings at 1.26 to 1.29 kHz. One 104 with one
+// 103 gives about 220 Hz. Bypassing R7 does not kill Q3, but it settles near 120 °C.
 import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 
 /** Capacitors of these values cross over: one from each collector to the other transistor's base. */

@@ -47,7 +47,7 @@ beats:
     objective: Make it sing
     tool: scope
     do: song
-    note: { at: SP1, text: "1,260 flips a second: 1.26 kHz" }
+    note: { at: SP1, text: "about 1,300 a second: 1.3 kHz" }
     rule: Smaller capacitors, higher pitch.
 
   - say: What is this?
