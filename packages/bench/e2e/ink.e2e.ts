@@ -52,11 +52,12 @@ async function drag(page: Page, from: { x: number; y: number }, to: { x: number;
   await page.mouse.up();
 }
 
+/** Save a screenshot. Flat ink drawings compress well as they are; a 256-colour palette would tint the paper. */
 async function shot(page: Page, name: string) {
   const path = `${OUT}/${name}.png`;
   await page.screenshot({ path });
   try {
-    execFileSync("magick", [path, "-strip", "-dither", "FloydSteinberg", "-colors", "256", "-define", "png:compression-level=9", `PNG8:${path}`]);
+    execFileSync("magick", [path, "-strip", "-define", "png:compression-level=9", path]);
   } catch {
     // ImageMagick is optional.
   }
