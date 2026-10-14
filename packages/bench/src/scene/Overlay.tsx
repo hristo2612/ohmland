@@ -14,6 +14,7 @@ import type { LeadColor, MeterMode, PlacedPart, TrayItem, WireColor } from "../t
 import { LED_HEX, WIRE_HEX } from "../three/materials";
 import { PartIcon, ToolIcon } from "./icons";
 import type { InteractionApi } from "./Interaction";
+import { COMPACT_WIDTH, NARROW_TRAY, trayCoverOf } from "../view/tray-cover";
 
 // Quiet, notebook-style chrome: pasted paper slips with hairline rules, ink icons, blue ink for what the learner has
 // switched on. Colours and type come from the page's notebook tokens when it has them (fallbacks are the light page).
@@ -92,12 +93,9 @@ const CSS = `
 
 const WIRE_COLORS: WireColor[] = ["red", "black", "blue", "green", "yellow", "orange", "white", "purple"];
 
-/** More than this many tray items get two columns. */
-const NARROW_TRAY = 7;
 /** Width (CSS px) the tray covers on the left of a wide bench, so camera framing can avoid it. */
 export function trayCover(items: number, compact: boolean): { left: number; bottom: number } {
-  if (items === 0) return { left: 0, bottom: 0 };
-  return compact ? { left: 0, bottom: 84 } : { left: items > NARROW_TRAY ? 220 : 124, bottom: 0 };
+  return trayCoverOf("3d", items, compact ? 1 : COMPACT_WIDTH);
 }
 const LEAD_COLORS: LeadColor[] = ["red", "black", "green", "yellow", "blue", "white"];
 
