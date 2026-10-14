@@ -90,22 +90,6 @@ export function propsBench(): BenchState {
   return b;
 }
 
-/** The first-glow desk: a 9 V battery, a 1.5 kΩ resistor and a red LED joined by clip leads (`?scene=glow`). */
-export function glowBench(): BenchState {
-  const b = emptyBench(null);
-  b.parts = [
-    { id: "B1", kind: "battery", params: { emf: 9.4 }, pos: [-74, 6], rot: 0 },
-    { id: "R1", kind: "resistor", params: { ohms: 1500 }, pos: [0, -20], rot: 0 },
-    { id: "D1", kind: "led", params: { color: "red", maxmA: 50 }, pos: [58, 12], rot: 180 },
-  ];
-  b.leads = [
-    { id: "TL1", color: "red", a: { to: "pin:B1.pos", pos: [0, 0] }, b: { to: "pin:R1.a", pos: [0, 0] } },
-    { id: "TL2", color: "green", a: { to: "pin:R1.b", pos: [0, 0] }, b: { to: "pin:D1.anode", pos: [0, 0] } },
-    { id: "TL3", color: "black", a: { to: "pin:D1.cathode", pos: [0, 0] }, b: { to: "pin:B1.neg", pos: [0, 0] } },
-  ];
-  return b;
-}
-
 /** Unit 2 desk modules and board odds and ends (`?scene=blocks`). */
 export function blocksBench(): BenchState {
   const b = emptyBench({ kind: "bb400", pos: [0, 70] });
@@ -169,6 +153,47 @@ export function smokeBench(): BenchState {
   b.wires = [
     { id: "W1", a: "bp8", b: "b8", color: "red" },
     { id: "W2", a: "a13", b: "bn14", color: "black" },
+  ];
+  return b;
+}
+
+/**
+ * The first lab with a light in it (first-glow): a 9 V battery, a 1.5 kOhm resistor and a red LED on the desk,
+ * joined in one loop by three clip leads (or still loose, with `wired` false).
+ */
+export function glowBench(wired = true): BenchState {
+  const b = emptyBench(null);
+  b.parts = [
+    { id: "B1", kind: "battery", params: { emf: 9.4 }, pos: [-74, 6], rot: 0 },
+    { id: "R1", kind: "resistor", params: { ohms: 1500 }, pos: [0, -20], rot: 0 },
+    { id: "D1", kind: "led", params: { color: "red" }, pos: [58, 12], rot: 180 },
+  ];
+  if (wired) {
+    b.leads = [
+      { id: "TL1", color: "red", a: { to: "pin:B1.pos", pos: [0, 0] }, b: { to: "pin:R1.a", pos: [0, 0] } },
+      { id: "TL2", color: "green", a: { to: "pin:R1.b", pos: [0, 0] }, b: { to: "pin:D1.anode", pos: [0, 0] } },
+      { id: "TL3", color: "black", a: { to: "pin:D1.cathode", pos: [0, 0] }, b: { to: "pin:B1.neg", pos: [0, 0] } },
+    ];
+  }
+  return b;
+}
+
+/** Desk modules (switches, a trimmer and relays on wooden blocks), a mystery relay, touch pads and bent capacitor legs. */
+export function modulesBench(): BenchState {
+  const b = emptyBench({ kind: "bb400", pos: [80, 80] });
+  const p = (id: string, kind: BenchState["parts"][number]["kind"], params: Record<string, unknown>, pos: [number, number], extra: Partial<BenchState["parts"][number]> = {}) =>
+    ({ id, kind, params, pos, rot: 0, ...extra }) as BenchState["parts"][number];
+  b.parts = [
+    p("S1", "pushbutton", { base: true, tag: "S1" }, [-230, -50]),
+    p("S2", "slide-switch", { base: true, to: "a", tag: "S2" }, [-160, -50]),
+    p("S3", "toggle-switch", { base: true, to: "b", tag: "S3" }, [-90, -50]),
+    p("RV1", "trimmer", { base: true, ohms: 10000, position: 0.4 }, [-20, -50]),
+    p("K1", "relay", { base: true }, [95, -50]),
+    p("S4", "dpdt-switch", { to: "a", tag: "S4" }, [230, -50]),
+    p("K2", "relay", { base: true, mystery: "31402" }, [-150, 60]),
+    p("TP1", "touch-pads", {}, [0, 0], { holes: { a: "e5", b: "e7" } }),
+    p("C1", "electrolytic-cap", { farads: 100e-6, span: 4 }, [0, 0], { holes: { pos: "c12", neg: "c16" } }),
+    p("C2", "ceramic-cap", { farads: 100e-9 }, [0, 0], { holes: { a: "h20", b: "h22" } }),
   ];
   return b;
 }

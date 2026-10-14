@@ -93,6 +93,16 @@ export class InkView {
     } else this.glide(cam);
   }
 
+  /** Tell listeners on the next frame that something they may follow moved (a part being dragged). */
+  ping(): void {
+    this.schedule();
+  }
+
+  /** The view has a size (before that, framing waits). */
+  get sized(): boolean {
+    return this.vp.w > 1 && this.vp.h > 1;
+  }
+
   resize(w: number, h: number): void {
     if (w === this.vp.w && h === this.vp.h) return;
     this.vp = { w: Math.max(1, w), h: Math.max(1, h) };

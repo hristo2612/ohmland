@@ -13,6 +13,7 @@ import type { Anchor, BenchState, MeterMode, MeterSocket, MeterState, PlacedPart
 import { rectOfPoints, unionRect, type Rect } from "./camera";
 import { INK, boxCorners, toLocal, toWorld, type Box, type Frame } from "./frame";
 import { inkKind } from "./kinds";
+import { parseTarget } from "../view/targets";
 
 export { INK, boxCorners, frameTransform, toLocal, toWorld, type Box, type Frame } from "./frame";
 
@@ -474,7 +475,11 @@ export const METER_SPOTS: Record<string, Box> = {
   sockets: [METER.sockets.xs.a10 - 6, METER.sockets.z - 6, METER.sockets.xs.vohm + 6, METER.sockets.z + 6],
 };
 
-/** The desk rectangle a target names: a bare id ("D1"), "part:D1", "part:M1/display", "board", "strip:14a-e" or an anchor. */
+/**
+ * The desk rectangle a target names. Everything `parseTarget` takes (`part:D1`, `part:M1/display`, `part:M1/dial`,
+ * `part:M1/com`, `lead:TL1`, `wire:W1`, any anchor), plus a bare id ("D1"), `part:R1/a` (a lead), the meter's
+ * `dialFace` and `sockets`, `board` and `strip:14a-e`.
+ */
 export function targetRect(model: InkModel, target: string): Rect | null {
   const t = target.trim();
   const { bench } = model;
@@ -489,42 +494,55 @@ export function targetRect(model: InkModel, target: string): Rect | null {
     const [ox, oz] = boardOrigin(bench.board);
     return [ox + s.x0 - 1, oz + s.z0 - 1, ox + s.x1 + 1, oz + s.z1 + 1];
   }
-  const body = t.startsWith("part:") ? t.slice(5) : t.includes(":") ? null : t;
-  if (body !== null) {
-    const [id, sub] = body.split("/") as [string, string | undefined];
-    const pi = model.parts.get(id);
-    if (pi) {
-      if (!sub) return partBounds(pi);
-      const p = pi.legs[sub];
-      return p ? [p[0] - 1.5, p[1] - 1.5, p[0] + 1.5, p[1] + 1.5] : null;
-    }
+  const parsed = t.includes(":") ? parseTarget(t) : ({ type: "part", id: t, sub: null } as const);
+  if (!parsed) return null;
+  if (parsed.type === "lead") {
+    const li = model.leads.get(parsed.id);
+    return li ? rectOfPoints([li.a.tip, li.a.tail, li.b.tip, li.b.tail], 2) : null;
+  }
+  if (parsed.type === "wire") {
+    const wi = model.wires.get(parsed.id);
+    return wi ? rectOfPoints([wi.a, wi.b, wi.ctrl], 1.5) : null;
+  }
+  if (parsed.type === "anchor") {
+    const p = anchorInk(model, parsed.anchor);
+    return p ? [p[0] - 1.5, p[1] - 1.5, p[0] + 1.5, p[1] + 1.5] : null;
+  }
+  const { id, sub } = parsed;
+  const pi = model.parts.get(id);
+  if (pi) {
+    if (!sub) return partBounds(pi);
+    const p = pi.legs[sub];
+    return p ? [p[0] - 1.5, p[1] - 1.5, p[0] + 1.5, p[1] + 1.5] : null;
+  }
+  // A bare id may also name a jumper or a test lead.
+  if (!t.includes(":")) {
     const wi = model.wires.get(id);
     if (wi) return rectOfPoints([wi.a, wi.b, wi.ctrl], 1.5);
     const li = model.leads.get(id);
     if (li) return rectOfPoints([li.a.tip, li.a.tail, li.b.tip, li.b.tail], 2);
-    if (model.meter && model.meter.meter.id === id) {
-      const f = model.meter.f;
-      if (sub) {
-        const spot = METER_SPOTS[sub];
-        if (spot) return rectOfPoints(boxCorners(f, spot));
-        if (sub in METER.sockets.xs) {
-          const [x, , z] = socketWorld(model.meter.meter, sub as MeterSocket);
-          return [x - 5, z - 5, x + 5, z + 5];
-        }
-        return null;
-      }
-      return rectOfPoints(boxCorners(f, [-METER.width / 2, -METER.length / 2, METER.width / 2, METER.length / 2]));
-    }
-    return null;
   }
-  const p = anchorInk(model, t);
-  return p ? [p[0] - 1.5, p[1] - 1.5, p[0] + 1.5, p[1] + 1.5] : null;
+  if (model.meter && model.meter.meter.id === id) {
+    const f = model.meter.f;
+    if (sub) {
+      const spot = METER_SPOTS[sub];
+      if (spot) return rectOfPoints(boxCorners(f, spot));
+      if (sub in METER.sockets.xs) {
+        const [x, , z] = socketWorld(model.meter.meter, sub as MeterSocket);
+        return [x - 5, z - 5, x + 5, z + 5];
+      }
+      return null;
+    }
+    return rectOfPoints(boxCorners(f, [-METER.width / 2, -METER.length / 2, METER.width / 2, METER.length / 2]));
+  }
+  return null;
 }
 
-/** The point a target names on the desk (centre of a part, the jaws of a clip, a hole). */
+/** The point a target names on the desk (the middle of a part, the jaws of a clip, a hole). */
 export function targetPoint(model: InkModel, target: string): Vec2 | null {
   const t = target.trim();
-  if (!t.startsWith("part:") && t.includes(":") && !t.startsWith("strip:")) return anchorInk(model, t);
+  const parsed = t.includes(":") && !t.startsWith("strip:") ? parseTarget(t) : null;
+  if (parsed?.type === "anchor") return anchorInk(model, parsed.anchor);
   const r = targetRect(model, t);
   return r ? [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2] : null;
 }
@@ -552,6 +570,11 @@ export function targetOwners(model: InkModel, targets: readonly string[]): Set<s
     const t = raw.trim();
     if (t === "board" || t.startsWith("hole:") || t.startsWith("strip:")) {
       out.add("board");
+      continue;
+    }
+    const whole = t.includes(":") ? parseTarget(t) : null;
+    if (whole?.type === "lead" || whole?.type === "wire") {
+      out.add(whole.id);
       continue;
     }
     const body = t.startsWith("part:") ? t.slice(5).split("/")[0]! : t.includes(":") ? null : t;

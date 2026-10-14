@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./core": "./src/core.ts",
+    "./view": "./src/view/index.ts",
     "./ink": "./src/ink/index.ts"
   },
   "scripts": {
@@ -20,7 +21,6 @@
     "@ohmland/sim": "workspace:*",
     "@react-three/drei": "10.7.9",
     "@react-three/fiber": "9.8.1",
-    "@react-three/postprocessing": "3.2.0",
     "postprocessing": "6.39.5",
     "zustand": "5.0.15"
   },

@@ -371,10 +371,16 @@ enough context for the lab to explain what happened.
 
 ## Workbench (`packages/bench`)
 
-React Three Fiber components and logic for the lab bench:
+React Three Fiber components and logic for the lab bench, in two interchangeable views of one store
+(docs/BENCH-VIEWS.md): the 3D bench on grid paper and the 2D ink bench. `<BenchView view>` (from
+`@ohmland/bench/view`, which has no three.js) lazy-loads the renderer and hands out a `BenchController` (`project`,
+`onViewChange`, `focus`, `spotlight`) that stays the same object across view switches.
 
+- The 3D view is drawn as a page of the Lab Notebook: an unlit grid-paper desk in the page colour, soft paper-matched
+  light, matte materials, contact shadows redrawn only when the bench changes, and on high quality a depth-based ink
+  outline pass. It follows the page's notebook tokens (light and night pages).
 - Procedural low-poly part models built in code (no downloaded models), clean and readable: resistor with correct
-  colour bands for its value, LEDs (3 and 5 mm, colours, glow + bloom), 9 V battery and snap, alligator test leads,
+  colour bands for its value, LEDs (3 and 5 mm, colours, glow + bloom), 9 V battery and snap, mini clip test leads,
   jumper wires, solderless breadboard, multimeter (rotary dial, LCD, banana sockets, probes), pushbutton, slide and
   toggle switches, fuse, capacitors (electrolytic, ceramic, with legs that bend to reach holes up to seven apart),
   potentiometer, relay (DPDT, or single changeover with `poles: 1`), NPN transistor (TO-92), phototransistor, small
@@ -513,7 +519,12 @@ latest events added. Each unit is its own island in an archipelago, linked by ca
 
 Look: a floating circuit board. Matte solder-mask green land, copper trace roads with vias, white silkscreen marks,
 components as buildings (capacitor towers, IC factories, resistor rows, LED street lamps), layered FR4 edges, dangling
-wire roots, clouds. The mascot (a small voxel robot with an LED face) floats over the square.
+wire roots. The mascot (a small voxel robot with an LED face) floats over the square.
+
+- `opts.look: "notebook" | "classic"` (default `"notebook"`): notebook draws the island on grid paper with graphite ink
+  outlines, a pencil shadow and calmer motion, and a "night page" at night; classic is the original sky look.
+- `opts.paper: "grid" | "plain" | "clear"` (notebook only): `"clear"` leaves the canvas transparent so a page that
+  already has grid paper shows through and the grids line up.
 
 ## Routes
 

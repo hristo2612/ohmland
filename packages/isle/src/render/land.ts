@@ -10,36 +10,50 @@ import { REF } from "../catalog";
 import { hash2 } from "../math";
 import { PLAZA_R, footCells, key, radiusOf, ringOpen, roadCells, tierAt, type IslandPlan, type IsleItem } from "../plan";
 import { PAL, Q, glyph, type Built, type Col, type Shape } from "./kit";
+import type { Grade } from "./look";
 
-const C = (h: string) => new THREE.Color(h);
-const L = {
-  mask: C(PAL.mask),
-  mask2: C(PAL.mask2),
-  maskDark: C(PAL.maskDark),
-  copper: C(PAL.copper),
-  copperDark: C(PAL.copperDark),
-  gold: C(PAL.gold),
-  silk: C(PAL.silk),
-  hole: C(PAL.hole),
-  dot: C("#4FB27A"),
-  fr4: C(PAL.fr4),
-  fr4b: C(PAL.fr4b),
-  rock: C("#9A8B7D"),
-  rock2: C("#86786C"),
-  rock3: C("#73675D"),
-  ore: C("#C9853F"),
-  moss: C(PAL.moss),
-  moss2: C(PAL.moss2),
-  mossHi: C("#A9D65C"),
-  flowerA: C("#FFFFFF"),
-  flowerB: C("#F7D63A"),
-  wireRed: C(PAL.red),
-  wireBlack: C("#34343A"),
-  wireYellow: C(PAL.yellow),
-  wireBlue: C(PAL.blue),
-  wireGreen: C(PAL.green),
-};
-const WIRES = [L.wireRed, L.wireBlack, L.wireYellow, L.wireBlue, L.wireRed, L.wireGreen];
+/** The land's colours as sRGB hex, drawn as they are (classic) or through a look's grade. */
+const LAND = {
+  mask: PAL.mask,
+  mask2: PAL.mask2,
+  maskDark: PAL.maskDark,
+  copper: PAL.copper,
+  copperDark: PAL.copperDark,
+  gold: PAL.gold,
+  silk: PAL.silk,
+  hole: PAL.hole,
+  dot: "#4FB27A",
+  fr4: PAL.fr4,
+  fr4b: PAL.fr4b,
+  rock: "#9A8B7D",
+  rock2: "#86786C",
+  rock3: "#73675D",
+  ore: "#C9853F",
+  moss: PAL.moss,
+  moss2: PAL.moss2,
+  mossHi: "#A9D65C",
+  flowerA: "#FFFFFF",
+  flowerB: "#F7D63A",
+  wireRed: PAL.red,
+  wireBlack: "#34343A",
+  wireYellow: PAL.yellow,
+  wireBlue: PAL.blue,
+  wireGreen: PAL.green,
+} as const;
+export type LandPalette = Record<keyof typeof LAND, THREE.Color> & { wires: THREE.Color[]; top: THREE.Color[] };
+
+/** The land's colours for a look (null: as they are). */
+export function landPalette(grade: Grade | null): LandPalette {
+  const p = {} as Record<keyof typeof LAND, THREE.Color>;
+  for (const [k, hex] of Object.entries(LAND) as [keyof typeof LAND, string][]) p[k] = grade ? grade(hex, new THREE.Color()) : new THREE.Color(hex);
+  return {
+    ...p,
+    wires: [p.wireRed, p.wireBlack, p.wireYellow, p.wireBlue, p.wireRed, p.wireGreen],
+    // the board bitmap's colours, indexed by its values (NONE, DOT, SILK, TRACE, PAD, HOLE)
+    top: [p.mask, p.dot, p.silk, p.copper, p.gold, p.hole],
+  };
+}
+const CLASSIC = landPalette(null);
 
 export type CellInfo = { x: number; z: number; at: number; depth: number; rim: number };
 export type LandInfo = { cells: Map<number, CellInfo>; radius: number };
@@ -90,7 +104,6 @@ const TRACE = 3;
 const PAD = 4;
 const HOLE = 5;
 const HEIGHT = [0, 0.012, 0.016, 0.0625, 0.0625, 0.02];
-const TOPC = [L.mask, L.dot, L.silk, L.copper, L.gold, L.hole];
 
 export class Board {
   readonly u0: number;
@@ -375,7 +388,7 @@ class Quads {
 
 /** Where the side of a cell changes material, from the top down. */
 const LAYERS = [0, -0.125, -0.5, -0.625, -1.0, -1.125];
-function sideColor(y: number, x: number, z: number): THREE.Color {
+function sideColor(L: LandPalette, y: number, x: number, z: number): THREE.Color {
   if (y > -0.125) return L.copper;
   if (y > -0.5) return L.fr4;
   if (y > -0.625) return L.copperDark;
@@ -404,7 +417,12 @@ function bands(lo: number, hi: number): [number, number][] {
  * The mesh for the cells in `only` (all when null): their tops, the board bitmap over them, their sides (only what no
  * neighbour covers), moss on the rim and wires hanging from the keel. Positions are local to the island.
  */
-export function landMesh(land: LandInfo, board: Board | null, only: Set<number> | null): { top: THREE.BufferGeometry; sides: THREE.BufferGeometry } {
+export function landMesh(
+  land: LandInfo,
+  board: Board | null,
+  only: Set<number> | null,
+  L: LandPalette = CLASSIC,
+): { top: THREE.BufferGeometry; sides: THREE.BufferGeometry } {
   const q = new Quads();
   const qs = new Quads();
   const all = land.cells;
@@ -428,7 +446,7 @@ export function landMesh(land: LandInfo, board: Board | null, only: Set<number> 
       }
       const shade = dx === 1 ? 0.96 : dx === -1 ? 0.9 : dz === 1 ? 1 : 0.88;
       for (const [y0, y1] of bands(lo, hi)) {
-        const cc = sideColor((y0 + y1) / 2, c.x, c.z);
+        const cc = sideColor(L, (y0 + y1) / 2, c.x, c.z);
         if (dx === 1) qs.quad([x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1], cc, shade);
         else if (dx === -1) qs.quad([x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0], cc, shade);
         else if (dz === 1) qs.quad([x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1], cc, shade);
@@ -465,7 +483,7 @@ export function landMesh(land: LandInfo, board: Board | null, only: Set<number> 
     const r = hash2(c.x + 9, c.z - 4, 31);
     if (r > 0.9 && c.rim <= 3) {
       const len = 1 + Math.floor(hash2(c.x, c.z, 32) * 6) * 0.5;
-      const wc = WIRES[Math.floor(hash2(c.x, c.z, 33) * WIRES.length)]!;
+      const wc = L.wires[Math.floor(hash2(c.x, c.z, 33) * L.wires.length)]!;
       const wx = c.x + (hash2(c.x, c.z, 34) - 0.5) * 0.5;
       const wz = c.z + (hash2(c.x, c.z, 35) - 0.5) * 0.5;
       const kink = hash2(c.x, c.z, 36) > 0.5 ? 0.125 : -0.125;
@@ -475,7 +493,7 @@ export function landMesh(land: LandInfo, board: Board | null, only: Set<number> 
       q.box(wx - 0.0625 + kink, wx + 0.0625 + kink, b - len - 0.1875, b - len, wz - 0.0625, wz + 0.0625, L.copper);
     }
   }
-  if (board) extrude(q, board, all, only);
+  if (board) extrude(q, board, all, only, L);
   return { top: q.geometry(), sides: qs.geometry() };
 }
 
@@ -483,7 +501,7 @@ export function landMesh(land: LandInfo, board: Board | null, only: Set<number> 
  * The board bitmap as geometry over the given cells: runs of equal sub-cells merged into rectangles across the whole
  * island, with the thin copper edges on the two sides the camera faces (+x and +z).
  */
-function extrude(q: Quads, b: Board, all: Map<number, CellInfo>, only: Set<number> | null): void {
+function extrude(q: Quads, b: Board, all: Map<number, CellInfo>, only: Set<number> | null, L: LandPalette): void {
   const S = 1 / 8;
   const h = (u: number, w: number) => HEIGHT[b.at(u, w)]!;
   const inSet = (u: number, w: number) => {
@@ -521,7 +539,7 @@ function extrude(q: Quads, b: Board, all: Map<number, CellInfo>, only: Set<numbe
   }
   for (const rc of rects) {
     const y = HEIGHT[rc.v]!;
-    const col = TOPC[rc.v]!;
+    const col = L.top[rc.v]!;
     const xa = rc.u0 * S - 0.5;
     const xb = rc.u1 * S - 0.5;
     const za = rc.w0 * S - 0.5;

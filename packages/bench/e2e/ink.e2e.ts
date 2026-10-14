@@ -20,11 +20,12 @@ type InkWindow = Window & {
       ui: { xray: boolean; pressed: Record<string, boolean>; selection: { type: string; id: string } | null };
     };
   };
-  __ink: { current: { project: (a: string) => { x: number; y: number; visible: boolean } | null; camera: () => { s: number }; focus: (t: string[], o?: { instant?: boolean }) => void } };
+  /** BenchView's controller hub; `inner()` is the ink view's own controller. */
+  __controller: { current: { inner: () => { project: (a: string) => { x: number; y: number; visible: boolean } | null; camera: () => { s: number }; focus: (t: string[], o?: { instant?: boolean }) => void } } };
 };
 
 async function open(page: Page, query: string) {
-  await page.goto(`/?view=ink&panel=0&${query}`);
+  await page.goto(`/?view=ink&panel=0&toggle=0&${query}`);
   await page.waitForFunction(() => (window as unknown as InkWindow).__ready === true, null, { timeout: 20_000 });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(250);
@@ -38,7 +39,7 @@ async function at(page: Page, anchor: string): Promise<{ x: number; y: number }>
   const p = await page.evaluate((a) => {
     const w = window as unknown as InkWindow;
     const r = document.querySelector(".ohi-root")!.getBoundingClientRect();
-    const s = w.__ink.current.project(a);
+    const s = w.__controller.current.inner().project(a);
     return s ? { x: s.x + r.left, y: s.y + r.top } : null;
   }, anchor);
   if (!p) throw new Error(`cannot project ${anchor}`);
@@ -117,12 +118,12 @@ test.describe("interaction", () => {
     expect(leads.find((l) => l.id === "TL3")!.a.to).toBe("pin:D1.cathode");
 
     await open(page, "tray=0");
-    await page.evaluate(() => (window as unknown as InkWindow).__ink.current.focus(["R1", "D1"], { instant: true }));
+    await page.evaluate(() => (window as unknown as InkWindow).__controller.current.inner().focus(["R1", "D1"], { instant: true }));
     await page.waitForTimeout(100);
     await drag(page, await at(page, "probe:red"), await at(page, "pin:R1.a"));
     expect((await state(page)).meter!.probes.red!.tip.to).toBe("pin:R1.a");
 
-    await page.evaluate(() => (window as unknown as InkWindow).__ink.current.focus(["part:M1/dialFace"], { instant: true }));
+    await page.evaluate(() => (window as unknown as InkWindow).__controller.current.inner().focus(["part:M1/dialFace"], { instant: true }));
     await page.waitForTimeout(100);
     const knob = await at(page, "part:M1/dial");
     await page.mouse.click(knob.x, knob.y);
@@ -134,8 +135,8 @@ test.describe("interaction", () => {
     const flip = await page.evaluate(() => {
       const w = window as unknown as InkWindow;
       const r = document.querySelector(".ohi-root")!.getBoundingClientRect();
-      const p = w.__ink.current.project("part:S1");
-      return { x: p!.x + r.left, y: p!.y + r.top - 5.5 * w.__ink.current.camera().s };
+      const p = w.__controller.current.inner().project("part:S1");
+      return { x: p!.x + r.left, y: p!.y + r.top - 5.5 * w.__controller.current.inner().camera().s };
     });
     const before = (await state(page)).parts.find((p) => p.id === "S1")!.params.to;
     await page.mouse.click(flip.x, flip.y);
@@ -144,8 +145,8 @@ test.describe("interaction", () => {
     const button = await page.evaluate(() => {
       const w = window as unknown as InkWindow;
       const r = document.querySelector(".ohi-root")!.getBoundingClientRect();
-      const p = w.__ink.current.project("part:S3");
-      return { x: p!.x + r.left, y: p!.y + r.top - 5.5 * w.__ink.current.camera().s };
+      const p = w.__controller.current.inner().project("part:S3");
+      return { x: p!.x + r.left, y: p!.y + r.top - 5.5 * w.__controller.current.inner().camera().s };
     });
     await page.mouse.move(button.x, button.y);
     await page.mouse.down();
@@ -154,7 +155,7 @@ test.describe("interaction", () => {
     expect((await uiState(page)).pressed.S3).toBe(false);
 
     await open(page, "scene=props&tray=0");
-    await page.evaluate(() => (window as unknown as InkWindow).__ink.current.focus(["P1"], { instant: true }));
+    await page.evaluate(() => (window as unknown as InkWindow).__controller.current.inner().focus(["P1"], { instant: true }));
     await page.waitForTimeout(100);
     await page.getByText("DRY", { exact: true }).click();
     expect((await state(page)).parts.find((p) => p.id === "P1")!.params.moisture).toBe("dry");
@@ -189,11 +190,11 @@ test.describe("interaction", () => {
 
   test("turn a trimmer, move a plug, rotate and delete, draw a pencil line", async ({ page }) => {
     await open(page, "tray=0");
-    await page.evaluate(() => (window as unknown as InkWindow).__ink.current.focus(["RV1", "M1"], { instant: true }));
+    await page.evaluate(() => (window as unknown as InkWindow).__controller.current.inner().focus(["RV1", "M1"], { instant: true }));
     await page.waitForTimeout(100);
     // The trimmer's rotor: from its centre, drag round to the right.
     const rv = await at(page, "part:RV1");
-    const s = await page.evaluate(() => (window as unknown as InkWindow).__ink.current.camera().s);
+    const s = await page.evaluate(() => (window as unknown as InkWindow).__controller.current.inner().camera().s);
     await drag(page, { x: rv.x, y: rv.y }, { x: rv.x + 6 * s, y: rv.y + 2 * s });
     const pos = (await state(page)).parts.find((p) => p.id === "RV1")!.params.position as number;
     expect(pos).toBeGreaterThan(0.6);
@@ -212,13 +213,13 @@ test.describe("interaction", () => {
     expect((await state(page)).parts.find((p) => p.id === "Q1")).toBeUndefined();
 
     await open(page, "scene=props&tray=0");
-    await page.evaluate(() => (window as unknown as InkWindow).__ink.current.focus(["P4"], { instant: true }));
+    await page.evaluate(() => (window as unknown as InkWindow).__controller.current.inner().focus(["P4"], { instant: true }));
     await page.waitForTimeout(100);
     const zero = await page.evaluate(() => {
       const w = window as unknown as InkWindow;
       const r = document.querySelector(".ohi-root")!.getBoundingClientRect();
-      const c = w.__ink.current.project("part:P4/p0")!;
-      return { x: c.x + r.left, y: c.y + r.top, s: w.__ink.current.camera().s };
+      const c = w.__controller.current.inner().project("part:P4/p0")!;
+      return { x: c.x + r.left, y: c.y + r.top, s: w.__controller.current.inner().camera().s };
     });
     // A stroke from the 0 mark to 8 cm: on a card with a 5 cm line, it shades over and lengthens it.
     await drag(page, { x: zero.x + 2 * zero.s, y: zero.y }, { x: zero.x + 80 * zero.s, y: zero.y });
@@ -231,7 +232,7 @@ test.describe("interaction", () => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
     const page = await ctx.newPage();
     await open(page, "tray=0");
-    const s0 = await page.evaluate(() => (window as unknown as InkWindow).__ink.current.camera().s);
+    const s0 = await page.evaluate(() => (window as unknown as InkWindow).__controller.current.inner().camera().s);
     await page.evaluate(async () => {
       const el = document.querySelector(".ohi-root")!;
       const fire = (type: string, id: number, x: number, y: number) =>
@@ -246,7 +247,7 @@ test.describe("interaction", () => {
       fire("pointerup", 1, 90, 300);
       fire("pointerup", 2, 300, 300);
     });
-    const s1 = await page.evaluate(() => (window as unknown as InkWindow).__ink.current.camera().s);
+    const s1 = await page.evaluate(() => (window as unknown as InkWindow).__controller.current.inner().camera().s);
     expect(s1 / s0).toBeGreaterThan(1.8);
     await ctx.close();
   });
@@ -311,7 +312,7 @@ test.describe("screenshots", () => {
 
   test("3D and ink side by side", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/?view=split&panel=0&tray=0&glow=0.85&scene=glow");
+    await page.goto("/?view=split&panel=0&toggle=0&tray=0&glow=0.85&scene=glow");
     await page.waitForFunction(() => (window as unknown as InkWindow).__ready === true, null, { timeout: 30_000 });
     await page.waitForTimeout(2500);
     expect(await shot(page, "ink-split")).toBeLessThan(600_000);

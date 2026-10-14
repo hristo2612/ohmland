@@ -30,14 +30,14 @@ function PartBrackets({ pi, className }: { pi: PartInk; className: string }) {
   );
 }
 
-/** A loose pencil ring round a desk rectangle. */
+/** A pencil ring round a desk rectangle: a rounded band, as the 3D view rings its targets. */
 function Ring({ r, className, pad = 2.6 }: { r: Rect; className: string; pad?: number }) {
+  const w = Math.max(4.8, r[2] - r[0] + pad * 2);
+  const h = Math.max(4.8, r[3] - r[1] + pad * 2);
   const cx = (r[0] + r[2]) / 2;
   const cz = (r[1] + r[3]) / 2;
-  const rx = (r[2] - r[0]) / 2 + pad;
-  const rz = (r[3] - r[1]) / 2 + pad;
-  const k = Math.SQRT2 * 0.82;
-  return <ellipse cx={n3(cx)} cy={n3(cz)} rx={n3(Math.max(2.4, rx * k))} ry={n3(Math.max(2.4, rz * k))} className={className} />;
+  const rad = Math.min(w, h) / 2;
+  return <rect x={n3(cx - w / 2)} y={n3(cz - h / 2)} width={n3(w)} height={n3(h)} rx={n3(rad)} className={className} />;
 }
 
 export type MarksProps = {
@@ -90,7 +90,7 @@ export const Marks = memo(function Marks({ model, ui, hintParts, hintAnchors, sp
   if (spot) {
     for (const t of spot) {
       const r = targetRect(model, t);
-      if (r) out.push(<Ring key={`s:${t}`} r={r} className="spot spot-pulse" pad={t.includes(":") && !t.startsWith("part:") ? 1.2 : 3.4} />);
+      if (r) out.push(<Ring key={`s:${t}`} r={r} className="spot" pad={t.includes(":") && !t.startsWith("part:") ? 1.2 : 2.4} />);
     }
   }
   if (focus) {

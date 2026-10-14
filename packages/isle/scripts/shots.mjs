@@ -1,12 +1,14 @@
-// Screenshots of the playground at several isle sizes, day and night, desktop and phone, plus a contact sheet.
+// Screenshots of the playground at several isle sizes, in each look and time, desktop and phone, plus a contact sheet.
 //
-//   node scripts/shots.mjs [--out dir] [--only name] [--times day,night] [--views desktop,phone] [--small]
-//                          [--zoom 3] [--query only=switching] [--reveal] [--robot] [--perf]
+//   node scripts/shots.mjs [--out dir] [--only name] [--variants notebook:day,notebook:night,classic:day]
+//                          [--views desktop,phone] [--small] [--zoom 3] [--query only=switching]
+//                          [--reveal] [--look notebook] [--time day] [--robot] [--perf]
 //
-// Starts the playground with Vite and drives headless Chromium (WebGL through SwiftShader). Saves one PNG per shot,
-// contact-sheet.png and a compact contact-sheet.jpg in the output folder (default: screenshots/out, not committed).
-// --small also saves reduced copies, --reveal frames of a lesson and a module reveal, --robot the robot on its own,
-// --perf the draw calls and triangles of a 300-lesson isle (its frame rate needs a GPU: scripts/perf.mjs).
+// Starts the playground with Vite and drives headless Chromium (WebGL through SwiftShader). Saves one PNG per shot
+// (<size>-<look>-<time>-<view>.png), contact-sheet.png and a compact contact-sheet.jpg in the output folder (default:
+// screenshots/out, not committed). --small also saves reduced copies, --reveal frames of a lesson and a module reveal
+// in --look at --time, --robot the robot on its own in both looks, --perf the draw calls and triangles of a 300-lesson
+// isle in --look (its frame rate needs a GPU: scripts/perf.mjs).
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,18 +28,21 @@ const small = args.includes("--small");
 const perf = args.includes("--perf");
 const zoom = opt("--zoom", "");
 const query = opt("--query", "");
-const timesArg = opt("--times", "day,night");
+const variantsArg = opt("--variants", "notebook:day,notebook:night,classic:day");
 const viewsArg = opt("--views", "desktop,phone");
+const look = opt("--look", "notebook");
 mkdirSync(out, { recursive: true });
 
 const SIZES = [
   { name: "01-first-lesson", l: 1, m: 0, u: 1, caption: "1 lesson" },
-  { name: "02-early", l: 6, m: 2, u: 1, caption: "6 lessons, 2 modules" },
-  { name: "03-growing", l: 20, m: 6, u: 1, caption: "20 lessons, 6 modules" },
-  { name: "04-two-units", l: 35, m: 12, u: 2, caption: "35 lessons, 12 modules, 2 units" },
-  { name: "05-archipelago", l: 120, m: 30, u: 5, caption: "120 lessons, 30 modules, 5 units" },
+  { name: "02-twelve", l: 12, m: 4, u: 1, caption: "12 lessons, 4 modules" },
+  { name: "03-forty", l: 40, m: 12, u: 2, caption: "40 lessons, 12 modules, 2 units" },
+  { name: "04-archipelago", l: 120, m: 30, u: 5, caption: "120 lessons, 30 modules, 5 units" },
 ];
-const TIMES = timesArg.split(",");
+const VARIANTS = variantsArg.split(",").map((v) => {
+  const [lk, time] = v.split(":");
+  return { look: lk, time: time ?? "day" };
+});
 const VIEWS = [
   { name: "desktop", width: 1440, height: 900, dpr: 1 },
   { name: "phone", width: 390, height: 844, dpr: 2 },
@@ -48,16 +53,16 @@ await server.listen();
 const base = server.resolvedUrls.local[0];
 const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
 
-async function shoot(view, size, time) {
+async function shoot(view, size, { look, time }) {
   const ctx = await browser.newContext({ viewport: { width: view.width, height: view.height }, deviceScaleFactor: view.dpr });
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
-  await page.goto(`${base}?l=${size.l}&m=${size.m}&u=${size.u}&seed=7&time=${time}&bare=1${zoom ? `&zoom=${zoom}` : ""}${query ? `&${query}` : ""}`);
+  await page.goto(`${base}?l=${size.l}&m=${size.m}&u=${size.u}&seed=7&time=${time}&look=${look}&bare=1${zoom ? `&zoom=${zoom}` : ""}${query ? `&${query}` : ""}`);
   await page.waitForFunction(() => window.__isle?.ready === true, null, { timeout: 120_000 });
   await page.waitForTimeout(1200);
-  const file = join(out, `${size.name}-${time}-${view.name}.png`);
+  const file = join(out, `${size.name}-${look}-${time}-${view.name}.png`);
   const png = await page.screenshot({ type: "png" });
   writeFileSync(file, png);
   const stats = await page.evaluate(() => window.__isle.view.stats());
@@ -88,11 +93,13 @@ async function shoot(view, size, time) {
 const shots = [];
 for (const size of SIZES) {
   if (only && !size.name.includes(only)) continue;
-  for (const time of TIMES)
-    for (const view of VIEWS) {
-      const r = await shoot(view, size, time);
-      shots.push({ ...r, size, time, view });
-      console.log(`${size.name} ${time} ${view.name}: ${r.stats.calls} calls, ${(r.stats.triangles / 1000).toFixed(1)}k triangles, ${r.stats.instances} instances in ${r.stats.pools} pools`);
+  for (const view of VIEWS)
+    for (const variant of VARIANTS) {
+      const r = await shoot(view, size, variant);
+      shots.push({ ...r, size, ...variant, view });
+      console.log(
+        `${size.name} ${variant.look} ${variant.time} ${view.name}: ${r.stats.calls} calls, ${(r.stats.triangles / 1000).toFixed(1)}k triangles, ${r.stats.instances} instances in ${r.stats.pools} pools`,
+      );
     }
 }
 
@@ -101,7 +108,7 @@ if (args.includes("--reveal")) {
   for (const kind of ["lesson", "module"]) {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
     const page = await ctx.newPage();
-    await page.goto(`${base}?l=6&m=2&u=1&seed=7&time=${opt("--time", "day")}&bare=1`);
+    await page.goto(`${base}?l=6&m=2&u=1&seed=7&time=${opt("--time", "day")}&look=${look}&bare=1`);
     await page.waitForFunction(() => window.__isle?.ready === true, null, { timeout: 120_000 });
     await page.waitForTimeout(800);
     await page.evaluate((k) => {
@@ -109,28 +116,31 @@ if (args.includes("--reveal")) {
       void window.__isle.reveal(k).then((info) => (window.__revealDone = info));
     }, kind);
     const t0 = Date.now();
-    for (const [i, ms] of [600, 1500, 2300, 3200].entries()) {
+    // the notebook's reveal is shorter
+    const at = look === "classic" ? [600, 1500, 2300, 3200] : [400, 900, 1400, 2000];
+    for (const [i, ms] of at.entries()) {
       await page.waitForTimeout(Math.max(0, ms - (Date.now() - t0)));
-      writeFileSync(join(out, `reveal-${kind}-${i + 1}.png`), await page.screenshot({ type: "png" }));
+      writeFileSync(join(out, `reveal-${look}-${kind}-${i + 1}.png`), await page.screenshot({ type: "png" }));
     }
     await page.waitForFunction(() => window.__revealDone !== null, null, { timeout: 60_000 });
     await page.waitForTimeout(400);
-    writeFileSync(join(out, `reveal-${kind}-5.png`), await page.screenshot({ type: "png" }));
+    writeFileSync(join(out, `reveal-${look}-${kind}-5.png`), await page.screenshot({ type: "png" }));
     console.log(`reveal ${kind}: ${JSON.stringify(await page.evaluate(() => window.__revealDone))} in ${Date.now() - t0} ms`);
     await ctx.close();
   }
 }
 
 if (args.includes("--robot")) {
-  for (const night of [false, true]) {
-    const ctx = await browser.newContext({ viewport: { width: 900, height: 520 }, deviceScaleFactor: 1 });
-    const page = await ctx.newPage();
-    await page.goto(`${base}robot.html${night ? "?night=1" : ""}`);
-    await page.waitForFunction(() => window.__robotReady === true, null, { timeout: 60_000 });
-    await page.waitForTimeout(300);
-    writeFileSync(join(out, `robot-${night ? "night" : "day"}.png`), await page.screenshot({ type: "png" }));
-    await ctx.close();
-  }
+  for (const lk of ["notebook", "classic"])
+    for (const night of [false, true]) {
+      const ctx = await browser.newContext({ viewport: { width: 900, height: 520 }, deviceScaleFactor: 1 });
+      const page = await ctx.newPage();
+      await page.goto(`${base}robot.html?look=${lk}${night ? "&night=1" : ""}`);
+      await page.waitForFunction(() => window.__robotReady === true, null, { timeout: 60_000 });
+      await page.waitForTimeout(300);
+      writeFileSync(join(out, `robot-${lk}-${night ? "night" : "day"}.png`), await page.screenshot({ type: "png" }));
+      await ctx.close();
+    }
   console.log("robot shots saved");
 }
 
@@ -138,25 +148,27 @@ if (perf) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   const t0 = Date.now();
-  await page.goto(`${base}?l=300&m=80&u=5&seed=7&time=night&bare=1`);
+  await page.goto(`${base}?l=300&m=80&u=5&seed=7&time=night&look=${look}&bare=1`);
   await page.waitForFunction(() => window.__isle?.ready === true, null, { timeout: 180_000 });
   const ready = Date.now() - t0;
   await page.waitForTimeout(3000);
   const stats = await page.evaluate(() => window.__isle.view.stats());
-  writeFileSync(join(out, "perf-300.png"), await page.screenshot({ type: "png" }));
-  console.log(`300 lessons, 80 modules, 5 units: ready in ${ready} ms, ${JSON.stringify(stats)}`);
+  writeFileSync(join(out, `perf-300-${look}.png`), await page.screenshot({ type: "png" }));
+  console.log(`300 lessons, 80 modules, 5 units, ${look}: ready in ${ready} ms, ${JSON.stringify(stats)}`);
   await ctx.close();
 }
 
-// The contact sheet: every shot in a grid, desktop shots in one band, phone shots in another.
+// The contact sheet: every shot in a grid, desktop shots in one band (a row per size, a column per look and time),
+// phone shots in another.
 if (shots.length > 1) {
   const page = await (await browser.newContext({ viewport: { width: 800, height: 600 } })).newPage();
   const items = shots.map((s) => ({
     src: `data:image/png;base64,${readFileSync(s.file).toString("base64")}`,
-    caption: `${s.size.caption}, ${s.time}`,
+    caption: `${s.size.caption}, ${s.look} ${s.time}`,
     phone: s.view.name === "phone",
   }));
-  const sheet = await page.evaluate(async (items) => {
+  const cols = Math.max(1, Math.min(4, VARIANTS.length));
+  const sheet = await page.evaluate(async ({ items, cols }) => {
     const load = (src) => new Promise((r) => {
       const i = new Image();
       i.onload = () => r(i);
@@ -171,9 +183,8 @@ if (shots.length > 1) {
     const ph = 325;
     const pad = 12;
     const cap = 22;
-    const cols = 4;
     const drows = Math.ceil(desk.length / cols);
-    const pcols = Math.min(10, phone.length);
+    const pcols = Math.max(1, Math.min(12, phone.length));
     const prows = Math.ceil(phone.length / pcols);
     const W = Math.max(cols * (dw + pad) + pad, pcols * (pw + pad) + pad);
     const H = pad + drows * (dh + cap + pad) + prows * (ph + cap + pad) + 40;
@@ -185,7 +196,7 @@ if (shots.length > 1) {
     g.fillRect(0, 0, W, H);
     g.fillStyle = "#1F2430";
     g.font = "600 18px system-ui, sans-serif";
-    g.fillText("Ohmland isle: sizes, day and night, desktop 1440 x 900 and phone 390 x 844", pad, 26);
+    g.fillText("Ohmland isle: sizes, looks and times, desktop 1440 x 900 and phone 390 x 844", pad, 26);
     g.font = "13px system-ui, sans-serif";
     let y = 40;
     desk.forEach((x, i) => {
@@ -213,7 +224,7 @@ if (shots.length > 1) {
     jg.imageSmoothingQuality = "high";
     jg.drawImage(c, 0, 0, j.width, j.height);
     return { png: c.toDataURL("image/png"), jpg: j.toDataURL("image/jpeg", 0.84) };
-  }, items);
+  }, { items, cols });
   writeFileSync(join(out, "contact-sheet.png"), Buffer.from(sheet.png.split(",")[1], "base64"));
   writeFileSync(join(out, "contact-sheet.jpg"), Buffer.from(sheet.jpg.split(",")[1], "base64"));
   console.log(`contact sheet: ${join(out, "contact-sheet.png")} and .jpg`);

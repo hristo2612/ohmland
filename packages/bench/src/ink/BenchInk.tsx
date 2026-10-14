@@ -10,6 +10,7 @@ import { connectivity } from "../netlist";
 import { BenchStoreContext, createBenchStore, type BenchStore } from "../store";
 import type { BenchAction, BenchState, Quality, TrayItem } from "../types";
 import type { BenchController, ScreenPoint } from "../view/controller";
+import type { BenchRendererProps } from "../view/types";
 import { fitRect, growRect, rectOfPoints, type Pad, type Rect } from "./camera";
 import { BoardBase, BoardHoles, BoardXray } from "./draw/Board";
 import { GlowLayer, LeadView, PartView, SmokeLayer, WireView } from "./draw/layers";
@@ -26,42 +27,20 @@ import { InkOverlay, partDetail, useFollow } from "./Overlay";
 import { INK_CSS } from "./styles";
 import { InkView } from "./view";
 
-export type BenchInkProps = {
-  /** Starting bench (ignored when `store` is given). */
-  initial?: BenchState;
-  /** Drive the bench from your own store (see createBenchStore); share it with the 3D view to switch views freely. */
-  store?: BenchStore;
-  /** Parts the learner can drag in. */
-  tray?: TrayItem[];
-  /** Latest simulator snapshot: LED glow, damage, relay state, meter display. Leave out when you own the store. */
-  snapshot?: Snapshot | null;
-  /** Called after every committed change (not during drags). */
-  onChange?: (bench: BenchState) => void;
-  /** Every user action, including inputs to forward to the simulator. */
-  onAction?: (action: BenchAction) => void;
-  /** "low" drops the glow halos' rays and the smoke animation. */
-  quality?: Quality;
-  readOnly?: boolean;
-  /** Part ids the learner cannot move, rotate or delete (switches still flip and buttons still press). */
-  locked?: string[];
-  /** A desk rectangle [x0, z0, x1, z1] in mm to frame at the start and when the view is reset. */
-  frame?: [number, number, number, number] | null;
-  /** Part ids or anchors ("hole:e12", "pin:R1.a") to point out, for lab hints. */
-  highlight?: string[];
+export type BenchInkProps = Omit<BenchRendererProps, "labels"> & {
   /** Translated UI strings (the shared BenchLabels plus the ink view's few, see INK_LABELS). */
   labels?: Partial<InkLabels>;
   /** Accepted for parity with the 3D view; the ink view frames the work area itself. */
   camera?: { position: [number, number, number]; target: [number, number, number] };
-  className?: string;
-  style?: CSSProperties;
-  /** Called once the first drawing is on screen. */
-  onReady?: () => void;
-  /** Receives the BenchController (project, onViewChange, focus, spotlight), plus resetView and pickAt. */
-  controllerRef?: React.MutableRefObject<BenchController | null>;
 };
+
 
 /** The ink view's controller: the shared contract plus a few helpers the 3D controller also has. */
 export type InkController = BenchController & {
+  /** Page (client) coordinates of a target, for tests and tutorials. */
+  projectClient(target: string): { x: number; y: number } | null;
+  /** The view shows its home framing (nothing has moved it). */
+  atHome(): boolean;
   resetView(): void;
   /** What the pointer would grab at a client (page) point. */
   pickAt(clientX: number, clientY: number): InkPick | null;
@@ -172,8 +151,8 @@ export function BenchInk(props: BenchInkProps) {
     const m = modelRef.current;
     return compact ? m.work : m.bounds;
   }, [store, compact]);
-  const fitHome = useCallback(
-    (instant = false) => {
+  const fitHomeNow = useCallback(
+    (instant: boolean) => {
       // Generous paper round the work.
       const r = homeRect();
       const m = Math.max(4, Math.max(r[2] - r[0], r[3] - r[1]) * 0.06);
@@ -192,6 +171,36 @@ export function BenchInk(props: BenchInkProps) {
     },
     [view, homeRect, compact, store],
   );
+  /** What the view frames: home, or what focus() asked for. A resize frames it again (unless the learner moved). */
+  const framing = useRef<{ targets: string[]; padding?: number } | null>(null);
+  const applyFraming = useCallback(
+    (instant: boolean) => {
+      if (!view.sized) return;
+      const f = framing.current;
+      const r = f && f.targets.length ? targetsRect(modelRef.current, f.targets) : null;
+      if (!f || !r) {
+        fitHomeNow(instant);
+        return;
+      }
+      // Some bench round the targets: never tighter than about 24 mm, and never past a comfortable reading scale.
+      const MIN = 24;
+      const cx = (r[0] + r[2]) / 2;
+      const cz = (r[1] + r[3]) / 2;
+      const hw = Math.max(MIN, r[2] - r[0]) / 2;
+      const hh = Math.max(MIN, r[3] - r[1]) / 2;
+      const p = f.padding ?? 48;
+      const base = padRef.current;
+      view.fit(growRect([cx - hw, cz - hh, cx + hw, cz + hh], 3), { top: base.top + p * 0.5, right: base.right + p, bottom: base.bottom + p * 0.5, left: base.left + p }, { instant, max: 18 });
+    },
+    [view, fitHomeNow],
+  );
+  const fitHome = useCallback(
+    (instant = false) => {
+      framing.current = null;
+      applyFraming(instant);
+    },
+    [applyFraming],
+  );
 
   // Camera: attach, fit once sized, keep the view on resize.
   useLayoutEffect(() => {
@@ -201,9 +210,11 @@ export function BenchInk(props: BenchInkProps) {
     if (!size.w || !size.h) return;
     const prev = { ...view.vp };
     view.resize(size.w, size.h);
-    if (!view.fitted || !view.moved) fitHome(true);
+    if (!view.fitted || !view.moved) applyFraming(true);
     else if (prev.w > 1) view.set({ ...view.cam });
-  }, [size.w, size.h, view, fitHome]);
+  }, [size.w, size.h, view, applyFraming]);
+  // Overlays follow what moves on the bench (a dragged part, a clip), at most once a frame.
+  useEffect(() => store.subscribe((s, prev) => s.bench !== prev.bench && view.ping()), [store, view]);
   useEffect(() => () => view.dispose(), [view]);
   const [moved, setMoved] = useState(false);
   useEffect(() => view.onChange(() => setMoved(view.moved)), [view]);
@@ -234,8 +245,8 @@ export function BenchInk(props: BenchInkProps) {
     const owners = [...targetOwners(model, spot)];
     const not = owners.map((o) => `:not([data-own="${o.replace(/"/g, "")}"])`).join("");
     // Parts fade almost away; the board stays as quiet context.
-    const dim = `#${defsId}-svg [data-own]${not}{opacity:.16}`;
-    return owners.includes("board") ? dim : `${dim}#${defsId}-svg.is-spot [data-own="board"]{opacity:.42 !important}`;
+    const dim = `#${defsId}-svg [data-own]${not}{opacity:.26}`;
+    return owners.includes("board") ? dim : `${dim}#${defsId}-svg.is-spot [data-own="board"]{opacity:.32 !important}`;
   }, [spot, model, defsId]);
 
   // Announcements for screen readers.
@@ -308,16 +319,21 @@ export function BenchInk(props: BenchInkProps) {
         const [x, y] = view.toScreen(p[0], p[1]);
         return { x, y, visible: x >= 0 && y >= 0 && x <= view.vp.w && y <= view.vp.h };
       },
+      projectClient: (target) => {
+        const p = targetPoint(modelRef.current, target);
+        if (!p || !element) return null;
+        const r = element.getBoundingClientRect();
+        const [x, y] = view.toScreen(p[0], p[1]);
+        return { x: x + r.left, y: y + r.top };
+      },
       onViewChange: (cb) => view.onChange(cb),
       focus: (targets, opts) => {
-        const r = targets.length ? targetsRect(modelRef.current, targets) : homeRect();
-        if (!r) return;
-        const p = opts?.padding ?? 48;
-        const base = padRef.current;
-        // Generous room round the parts in play, never closer than a comfortable reading scale.
-        view.fit(growRect(r, 3), { top: base.top + p * 0.5, right: base.right + p, bottom: base.bottom + p * 0.5, left: base.left + p }, { instant: !!opts?.instant, max: 18 });
+        framing.current = targets.length ? { targets: [...targets], ...(opts?.padding !== undefined ? { padding: opts.padding } : {}) } : null;
+        // Before the view has a size this waits; the first sizing frames it.
+        applyFraming(!!opts?.instant);
       },
       spotlight: (targets) => setSpot(targets && targets.length ? [...targets] : null),
+      atHome: () => !view.moved && !framing.current,
       resetView: () => fitHome(false),
       pickAt: (cx, cy) => api.current?.pickAt(cx, cy) ?? null,
       camera: () => ({ ...view.cam }),
@@ -326,7 +342,7 @@ export function BenchInk(props: BenchInkProps) {
     return () => {
       if (controllerRef.current === ctl) controllerRef.current = null;
     };
-  }, [controllerRef, view, homeRect, fitHome]);
+  }, [controllerRef, view, element, applyFraming, fitHome]);
 
   // X-ray: everything joined to the hovered hole or lead.
   const conn = useMemo(() => (ui.hover ? connectivity(bench) : null), [ui.hover, bench]);
@@ -375,6 +391,7 @@ export function BenchInk(props: BenchInkProps) {
             ref={setElement}
             className={className ? `ohi-root ${className}` : "ohi-root"}
             data-quality={quality}
+            data-theme={props.theme}
             tabIndex={0}
             role="application"
             aria-label={labels.inkCanvas}
