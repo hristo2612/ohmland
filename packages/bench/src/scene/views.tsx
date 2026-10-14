@@ -707,7 +707,8 @@ export function LeadView({
 }) {
   const style = useBench((s) => s.cableStyle);
   const outlines = useFootprintVersion();
-  const shape = useMemo(() => leadCable(bench, lead, floor, style), [bench, lead, floor, style, outlines]);
+  // Outlines learned since only matter to the styles that route round parts.
+  const shape = useMemo(() => leadCable(bench, lead, floor, style), [bench, lead, floor, style, style === "classic" ? 0 : outlines]);
   const pa = shape.a;
   const pb = shape.b;
   const pal = usePaperPalette();
