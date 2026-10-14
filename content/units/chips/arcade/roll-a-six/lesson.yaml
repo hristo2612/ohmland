@@ -1,0 +1,70 @@
+# Blueprint: docs/curriculum/unit-4.md, CH25. A bench lesson (docs/LESSONS.md).
+# One idea: wire a pattern back to the clear pin and the counter counts from 0 to one less. Nothing new to name.
+# The secret uses the timing diagram's slow motion on the clear (the 6 lives for nanoseconds).
+# Lab: content/labs/roll-a-six.ts.
+format: bench
+id: roll-a-six
+version: 1
+title: Stop at six
+summary: Wire a counter's lamps back to its clear pin so it counts 0 to 5, like the six faces of a die.
+minutes: 6
+lab: roll-a-six
+unlocks:
+  parts: []
+  isle: dice-block
+
+start:
+  title: Stop at six
+  say: A die needs six faces. My counter has sixteen.
+  go: Make a die
+
+beats:
+  - say: Jumper lamp 8's pin to the clear pin.
+    objective: Stop early
+    tool: controls
+    spot: [W20, U2]
+    do: stop-at-8
+    note: { at: U2.6, text: "clear at 8: 0 to 7" }
+
+  - say: Now try lamp 4's pin.
+    tool: controls
+    spot: [W20, U2]
+    do: stop-at-4
+    note: { at: U2.5, text: "clear at 4: 0 to 3" }
+    rule: Clear on a number, and counting stops below.
+
+  - say: Six is 4 + 2. Which lamps feed the AND?
+    objective: Stop at six
+    pick: { options: [4 and 2, 4 and 1, 2 and 1], answer: 4 and 2 }
+    wrong:
+      4 and 1: 4 + 1 is 5. That stops a count short.
+      2 and 1: 2 + 1 is 3. Far too soon.
+
+  - say: Lamps 4 and 2 into the AND, its answer to clear.
+    tool: controls
+    spot: [U4, U2, W20]
+    do: stop-at-6
+    note: { at: U4, text: "0 to 5: six faces" }
+
+  - say: How many different counts now?
+    pick: { options: ["5", "6", "7"], answer: "6" }
+    wrong:
+      "5": Count the 0 too. 0, 1, 2, 3, 4, 5.
+      "7": It never shows 6. The clear empties it at once.
+
+secret:
+  task: glitch
+  spot: [U2]
+  say: "Secret: replay a clear in slow motion."
+  tool: td
+  done: A 6, for a few nanoseconds.
+  note: { at: U2, text: "a 6 too short to see" }
+
+fixit:
+  say: My die has only five faces. Fix it.
+  tool: controls
+  tasks:
+    - task: fix-it
+
+end:
+  say: Six faces, every time. My arcade needs dice.

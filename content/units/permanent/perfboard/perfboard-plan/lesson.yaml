@@ -1,0 +1,60 @@
+# Blueprint: docs/curriculum/unit-3.md, MP10. A bench lesson (docs/LESSONS.md).
+# One idea: flip the board over and left becomes right: the underside is a mirror of the plan. New part: perfboard
+# (three periods: beats 1, 4, 6). Tack mode: legs that meet conduct without solder. Lab: content/labs/perfboard-plan.ts.
+format: bench
+id: perfboard-plan
+version: 1
+title: The mirror board
+summary: Place a lamp on perfboard from a plan, flip it over, and bend the legs to meet on the mirrored underside.
+minutes: 7
+lab: perfboard-plan
+unlocks:
+  parts: [perfboard]
+  isle: header-fence
+
+start:
+  title: The mirror board
+  say: Breadboards wobble. Perfboard holds parts for keeps.
+  go: Let's build
+
+beats:
+  - say: This is perfboard. Put my lamp's parts on the ghosts.
+    objective: Place
+    do: place-parts
+    note: { at: PB1, text: "every hole alone, nothing joined" }
+
+  - say: Flip it over. Where will the LED be? Guess first.
+    objective: Mirror
+    guess: { options: [On the left, On the right], answer: On the right }
+    do: flip-it
+    spot: [PB1]
+    note: { at: D1.anode, text: "flipped: left became right" }
+
+  - say: Bend the legs to meet, like the plan's lines.
+    do: route-it
+    spot: [PB1]
+    rule: Underneath, the plan is mirrored.
+
+  - say: Show me the LED's long leg, underneath.
+    tap: { answer: D1.anode, among: [D1.anode, D1.cathode, R1.a, R1.b] }
+    wrong: { D1.cathode: "That's the short leg. Mirrored, remember?" }
+
+  - say: Flip it back. Is my lamp on?
+    do: see-glow
+    done: It glows. Left is right, underneath.
+
+  - say: What is this?
+    pick: { on: PB1, options: [Perfboard, A breadboard, Stripboard], answer: Perfboard }
+
+secret:
+  task: cross-legs
+  say: Curious? Bend one bare leg across another.
+  note: { at: PB1, text: "bare legs crossing: a short" }
+
+fixit:
+  say: Fix-it time. My second lamp board is dark.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. I'll solder those legs for keeps.

@@ -122,7 +122,7 @@ export const en = {
     journey: {
       basics: "light your first LED",
       switching: "switch with a transistor",
-      "making-it-permanent": "solder a real board",
+      permanent: "solder a real board",
       chips: "blink with a 555 timer",
       beyond: "build a radio",
     } as Record<string, string>,

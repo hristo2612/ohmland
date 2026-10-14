@@ -3,6 +3,7 @@
  * against results, checks and how they went, the fix-it round, parts that went to the Hall. Opened from the margin
  * at any time; at the end it is the signed-off summary with a "checked" stamp.
  */
+import type { ReactNode } from "react";
 import type { BenchLessonData } from "../../content/load";
 import { m } from "../../i18n";
 import { answerKeys, checkOf, isGraded, type Answers, type Moment } from "./flow";
@@ -18,11 +19,13 @@ type Props = {
   signed?: boolean;
   /** The fix-it benches fixed. */
   fixed: number;
+  /** What the lab's panels write onto the signed-off page (NotebookFigures: the 555 map so far). */
+  figures?: ReactNode;
 };
 
 const today = () => new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
-export function NotebookPage({ lesson, moments, answers, reached, rules, fried, signed, fixed }: Props) {
+export function NotebookPage({ lesson, moments, answers, reached, rules, fried, signed, fixed, figures }: Props) {
   const t = m.lessonBench.page;
   const guesses = moments
     .slice(0, reached)
@@ -61,6 +64,8 @@ export function NotebookPage({ lesson, moments, answers, reached, rules, fried, 
           <p className="bl-page__empty">{t.noRules}</p>
         )}
       </section>
+
+      {figures}
 
       {guesses.length > 0 && (
         <section className="bl-page__sec">

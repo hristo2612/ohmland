@@ -1,0 +1,12 @@
+id: wires-and-power
+title: Wires and power
+summary: Bare ends, sleeved splices, an adapter's plus and a steady 5 V.
+# Reveal caption: A pylon strings sleeved cables across the island, carrying a steady 5 V.
+landmark:
+  id: cable-pylon
+  name: the Cable Pylon
+lessons:
+  - strip-the-wire
+  - splice-and-shrink
+  - bench-supply
+  - steady-five
