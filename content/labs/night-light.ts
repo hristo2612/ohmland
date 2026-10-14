@@ -37,7 +37,8 @@ export default defineLab({
   title: "Lights on at dusk",
   bench: {
     board: "full",
-    frame: ["desk:-96,-30", "desk:24,30"],
+    // Both stations, columns 5 to 37.
+    frame: ["top+:3", "rail-:39"],
     parts: [
       { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "rail+:3", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       // Station A.

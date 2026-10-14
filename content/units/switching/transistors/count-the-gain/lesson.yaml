@@ -5,7 +5,7 @@ format: bench
 id: count-the-gain
 version: 1
 title: Count the gain
-summary: Measure a transistor's base and collector currents and find its gain.
+summary: Measure a transistor's collector and base currents and find its gain.
 minutes: 7
 lab: count-the-gain
 unlocks:
@@ -18,16 +18,16 @@ start:
   go: Start counting
 
 beats:
-  - say: Pull the yellow link. Bridge the gap with the probes.
+  - say: Pull the green link. Bridge the gap with the probes.
     objective: Count both flows
-    tool: meter
-    do: measure-base
-    note: { at: R3, text: "base: about 18 µA" }
-
-  - say: Link's back. Now the green link, on 20 mA.
     tool: meter
     do: measure-collector
     note: { at: D1, text: "collector: about 3.6 mA" }
+
+  - say: Green's back. Now the yellow link, into the base.
+    tool: meter
+    do: measure-base
+    note: { at: R3, text: "base: about 18 µA" }
 
   - say: Collector ÷ base. Type the gain.
     do: measure-gain
@@ -40,7 +40,7 @@ beats:
     tool: meter
     guess: { options: [About the same, About double, Ten times more], answer: About double }
     do: double-it
-    note: { at: D1, text: "7.8 mA: about double" }
+    note: { at: D1, text: "twice in, twice out: 7.8 mA" }
 
   - say: A β of 200, and 20 µA into the base. Collector?
     pick: { options: ["20 µA", "4 mA", "200 mA"], answer: "4 mA" }

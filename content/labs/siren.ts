@@ -107,7 +107,8 @@ export default defineLab({
   title: "The siren button",
   bench: {
     board: "full",
-    frame: ["desk:-108,-80", "desk:12,30"],
+    // Both oscillators and the driver (columns 1 to 30) and the speaker behind the board.
+    frame: ["top+:1", "rail-:33", "desk:-14,-72"],
     parts: [
       { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "a2", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "S1", kind: "pushbutton", at: "e2", params: { cap: "red" }, locked: true, label: "Siren button S1" },

@@ -42,7 +42,8 @@ export default defineLab({
   title: "Tune it to five",
   bench: {
     board: "full",
-    frame: ["desk:-104,-30", "desk:14,30"],
+    // The timer, from the start switch (column 1) to the green LED (column 33).
+    frame: ["top+:1", "rail-:35"],
     parts: [
       { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "a2", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "S1", kind: "slide-switch", at: "b1", params: { to: "a" }, locked: true, label: "Start switch S1" },

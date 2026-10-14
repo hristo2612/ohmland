@@ -3,12 +3,14 @@
 // One idea: the collector flow is about β times the base flow.
 //
 // Lesson 13's circuit with Q1 in place and the button gone, so the base is always fed. Two jumpers come off the
-// + rail and serve as test links: the yellow one (W3, rail to row 16) feeds the base through R3 (470 kΩ, row 16 to
-// the base in row 21); the green one (W4, rail to row 25) feeds the LED through R1 (470 Ω, row 25 to row 23). Pull a
+// + rail and serve as test links: the green one (W4, rail to row 25) feeds the LED through R1 (470 Ω, row 25 to row
+// 23); the yellow one (W3, rail to row 16) feeds the base through R3 (470 kΩ, row 16 to the base in row 21). Pull a
 // link and bridge the gap with the meter's probes (red on the rail, black on the row) to read that path's current.
+// The collector comes first: in 3D the probes then lean over the empty board left of the circuit while R3 is swapped.
+// The meter ranges by itself.
 //
-// Measured in the simulator: the base takes 17.7 µA and the collector 3.6 mA, a gain of about 205 (this Q1's β at
-// that current); with 220 kΩ the base takes 38 µA and the collector 7.8 mA, about twice as much. With the probes
+// Measured in the simulator: the collector takes 3.63 mA and the base 17.7 µA, a gain of about 205 (this Q1's β at
+// that current); with 220 kΩ the base takes 37 µA and the collector 7.8 mA, about twice as much. With the probes
 // around a link that is still in, the meter reads 0.0 µA: the wire carries the flow.
 import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 
@@ -21,27 +23,23 @@ function baseOhms(lab: LabView): number | null {
   return id ? Number(lab.prop(id)?.["ohms"]) : null;
 }
 
-/** The meter carries this part's current on a microamp or milliamp range, and the reading has settled. */
+/** The meter carries this part's current and the reading has settled. */
 const reading = (lab: LabView, part: string, key: string) => lab.heldFor(0.6, lab.meterInSeriesWith(part) && (lab.meter?.si ?? 0) > 1e-6, key);
 
-/** The yellow link is out (nothing joins the + rail to row 16 but the meter). */
-const baseLinkOut = (lab: LabView) => !lab.connected("B1.pos", "c16");
+/** A link is out: nothing joins the + rail to its row but the meter. */
+const linkOut = (lab: LabView, row: string) => !lab.connected("B1.pos", row);
 
 /** The probes sit on both sides of a link that is still in: the wire carries the flow, the meter sees almost none. */
 const aroundLink = (lab: LabView, row: string) => lab.connected("probe:red", "B1.pos") && lab.connected("probe:black", row) && lab.connected("B1.pos", row);
-const probingAroundLink = (lab: LabView) => aroundLink(lab, "c16") || aroundLink(lab, "c25");
 
-/** The fix-it bench: the green link back in, and the probes on both sides of the yellow link, which is still in. */
-const AROUND_THE_LINK: SolutionStep[] = [
-  { do: "probe", red: "rail+:16", black: "a16", mode: "dca-ma", range: "200uA" },
+/** The green link back in and the probes free, so the LED is fed again for the base reading. */
+const GREEN_BACK: SolutionStep[] = [
   { do: "wire", id: "W4", from: "a25", to: "rail+:25", color: "green" },
-];
-
-/** The yellow link back in and the probes free, so the base is fed again for the collector reading. */
-const LINK_BACK: SolutionStep[] = [
-  { do: "wire", id: "W3", from: "a16", to: "rail+:16", color: "yellow" },
   { do: "probe", red: null, black: null },
 ];
+
+/** The fix-it bench: the yellow link back in, with the probes still on both sides of it. */
+const LINK_LEFT_IN: SolutionStep[] = [{ do: "wire", id: "W3", from: "a16", to: "rail+:16", color: "yellow" }];
 
 export default defineLab({
   id: "count-the-gain",
@@ -65,7 +63,7 @@ export default defineLab({
       { id: "W4", from: "a25", to: "rail+:25", color: "green" },
     ],
     tray: [{ id: "R4", kind: "resistor", params: { ohms: 220_000 }, count: 1, label: "220 kΩ" }],
-    instruments: [{ kind: "meter", at: "desk:-178,22", rot: 16, mode: "dca-ma", range: "200uA", red: "ma", black: "com", tips: { red: "desk:-46,36", black: "desk:-36,37" } }],
+    instruments: [{ kind: "meter", at: "desk:-178,22", rot: 16, mode: "dca-ma", red: "ma", black: "com", tips: { red: "desk:-46,36", black: "desk:-36,37" } }],
   },
   mascot: {
     start: "How much bigger is the river? Let's count.",
@@ -75,38 +73,35 @@ export default defineLab({
   fried: { npn: "2N3904, base with no resistor" },
   tasks: [
     {
-      id: "measure-base",
-      prompt: "Pull the yellow link. Bridge the gap with the probes.",
-      goal: (lab) => {
-        const r = baseResistor(lab);
-        if (!r || !baseLinkOut(lab) || baseOhms(lab) !== 470_000 || !reading(lab, r, "base")) return false;
-        lab.shared["ib"] = lab.meter?.si ?? 0;
-        return true;
-      },
-      hints: ["Drag the yellow wire's rail end off the board.", "Red probe on the + rail, black probe on row 16."],
-      highlight: ["wire:W3.b", "hole:a16"],
-      nudges: [
-        { when: probingAroundLink, say: "Pull the link first, so the flow goes through the meter." },
-        { when: (lab) => baseLinkOut(lab) && !lab.meter?.redAt && !lab.meter?.blackAt, say: "Link's out, LED's dark. Now bridge the gap." },
-      ],
-      success: "About 18 µA into the base.",
-    },
-    {
       id: "measure-collector",
-      prompt: "Pull the green link. Probe its gap on the 20 mA range.",
-      setup: LINK_BACK,
+      prompt: "Pull the green link. Bridge the gap with the probes.",
       goal: (lab) => {
-        if (baseOhms(lab) !== 470_000 || !lab.connected("B1.pos", "c16") || lab.meter?.unit !== "mA" || !reading(lab, "D1", "collector")) return false;
+        if (baseOhms(lab) !== 470_000 || linkOut(lab, "c16") || !linkOut(lab, "c25") || !reading(lab, "D1", "collector")) return false;
         lab.shared["ic"] = lab.meter?.si ?? 0;
         return true;
       },
-      hints: ["Pull the green wire. Red on the rail, black on row 25.", "Too big for 200 µA: pick 20 mA on the meter."],
+      hints: ["Drag the green wire off the board.", "Red probe on the + rail, black probe on row 25."],
       highlight: ["wire:W4.b", "hole:a25"],
       nudges: [
-        { when: probingAroundLink, say: "Pull the green link first, so the flow uses the meter." },
-        { when: (lab) => lab.meterInSeriesWith("D1") && lab.meter?.unit !== "mA", say: "That's off the scale. Try the 20 mA range." },
+        { when: (lab) => aroundLink(lab, "c25"), say: "Pull the link first, so the flow goes through the meter." },
+        { when: (lab) => linkOut(lab, "c25") && !lab.meter?.redAt && !lab.meter?.blackAt, say: "Link's out, LED's dark. Now bridge the gap." },
       ],
       success: "About 3.6 mA through the LED.",
+    },
+    {
+      id: "measure-base",
+      prompt: "Pull the yellow link. Probe its gap.",
+      setup: GREEN_BACK,
+      goal: (lab) => {
+        const r = baseResistor(lab);
+        if (!r || !linkOut(lab, "c16") || linkOut(lab, "c25") || baseOhms(lab) !== 470_000 || !reading(lab, r, "base")) return false;
+        lab.shared["ib"] = lab.meter?.si ?? 0;
+        return true;
+      },
+      hints: ["Pull the yellow wire. Red on the rail, black on row 16."],
+      highlight: ["wire:W3.b", "hole:a16"],
+      nudges: [{ when: (lab) => aroundLink(lab, "c16"), say: "Pull the yellow link first, so the flow uses the meter." }],
+      success: "About 18 µA into the base.",
     },
     {
       id: "measure-gain",
@@ -141,12 +136,12 @@ export default defineLab({
     {
       id: "fix-link",
       prompt: "The base meter reads zero. Fix it.",
-      setup: AROUND_THE_LINK,
+      setup: LINK_LEFT_IN,
       // Probed around a link that is still in first (the setup), then the link out and the meter in series.
       goal: (lab) => {
         if (aroundLink(lab, "c16")) lab.memory["around"] = true;
         const r = baseResistor(lab);
-        return lab.memory["around"] === true && baseLinkOut(lab) && !!r && reading(lab, r, "fixed");
+        return lab.memory["around"] === true && linkOut(lab, "c16") && !!r && reading(lab, r, "fixed");
       },
       hints: ["Where can the flow go besides the meter?", "Pull the yellow link. Then all the flow uses the meter."],
       highlight: ["wire:W3"],
@@ -154,22 +149,22 @@ export default defineLab({
     },
   ],
   solution: [
+    { do: "unwire", wire: "W4" },
+    { do: "probe", red: "rail+:25", black: "a25" },
+    { do: "wait", seconds: 1 },
+    { do: "check", task: "measure-collector" },
+    ...GREEN_BACK,
     { do: "unwire", wire: "W3" },
     { do: "probe", red: "rail+:16", black: "a16" },
     { do: "wait", seconds: 1 },
     { do: "check", task: "measure-base" },
-    ...LINK_BACK,
-    { do: "unwire", wire: "W4" },
-    { do: "probe", red: "rail+:25", black: "a25", mode: "dca-ma", range: "20mA" },
-    { do: "wait", seconds: 1 },
-    { do: "check", task: "measure-collector" },
     { do: "note", id: "beta", value: "203" },
     { do: "check", task: "measure-gain" },
     { do: "remove", part: "R3" },
     { do: "place", part: "R4", kind: "resistor", at: "b16-b21", params: { ohms: 220_000 } },
     { do: "wait", seconds: 0.5 },
     { do: "check", task: "double-it" },
-    ...AROUND_THE_LINK,
+    ...LINK_LEFT_IN,
     { do: "wait", seconds: 0.5 },
     { do: "unwire", wire: "W3" },
     { do: "wait", seconds: 1 },
