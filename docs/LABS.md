@@ -454,12 +454,12 @@ An empty solution is reported as skipped.
 |---|---|
 | `{ do: "lead", id?, from, to, color? }` | A clip lead from the tray between two attach points (either may be null) |
 | `{ do: "clip", lead, end: "a" \| "b", to }` | Move one clip (`to: null` unclips it) |
-| `{ do: "place", part, kind, at, params? }`, `{ do: "move", part, at }`, `rotate`, `remove` | Parts. For a part on flying leads, `at` lists a hole per lead in order (a lead left out comes out of its hole): `"a22-top+:57-top-:58"` |
+| `{ do: "place", part, kind, at, params?, holes? }`, `{ do: "move", part, at, holes? }`, `rotate`, `remove` | Parts. For a part on flying leads, `at` lists a hole per lead in order (a lead left out comes out of its hole): `"a22-top+:57-top-:58"`. With `at`, `holes` puts every leg in its hole one by one, as the bench config does: a perfboard's `{ a: "PB1:A8", b: "PB1:A4" }` |
 | `{ do: "move", part, holes: { tip: "a22" } }` | Move only the named flying leads (null takes one out), keeping the rest: the logic probe's tip from hole to hole with its supply leads left on the rails. A probe pen always stands at its tip, as a drag puts it |
 | `{ do: "wire", from, to }`, `{ do: "unwire", wire }` | Breadboard jumpers |
 | `{ do: "probe", red?, black?, mode?, range? }`, `{ do: "plug", probe, socket }`, `{ do: "dial", mode, range? }` | The meter |
 | `{ do: "flip", part, to? }`, `{ do: "press", part, seconds? }`, `{ do: "set", part, key, value }` | Switches, buttons, raw inputs |
-| `{ do: "param", part, params }`, `{ do: "action", part, action }` | A prop's settings (`{ moisture: "wet" }`, `{ length: 5 }`) and one-shot actions (`"erase"`), as from its selection bar |
+| `{ do: "param", part, params }`, `{ do: "action", part, action }` | A prop's settings (`{ moisture: "wet" }`, `{ length: 5 }`) and one-shot actions (`"erase"`; a stripper's `"strip"` strips the wire end in its jaws, a wire's `"twist"`), as from its selection bar |
 | `{ do: "control", id, value }`, `{ do: "note", id, value }` | Sliders, notebook entries |
 | `{ do: "panel", id, value }`, `{ do: "tapper", on }` | Submit a panel answer (a pin map names the legs as wired inside, e.g. `{ coil1: "coil" }`); work the auto-tapper. The chip panels take `"open"` and `"close"` (x-ray), `"replay"` (timing), `{ roll: n }` and `"clear"` (histogram) |
 | `{ do: "roll", id, times? }` | Let a histogram's auto-roller roll (the replay waits until it is done) |

@@ -1,0 +1,55 @@
+# Blueprint: docs/curriculum/unit-3.md, MP6. A bench lesson (docs/LESSONS.md).
+# One idea: match the stripper's notch to the wire's gauge. New: the wire stripper (part) and gauge, AWG (word).
+# Lab: content/labs/strip-the-wire.ts.
+format: bench
+id: strip-the-wire
+version: 1
+title: Bare ends
+summary: Strip hookup wire with the wrong notches and the right one, and learn that bigger gauge numbers are thinner.
+minutes: 5
+lab: strip-the-wire
+unlocks:
+  parts: [wire-stripper]
+  isle: wire-spool
+
+start:
+  title: Bare ends
+  say: Joints need bare copper. Let's take the plastic off.
+  go: Let's strip
+
+beats:
+  - say: This is a wire stripper. Strip the red end at 26.
+    objective: Wrong notches
+    do: nick-it
+    note: { at: HW1.b, text: "too small: nicked copper" }
+
+  - say: Now try the 18 notch.
+    do: slip-it
+    note: { at: HW1.b, text: "too big: it just slips" }
+
+  - say: The wire is 22 AWG. Your turn.
+    objective: Right notch
+    do: clean-strip
+    note: { at: HW1.b, text: "22 AWG: 0.64 mm copper" }
+    rule: Match the notch to the wire's gauge.
+
+  - say: Which wire is thicker?
+    pick: { options: [18 AWG, 26 AWG], answer: 18 AWG }
+    wrong: { 26 AWG: "Bigger numbers mean thinner wire." }
+    note: { at: WS1, text: "bigger number, thinner wire" }
+
+  - say: What is this?
+    pick: { on: WS1, options: [A wire stripper, Snips, Pliers], answer: A wire stripper }
+
+secret:
+  task: twist-strands
+  say: Curious? Strip the stranded wire on its own scale. Twist it.
+  note: { at: HW2.b, text: "twisted: no stray strands" }
+
+fixit:
+  say: Fix-it time. This end is nicked. It will snap.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. Clean ends, every time.
