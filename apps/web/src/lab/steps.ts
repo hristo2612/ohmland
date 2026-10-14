@@ -57,7 +57,9 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
         const target = bench.parts.find((p) => p.id === step.at.slice(3));
         if (!target) return done(bench, { problem: `place: no part ${step.at.slice(3)}` });
         const added = { ...bench, parts: [...bench.parts.filter((p) => p.id !== step.part), part] };
-        return done(benchOps.dropOnto(added, step.part, target.id, [target.pos[0], target.pos[1] + 34]));
+        // The old part goes to a clear desk spot, in front of the board when it came off it (a far-side capacitor).
+        const aside = benchOps.asideSpot(added, target, [target.pos[0], target.pos[1] + 34], [step.part]);
+        return done(benchOps.dropOnto(added, step.part, target.id, aside));
       }
       const r = placePart({ ...bench, parts: bench.parts.filter((p) => p.id !== step.part) }, part, step.at, step.holes, () => [0, 60]);
       return done({ ...bench, parts: [...bench.parts.filter((p) => p.id !== step.part), r.part] }, r.warning ? { problem: r.warning } : {});
