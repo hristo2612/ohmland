@@ -55,6 +55,8 @@ beats:
 
 fixit:
   say: Fix-it time. My stress bar is red. Calm it down.
+  # The hot resistor, the calm one waiting on the desk, and the lamp's holes (its LED, and the stress bar over it).
+  spot: [R3, R2, "hole:e10", "hole:e11"]
   tasks:
     - task: fix-hot-lamp
 
