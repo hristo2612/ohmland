@@ -878,11 +878,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
             {m.lessonBench.skip}
           </button>
         )}
-        {moment.action === "meet" && (
-          <button type="button" className="bl-link" onClick={() => onTap(moment.part ?? "")}>
-            {m.lessonBench.next}
-          </button>
-        )}
+        {/* A meet beat is done by touching the part: its target on the bench is a button (Enter or Space taps it). */}
         {benchFailed && moment.kind !== "secret" && (
           <button type="button" className="bl-link" onClick={skipTask}>
             {m.lessonBench.skipTask}
