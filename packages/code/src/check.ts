@@ -98,7 +98,11 @@ class Checker {
     }
     for (const name of ["setup", "loop"] as const) {
       const f = this.funcs.find((x) => x.name === name && x.node.body);
-      if (!f) this.diag("error", { line: 1, col: 1, endLine: 1, endCol: 1 }, name, `Every program needs void ${name}() { }.`);
+      if (f) continue;
+      // "void Setup()": the function is there, with the wrong capitals.
+      const near = this.funcs.find((x) => x.name !== name && x.name.toLowerCase() === name && x.node.body);
+      if (near) this.error(near.node.nameSpan ?? near.node.span, "case", `Did you mean ${name}? Capitals matter.`);
+      else this.diag("error", { line: 1, col: 1, endLine: 1, endCol: 1 }, name, `Every program needs void ${name}() { }.`);
     }
     // Serial.begin anywhere counts (a careful reader would accept it in a helper too).
     walk(this.ast, (n) => {
@@ -452,7 +456,10 @@ class Checker {
       return;
     }
     if (name.startsWith("Serial.")) {
-      this.error(span, "unsupported", `${name} is not on this bench yet. Serial can begin, print and println.`);
+      // A slip of the keys (Serial.printn) gets a "did you mean"; anything else is simply not here yet.
+      const serial = ["Serial.begin", "Serial.print", "Serial.println"].find((w) => distance(lower, w.toLowerCase()) <= 2);
+      if (serial) this.error(span, "name", `I don't know ${name}. Did you mean ${serial}?`);
+      else this.error(span, "unsupported", `${name} is not on this bench yet. Serial can begin, print and println.`);
       return;
     }
     let best = "";

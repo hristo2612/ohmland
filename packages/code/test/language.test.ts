@@ -43,6 +43,8 @@ describe("friendly errors: line:column and a plain sentence", () => {
   test("setup and loop are required", () => {
     expect(first("void setup() {\n}\n")).toBe("1:1 Every program needs void loop() { }.");
     expect(firstKind("void loop() {\n}\n")).toBe("setup");
+    expect(first("void Setup() {\n}\nvoid loop() {\n}\n")).toBe("1:6 Did you mean setup? Capitals matter.");
+    expect(first("void setup() {\n  Serial.printn(1);\n}\nvoid loop() {\n}\n")).toBe("2:3 I don't know Serial.printn. Did you mean Serial.print?");
   });
 
   test("features that are not on this bench say so", () => {
