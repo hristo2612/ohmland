@@ -143,12 +143,15 @@ export function isMomentDone(m: Moment, answers: Answers, tasks: readonly string
   return false;
 }
 
-/** The rules found: those of moments before `index` (all finished), plus the secret's once its task is done. */
+/**
+ * The rules found: those of moments before `index` (all finished), the current one's once it is done (a beat with
+ * nothing to do stamps its rule as it begins), plus the secret's once its task is done.
+ */
 export function rulesFound(moments: readonly Moment[], index: number, tasks: readonly string[], currentDone: boolean): string[] {
   const out: string[] = [];
   moments.forEach((m, i) => {
     if (!m.rule) return;
-    const done = m.kind === "secret" ? !!m.task && tasks.includes(m.task) : i < index || (i === index && currentDone);
+    const done = m.kind === "secret" ? !!m.task && tasks.includes(m.task) : i < index || (i === index && (currentDone || m.action === "next"));
     if (done) out.push(m.rule);
   });
   return out;
