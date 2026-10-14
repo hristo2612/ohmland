@@ -51,7 +51,6 @@ secret:
 
 fixit:
   say: Fix-it time. Same loop, but the meter reads zero.
-  tool: meter
   tasks:
     - task: fix-zero
 

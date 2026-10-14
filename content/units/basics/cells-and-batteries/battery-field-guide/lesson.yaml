@@ -40,9 +40,8 @@ beats:
       A torch: "A torch gulps flow. This one would sag."
       A toy motor: "Motors gulp. This one sips."
 
-  - say: These two need respect. Look, never touch.
+  - say: These two deserve respect. Read their cards.
     spot: [SC1]
-    note: { at: SC1, text: "huge flow, or fire: hands off" }
 
 fixit:
   say: Fix-it time. My load drags the coin cell down.

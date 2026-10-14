@@ -20,10 +20,13 @@ const loadOn = (lab: LabView): boolean => (lab.prop("T1") as { load?: boolean })
 const logged = (lab: LabView, id: string, tag: "rest" | "load") =>
   lab.readings(`across:${id}`).filter((r) => r.mode === "dcv" && r.tags.includes(tag) && Number.isFinite(r.si));
 
-/** The fix-it bench: the coin cell in the tester with the load on. */
+/** The fix-it bench: the coin cell in the tester with the load on, the other three back on the shelf. */
 const COIN_UNDER_LOAD: SolutionStep[] = [
   { do: "param", part: "T1", params: { load: true } },
   { do: "move", part: "X3", at: "in:T1" },
+  { do: "move", part: "B1", at: "desk:-168,-58" },
+  { do: "move", part: "X1", at: "desk:-172,-14" },
+  { do: "move", part: "X2", at: "desk:-172,16" },
 ];
 
 export default defineLab({

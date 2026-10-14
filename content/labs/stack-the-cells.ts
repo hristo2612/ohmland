@@ -116,10 +116,15 @@ export default defineLab({
     },
     {
       id: "why-no-resistor",
-      prompt: "LED still lit, measure the stack again.",
-      goal: (lab) => lab.meter?.mode === "dcv" && lab.isLit("D1", 0.02) && stackProbed(lab, CELLS) && readsIn(lab, 1.5, 2.0),
-      hints: ["Probes on the free copper and the free zinc."],
-      success: "Down to about 1.7 V. The lemons' own resistance holds the flow back.",
+      prompt: "LED still lit, measure one lemon on its own.",
+      // One cell's own push while the LED draws from the stack: about half its 0.9 V is lost inside the lemon.
+      goal: (lab) =>
+        lab.meter?.mode === "dcv" &&
+        lab.isLit("D1", 0.02) &&
+        CELLS.some((c) => lab.across(c, "either")) &&
+        (readsIn(lab, 0.25, 0.7) || readsIn(lab, -0.7, -0.25)),
+      hints: ["Keep the LED lit. Probes on one lemon's copper and zinc."],
+      success: "About half its push, lost inside.",
       bonus: true,
     },
     {
@@ -162,6 +167,7 @@ export default defineLab({
     { do: "clip", lead: "TL3", end: "a", to: "FC3.neg" },
     { do: "wait", seconds: 0.5 },
     { do: "check", task: "one-reversed" },
+    { do: "probe", red: "FC2.pos", black: "FC2.neg" },
     { do: "wait", seconds: 0.5 },
     { do: "check", task: "why-no-resistor" },
   ],

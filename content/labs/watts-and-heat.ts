@@ -23,10 +23,12 @@ const PARTS = {
 /** The fix-it bench: a 47 Ω, 1/4 W resistor in the holder (it smokes), and the same value at 1 W and 5 W beside it. */
 const UNDERRATED: SolutionStep[] = [
   { do: "place", part: "R6", kind: "resistor", params: PARTS.R6, at: "in:H1" },
-  { do: "remove", part: "R5" },
-  { do: "remove", part: "R2" },
-  { do: "place", part: "R7", kind: "resistor", params: PARTS.R7, at: "desk:-40,22" },
-  { do: "place", part: "R8", kind: "resistor", params: PARTS.R8, at: "desk:24,22" },
+  // The 15 Ω parts go behind the holder, out of the frame, all three, so the tray stays shut.
+  { do: "move", part: "R5", at: "desk:-70,-150" },
+  { do: "move", part: "R2", at: "desk:-20,-150" },
+  { do: "place", part: "R4", kind: "resistor", params: PARTS.R4, at: "desk:30,-150" },
+  { do: "place", part: "R7", kind: "resistor", params: PARTS.R7, at: "desk:-55,45" },
+  { do: "place", part: "R8", kind: "resistor", params: PARTS.R8, at: "desk:15,45" },
 ];
 
 export default defineLab({
@@ -34,7 +36,7 @@ export default defineLab({
   title: "Smoke and ratings",
   bench: {
     board: "none",
-    frame: ["desk:-120,-62", "desk:70,48"],
+    frame: ["desk:-145,-70", "desk:75,62"],
     parts: [
       { id: "B1", kind: "battery", at: "desk:-100,8", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
       // The load holder: two clips joined to the battery's terminals by clip leads.

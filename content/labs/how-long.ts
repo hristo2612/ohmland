@@ -4,7 +4,7 @@
 // showing simulated time and a time-lapse speed slider (up to 3,600 times, an hour a second).
 // From the simulator: 470 Ω starts at 16.1 mA and holds a steady glow to about 31 hours (500 ÷ 16 ≈ 31), then fades:
 // half its glow near 37 hours, dark near 40. 150 Ω draws 48 mA and fades out after about 11 hours (500 ÷ 48 ≈ 10).
-import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
+import { defineLab, type SolutionStep } from "@ohmland/lab";
 
 const HOUR = 3600;
 

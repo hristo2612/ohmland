@@ -47,7 +47,7 @@ beats:
       Squeeze: "Squeeze is ohms. Watts count energy each second."
 
 fixit:
-  say: Fix-it time. This heater runs too hot. Halve its watts.
+  say: Fix-it time. This heater makes 4 W. I want half.
   tasks:
     - task: halve-it
 

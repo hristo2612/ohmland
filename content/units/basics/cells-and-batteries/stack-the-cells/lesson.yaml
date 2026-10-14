@@ -17,7 +17,7 @@ start:
   go: Build a team
 
 beats:
-  - say: Clip one cell's zinc to the next one's copper. Measure both.
+  - say: Link two cells, zinc to copper. Measure across both.
     objective: Two in a chain
     do: two-in-series
     tool: meter
@@ -52,9 +52,9 @@ beats:
 secret:
   task: why-no-resistor
   tool: meter
-  say: Curious? No resistor, yet it lives. Measure the stack.
-  done: 1.7 V. The lemons hold the flow back.
-  note: { at: FC1, text: "about 1 kΩ inside each lemon" }
+  say: Curious? No resistor, yet it lives. Measure one lemon.
+  done: About half its push, lost inside. No resistor needed.
+  note: { at: FC2, text: "about 1 kΩ inside each lemon" }
 
 fixit:
   say: Fix-it time. My fruit lamp went dim. Find the rebel.
