@@ -490,7 +490,7 @@ function styledLeads(bench: BenchState, parts: Map<string, PartInk>, probes: Map
   if (meter) {
     for (const c of ["red", "black"] as const) {
       const pr = meter.probes[c];
-      cables.push({ id: `probe:${c}`, a: { tip: pr.tip, dir: pr.dir, tail: pr.back, attached: pr.attached }, b: { tip: pr.plug.at, dir: pr.plug.dir, tail: pr.plug.top, attached: pr.plug.inSocket }, pass: [meter.meter.id] });
+      cables.push({ id: `probe:${c}`, a: { tip: pr.tip, dir: pr.dir, tail: pr.back, attached: pr.attached }, b: { tip: pr.plug.at, dir: pr.plug.dir, tail: pr.plug.top, attached: pr.plug.inSocket }, pass: [meter.meter.id], free: true });
     }
   }
   const routes = routeCables(style, cables, inkObstacles(parts, meter), { center: workCenter(bench) });

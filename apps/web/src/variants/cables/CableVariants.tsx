@@ -75,8 +75,11 @@ function Score({ score }: { score: Cell["score"] }) {
 /** The size a cell's bench is drawn at before it is scaled down to the cell, so it frames as a desktop bench does. */
 const MINI = { w: 960, h: 720 };
 
-/** A bench drawn at desktop size and scaled to fit its cell. */
-function Mini({ children }: { children: ReactNode }) {
+/**
+ * A bench drawn at desktop size and scaled to fit its cell (the ink view: it frames as on a desktop). The 3D view
+ * measures its canvas on screen, so it is drawn at the cell's own size.
+ */
+function Mini({ children, scaled }: { children: ReactNode; scaled: boolean }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [k, setK] = useState(0);
   useLayoutEffect(() => {
@@ -88,6 +91,12 @@ function Mini({ children }: { children: ReactNode }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  if (!scaled)
+    return (
+      <span className="cv-bench" ref={ref}>
+        <span className="cv-full">{children}</span>
+      </span>
+    );
   return (
     <span className="cv-bench" ref={ref}>
       {k > 0 && (
@@ -133,7 +142,7 @@ function Grid({ labs, view, row }: { labs: Map<string, LabDefinition>; view: Vie
           ))}
         </nav>
       )}
-      <div className="cv-cols" aria-hidden="true">
+      <div className="cv-cols" aria-hidden="true" data-view={view}>
         <span />
         {CABLE_STYLES.map((s) => (
           <span key={s} className="cv-col">
@@ -148,7 +157,7 @@ function Grid({ labs, view, row }: { labs: Map<string, LabDefinition>; view: Vie
             {labs.get(c.lab)!.title}
             <small>{c.task ?? t.start}</small>
           </h2>
-          <div className="cv-cells">
+          <div className="cv-cells" data-view={view}>
             {CABLE_STYLES.map((s) => {
               const cell = cells.get(`${c.key}|${s}`)!;
               return (
@@ -157,7 +166,7 @@ function Grid({ labs, view, row }: { labs: Map<string, LabDefinition>; view: Vie
                     <b>{t.styles[s]}</b>
                     <Score score={cell.score} />
                   </span>
-                  <Mini>
+                  <Mini scaled={view === "ink"}>
                     <BenchView view={view} initial={cell.variant.bench} cableStyle={cell.variant.cableStyle} frame={cell.variant.frame} readOnly quality="low" locked={cell.variant.locked} />
                   </Mini>
                 </a>

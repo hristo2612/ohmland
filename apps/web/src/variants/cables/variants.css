@@ -143,9 +143,21 @@
   top: 0;
   transform-origin: 0 0;
 }
-.cv-mini > * {
+.cv-mini > *,
+.cv-full,
+.cv-full > * {
   position: absolute;
   inset: 0;
+}
+/* 3D: one bench at a time, two by two, larger, each cell naming its style. */
+.cv-cells[data-view="3d"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.cv-cells[data-view="3d"] .cv-cell-head b {
+  display: block;
+}
+.cv-cols[data-view="3d"] {
+  display: none;
 }
 .cv-single {
   display: flex;

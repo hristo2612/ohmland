@@ -627,6 +627,7 @@ function styledCord(bench: BenchState, style: Exclude<CableStyle, "classic">, fl
     id: "cord",
     a: { tip: [tip.x, tip.z], dir: flat(axis, toward), tail: [back.x, back.z], attached: true },
     b: { tip: [plugAt.x, plugAt.z], dir: flat(plugDir, back2), tail: [plugTop.x, plugTop.z], attached: true },
+    free: true,
   };
   // The cord lies over the meter it plugs into.
   const obs = obstacles3D(bench).filter((o) => o.id !== bench.meter?.id);

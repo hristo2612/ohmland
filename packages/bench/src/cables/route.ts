@@ -42,6 +42,8 @@ export type RouteCable = {
   b: RouteEnd;
   /** Bodies this cable may lie over (a probe's cord over the meter it plugs into). */
   pass?: readonly string[];
+  /** Its ends may turn any way (a probe's cord: the probe and plug are not clips on a grid). */
+  free?: boolean;
 };
 
 /** A part body (convex outline on the desk) that cables go round. */
@@ -555,7 +557,7 @@ function routeTaped(cables: readonly RouteCable[], obs: readonly Prepared[]): Ma
     const pa = ex.a.at;
     const pb = ex.b.at;
     const skip = new Set([...ex.a.stuck, ...ex.b.stuck, ...(c.pass ?? [])]);
-    const path = gridPath(grid, pa, pb, axisOf(c.a.dir), axisOf(scale(c.b.dir, -1)), skip, usedEdge, usedNode);
+    const path = gridPath(grid, pa, pb, c.free ? -1 : axisOf(c.a.dir), c.free ? -1 : axisOf(scale(c.b.dir, -1)), skip, usedEdge, usedNode);
     if (!path) {
       out.set(c.id, hangCurve(c.a.tail, c.a.dir, c.b.tail, c.b.dir, 0));
       continue;
@@ -599,7 +601,8 @@ function nearestIndex(lines: readonly number[], v: number): number {
 }
 
 /**
- * A* on the grid from the node at `p` to the node at `q`, leaving along `startDir` and arriving along `endDir`.
+ * A* on the grid from the node at `p` to the node at `q`, leaving along `startDir` and arriving along `endDir` (-1: any
+ * way).
  * Costs: length, a bend penalty, crossing another run, and running on another run (all but forbidden).
  */
 function gridPath(g: Grid, p: Vec2, q: Vec2, startDir: number, endDir: number, skip: ReadonlySet<string>, usedEdge: Map<number, number>, usedNode: Map<number, number>): [number, number][] | null {
@@ -648,9 +651,11 @@ function gridPath(g: Grid, p: Vec2, q: Vec2, startDir: number, endDir: number, s
     return top;
   };
   const h = (i: number, j: number) => Math.abs(g.xs[i]! - g.xs[ti]!) + Math.abs(g.zs[j]! - g.zs[tj]!);
-  const s0 = (sj * W + si) * 4 + startDir;
-  cost[s0] = 0;
-  pushH(h(si, sj), s0);
+  for (const d of startDir < 0 ? [0, 1, 2, 3] : [startDir]) {
+    const s0 = (sj * W + si) * 4 + d;
+    cost[s0] = 0;
+    pushH(h(si, sj), s0);
+  }
   const BEND = 7;
   let goal = -1;
   let iter = 0;
@@ -664,7 +669,7 @@ function gridPath(g: Grid, p: Vec2, q: Vec2, startDir: number, endDir: number, s
     const j = Math.floor(node / W);
     if (i === ti && j === tj) {
       goal = s;
-      if (dir === endDir) break;
+      if (endDir < 0 || dir === endDir) break;
       // Arriving along the wrong axis: a bend at the very end, paid for below.
     }
     for (let nd = 0; nd < 4; nd++) {
@@ -682,7 +687,7 @@ function gridPath(g: Grid, p: Vec2, q: Vec2, startDir: number, endDir: number, s
       if (usedEdge.has(ek)) step += 400;
       const un = usedNode.get(nk);
       if (un !== undefined) step += un === 2 ? 120 : (un === (nd & 1 ? 1 : 0) ? 60 : 22);
-      if (ni === ti && nj === tj && nd !== endDir) step += BEND * 2;
+      if (ni === ti && nj === tj && endDir >= 0 && nd !== endDir) step += BEND * 2;
       const ns = nk * 4 + nd;
       const nc = c0 + step;
       if (nc < cost[ns]!) {
