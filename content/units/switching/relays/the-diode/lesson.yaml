@@ -1,0 +1,51 @@
+# Split from coil-kickback (docs/curriculum/conversion-guide.md, C2 6b). A bench lesson (docs/LESSONS.md).
+# One idea: a diode across the coil, band toward plus, swallows the kick. New: the diode (band, cathode).
+# Lab: content/labs/the-diode.ts (diode-clamp moved here from coil-kickback).
+format: bench
+id: the-diode
+version: 1
+title: A one-way valve
+summary: Meet the diode, find its band, and clip it across a relay coil to swallow the switch-off spike.
+minutes: 6
+lab: the-diode
+unlocks:
+  parts: [diode-1n4001]
+  isle: diode
+
+start:
+  title: A one-way valve
+  say: That spike wears out switches. Meet its bodyguard.
+  go: Let's meet it
+
+beats:
+  - say: This is a diode. Tap it.
+    objective: Meet the diode
+    meet: D3
+    note: { at: D3, text: diode }
+
+  - say: Current flows one way only. The band marks the cathode. Tap it.
+    tap: { answer: D3.cathode, among: [D3.anode, D3.cathode] }
+    wrong: { D3.anode: "That's the plain end, the anode. Find the stripe." }
+    note: { at: D3.cathode, text: "band: the cathode" }
+
+  - say: Across the coil, band toward plus. Then press and release. Guess first.
+    objective: Swallow the kick
+    tool: scope
+    guess: { options: [Spike gone, Spike bigger, No change], answer: Spike gone }
+    do: diode-clamp
+    done: Clamped under a volt. No spark, still a click.
+    note: { at: D3, text: "the kick goes round, not up" }
+    rule: Diode across the coil, band toward +.
+
+  - say: What is this?
+    pick: { on: D3, options: [A diode, An LED, A resistor], answer: A diode }
+    wrong: { An LED: "Close cousin. This one makes no light." }
+
+fixit:
+  say: My relay won't click, and something's getting hot. Fix it.
+  tool: scope
+  tasks:
+    - task: fix-forwards
+
+end:
+  say: Band toward plus. Every relay coil wants one.
