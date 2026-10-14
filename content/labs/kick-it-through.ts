@@ -147,6 +147,8 @@ export default defineLab({
     { do: "check", task: "ceramic-blocks" },
     { do: "press", part: "S2", seconds: 3 },
     { do: "check", task: "one-flash" },
+    // "Show me" starts with C2 empty: one press fills it (the flash), then the no-encore press and the reset.
+    { do: "press", part: "S2", seconds: 3 },
     { do: "wait", seconds: 0.5 },
     { do: "press", part: "S2", seconds: 1 },
     { do: "press", part: "S3", seconds: 0.6 },

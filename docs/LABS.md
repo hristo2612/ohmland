@@ -470,7 +470,10 @@ Start here props change through `param` as their taps do: `{ lid: true }` opens 
 "number", unit: "mA" }` sets a gate; a gate is clipped on with `{ do: "move", part: "G1", at: "lead:TL3" }`.
 
 Each step lets 0.25 s of simulated time pass. Put a `check` after the steps of each task: "Show me" rewinds to the
-bench at the previous check and plays the steps up to this one.
+bench at the previous check and plays the steps up to this one. It starts the circuit afresh (capacitors empty, a
+relay let go, the auto-tapper off, sliders where the lab starts them) and a resumed lesson has no readings or typed
+notes from earlier beats, so each task's steps must finish it on their own: a fade task fills the capacitor first. The
+solution test plays every required task's Show me from its checkpoint (`replayShowMe`).
 
 ## For the lesson player
 

@@ -1,13 +1,15 @@
 /**
  * Plays a lab's solution headlessly: builds the bench, runs the in-thread simulator, applies each step, feeds every
- * snapshot to a LabSession and reports which tasks got done. The solution test runs it for every lab.
+ * snapshot to a LabSession and reports which tasks got done. The solution test runs it for every lab, and plays each
+ * task's "Show me" from its checkpoint (replayShowMe), as the lesson player does for a learner who asks.
  */
-import { createSimulation, type InputKey, type InputValue } from "@ohmland/sim";
-import { buildBench, controlTargets } from "./build";
-import { isOptional, type LabDefinition, type TaskStatus } from "./define";
+import { createSimulation, type InputKey, type InputValue, type Simulation } from "@ohmland/sim";
+import type { BenchState } from "@ohmland/bench/core";
+import { buildBench, controlTargets, type BuiltBench, type SimInput } from "./build";
+import { isOptional, type LabDefinition, type SolutionStep, type TaskStatus } from "./define";
 import { parseNote } from "./notes";
 import { LabSession, type FriedRecord } from "./session";
-import { applyStep } from "./steps";
+import { applyStep, solutionSegments, type StepEffect } from "./steps";
 import { createToneMeter } from "./tone";
 
 export type ReplayResult = {
@@ -29,14 +31,26 @@ export type ReplayResult = {
 
 const FRAME = 1 / 30;
 
-/**
- * Replays a lab's solution. `trace` (optional) gets a line after every step: the step, the meter's display and the
- * tasks done so far, which is handy while writing a solution.
- */
-export function replayLab(lab: LabDefinition, trace?: (line: string) => void): ReplayResult {
-  const built = buildBench(lab.bench);
-  const session = new LabSession(lab, built);
-  const sim = createSimulation();
+/** A bench to start from instead of the lab's own: a task's checkpoint, with the tasks done before it. */
+type Start = { bench: BenchState; inputs: SimInput[]; done: readonly string[] };
+
+/** The simulator and a session, driven by solution steps the way the runtime drives them. */
+type Player = {
+  session: LabSession;
+  fried: FriedRecord[];
+  triggers: string[];
+  problems: string[];
+  /** Lets `seconds` of real time pass (frames of 1/30 s, each `speed` simulated frames long). */
+  advance(seconds: number): void;
+  /** Applies one solution step (its bench change, inputs, notes, controls, panels and views). The caller waits. */
+  play(step: SolutionStep, index: number): StepEffect;
+  time(): number;
+  dispose(): void;
+};
+
+function createPlayer(lab: LabDefinition, built: BuiltBench, start?: Start): Player {
+  const session = new LabSession(lab, built, start?.done ?? []);
+  const sim: Simulation = createSimulation();
   const tone = createToneMeter();
   sim.onAudio((samples, rate) => {
     session.tone = tone.push(samples, rate);
@@ -45,16 +59,18 @@ export function replayLab(lab: LabDefinition, trace?: (line: string) => void): R
   const fried: FriedRecord[] = [];
   const triggers: string[] = [];
   const problems: string[] = [];
-  const failedChecks: string[] = [];
   const delayed: { at: number; id: string; key: InputKey; value: InputValue }[] = [];
 
-  sim.load(session.net.netlist);
+  sim.load(start ? session.setBench(start.bench).netlist : session.net.netlist);
   for (const i of built.inputs) sim.setInput(i.id, i.key, i.value);
+  if (start) {
+    for (const i of start.inputs) sim.setInput(i.id, i.key, i.value);
+    for (const c of built.controls) if (c.part === "*") for (const id of controlTargets(session.bench, c)) sim.setInput(id, c.key, session.controls[c.id] ?? c.value);
+  }
   // Simulated seconds per real second, as the runtime would run (a "speed" control turns it up for a time-lapse).
   let speed = lab.speed ?? 1;
   for (const c of built.controls) if (c.key === "speed") speed = c.value;
 
-  /** Lets `seconds` of real time pass (frames of 1/30 s, each `speed` simulated frames long). */
   const advance = (seconds: number) => {
     let left = seconds;
     while (left > 1e-9) {
@@ -75,8 +91,7 @@ export function replayLab(lab: LabDefinition, trace?: (line: string) => void): R
     }
   };
 
-  advance(0.3);
-  lab.solution.forEach((step, i) => {
+  const play = (step: SolutionStep, i: number): StepEffect => {
     const eff = applyStep(session.bench, step);
     if (eff.problem) problems.push(`step ${i + 1} (${step.do}): ${eff.problem}`);
     if (eff.bench !== session.bench) {
@@ -122,22 +137,89 @@ export function replayLab(lab: LabDefinition, trace?: (line: string) => void): R
     }
     if (eff.trace !== undefined) session.setTrace(eff.trace);
     if (eff.code) session.noteUpload(eff.code.part, eff.code.source, eff.code.error);
+    return eff;
+  };
+
+  return { session, fried, triggers, problems, advance, play, time: () => sim.time, dispose: () => sim.dispose() };
+}
+
+/**
+ * Replays a lab's solution. `trace` (optional) gets a line after every step: the step, the meter's display and the
+ * tasks done so far, which is handy while writing a solution.
+ */
+export function replayLab(lab: LabDefinition, trace?: (line: string) => void): ReplayResult {
+  const built = buildBench(lab.bench);
+  const p = createPlayer(lab, built);
+  const failedChecks: string[] = [];
+  p.advance(0.3);
+  lab.solution.forEach((step, i) => {
+    const eff = p.play(step, i);
     if (eff.check) {
       // Give the goal a moment: a check right after an action waits for the circuit to settle.
-      if (session.status[eff.check] !== "done") advance(0.5);
-      if (session.status[eff.check] !== "done") failedChecks.push(`${eff.check} (at step ${i + 1})`);
+      if (p.session.status[eff.check] !== "done") p.advance(0.5);
+      if (p.session.status[eff.check] !== "done") failedChecks.push(`${eff.check} (at step ${i + 1})`);
     }
-    if (eff.wait > 0) advance(eff.wait);
+    if (eff.wait > 0) p.advance(eff.wait);
     if (trace) {
-      const v = session.view();
+      const v = p.session.view();
       const m = v.meter;
-      const done = lab.tasks.filter((t) => session.status[t.id] === "done").map((t) => t.id);
-      trace(`${i + 1}. ${JSON.stringify(step)} | t=${sim.time.toFixed(2)} | meter ${m ? `${m.mode} ${m.range ?? ""} "${m.display ?? ""}" ${m.unit ?? ""}` : "-"} | done: ${done.join(", ")}`);
+      const done = lab.tasks.filter((t) => p.session.status[t.id] === "done").map((t) => t.id);
+      trace(`${i + 1}. ${JSON.stringify(step)} | t=${p.time().toFixed(2)} | meter ${m ? `${m.mode} ${m.range ?? ""} "${m.display ?? ""}" ${m.unit ?? ""}` : "-"} | done: ${done.join(", ")}`);
     }
   });
-  advance(0.5);
-  sim.dispose();
+  p.advance(0.5);
+  p.dispose();
 
+  const session = p.session;
   const missing = lab.tasks.filter((t) => !isOptional(t) && session.status[t.id] !== "done").map((t) => t.id);
-  return { status: { ...session.status }, missing, failedChecks, problems, fried, triggers, warnings: built.warnings, seconds: sim.time, session };
+  return { status: { ...session.status }, missing, failedChecks, problems: p.problems, fried: p.fried, triggers: p.triggers, warnings: built.warnings, seconds: p.time(), session };
+}
+
+export type ShowMeResult = {
+  /** The task was done once its steps had played (and a moment to settle). */
+  done: boolean;
+  /** Steps that did not apply cleanly. */
+  problems: string[];
+  /** The task's goal threw or the lab has no checkpoint for it. */
+  error?: string;
+  session: LabSession;
+};
+
+/**
+ * "Show me" for one task, as the lesson player plays it (LabRuntime.showMe): the bench goes back to the task's
+ * checkpoint (the solution's steps before its own, applied without the simulator, then the circuit started fresh),
+ * the tasks before it count as done, and its own steps play with at least 0.85 s between them. A learner who resumes
+ * the lesson at this task and asks for Show me gets exactly this.
+ */
+export function replayShowMe(lab: LabDefinition, taskId: string): ShowMeResult {
+  const built = buildBench(lab.bench);
+  const seg = solutionSegments(lab.solution).get(taskId);
+  if (!seg) {
+    const session = new LabSession(lab, built);
+    return { done: false, problems: [], error: `no check for "${taskId}" in the solution`, session };
+  }
+  // The checkpoint: the solution up to where this task's own steps begin (LabRuntime.checkpoint).
+  let bench = built.bench;
+  const inputs: SimInput[] = [];
+  for (let i = 0; i < seg.start; i++) {
+    const e = applyStep(bench, lab.solution[i]!);
+    bench = e.bench;
+    // A delayed input (a timed press's release) has happened by the next step: keep its final value, undelayed.
+    for (const { after: _after, ...inp } of e.inputs) inputs.push(inp);
+  }
+  const required = lab.tasks.filter((t) => !isOptional(t)).map((t) => t.id);
+  const at = required.indexOf(taskId);
+  const done = at >= 0 ? required.slice(0, at) : required.filter((id) => (solutionSegments(lab.solution).get(id)?.end ?? Infinity) < seg.start);
+  const p = createPlayer(lab, built, { bench, inputs, done });
+  // The player shows the rewound bench for a moment before the first step.
+  p.advance(0.7);
+  for (let i = seg.start; i < seg.end; i++) {
+    const step = lab.solution[i]!;
+    const eff = p.play(step, i);
+    p.advance(step.do === "wait" ? step.seconds : Math.max(0.85, eff.wait));
+  }
+  // The learner watches the result: the goal has a moment to see it.
+  for (let k = 0; k < 8 && p.session.status[taskId] !== "done"; k++) p.advance(0.25);
+  p.dispose();
+  return { done: p.session.status[taskId] === "done", problems: p.problems, session: p.session };
 }

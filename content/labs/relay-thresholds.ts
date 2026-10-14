@@ -94,6 +94,9 @@ export default defineLab({
     { do: "control", id: "knob", value: 0.9 },
     { do: "note", id: "pullin", value: "6.1" },
     { do: "check", task: "find-pull-in" },
+    // "Show me" starts with the relay let go: pull it in, then turn down slowly.
+    { do: "control", id: "knob", value: 0.9 },
+    { do: "wait", seconds: 0.4 },
     { do: "control", id: "knob", value: 0.5 },
     { do: "control", id: "knob", value: 0.35 },
     { do: "control", id: "knob", value: 0.3 },

@@ -98,10 +98,13 @@ export default defineLab({
     { do: "tapper", on: true },
     { do: "wait", seconds: 2 },
     { do: "check", task: "flicker" },
+    // "Show me" starts the circuit afresh with the tapper off: each task's steps switch it on again.
+    { do: "tapper", on: true },
     { do: "move", part: "C1", at: "d11-d13" },
     { do: "wait", seconds: 3 },
     { do: "check", task: "smooth-it" },
     ...ONE_HOLE_SHORT,
+    { do: "tapper", on: true },
     { do: "wait", seconds: 1 },
     { do: "move", part: "C1", at: "d11-d13" },
     { do: "wait", seconds: 3 },

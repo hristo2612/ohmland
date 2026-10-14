@@ -142,6 +142,8 @@ export default defineLab({
   solution: [
     { do: "press", part: "S1", seconds: 5 },
     { do: "check", task: "fill" },
+    // "Show me" starts from an empty capacitor: fill it again, then let go and watch.
+    { do: "press", part: "S1", seconds: 4 },
     { do: "wait", seconds: 5 },
     { do: "check", task: "fade" },
     { do: "press", part: "S1", seconds: 4 },
