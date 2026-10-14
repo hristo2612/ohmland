@@ -8,7 +8,7 @@ import { useStore } from "zustand";
 import { DIAL_MODES, partLegs, terminalNumber, type MeterMode, type MeterSocket } from "@ohmland/bench/core";
 import { Icon } from "../components/Icon";
 import { m } from "../i18n";
-import type { ControlConfig, Reading, ScopeConfig, ScopeLevel, ScopeTrace } from "./define";
+import type { ControlConfig, OverlayName, Reading, ScopeConfig, ScopeLevel, ScopeTrace } from "./define";
 import type { LabRuntime } from "./runtime";
 import { formatSpan } from "./signals";
 
@@ -396,6 +396,29 @@ function paint(c: HTMLCanvasElement, series: Series[], seconds: number, fixed?: 
     }
     ctx.restore();
   }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Views: the overlays a lab offers (flow dots, electrons, push), as toggles
+
+export function ViewsPanel({ runtime, offer }: { runtime: LabRuntime; offer: readonly OverlayName[] }) {
+  const views = useStore(runtime.ui, (s) => s.views);
+  if (!offer.length) return null;
+  const on = (name: OverlayName) => (name === "push" ? views.push : name === "electrons" ? views.flow === "electrons" : views.flow !== "off");
+  return (
+    <section className="instrument views-panel">
+      <header className="instrument__head">
+        <h3 className="instrument__title">{m.lab.views.title}</h3>
+      </header>
+      <div className="views-panel__row" role="group" aria-label={m.lab.views.title}>
+        {offer.map((name) => (
+          <button key={name} type="button" className="btn btn--small btn--tertiary" aria-pressed={on(name)} onClick={() => runtime.setView(name, !on(name))}>
+            {m.lab.views[name]}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 // ---------------------------------------------------------------------------------------------------------------

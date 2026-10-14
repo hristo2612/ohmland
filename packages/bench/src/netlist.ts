@@ -4,7 +4,7 @@
 import type { Netlist, NodeId, PartSpec } from "@ohmland/sim";
 import { holeAnchor, leadAnchor, parseAnchor, pinAnchor, probeAnchor, socketAnchor, wireAnchor } from "./anchors";
 import { RAILS, boardGeometry } from "./board";
-import { partDef, partLegs, physicalLeg, type NetContext } from "./parts";
+import { partDef, partLegs, partSpots, physicalLeg, type NetContext } from "./parts";
 import { heldOf, seatsOf } from "./seats";
 import type { Anchor, BenchState, MeterSocket, PartParamsMap, PlacedPart } from "./types";
 
@@ -113,6 +113,8 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; sp
   for (const part of bench.parts) {
     const def = partDef(part.kind);
     for (const leg of partLegs(part)) add(pinAnchor(part.id, leg));
+    // Insulated spots (a battery's wrapper, a switch's wooden block): a clip can bite them, and they join nothing.
+    for (const spot of Object.keys(partSpots(part))) add(pinAnchor(part.id, spot));
     for (const [leg, hole] of Object.entries(part.holes ?? {})) seat(pinAnchor(part.id, leg), hole, `${part.id}.${leg}`);
     for (const [x, y] of def.bridges ?? []) uf.union(pinAnchor(part.id, x), pinAnchor(part.id, y));
   }

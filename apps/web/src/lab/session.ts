@@ -3,7 +3,7 @@
  * snapshot, keeps the event log, the recent history and the notebook, checks task goals in order (optional tasks all
  * the time), spots fried parts and fires achievement triggers. The lab step and the headless replay both drive one.
  */
-import { benchToNetlist, type BenchNetlist, type BenchState } from "@ohmland/bench/core";
+import { advanceGates, benchToNetlist, type BenchNetlist, type BenchState, type GateCounts } from "@ohmland/bench/core";
 import type { SimEvent, Snapshot, WatchSpec } from "@ohmland/sim";
 import type { BuiltBench, SimInput } from "./build";
 import {
@@ -12,6 +12,8 @@ import {
   type LabDefinition,
   type LabTask,
   type LabView,
+  type LabViews,
+  type OverlayName,
   type PanelConfig,
   type PanelState,
   type Reading,
@@ -105,12 +107,16 @@ export class LabSession {
   private wiring = "";
   private timing: { start: number; watch?: number } | null = null;
   private trig = new Map<string, boolean>();
+  /** The views and overlays that are on (the runtime mirrors the bench store's here). */
+  views: LabViews = { flow: "off", push: false, xray: false, trace: null };
+  /** Dots each gate has counted. */
+  gates: GateCounts = {};
   /** When each task was done in this visit, with the meter as it read then (LabView.doneAt). */
   doneAt: Record<string, { t: number; meter: LabView["meter"] }> = {};
   private memory = new Map<string, Record<string, unknown>>();
   private shared: Record<string, unknown> = {};
-  /** Views and overlays that are on ("xray:U1"). */
-  views = new Set<string>();
+  /** Chip x-ray panels that are open ("xray:U1"); `lab.view` reads them with the overlays. */
+  panelViews = new Set<string>();
   /** Parts the board refused to seat in this visit. */
   rejected: string[] = [];
   /** Edge logs of the watched nodes, by watch key. */
@@ -145,6 +151,27 @@ export class LabSession {
       if (p.kind === "histogram") this.rolls[p.id] = { list: [], sampled: 0, roller: null, wasClosed: false, readAt: null };
     }
     if (built.tapper) this.tapper = { part: built.tapper.part, hz: built.tapper.hz ?? 4, on: false, next: 0, pressed: false };
+    const o = lab.bench.overlays;
+    if (o) this.views = { ...this.views, flow: o.flow ?? "off", push: !!o.push };
+  }
+
+  /** Switches a view or overlay on or off (from a toggle, the store, or a solution step), or a chip's x-ray panel. */
+  setView(name: OverlayName | "xray" | `xray:${string}`, on: boolean): void {
+    if (name.startsWith("xray:")) {
+      if (on) this.panelViews.add(name);
+      else this.panelViews.delete(name);
+      return;
+    }
+    const v = this.views;
+    if (name === "push") this.views = { ...v, push: on };
+    else if (name === "xray") this.views = { ...v, xray: on };
+    else if (name === "electrons") this.views = { ...v, flow: on ? "electrons" : v.flow === "electrons" ? "current" : v.flow };
+    else this.views = { ...v, flow: on ? (v.flow === "off" ? "current" : v.flow) : "off" };
+  }
+
+  /** The loop tracer started from a terminal (or was cleared). */
+  setTrace(from: string | null): void {
+    this.views = { ...this.views, trace: from };
   }
 
   /** The bench changed: rebuild the netlists. Returns the netlist for the simulator. */
@@ -168,12 +195,6 @@ export class LabSession {
     if (!this.watchReq.length) return net;
     const watch: WatchSpec[] = watchSpecs(this.bench, net, this.built.nodes, this.watchReq);
     return watch.length ? { ...net, netlist: { ...net.netlist, watch } } : net;
-  }
-
-  /** Turns a view on or off ("xray:U1"). */
-  setView(name: string, on: boolean): void {
-    if (on) this.views.add(name);
-    else this.views.delete(name);
   }
 
   /** The board refused to seat a part (the bench reports it). */
@@ -287,6 +308,7 @@ export class LabSession {
     this.toneLog = [];
     this.timing = null;
     this.loggerT0 = null;
+    this.gates = {};
     this.trig.clear();
     if (this.tapper) this.tapper = { ...this.tapper, on: false, pressed: false };
     this.tracks.clear();
@@ -320,6 +342,8 @@ export class LabSession {
       onTrigger: (name) => this.pendingTriggers.push(name),
       doneAt: this.doneAt,
       views: this.views,
+      gates: this.gates,
+      panelViews: this.panelViews,
       tracks: this.tracks,
       timing: this.timingViews,
       rolls: Object.fromEntries(Object.keys(this.rolls).map((id) => [id, this.rollsView(id)!])),
@@ -350,10 +374,12 @@ export class LabSession {
       this.events.push(...s.events);
       if (this.events.length > MAX_EVENTS) this.events.splice(0, this.events.length - MAX_EVENTS);
     }
-    const prevT = this.history[this.history.length - 1]?.t ?? s.t;
+    const prevT = this.history[this.history.length - 1]?.t;
     this.history.push(s);
     while (this.history.length && this.history[0]!.t < s.t - HISTORY_SECONDS) this.history.shift();
-    this.ingestEdges(s, prevT);
+    this.ingestEdges(s, prevT ?? s.t);
+    // Gates count the dots that ride past them.
+    if (this.bench.parts.some((p) => p.kind === "gate")) this.gates = advanceGates(this.gates, this.bench, s, prevT === undefined ? 0 : s.t - prevT);
 
     // Fried parts.
     for (const e of s.events) {
@@ -445,7 +471,7 @@ export class LabSession {
   private chipPanels(view: LabView, s: Snapshot, update: SessionUpdate): void {
     for (const p of this.lab.panels ?? []) {
       if (p.kind === "xray") {
-        if (!this.views.has(`xray:${p.part}`)) continue;
+        if (!this.panelViews.has(`xray:${p.part}`)) continue;
         const before = this.panels[p.id] ?? emptyPanel(panelSize(p, this.bench));
         const after = updateXrayPanel(before, s.parts[p.part]);
         if (after !== before) {

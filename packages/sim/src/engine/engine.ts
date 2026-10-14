@@ -175,6 +175,18 @@ export class Engine implements Ctx {
   markEdge(): void {
     this.edgeBreak = true;
   }
+  drivingOhms(i: number, j: number): number {
+    const n = this.n;
+    if (n === 0 || i === j || !this.lu) return Infinity;
+    // One more solve with the factors in hand: a unit current in at i and out at j, the voltage that results.
+    const b = new Float64Array(n);
+    const x = new Float64Array(n);
+    if (i >= 0) b[i] = 1;
+    if (j >= 0) b[j] = -1;
+    this.lu.solve(b, x);
+    const v = (i >= 0 ? x[i]! : 0) - (j >= 0 ? x[j]! : 0);
+    return Number.isFinite(v) && v > 0 ? v : Infinity;
+  }
   addBreakpoint(t: number): void {
     if (!(t > this.t + 1e-12) || !Number.isFinite(t)) return;
     const bp = this.breakpoints;

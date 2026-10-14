@@ -130,7 +130,7 @@ describe("history: presses, counts, widths and duty", () => {
 
 describe("views, refused parts and watch specs", () => {
   it("a view is on while the session says so; refused parts from the runtime and the bench", () => {
-    const lab = view({ views: new Set(["xray:U1"]), rejected: ["U9"], bench: { ...bench(), rejected: ["U8"] } as BenchState });
+    const lab = view({ panelViews: new Set(["xray:U1"]), rejected: ["U9"], bench: { ...bench(), rejected: ["U8"] } as BenchState });
     expect(lab.view("xray:U1")).toBe(true);
     expect(lab.view("xray:U2")).toBe(false);
     expect([...lab.bench.rejected].sort()).toEqual(["U8", "U9"]);

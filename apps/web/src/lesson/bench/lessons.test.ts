@@ -77,7 +77,8 @@ describe("bench lessons", () => {
         if (built.stopwatch) have.add("stopwatch");
         if (built.tapper) have.add("tapper");
         if (built.controls.length) have.add("controls");
-        for (const b of lesson.beats) if (b.tool) expect(have.has(b.tool), `tool "${b.tool}"`).toBe(true);
+        const tools = [...lesson.beats.map((b) => b.tool), lesson.fixit?.tool, lesson.secret?.tool];
+        for (const tool of tools) if (tool) expect(have.has(tool), `tool "${tool}"`).toBe(true);
       });
 
       it("points only at things on the bench", () => {

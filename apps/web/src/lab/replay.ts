@@ -119,6 +119,7 @@ export function replayLab(lab: LabDefinition, trace?: (line: string) => void): R
         while (session.rolls[eff.roll.id]!.roller && sim.time < limit) advance(0.25);
       }
     }
+    if (eff.trace !== undefined) session.setTrace(eff.trace);
     if (eff.check) {
       // Give the goal a moment: a check right after an action waits for the circuit to settle.
       if (session.status[eff.check] !== "done") advance(0.5);

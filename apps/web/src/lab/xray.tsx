@@ -477,8 +477,8 @@ export function XrayPanel({ runtime, cfg }: { runtime: LabRuntime; cfg: Extract<
   const snapshot = useStore(runtime.store, (s) => s.snapshot);
   const part = useStore(runtime.store, (s) => s.bench.parts.find((p) => p.id === cfg.part));
   const id = useId();
-  const view = `xray:${cfg.part}`;
-  const open = runtime.session.views.has(view);
+  const view = `xray:${cfg.part}` as const;
+  const open = runtime.session.panelViews.has(view);
   // Closing the panel (the beat moves on) closes the x-ray.
   useEffect(() => () => runtime.setView(view, false), [runtime, view]);
   const netlist = runtime.session.net.netlist;

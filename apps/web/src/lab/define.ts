@@ -346,7 +346,25 @@ export type BenchConfig = {
   nodes?: Record<string, Attach>;
   /** Nodes to watch for exact edges between snapshots (`lab.edges(node)`, exact `lab.widths`). Timing diagram channels are watched anyway. */
   watch?: WatchConfig[];
+  /**
+   * Teaching overlays over the bench (docs/BENCH-VIEWS.md, "Overlays"): flow dots riding every lead and part
+   * ("current", plus to minus, or "electrons", minus to plus and slower), push hatching with a hill by each battery
+   * and sealed box, what is on at the start, and which toggles the lab's panel offers the learner.
+   */
+  overlays?: { flow?: "current" | "electrons"; push?: boolean; offer?: OverlayName[] };
 };
+
+/** The overlays a learner can switch: flow dots, the dots as electrons, the push view. */
+export type OverlayName = "flow" | "electrons" | "push";
+
+/** The views and overlays that are on, as `lab.view(name)` reads them. */
+export type LabViews = { flow: "off" | "current" | "electrons"; push: boolean; xray: boolean; trace: string | null };
+
+/** What the loop tracer found, from a terminal: whether it closed, where it stopped, what it went through. */
+export type TraceResult = { closed: boolean; gap: string | null; parts: string[]; leads: string[] };
+
+/** A schematic card: complete once every torn piece sits in its gap the right way round. */
+export type DrawingState = { complete: boolean; pieces: { id: string; seated: boolean; turn: number; right: boolean }[] };
 
 // ---------------------------------------------------------------------------------------------------------------
 // Tasks
@@ -444,10 +462,17 @@ export type SolutionStep =
   | { do: "panel"; id: string; value: unknown }
   /** Switch the auto-tapper on or off. */
   | { do: "tapper"; on: boolean }
-  /** Turn a view on or off as the learner would ("xray:U1" opens the chip x-ray). */
-  | { do: "view"; name: string; on?: boolean }
   /** Let a histogram's auto-roller roll `times` (default its `rolls`); the next step waits for it. */
   | { do: "roll"; id: string; times?: number }
+  /**
+   * Switch an overlay or view on or off, as its toggle would: flow dots, electrons, push, the board's x-ray, or a
+   * chip's x-ray panel ("xray:U1").
+   */
+  | { do: "view"; name: OverlayName | "xray" | `xray:${string}`; on: boolean }
+  /** Run the loop tracer from a terminal ("B1.neg"), as tapping it would; null clears the ink. */
+  | { do: "trace"; from: Attach | null }
+  /** The static toy: rub a balloon, comb or spoon back and forth on the scarf, `strokes` times (default 6). */
+  | { do: "rub"; part: string; on: string; strokes?: number }
   | { do: "wait"; seconds: number }
   /** Checkpoint: by here this task must be done. Splits the solution for "Show me". */
   | { do: "check"; task: string };
@@ -649,6 +674,40 @@ export type LabView = {
   /** The auto-tapper is working this pushbutton. */
   tapping(partId: string): boolean;
 
+  // Start here: gates, sealed boxes, overlays, tags, drawings, the tracer.
+  /** The current through the lead a gate is clipped on, in amps (its size), 0 when it is on no lead. */
+  gate(gateId: string): number;
+  /** The unit a gate in number mode shows ("A" or "mA"), or null when it is not a gate. */
+  gateUnit(gateId: string): "A" | "mA" | null;
+  /** Dots a gate has counted since the lab started (the ticks on its flag). */
+  gateTicks(gateId: string): number;
+  /** A sealed box's (or the cabinet's) lid is open. */
+  lidOpen(boxId: string): boolean;
+  /**
+   * A view or overlay is on: "push", "flow" (dots, either way), "electrons", "xray" (the board's), "xray:XA" (that AA
+   * cell cut open, or a chip's x-ray panel open: "xray:U1"), "trace" (the tracer's ink).
+   */
+  view(name: string): boolean;
+  /** What a value tag shows now ("10 kΩ", or "10,000 Ω" once tapped open); a sealed box's tag too. Null otherwise. */
+  tagShown(id: string): string | null;
+  /** A schematic card's state: complete once its torn piece sits in the gap the right way round. Null for other parts. */
+  drawing(cardId: string): DrawingState | null;
+  /** The loop tracer from a terminal ("B1.neg"), worked out on the bench as it is: closed, or the gap it stops at. */
+  trace(from: Attach): TraceResult;
+  /** A battery's state of charge, 0..1 (its `charge` param starts it), or null. */
+  charge(batteryId: string): number | null;
+  /**
+   * The static toy (its own small model, not the circuit simulator): a thing's static charge in marks, negative for
+   * minus marks (a balloon rubbed on the scarf), positive for plus marks (the scarf). 0 for anything uncharged.
+   */
+  static(id: string): number;
+  /** A balloon is stuck to a wall (charged, against its face). */
+  stuck(balloonId: string): boolean;
+  /** What is pulling a heap of paper bits up (a charged balloon or comb close by), or null. */
+  lifted(paperId: string): string | null;
+  /** Centre to centre distance between two balloons, in mm (two charged ones keep apart). */
+  apart(a: string, b: string): number;
+
   /** Stable meter readings captured by the notebook, oldest first. */
   readonly readingsLog: readonly Reading[];
   /** The latest reading with this tag. */
@@ -663,8 +722,6 @@ export type LabView = {
   /** Fire an achievement trigger (once per visit). */
   trigger(name: string): void;
 
-  /** Whether a view or overlay is on: "xray:U1" while U1's chip x-ray is open (the lesson player may set others). */
-  view(name: string): boolean;
   /** A chip's pin by number or name (`lab.pin("U1", 6)`, `lab.pin("U1", "threshold")`): its node, volts and level. */
   pin(chip: string, pin: number | string): ChipPin | null;
   /** How a chip sits on the board (straddling the channel, which way its notch points), or null when it is not on it. */

@@ -8,8 +8,8 @@
  */
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useStore } from "zustand";
-import { boardGeometry, trayLeft } from "@ohmland/bench/core";
-import type { LabDefinition, LabTask } from "../../lab/define";
+import { boardGeometry, trayLeft, type BenchState } from "@ohmland/bench/core";
+import { isOptional, type LabDefinition, type LabTask } from "../../lab/define";
 import { m } from "../../i18n";
 import { useLearner } from "../../progress/store";
 import { prefersReducedMotion } from "../../progress/prefs";
@@ -151,10 +151,14 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   gate.current = { task: props.gate, secret: props.secret };
 
   // The lab as the lesson runs it: a task's goal only counts while the lesson waits for it (or it is the secret).
+  // A bonus task that fires an achievement trigger stays armed the whole lesson, so a clean run can still earn it.
   const gated = useMemo<LabDefinition>(
     () => ({
       ...lab,
-      tasks: lab.tasks.map((t) => ({ ...t, goal: (v) => (t.id === gate.current.task || t.id === gate.current.secret) && t.goal(v) })),
+      tasks: lab.tasks.map((t) => {
+        const always = isOptional(t) && !!t.trigger;
+        return { ...t, goal: (v) => (always || t.id === gate.current.task || t.id === gate.current.secret) && t.goal(v) };
+      }),
     }),
     [lab],
   );
@@ -248,9 +252,15 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         if (!task?.setup?.length) return;
         const start = runtime.checkpoint(taskId);
         let b = start?.bench ?? runtime.store.getState().bench;
-        for (const step of task.setup) b = applyStep(b, step).bench;
+        // The setup's own inputs (a meter's mode or range, a switch) go after the checkpoint's, so they win.
+        const inputs = [...(start?.inputs ?? [])];
+        for (const step of task.setup) {
+          const e = applyStep(b, step);
+          b = e.bench;
+          for (const { after: _after, ...i } of e.inputs) inputs.push(i);
+        }
         runtime.loadBench(b);
-        for (const i of start?.inputs ?? []) runtime.setInput(i.id, i.key, i.value);
+        for (const i of inputs) runtime.setInput(i.id, i.key, i.value);
       },
       showMe(taskId) {
         void runtime.showMe(taskId);
@@ -269,7 +279,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         const [id = "", leg] = rest.split(".");
         const name = built.labels[id] ?? b.parts.find((p) => p.id === id)?.kind ?? id;
         if (kind === "part") return name;
-        const legName = leg ? (m.lessonBench.legs[leg] ?? leg) : "";
+        const legName = leg ? legNameOf(b, id, leg) : "";
         return legName ? `${name}: ${legName}` : name;
       },
       calm() {
@@ -282,7 +292,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         const [kind, rest = ""] = raw.split(":") as [string, string?];
         if (kind === "hole") return holeName(rest);
         const [id = "", leg] = rest.split(".");
-        if (leg) return m.lessonBench.legs[leg] ?? leg;
+        if (leg) return legNameOf(b, id, leg);
         return (built.labels[id] ?? id).toLowerCase();
       },
       holeFor(text) {
@@ -377,6 +387,12 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
       )}
     </div>
   );
+}
+
+/** A leg's name for the learner, by the kind of part it belongs to (a diode's band end, a transistor's base). */
+function legNameOf(bench: BenchState, partId: string, leg: string): string {
+  const kind = bench.parts.find((p) => p.id === partId)?.kind;
+  return (kind ? m.lessonBench.legsByKind[kind]?.[leg] : undefined) ?? m.lessonBench.legs[leg] ?? leg;
 }
 
 /** A seed that is the same for a learner every visit (their first finished lesson), for shuffled mystery parts. */
