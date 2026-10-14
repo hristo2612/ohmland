@@ -342,6 +342,9 @@ export function BenchInk(props: BenchInkProps) {
         framing.current = targets.length ? { targets: [...targets], ...(opts?.padding !== undefined ? { padding: opts.padding } : {}) } : null;
         const i = opts?.inset ?? {};
         insetRef.current = { top: i.top ?? 0, right: i.right ?? 0, bottom: i.bottom ?? 0, left: i.left ?? 0 };
+        // The selection bar keeps clear of a docked panel too (styles.ts reads these).
+        element?.style.setProperty("--ohi-inset-bottom", `${insetRef.current.bottom}px`);
+        element?.style.setProperty("--ohi-inset-right", `${insetRef.current.right}px`);
         // Before the view has a size this waits; the first sizing frames it.
         applyFraming(!!opts?.instant);
       },
