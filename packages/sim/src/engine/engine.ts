@@ -25,10 +25,12 @@ const H_BREAK = 1e-6;
 const H_MIN = 1e-12;
 /** First step after a digital edge: short enough that every input the edge reaches registers it at once. */
 const H_SETTLE = 1e-9;
-/** Largest restart step after a digital edge settled. */
-const H_EDGE_RESTART = 5e-5;
-/** Threshold crossings are located to within this time. */
+/** Restart step after a digital edge settled: this share of the smooth step before it, at most H_EDGE_RESTART. */
+const EDGE_RESTART_SHARE = 0.05;
+const H_EDGE_RESTART = 1e-4;
+/** Threshold crossings are located to within this time, or this share of the step that found them if more. */
 const EVENT_TOL = 2e-8;
+const EVENT_REL = 1e-3;
 /** Watchdog: this many accepted steps in a row under H_TINY force coarse steps of H_FORCED for FORCE_SPAN. */
 const H_TINY = 1e-8;
 const TINY_RUN = 500;
@@ -485,6 +487,7 @@ export class Engine implements Ctx {
     // Watchdog: while forced, take steps of at least a fraction of a microsecond and never rescue (see below).
     const forced = this.t < this.forceUntil;
     if (forced) h = Math.max(h, H_FORCED);
+    const clipped = h >= room || room < 2 * h;
     if (h >= room) h = room;
     else if (room < 2 * h) h = room / 2;
 
@@ -492,6 +495,7 @@ export class Engine implements Ctx {
     const maxIter = this.freshStart ? 100 : soft ? 4 * MAX_ITER : MAX_ITER;
     let failedHere = false;
     let locates = 0;
+    let tol = EVENT_TOL;
     /** Step the error control allowed before an event shortened this one (resumed afterwards). */
     let hResume = 0;
     this.predict = !isBreak && this.canPredict;
@@ -536,8 +540,9 @@ export class Engine implements Ctx {
         }
         const grow = ratio > 0 ? Math.min(2, 0.9 * Math.pow(ratio, -1 / 3)) : 2;
         hGrow = h * Math.max(0.25, grow);
-        this.hSmooth = h;
-      } else if (ok && !jumped && !isBreak && this.reactives.length === 0) this.hSmooth = h;
+        // What the error control would allow next, unless this step was cut short (a breakpoint, an event).
+        if (!clipped && locates === 0) this.hSmooth = hGrow;
+      } else if (ok && !jumped && !isBreak && this.reactives.length === 0) this.hSmooth = hGrow;
       // Event location: on a smooth stretch, land just past the first threshold crossing instead of jumping over it.
       if (ok && !jumped && !isBreak && !forced && this.eventDevs.length > 0 && locates < 16) {
         let f = Infinity;
@@ -547,11 +552,14 @@ export class Engine implements Ctx {
         }
         if (f < 1) {
           const tc = Math.max(0, f) * h;
-          if (h - tc > EVENT_TOL) {
+          // Located to a small share of the step the error control wanted: a crossing on a millisecond curve
+          // needs no nanosecond precision.
+          if (locates === 0) tol = Math.max(EVENT_TOL, EVENT_REL * h);
+          if (h - tc > tol) {
             this.stats.located++;
             locates++;
             if (hResume === 0) hResume = hGrow;
-            h = Math.max(tc + 0.5 * EVENT_TOL, H_MIN);
+            h = Math.max(tc + 0.5 * tol, H_MIN);
             continue;
           }
         }
@@ -565,9 +573,11 @@ export class Engine implements Ctx {
       this.acceptStep(h, limit, !isBreak && !jumped && ok);
       if (soft && this.breakMarks === marks) {
         // The edge has settled (everything wired to it has seen the new level). Restart integration with a
-        // backward Euler step of the size used before the edge: capacitor voltages are continuous across it.
+        // backward Euler step that is a small share of what the error control used before the edge: capacitor
+        // voltages are continuous across it, and the first-order error of that one step (it grows with the square
+        // of its size) stays well under 0.1% of the timing.
         this.needBreak = true;
-        const hr = Math.min(H_EDGE_RESTART, this.hmax * this.stepScale, Math.max(H_BREAK, this.hSmooth));
+        const hr = Math.min(H_EDGE_RESTART, this.hmax * this.stepScale, Math.max(H_BREAK, EDGE_RESTART_SHARE * this.hSmooth));
         this.hRestart = hr;
         this.hNext = hr;
       }

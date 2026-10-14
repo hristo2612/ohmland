@@ -174,6 +174,32 @@ export function monostable555(R: number, C: number): Netlist {
   };
 }
 
+/**
+ * A 555 astable (with an LED on its output) clocking a chain of 4026B decade counters, each into a common-cathode
+ * display through 1 kΩ per segment, carry out to the next clock: the counter and display chain of the reaction
+ * timer. Runs from a 9 V battery with 100 µF across it.
+ */
+export function counterChain(R1: number, R2: number, C: number, digits = 3): Netlist {
+  const segs = ["a", "b", "c", "d", "e", "f", "g"];
+  const parts: PartSpec[] = [
+    battery9(),
+    cap("CB", "vcc", "gnd", 100e-6, true),
+    { id: "U0", kind: "timer555", pins: { gnd: "gnd", trig: "th", out: "clk1", reset: "vcc", ctrl: "cv", thresh: "th", dis: "dis", vcc: "vcc" } },
+    resistor("RA", "vcc", "dis", R1),
+    resistor("RB", "dis", "th", R2),
+    cap("CT", "th", "gnd", C),
+    cap("CV", "cv", "gnd", 10e-9),
+    resistor("RL", "clk1", "l", 1000),
+    led("D1", "l", "gnd"),
+  ];
+  for (let k = 1; k <= digits; k++) {
+    parts.push({ id: `U${k}`, kind: "logic", model: "4026B", pins: { vdd: "vcc", vss: "gnd", clk: `clk${k}`, inh: "gnd", dei: "vcc", rst: "gnd", co: `clk${k + 1}`, ...Object.fromEntries(segs.map((s) => [s, `d${k}${s}`])) } } as PartSpec);
+    for (const s of segs) parts.push(resistor(`R${k}${s}`, `d${k}${s}`, `d${k}${s}x`, 1000));
+    parts.push({ id: `DS${k}`, kind: "sevenseg", common: "cathode", pins: { com: "gnd", ...Object.fromEntries(segs.map((s) => [s, `d${k}${s}x`])) } } as PartSpec);
+  }
+  return { parts };
+}
+
 /** Times at which a sampled value crosses a level going down. */
 export function fallingCrossings(samples: [number, number][], level: number): number[] {
   return risingCrossings(

@@ -804,6 +804,11 @@ type ModelDef = {
   inputs: readonly string[];
   outputs: readonly string[];
   schmitt?: boolean;
+  /**
+   * Delay spread: each gate of a chip is a little different ("gate", the default, so racing latches resolve one
+   * way), or all outputs of a counter or flip-flop that move on one clock edge move together ("chip").
+   */
+  skew?: "gate" | "chip";
   /** Inputs each output depends on (default: all), for leaving the oscillation guard. */
   deps?: number[][];
   /** Size of the internal state and a random power-up state. */
@@ -885,6 +890,7 @@ const DFF: ModelDef = {
     [4, 5, 6, 7],
   ],
   stateSize: 2,
+  skew: "chip",
   powerUp(st, rnd) {
     st[0] = rnd() < 0.5 ? 1 : 0;
     st[1] = rnd() < 0.5 ? 1 : 0;
@@ -922,6 +928,7 @@ const C393: ModelDef = {
   outputs: ["qa1", "qb1", "qc1", "qd1", "qa2", "qb2", "qc2", "qd2"],
   deps: [[0, 1], [0, 1], [0, 1], [0, 1], [2, 3], [2, 3], [2, 3], [2, 3]],
   stateSize: 2,
+  skew: "chip",
   powerUp(st, rnd) {
     st[0] = Math.floor(rnd() * 16);
     st[1] = Math.floor(rnd() * 16);
@@ -951,6 +958,7 @@ const C4026: ModelDef = {
   outputs: ["deo", "co", "a", "b", "c", "d", "e", "f", "g", "ucs"],
   deps: [[2], [0, 1, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 3]],
   stateSize: 1,
+  skew: "chip",
   powerUp(st, rnd) {
     st[0] = Math.floor(rnd() * 10);
   },
@@ -1059,7 +1067,7 @@ export class LogicDevice extends ChipBase implements OutputDriver {
       value: -1,
       pend: -1,
       pendAt: 0,
-      spread: 1 + 0.15 * spread(spec.id, `tpd-${nm}`, seed),
+      spread: 1 + 0.15 * spread(spec.id, def.skew === "chip" ? "tpd" : `tpd-${nm}`, seed),
       want: 0,
       toggles: [],
       osc: false,
