@@ -10,6 +10,36 @@ with every module, one island per unit, linked by ribbon cable bridges (the Pitk
 
 ![The notebook isle at 12 lessons](screenshots/isle-notebook-12-lessons-day.png)
 
+## Units, pieces and landmarks
+
+`src/catalog.ts` lists what the isle can hold. Content names these ids: a lesson's `unlocks.isle` a piece, a module's
+`landmark.id` a landmark. `apps/web/src/content/isle-pieces.ts` mirrors the pieces (its test fails if the two drift).
+
+- **Units**, one island each, by the id of their folder in `content/units`: `start-here`, `basics`, `switching`,
+  `permanent`, `chips`, `beyond`. `content/course.yaml` still lists Unit 3 among its upcoming units as
+  `making-it-permanent`; the planner reads that id as `permanent` (`unitOf`), so either builds the same island.
+- **Pieces**, one per lesson. Units 3 to 5 add `iron-stand`, `solder-spool`, `regulator` (Making it permanent),
+  `chip-block`, `reed-gate`, `seven-seg`, `logic-chip`, `dice-block` (Chips), `coil-bolt`, `magnet`, `antenna` and
+  `mcu-board` (Beyond), drawn in `src/render/pieces.ts`.
+- **Landmarks**, one per module, each rising through tiers (`src/render/landmarks.ts`):
+
+| Unit | Landmarks in module order (tiers) |
+|---|---|
+| Start here | spark-gap (2), pump-house (2), meter-tower (3) |
+| Basics | resistor-hall (2), lighthouse (3), observatory (2), power-station (3), lemon-grove (2) |
+| Switching | switchyard, relay-clocktower, breadboard-plaza, capacitor-water-tower, transistor-gatehouse, siren-tower (2 each) |
+| Making it permanent | solder-forge (3), cable-pylon (2), perfboard-pier (2) |
+| Chips | timer-factory (2), alarm-lighthouse (3), counter-billboard (2), logic-castle (3), dice-arcade (2) |
+| Beyond | coil-windmill (2), radio-mast (3), microcontroller-hq (2), led-sundial (2) |
+
+A new kind never changes an isle that does not name it. The fallback deck (a lesson without a known piece) and the
+fallback landmark rotation (a module without a known landmark) are frozen, and a test pins an isle built from older
+kinds to the fingerprint it had before Units 3 to 5 were drawn.
+
+![The pieces of Units 3 to 5](screenshots/gallery-later-pieces-day.jpg)
+
+![Some of their landmarks at their top tiers, by night](screenshots/gallery-later-landmarks-night.jpg)
+
 ## Looks
 
 `opts.look` picks how the isle is drawn. The default is `"notebook"`.
@@ -61,6 +91,7 @@ mountIsle(el, plan, {
   paper?: "grid" | "plain" | "clear",     // notebook only, default "grid"
   time?: Date, at?: number, messages?: IsleMessages, audio?: AudioContext,
   autoRotate?: number, inset?: { bottom?: number }, onPick?: (label) => void,
+  frame?: "isle" | "parts",               // what the camera fits: the whole isle (default) or only its parts
 });
 ```
 
@@ -102,12 +133,15 @@ pnpm --filter @ohmland/isle dev      # the playground: sizes, looks, paper, time
 pnpm --filter @ohmland/isle test     # the plan: determinism, golden hash, no overlaps, no three.js in the planner
 pnpm --filter @ohmland/isle shots    # screenshots: 1, 12, 40, 120 lessons, notebook day and night and classic day,
                                      # desktop and phone, plus a contact sheet (screenshots/out, not committed)
+pnpm --filter @ohmland/isle shots --gallery all   # every piece variant and landmark tier up close, day and night
 node scripts/perf.mjs [--look notebook,classic] [--turn 6] [--uncapped] [--swiftshader] [--size 390x844 --dpr 3]
 ```
 
 Playground query parameters: `l`, `m`, `u`, `seed`, `time` (auto, day, dusk, night), `q` (high, low), `look`,
 `paper`, `rm=1` (reduced motion), `muted=0`, `bare=1`, `zoom`, `only` (one unit's island), `turn` (a turning teaser).
-`/robot.html` shows the robot alone (`?night=1`, `?look=classic`).
+`/robot.html` shows the robot alone (`?night=1`, `?look=classic`). `/gallery.html?kinds=` lays chosen kinds side by
+side on a small board, framed on the parts: `kind` shows every variant or tier, `kind@1` one variant, `kind:2` one
+tier, `|` starts a row (with `time`, `look`, `paper`, `zoom`, `cols`, and `frame=isle` for the whole board).
 
 ## Screenshots
 

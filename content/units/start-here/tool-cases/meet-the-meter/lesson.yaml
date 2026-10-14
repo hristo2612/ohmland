@@ -1,0 +1,77 @@
+# Start here, case 8 (docs/curriculum/start-here.md, SH8). A bench lesson (docs/LESSONS.md).
+# One idea: the meter turns push into a number, in volts, and its sign says which side is plus.
+# Lab: content/labs/meet-the-meter.ts (a sealed box with plain terminals, a meter with its leads unplugged).
+format: bench
+id: meet-the-meter
+version: 2
+title: The black box
+summary: Plug in a meter, read a sealed box in volts, and find out which side is plus.
+minutes: 8
+lab: meet-the-meter
+unlocks:
+  parts: [multimeter, test-leads]
+  isle: meter-kiosk
+
+start:
+  title: The black box
+  say: Is there a battery in this box? Which side is plus?
+  go: Let's find out
+
+beats:
+  - say: This is a meter. Black into COM, red into VΩ.
+    objective: Set up the meter
+    spot: ["part:M1"]
+    do: plug-in
+    note: { at: "socket:com", text: black lives here }
+
+  - say: Look, your words are on the dial. Set 20 V.
+    spot: ["part:M1"]
+    tool: meter
+    do: set-dial
+    note: { at: "part:M1/dial", text: "V push, A flow, Ω squeeze" }
+
+  - say: Which letter counts flow?
+    pick: { on: "part:M1/dial", options: [V, A, Ω], answer: A }
+    hint: Look at the dial. Which letter sits by mA?
+
+  - say: Probe the two brass posts. A fresh 9 V reads...
+    objective: Read the box
+    spot: [BX, "part:M1"]
+    tool: meter
+    guess: { options: [Exactly 9, A bit under, A bit over], answer: A bit over }
+    do: read-battery
+    note: { at: "part:M1/display", text: "9.4 V: a fresh 9 V" }
+
+  - say: Now swap the probes.
+    spot: [BX, "part:M1"]
+    tool: meter
+    do: swap-probes
+    note: { at: "part:M1/display", text: "minus: red is on the − side" }
+    rule: The sign shows which side is plus.
+
+  - say: Tap the plus terminal.
+    objective: Name the plus
+    tap: { answer: BX.t2, among: [BX.t1, BX.t2] }
+    wrong: { BX.t1: Red read minus on that one. }
+
+  - say: Open the box. Were you right?
+    do: open-the-box
+    note: { at: B1.pos, text: plus snap wired to that post }
+
+  - say: What is this?
+    pick: { on: "part:M1", options: [A meter, A gate, A battery], answer: A meter }
+
+secret:
+  task: tired-battery
+  say: "Secret: measure the tired battery on the left."
+  tool: meter
+  note: { at: B2, text: "same label, less push left" }
+
+fixit:
+  say: My meter reads zero on a fresh battery. Fix it.
+  tool: meter
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. Dial to OFF, always.

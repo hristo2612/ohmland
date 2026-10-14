@@ -1,0 +1,11 @@
+id: first-cases
+title: First cases
+summary: Dark lamps, a junk drawer, a clingy balloon and two counting gates.
+landmark:
+  id: spark-gap
+  name: the Spark Gap
+  # The module schema has no fields for these yet (blueprint section 2.1):
+  # caption: Two copper horns, and a small spark dancing between them.
+  # mascot: Gaps, charge, flow. Three cases closed.
+lessons:
+  - welcome-to-the-bench

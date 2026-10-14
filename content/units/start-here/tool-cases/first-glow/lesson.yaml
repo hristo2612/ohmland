@@ -1,0 +1,59 @@
+# Start here, case 12 (docs/curriculum/start-here.md, SH12). A bench lesson (docs/LESSONS.md).
+# One idea: a drawing shows connections, not places. The old "flip the LED" is the fix-it now.
+# Lab: content/labs/first-glow.ts (a half board with two jumpers, a torn drawing, the parts in the tray).
+format: bench
+id: first-glow
+version: 3
+title: The torn blueprint
+summary: Mend a torn circuit drawing, build it on the breadboard, and find out what a drawing really shows.
+minutes: 8
+lab: first-glow
+unlocks:
+  parts: [led-red]
+  isle: jumper-arch
+
+start:
+  title: The torn blueprint
+  say: Half my blueprint tore off. The LED's missing.
+  go: Mend it
+
+beats:
+  - say: Drag the torn piece into the gap. Turn it right.
+    objective: Mend the blueprint
+    spot: [CARD, PC]
+    do: mend-blueprint
+    note: { at: "part:CARD/D1", text: the triangle points away from plus }
+
+  - say: Build it on the board. Follow the lines.
+    objective: Build it
+    do: build-loop
+    done: It glows! Built from a drawing.
+    note: { at: CARD, text: "each line: a connection" }
+
+  - say: Show me the part for the zigzag.
+    objective: Read the drawing
+    tap: { answer: R1, among: [B1, R1, D1] }
+    wrong: { D1: "That's the LED: the triangle.", B1: "That's the battery: long and short lines." }
+
+  - say: Move the LED up a row. Will the drawing change?
+    spot: [D1, CARD]
+    guess: { options: [It changes, It stays the same], answer: It stays the same }
+    do: move-it
+    note: { at: CARD, text: "parts moved, drawing stayed" }
+    rule: A drawing shows connections, not places.
+
+  - say: So what does a drawing show?
+    pick: { on: CARD, options: [Connections, Where parts sit], answer: Connections }
+
+secret:
+  task: swap-order
+  say: "Secret: put the resistor after the LED."
+  note: { at: R1, text: "one loop: order doesn't matter" }
+
+fixit:
+  say: Last case. This board's lamp won't light.
+  tasks:
+    - task: flip-led
+
+end:
+  say: Case closed. You built that from a drawing!

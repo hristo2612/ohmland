@@ -74,6 +74,11 @@ export type MountOptions = {
    * "clear" a transparent canvas, so the page's own paper shows through (the isle still casts its pencil shadow on it).
    */
   paper?: Paper;
+  /**
+   * What the camera frames: "isle" (the default) the whole isle with its keel, its shadow and the robot; "parts" only
+   * the pieces and landmarks standing on it, for a close look at them (the playground's gallery).
+   */
+  frame?: "isle" | "parts";
 };
 export type IsleInset = { bottom?: number };
 export type IsleView = {
@@ -445,7 +450,9 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     let depth = 4;
     const fr = { sx0: Infinity, sx1: -Infinity, sy0: Infinity, sy1: -Infinity };
     const seen: number[] = [];
-    const see = (x: number, y: number, z: number) => {
+    const partsOnly = opts.frame === "parts";
+    const see = (x: number, y: number, z: number, part = false) => {
+      if (partsOnly && !part) return;
       const [a, b] = onScreen(x, y, z);
       fr.sx0 = Math.min(fr.sx0, a);
       fr.sx1 = Math.max(fr.sx1, a);
@@ -571,7 +578,10 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
         mesh.setMatrixAt(i, M);
         if (glow) glow.setMatrixAt(i, M);
         top = Math.max(top, g.built.top + w.y + 1);
-        see(w.x, w.y + g.built.top, w.z);
+        see(w.x, w.y + g.built.top, w.z, true);
+        if (partsOnly)
+          for (const [dx, dz] of [[-1, -1], [1, 1], [1, -1], [-1, 1]] as const)
+            for (const y of [0, g.built.top]) see(w.x + dx * it.foot, w.y + y, w.z + dz * it.foot, true);
         for (const l of g.built.lights) {
           const [lx, lz] = turn(l.x, l.z, it.rot);
           lights.push({ x: w.x + lx, y: w.y + l.y, z: w.z + lz, c: new THREE.Color(l.color), s: l.size });

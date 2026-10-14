@@ -129,6 +129,8 @@
      Kalam has no Greek, so Ω falls back to Literata glyph by glyph. */
   --font-serif: "Literata", Georgia, "Times New Roman", serif;
   --font-hand: "Kalam", "Literata", Georgia, serif;
+  /* Program text (the code drawer): every character one column wide, so "line 7, character 15" can be counted. */
+  --font-code: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   /* Seven sizes for the app, on a 4 px rhythm */
   --text-xs: 14px;   --lh-xs: 20px;    /* captions, kickers, meta */
   --text-sm: 16px;   --lh-sm: 24px;    /* UI text, buttons, lists */

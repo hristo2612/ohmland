@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Isle gallery</title>
+    <style>
+      :root {
+        --paper: #f6f2e9;
+        --ink: #24221e;
+        --grid: #e7e0d3;
+      }
+      body.night {
+        --paper: #1b1a18;
+        --ink: #ece6da;
+        --grid: #262522;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        color: var(--ink);
+        background: var(--paper);
+        font: 14px/1.4 "Literata", Georgia, "Times New Roman", serif;
+      }
+      body.classic {
+        background: #e4f3f4;
+      }
+      #isle {
+        position: fixed;
+        inset: 0;
+      }
+      #names {
+        position: fixed;
+        top: 10px;
+        left: 12px;
+        right: 12px;
+        margin: 0;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="isle"></div>
+    <p id="names"></p>
+    <script type="module" src="./gallery.ts"></script>
+  </body>
+</html>
