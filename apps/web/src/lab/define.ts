@@ -547,6 +547,12 @@ export type LabDefinition = {
   panels?: PanelConfig[];
   /** Simulation speed (1 is real time). */
   speed?: number;
+  /**
+   * Seconds of simulated time the circuit runs unseen before the learner sees it: at the start, and after a reset, a
+   * fix-it setup or a "Show me" rewind. For a circuit that wakes up in a random state and must look calm (a 555's
+   * latch: a one-shot may fire once at power-up). Opt-in; without it the bench shows at once.
+   */
+  settle?: number;
 };
 
 // ---------------------------------------------------------------------------------------------------------------
