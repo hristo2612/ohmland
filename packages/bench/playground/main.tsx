@@ -5,7 +5,7 @@ import type { Health, PartState, Snapshot } from "@ohmland/sim";
 // galleries load their 3D code when opened.
 import { benchToNetlist, createBenchStore, emptyBench, type BenchAction, type BenchState, type InspectSpec, type Quality } from "../src/core";
 import { BenchView, type BenchController, type BenchViewKind } from "../src/view";
-import { FULL_TRAY, blocksBench, boxesBench, clipBench, demoBench, drawerBench, glowBench, lampBench, modulesBench, propsBench, smokeBench, staticBench, symbolsBench, tiredBench } from "./scenes";
+import { FULL_TRAY, blocksBench, boxesBench, clipBench, demoBench, drawerBench, glowBench, lampBench, mcuBench, modulesBench, propsBench, smokeBench, staticBench, symbolsBench, tiredBench } from "./scenes";
 
 type GalleryProps = { view?: { position: [number, number, number]; target: [number, number, number] }; rows?: number[]; row: string | null; focus: string | null };
 const GalleryApp = lazy(() =>
@@ -60,6 +60,8 @@ function initialBench(): BenchState {
       return symbolsBench();
     case "static":
       return staticBench();
+    case "mcu":
+      return mcuBench();
     default:
       return demoBench();
   }
@@ -99,6 +101,8 @@ function toSnapshot(bench: BenchState, m: Mock): Snapshot {
       s.extra = { armature: m.closed ? 1 : 0 };
     }
     if (p.kind === "led") s.extra = { stress: Math.min(1.2, (m.glow[p.id] ?? 0) * 0.7) };
+    // A microcontroller board's lamps: L (pin 13, `lamp=`) and ON.
+    if (p.kind === "mcu-board") s.extra = { L: Number(q.get("lamp") ?? 0.8), ON: Number(q.get("on") ?? 0.75) };
     parts[p.id] = s;
   }
   if (bench.meter) parts[bench.meter.id] = { i: 0, v: 0, p: 0, temp: 25, health: "ok", display: m.display, unit: m.unit };

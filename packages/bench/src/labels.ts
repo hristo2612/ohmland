@@ -126,6 +126,7 @@ export const DEFAULT_LABELS: BenchLabels = {
     paper: "Paper bits",
     comb: "Comb",
     wall: "Wall",
+    "mcu-board": "Microcontroller board",
   },
   colors: {
     red: "Red",

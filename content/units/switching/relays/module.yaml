@@ -1,11 +1,13 @@
 id: relays
 title: Relays
-summary: Coil and contacts, NO, NC and COM, pull-in and drop-out, isolation, coil kickback and the protection diode.
+summary: Coil and contacts, NO, NC and COM, a relay choosing between lamps, pull-in and drop-out, coil kickback and the protection diode.
 # Reveal caption: Its heart is a coil and its voice is a click. Listen: it keeps the island's time.
 landmark:
   id: relay-clocktower
   name: the Relay Clocktower
 lessons:
   - meet-the-relay
+  - relay-chooser
   - relay-thresholds
   - coil-kickback
+  - the-diode

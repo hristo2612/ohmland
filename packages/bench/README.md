@@ -253,6 +253,33 @@ is dragged.
 ![The junk drawer's objects and sorting trays](screenshots/start-junk.png)
 
 ![Drawers, the cabinet's padlock, tags and the torn drawing](screenshots/start-symbols.png)
+### Microcontroller board (Unit 5)
+
+`mcu-board` is an original Uno-sized board (70 x 54 mm, our own layout and art: no logo, no copied artwork), a desk
+part drawn the same in both views from one geometry module, `src/mcuBoard.ts`.
+
+![The board in 3D](screenshots/mcu-3d-close.png)
+
+![The board in ink](screenshots/mcu-ink-close.png)
+
+- **Leads** (header sockets): `d0` to `d13` and `gnd2` on the far edge (GND, 13 down to 0 from left to right as on
+  Uno-style boards; 0 and 1 printed RX and TX, PWM pins with a ~), `5v`, `gnd`, `vin` and `a0` to `a5` on the near
+  edge. Each clip point is the top of its socket (`MCU_PIN_XZ`, `MCU_PIN_Y`); clip leads and probes attach to
+  `pin:U1.d7` and so on. The two GND sockets are joined (`bridges`).
+- **Params**: `program` (bench C source), `upload` (a counter: bump it to upload again), `power` (`"usb"`, `"jack"`,
+  `"off"`), `clockStart` (millis() at reset), `seed`. All plain JSON in BenchState.
+- **Netlist**: one simulator `mcuboard` part with the same pin names (`gnd2` folds into `gnd`) and the params as they
+  are (see packages/sim README, "Microcontroller board"). With no battery or lemon cell on the bench, the board's GND
+  is the reference node `gnd` (it makes its own 5 V from USB).
+- **Look**: a USB-C socket and a barrel jack on the left edge, a reset button, a square chip, a crystal, a regulator,
+  and two lamps: L (pin 13) and ON, lit from the board's snapshot (`extra.L`, `extra.ON`; the simulator also lists
+  them as parts `U1:L` and `U1:ON`). Both views re-render the board when its lamps change.
+- Not yet: a jumper wire from a header socket to a breadboard hole (wires go hole to hole; use a clip lead for now), the
+  USB cable and laptop prop, the 9 V battery with a barrel plug, and a pressable reset button (the simulator has the
+  `reset` input).
+
+`?scene=mcu` in the playground shows lesson 12's bench (`lamp=0.85` sets the L lamp in the mock snapshot);
+`pnpm --filter @ohmland/bench shots:mcu` checks the clip points in both views and writes `mcu-*.png`.
 
 ### `@ohmland/bench/core`
 
@@ -422,7 +449,7 @@ pnpm --filter @ohmland/bench dev     # vite playground, http://localhost:5199
   also lists the live netlist and the action log.
 - `?scene=clips` a section-one bench with no board, everything joined by crocodile leads; `?scene=smoke` a small
   board with an overloaded resistor; `?scene=empty`, `?scene=half` (400-point board); `?scene=props` every lab
-  prop on one desk; `?scene=modules` the desk modules; `?scene=blocks` desk modules, single-pole and mystery relays
+  prop on one desk; `?scene=mcu` the microcontroller board wired to a lamp; `?scene=modules` the desk modules; `?scene=blocks` desk modules, single-pole and mystery relays
   (closed and peeked) and bendable capacitor legs on a half board; `?scene=glow` the first-glow loop (`glow0` before
   it is wired). Start here: `?scene=lamp` (`wrap=1` clips TL1 to the wrapper, `gates=1` adds two gates, `off=1`),
   `junk`, `boxes` (`open=1`), `tired`, `symbols`, `static`.
@@ -445,6 +472,7 @@ pnpm --filter @ohmland/bench test        # Vitest: netlist, snapping, colour cod
 pnpm --filter @ohmland/bench typecheck
 pnpm --filter @ohmland/bench shots       # Playwright: interaction, controller and view switch checks + screenshots
 pnpm --filter @ohmland/bench shots:ink   # Playwright: the ink view driven by mouse, touch and keyboard + ink-*.png
+pnpm --filter @ohmland/bench shots:mcu   # Playwright: the microcontroller board in both views + mcu-*.png (port 5363)
 ```
 
 The Playwright run starts the playground itself. On macOS headless Chromium renders WebGL through Metal; elsewhere the
