@@ -32,6 +32,11 @@ view-agnostic.
 `<BenchView>` picks the renderer and lazy-loads it: the ink view must not pull in three.js, and the 3D view must not pull
 in the ink renderer.
 
+Import it from `@ohmland/bench/view` (the package entry `@ohmland/bench` re-exports it, but that entry also loads the
+3D models). Both renderers take the same props (`BenchRendererProps` in `src/view/types.ts`, which also has `frame`
+and `theme`); `camera` is 3D only. BenchView keeps one store for its whole life, so switching never loses the bench,
+the undo history, the selection or the snapshot.
+
 ## BenchController (implemented by both views)
 
 ```ts
@@ -51,6 +56,21 @@ interface BenchController {
 
 The lesson player draws ink annotations (arrows, notes, ticks, rings) in a DOM/SVG overlay above either view using
 `project()`, so annotations look and behave the same in 3D and 2D.
+
+Implementation notes (both views):
+
+- The controller BenchView hands out is a hub (`createControllerHub`): the same object across view switches.
+  Subscriptions made on it survive a switch (they hear one change when the new view attaches), and the last `focus`
+  and `spotlight` are applied to the new view. `hub.inner()` is the active view's own controller.
+- Targets besides anchors: `part:<id>` (the meter is `part:M1`), `part:M1/display`, `part:M1/dial`,
+  `part:M1/<socket>`, `lead:<id>` and `wire:<id>` for a whole lead or wire. `parseTarget` and `targetPoint` (a
+  renderer-free world point) live in `src/view/targets.ts`.
+- `project()` returns null for a target that does not exist; `visible` is false off screen or behind the camera.
+- `onViewChange` fires at most once per drawn frame, for camera, size and bench changes (overlays follow drags).
+- In 3D, `focus` frames the targets' rendered models with some bench around them (a single small part is framed no
+  tighter than about 24 mm), and `spotlight` veils the rest of the bench in the page colour and rings each target in
+  red pencil. The 3D controller (`Bench3DController`) adds `project([x, y, z])`, `projectClient()` (page px, for
+  tests), `topView()`, `resetView()`, `atHome()`, `pickAt()` and `stats()`.
 
 ## Interaction parity
 

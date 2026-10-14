@@ -371,10 +371,16 @@ enough context for the lab to explain what happened.
 
 ## Workbench (`packages/bench`)
 
-React Three Fiber components and logic for the lab bench:
+React Three Fiber components and logic for the lab bench, in two interchangeable views of one store
+(docs/BENCH-VIEWS.md): the 3D bench on grid paper and the 2D ink bench. `<BenchView view>` (from
+`@ohmland/bench/view`, which has no three.js) lazy-loads the renderer and hands out a `BenchController` (`project`,
+`onViewChange`, `focus`, `spotlight`) that stays the same object across view switches.
 
+- The 3D view is drawn as a page of the Lab Notebook: an unlit grid-paper desk in the page colour, soft paper-matched
+  light, matte materials, contact shadows redrawn only when the bench changes, and on high quality a depth-based ink
+  outline pass. It follows the page's notebook tokens (light and night pages).
 - Procedural low-poly part models built in code (no downloaded models), clean and readable: resistor with correct
-  colour bands for its value, LEDs (3 and 5 mm, colours, glow + bloom), 9 V battery and snap, alligator test leads,
+  colour bands for its value, LEDs (3 and 5 mm, colours, glow + bloom), 9 V battery and snap, mini clip test leads,
   jumper wires, solderless breadboard, multimeter (rotary dial, LCD, banana sockets, probes), pushbutton, slide and
   toggle switches, fuse, capacitors (electrolytic, ceramic, with legs that bend to reach holes up to seven apart),
   potentiometer, relay (DPDT, or single changeover with `poles: 1`), NPN transistor (TO-92), phototransistor, small

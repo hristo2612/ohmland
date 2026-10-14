@@ -127,15 +127,23 @@ export class Spotlight {
     quad.frustumCulled = false;
     this.scene.add(quad);
   }
-  /** Draws the veil and the spotlit layer over what is already in the current render target. */
-  draw(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): void {
+  /**
+   * Draws the veil and the spotlit layer over what is already in the current render target. `markAlpha` lowers the
+   * target's alpha under the veil for the ink pass to read; drawing straight to the canvas leaves alpha alone.
+   */
+  draw(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, markAlpha = false): void {
     if (this.state.amount <= 0.001) return;
     this.material.uniforms.amount!.value = this.state.amount;
+    this.material.blendDstAlpha = markAlpha ? THREE.OneMinusSrcAlphaFactor : THREE.OneFactor;
     const bg = scene.background;
     const autoClear = gl.autoClear;
     const mask = camera.layers.mask;
     gl.autoClear = false;
     gl.render(this.scene, this.cam);
+    // The lights must reach the spotlight layer too.
+    scene.traverse((o) => {
+      if ((o as THREE.Light).isLight) o.layers.enable(SPOT_LAYER);
+    });
     scene.background = null;
     camera.layers.set(SPOT_LAYER);
     gl.render(scene, camera);
@@ -159,7 +167,7 @@ class SpotPass extends Pass {
   }
   override render(renderer: THREE.WebGLRenderer, inputBuffer: THREE.WebGLRenderTarget): void {
     renderer.setRenderTarget(inputBuffer);
-    this.spot.draw(renderer, this.spotScene, this.spotCamera);
+    this.spot.draw(renderer, this.spotScene, this.spotCamera, true);
   }
 }
 
