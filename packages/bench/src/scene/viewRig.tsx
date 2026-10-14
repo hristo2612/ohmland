@@ -9,7 +9,7 @@ import { boardGeometry, boardOrigin } from "../board";
 import { BOARD_TOP, GATE } from "../dims";
 import { METER, anchorPosition, isOnBoard } from "../layout";
 import { parseAnchor } from "../anchors";
-import { PRINTED_KINDS, partMarks, rotateXZ } from "../parts";
+import { UPRIGHT_KINDS, partMarks, rotateXZ } from "../parts";
 import type { BenchStore } from "../store";
 import type { BenchState, Vec3 } from "../types";
 import { prefersReducedMotion } from "../three/anim";
@@ -432,11 +432,12 @@ export function ViewRig({
         // Leave some of the bench around the targets, so the learner sees where they are.
         const { width, height } = get().size;
         const padding = opts.padding ?? Math.max(defaultPadding(), Math.round(Math.min(width, height) * 0.14));
-        // Print (a colour chart, a value tag) is read upright: no quarter turn on a tall screen.
+        // Print and digits (a colour chart, a value tag, a chip's number, a display) are read upright: no quarter turn
+        // on a tall screen.
         const printed = targets.some((t) => {
           const pt = parseTarget(t);
           const kind = pt?.type === "part" ? bench().parts.find((p) => p.id === pt.id)?.kind : undefined;
-          return !!kind && PRINTED_KINDS.has(kind);
+          return !!kind && UPRIGHT_KINDS.has(kind);
         });
         const pose = frame(boxes, { padding, turn: !printed && shouldTurn(boxes), minSize: MIN_FRAME });
         home.current = null;

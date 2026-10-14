@@ -13,7 +13,7 @@
  * Every item keeps its history (the event at which it appeared and at which it reached each tier), so the isle at any
  * earlier moment is a filter, and a reveal knows exactly what the latest events brought.
  */
-import { DECK, DOCK, footOf, isPiece, landmarkFor, tiersOf, variantsOf } from "./catalog";
+import { DECK, DOCK, footOf, isPiece, landmarkFor, tiersOf, unitOf, variantsOf } from "./catalog";
 import type { IsleEvent } from "./events";
 import { cos, fnv1a, hypot, rng, sin } from "./math";
 
@@ -444,7 +444,9 @@ export function makeIsle(seed: number, events: IsleEvent[]): IslePlan {
     return it;
   };
 
-  const isleFor = (unit: string, at: number): Isle => {
+  /** The island of a unit (by its catalog id, so a unit's old id finds the same island), raised when first reached. */
+  const isleFor = (id: string, at: number): Isle => {
+    const unit = unitOf(id);
     let isl = isles.find((i) => i.plan.unit === unit);
     if (!isl) {
       isl = new Isle(isles.length, unit, isles.length === 0 ? -1 : at, seed);

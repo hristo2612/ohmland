@@ -272,8 +272,12 @@ Derived, never stored:
   content names them; ids the isle does not know fall back to its planner.
 
 Achievements are a registry in `progress/achievements.ts`: `{ id, title, description, icon, xp, hidden?, labEvent?,
-check }`, where `check({ state, outline, events })` is a pure predicate over the learner record, the course outline and
-the latest lab events (`fried`, `task`, `trigger`, `lesson-complete`). The store evaluates them after a lesson
+refs?, check }`, where `check({ state, outline, events })` is a pure predicate over the learner record, the course outline and
+the latest lab events (`fried`, `task`, `trigger`, `lesson-complete`). A description that counts the course (a unit's
+lessons) is a function of the outline. `refs` declares, as data, every unit, lesson, task, bonus and trigger the check
+names; `progress/achievements.test.ts` proves each exists and can be reached in its lesson (a bench lesson only arms
+its beats' tasks, its fix-it, its secret and triggered bonuses), and that a learner who does everything the course
+offers earns every achievement. The store evaluates them after a lesson
 completes, after every fried part and on every lab event, and stores only `{ at }` per unlocked id. Fried parts are recorded with
 `recordFried(kind, label, lessonId, { silent? })`, which the lab runtime calls when the simulator reports a dead part.
 Labs also send `labEvent({ type: "task" | "trigger", ... })`: an achievement with `labEvent: "<name>"` unlocks when
