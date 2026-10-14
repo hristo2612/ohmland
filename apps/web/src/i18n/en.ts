@@ -567,7 +567,6 @@ export const en = {
       socketNames: { com: "COM", vohm: "VΩ", ma: "mA", a10: "10A" } as Record<string, string>,
       wrongSocket: "The red lead is in a current socket. Touching a battery like this will blow the fuse.",
       needCurrentSocket: "For current, move the red lead to the mA or 10A socket.",
-      acrossVoltage: "The probes are across a voltage. To read it, turn the dial to volts.",
       probesFree: "Touch the probe tips to two points to measure.",
       fuseBlown: "The meter's mA fuse has blown. The mA range reads nothing until it is replaced.",
       replaceFuse: "Replace meter fuse",
