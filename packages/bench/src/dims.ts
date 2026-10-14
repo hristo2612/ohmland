@@ -115,3 +115,37 @@ export function electrolyticSize(farads: number, volts = 16): { d: number; h: nu
 export const BOARD_CLIP_LIFT = 1.3;
 
 export { PITCH };
+
+/**
+ * Everyday objects for the junk drawer (Start here), lying on the desk along x with a clip point near each end:
+ * length, width and thickness in mm, and how far in from each end the clip bites.
+ */
+export const OBJECT: Record<"key" | "coin" | "foil" | "pencil" | "spoon" | "eraser" | "marble" | "wood" | "string" | "clip", { len: number; w: number; t: number; clip: number }> = {
+  key: { len: 54, w: 22, t: 2.2, clip: 4 },
+  coin: { len: 24, w: 24, t: 2, clip: 2.5 },
+  foil: { len: 64, w: 12, t: 0.3, clip: 4 },
+  pencil: { len: 60, w: 2, t: 2, clip: 3 },
+  spoon: { len: 92, w: 24, t: 3, clip: 6 },
+  eraser: { len: 40, w: 20, t: 9, clip: 4 },
+  marble: { len: 16, w: 16, t: 16, clip: 1.5 },
+  wood: { len: 90, w: 10, t: 2, clip: 5 },
+  string: { len: 78, w: 2, t: 1.6, clip: 3 },
+  clip: { len: 34, w: 10, t: 1.4, clip: 1.2 },
+};
+
+/** A counting gate: a collar round a clip lead and its paper flag (the counter), which stands above it. */
+export const GATE = { ring: 3.4, len: 7, flagW: 26, flagH: 13, lift: 16 };
+
+/** A sealed box (front strip with terminals and a knob, lid behind it) and the parts cabinet. */
+export const BOX = { w: 100, d: 66, h: 58, wall: 2.4, strip: 15, termX: 28, knob: 8 };
+export const CABINET = { w: 170, d: 96, h: 62, wall: 2.6, strip: 18 };
+
+/** The big sorting tray (`bin` style "tray") and a parts drawer (`bin` style "drawer"). */
+export const TRAY = { w: 132, h: 14, d: 104 };
+export const DRAWER = { w: 70, h: 26, d: 58 };
+
+/** A schematic card and the torn piece that fits its gap (square, so it can be turned). */
+export const SCHEM = { w: 110, d: 78, t: 0.8, loopW: 70, loopD: 46, piece: 26 };
+
+/** The static toy: a balloon on its string, a wool scarf, a heap of paper bits, a comb and a strip of wall. */
+export const STATIC = { balloon: 34, scarfW: 110, scarfD: 46, paper: 34, combW: 70, combD: 12, wallW: 150, wallD: 10, wallH: 80 };

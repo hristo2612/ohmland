@@ -2,9 +2,9 @@
 
 import { parseAnchor } from "./anchors";
 import { PITCH, boardGeometry, boardOrigin, holeWorld } from "./board";
-import { BOARD_TOP, BOARD_CLIP_LIFT, LED, NPN, CERAMIC, electrolyticSize, RESISTOR, DIODE, blockWidth } from "./dims";
-import { canMountOnBoard, footprintOf, isFlying, partDef, partLegs, rotateXZ } from "./parts";
-import { holderOf, seatPose } from "./seats";
+import { BOARD_TOP, BOARD_CLIP_LIFT, LED, NPN, CERAMIC, electrolyticSize, RESISTOR, DIODE, blockWidth, OBJECT, GATE } from "./dims";
+import { canMountOnBoard, footprintOf, isFlying, partDef, partLegs, partSpots, rotateXZ } from "./parts";
+import { hiddenParts, holderOf, seatPose } from "./seats";
 import type { Anchor, BenchState, MeterSocket, MeterState, PlacedPart, ProbeColor, Vec2, Vec3 } from "./types";
 
 export type PartPose = {
@@ -58,8 +58,28 @@ export function isOnBoard(bench: BenchState, part: PlacedPart): boolean {
   });
 }
 
+/**
+ * Where a gate clipped onto a lead sits: `at` of the way along the lead, between its two clips (a straight line: each
+ * view draws the gate on its own drawing of the cable at that fraction), turned along it. Null when it is on nothing.
+ */
+export function gateSpot(bench: BenchState, gate: PlacedPart): { origin: Vec3; rot: number; lead: string } | null {
+  if (gate.kind !== "gate" || !gate.params.on) return null;
+  const id = gate.params.on;
+  const a = anchorPosition(bench, `lead:${id}.a`);
+  const b = anchorPosition(bench, `lead:${id}.b`);
+  if (!a || !b) return null;
+  const t = Math.max(0.08, Math.min(0.92, gate.params.at ?? 0.5));
+  const origin: Vec3 = [a[0] + (b[0] - a[0]) * t, 0, a[2] + (b[2] - a[2]) * t];
+  const rot = (Math.atan2(-(b[2] - a[2]), b[0] - a[0]) * 180) / Math.PI;
+  return { origin, rot, lead: id };
+}
+
 export function partPose(bench: BenchState, part: PlacedPart): PartPose {
   const def = partDef(part.kind);
+  if (part.kind === "gate") {
+    const g = gateSpot(bench, part);
+    if (g) return { mount: "desk", origin: g.origin, rot: g.rot, legs: {} };
+  }
   if (bench.board && isOnBoard(bench, part)) {
     const board = bench.board;
     const legs: Record<string, Vec3> = {};
@@ -192,7 +212,8 @@ export function anchorPosition(bench: BenchState, anchor: Anchor, depth = 0): Ve
     case "pin": {
       const part = bench.parts.find((p) => p.id === a.part);
       if (!part) return null;
-      return partPose(bench, part).legs[a.leg] ?? null;
+      const pose = partPose(bench, part);
+      return pose.legs[a.leg] ?? spotWorld(pose, partSpots(part)[a.leg]);
     }
     case "wire": {
       const w = bench.wires.find((x) => x.id === a.wire);
@@ -228,14 +249,38 @@ export function probeTip(bench: BenchState, color: ProbeColor, depth = 0): Vec3 
   return [tip.pos[0], 6.5, tip.pos[1]];
 }
 
+/** An insulated spot (local, as `PartDef.spots` gives it) in world coordinates, for a part's pose. */
+function spotWorld(pose: PartPose, local: Vec3 | undefined): Vec3 | null {
+  if (!local) return null;
+  const [rx, rz] = rotateXZ(local[0], local[2], pose.rot);
+  return [pose.origin[0] + rx, pose.origin[1] + local[1], pose.origin[2] + rz];
+}
+
+/** A part's insulated spots (a battery's wrapper, a switch's block, a paper clip's coating) in world coordinates. */
+export function partSpotsWorld(bench: BenchState, part: PlacedPart): Record<string, Vec3> {
+  const pose = partPose(bench, part);
+  const out: Record<string, Vec3> = {};
+  for (const [name, local] of Object.entries(partSpots(part))) {
+    const p = spotWorld(pose, local);
+    if (p) out[name] = p;
+  }
+  return out;
+}
+
 export type ClipTarget = { anchor: Anchor; pos: Vec3; kind: "pin" | "hole" | "wire" | "probe" | "lead" };
 
-/** Every point a crocodile clip or probe tip can attach to. */
+/** Every point a crocodile clip or probe tip can attach to (parts shut inside a box are out of reach). */
 export function clipTargets(bench: BenchState, opts: { holes?: boolean; probes?: boolean; leads?: boolean } = {}): ClipTarget[] {
   const out: ClipTarget[] = [];
+  const hidden = hiddenParts(bench);
   for (const part of bench.parts) {
+    if (hidden.has(part.id)) continue;
     const pose = partPose(bench, part);
     for (const [leg, pos] of Object.entries(pose.legs)) out.push({ anchor: `pin:${part.id}.${leg}`, pos, kind: "pin" });
+    for (const [name, local] of Object.entries(partSpots(part))) {
+      const pos = spotWorld(pose, local);
+      if (pos) out.push({ anchor: `pin:${part.id}.${name}`, pos, kind: "pin" });
+    }
   }
   if (bench.board) {
     for (const w of bench.wires) {
@@ -327,6 +372,15 @@ const PROP_REACH: Partial<Record<PlacedPart["kind"], number>> = {
   clock: 32,
   showcase: 66,
   tag: 14,
+  gate: 12,
+  box: 56,
+  schematic: 58,
+  piece: 16,
+  balloon: 26,
+  scarf: 58,
+  paper: 22,
+  comb: 38,
+  wall: 80,
 };
 
 /** Desk rectangle covering the board, parts and meter: [x0, z0, x1, z1]. */
@@ -357,7 +411,13 @@ export function benchBounds(bench: BenchState): [number, number, number, number]
         : p.kind === "sample"
           ? p.params.material === "plastic"
             ? 80
-            : 54
+            : p.params.material === "copper"
+              ? 54
+              : OBJECT[p.params.material].len / 2 + 6
+          : p.kind === "bin" && p.params.style === "tray"
+            ? 70
+            : p.kind === "box" && p.params.style === "cabinet"
+              ? 92
           : p.kind === "battery" && p.params.size && p.params.size !== "9v"
             ? 28
             : (PROP_REACH[p.kind] ?? 14);

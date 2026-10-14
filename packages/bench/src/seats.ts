@@ -58,6 +58,19 @@ export function seatNear(bench: BenchState, part: PlacedPart, to: Vec2, reach = 
   return best ? { holder: best.holder, seat: best.seat } : null;
 }
 
+/**
+ * Parts out of sight inside a closed box (the box's lid is shut): the views draw nothing of them and no clip, probe or
+ * pointer can reach them. They still conduct.
+ */
+export function hiddenParts(bench: BenchState): Set<string> {
+  const out = new Set<string>();
+  for (const p of bench.parts) {
+    if (p.kind !== "box" || p.params.lid) continue;
+    for (const id of Object.values(heldOf(p))) if (id) out.add(id);
+  }
+  return out;
+}
+
 /** Desk spot a part is pushed out to when another one takes its seat: in front of the holder. */
 export function popSpot(holder: PlacedPart, index: number): Vec2 {
   const [rx, rz] = rotateXZ(-18 + index * 12, 34, holder.rot);
