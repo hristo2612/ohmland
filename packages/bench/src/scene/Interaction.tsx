@@ -473,9 +473,12 @@ export function useInteraction({
     const dialModeAt = (cx: number, cy: number): MeterMode | null => {
       const m = bench().meter;
       if (!m) return null;
-      const p = planePoint(cx, cy, METER.face);
+      // On the knob's top (where `part:M1/dial` is), not the face under it: seen at a slant, the face plane lies
+      // several mm behind what the pointer is over, and a tap on the knob's middle would turn it toward OFF.
+      const top = METER.face + 4;
+      const p = planePoint(cx, cy, top);
       if (!p) return null;
-      const c = meterLocalToWorld(m, [0, METER.face, METER.dial.z]);
+      const c = meterLocalToWorld(m, [0, top, METER.dial.z]);
       const [lx, lz] = rotateXZ(p.x - c[0], p.z - c[2], -m.rot);
       if (Math.hypot(lx, lz) < 3) return null;
       let a = Math.atan2(lx, -lz);

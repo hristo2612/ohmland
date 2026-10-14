@@ -51,7 +51,7 @@ export default defineLab({
       id: "set-dial",
       prompt: "Turn the dial to V, then the range to 20 V.",
       goal: (lab) => lab.meter?.mode === "dcv" && rangeIs(lab, "20V"),
-      hints: ["Tap the dial until it points at V with the straight line.", "Then tap RANGE until the display says 20V."],
+      hints: ["Tap the knob toward the V with the straight line.", "Then tap RANGE until the display says 20V."],
       highlight: ["part:M1/dial", "part:M1/range"],
       success: "Ready for up to 20 V.",
     },
