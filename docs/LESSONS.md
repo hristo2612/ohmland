@@ -118,8 +118,12 @@ Optional, on any beat:
   fix-it round and the secret take a `tool` too (`fixit: { tool: meter, ... }`, `secret: { tool: meter, ... }`): the
   meter's range, for one, can only be changed on its panel.
 
-Anchors (`at`, `answer`, `among`, `on`, `spot`) use the lab's shorthand: a part `D1`, a lead `D1.anode`, a hole `e12`
-or `rail+:21`, a clip lead end `TL1.a`, a jumper end `W1.b`, or a raw bench anchor (`pin:D1.anode`, `part:D1`).
+Anchors (`at`, `answer`, `among`, `on`, `spot`, `trace`) use the lab's shorthand: a part `D1`, a lead `D1.anode`, a
+hole `e12` or `rail+:21`, a clip lead end `TL1.a`, a jumper end `W1.b`, or a raw bench anchor (`pin:D1.anode`,
+`part:D1`). A named mark on a part is `part:<id>/<mark>`: the meter's `part:M1/dial`, `part:M1/display` and sockets
+(`part:M1/com`), a drawing's symbol `part:SD1/R1`, a box's `lid`, `knob`, `tag` and padlock wheels
+(`part:CAB/wheel1`), a gate's `flag` and `unit`. Taps, notes and the spotlight work on marks in both views; a tapped
+mark that is wrong writes its own name ("dial", "wheel 2").
 
 ## Control of error
 
