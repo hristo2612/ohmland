@@ -1120,6 +1120,12 @@ export function partSpots(part: Pick<PlacedPart, "kind" | "params">): Record<str
  */
 export const PRINTED_KINDS: ReadonlySet<string> = new Set(["chart", "tag", "card", "schematic", "bin", "clock"]);
 
+/**
+ * Parts read the right way up: the printed props, a chip's printed number, a display's digits, a regulator's type, a
+ * DIP switch's numbers. A beat about one of them never turns the 3D view a quarter on a tall screen.
+ */
+export const UPRIGHT_KINDS: ReadonlySet<string> = new Set([...PRINTED_KINDS, "chip", "sevenseg", "regulator7805", "dip-switch"]);
+
 /** Named points on this part for `part:<id>/<name>` targets (local mm). */
 export function partMarks(part: Pick<PlacedPart, "kind" | "params">): Record<string, Vec3> {
   const d = partDef(part.kind) as PartDef;
