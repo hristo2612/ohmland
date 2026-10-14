@@ -5,6 +5,7 @@ import { useContext } from "react";
 import { useStore } from "zustand";
 import { BOX, CABINET, GATE, SCHEM, STATIC } from "../../dims";
 import { dotRate, formatGate, gateAmps, tagText } from "../../flow";
+import { lifting } from "../../static";
 import { useLabels } from "../../labels";
 import { schematicSlot } from "../../parts";
 import { BenchStoreContext, type BenchStore, type BenchStoreState } from "../../store";
@@ -333,6 +334,34 @@ function Piece({ pi }: DrawProps<"piece">) {
 
 // Static toy -------------------------------------------------------------------------------------------------------
 
+/** Charge marks: minus signs (or plus signs for a positive charge) scattered over a patch, one per mark. */
+export function ChargeMarks({ q, spots }: { q: number; spots: [number, number][] }) {
+  const n = Math.min(spots.length, Math.round(Math.abs(q)));
+  if (!n) return null;
+  const plus = q > 0;
+  const d = spots
+    .slice(0, n)
+    .map(([x, z]) => `M${n3(x - 1.6)} ${n3(z)}h3.2${plus ? `M${n3(x)} ${n3(z - 1.6)}v3.2` : ""}`)
+    .join("");
+  return (
+    <g>
+      <path d={d} className="s-slip" strokeWidth={1.4} strokeLinecap="round" />
+      <path d={d} className="s-ink" strokeWidth={0.6} strokeLinecap="round" />
+    </g>
+  );
+}
+
+const BALLOON_MARKS: [number, number][] = [
+  [-6, -6],
+  [5, -8],
+  [-1, -1],
+  [8, 1],
+  [-8, 4],
+  [2, 6],
+  [-3, 11],
+  [7, 10],
+];
+
 function Balloon({ pi }: DrawProps<"balloon">) {
   const R = STATIC.balloon / 2;
   const c = pi.part.params.color ?? "red";
@@ -344,11 +373,23 @@ function Balloon({ pi }: DrawProps<"balloon">) {
       <ellipse cx={0} cy={0} rx={R} ry={R * 1.15} className={`f-balloon-${c}`} />
       <path d={`M${n3(-R * 0.55)} ${n3(-R * 0.5)}a${n3(R * 0.7)} ${n3(R * 0.8)} 0 0 1 ${n3(R * 0.5)} ${n3(-R * 0.35)}`} className="sheen" />
       <ellipse cx={0} cy={0} rx={R} ry={R * 1.15} className="ln" />
+      <ChargeMarks q={pi.part.params.charge ?? 0} spots={BALLOON_MARKS} />
     </g>
   );
 }
 
-function Scarf() {
+const SCARF_MARKS: [number, number][] = [
+  [-40, -2],
+  [-28, 6],
+  [-14, -4],
+  [0, 4],
+  [14, -3],
+  [28, 5],
+  [40, -2],
+  [-34, 2],
+];
+
+function Scarf({ pi }: DrawProps<"scarf">) {
   const W = STATIC.scarfW / 2;
   const D = STATIC.scarfD / 2;
   const fringe: string[] = [];
@@ -360,6 +401,7 @@ function Scarf() {
       <path d={`M${-W} ${-D + 9}H${W}M${-W} ${D - 9}H${W}`} className="ln-soft s-slip" strokeWidth={2} />
       <path d={fringe.join("")} className="ln-thin" />
       <rect x={-W} y={-D} width={STATIC.scarfW} height={STATIC.scarfD} rx={3} className="ln" />
+      <ChargeMarks q={pi.part.params.charge ?? 0} spots={SCARF_MARKS} />
     </g>
   );
 }
@@ -374,20 +416,36 @@ const BITS: [number, number, number][] = [
   [0, -1, 5],
 ];
 
-function Paper() {
+function Paper({ pi }: DrawProps<"paper">) {
+  // Charge nearby pulls the bits up: drawn hopping toward what pulls them, with a little lift line each.
+  const store = useContext(BenchStoreContext);
+  const pull = useStore(store ?? NULL_STORE, (s: Partial<BenchStoreState>) => {
+    const id = s.bench ? lifting(s.bench, pi.part.id) : null;
+    const p = id ? s.bench!.parts.find((x) => x.id === id) : null;
+    return p ? `${n3(p.pos[0] - pi.f.ox)},${n3(p.pos[1] - pi.f.oz)}` : "";
+  });
+  const [px, pz] = pull ? pull.split(",").map(Number) : [0, 0];
+  const k = pull ? 0.55 : 0;
   return (
     <g>
-      {BITS.map(([x, z, r], i) => (
-        <g key={i} transform={`translate(${x} ${z}) rotate(${r})`}>
-          <path d="M-2.6 -1.8L2.4 -2.2L2.8 1.6L-2.2 2.2Z" className="f-slip" />
-          <path d="M-2.6 -1.8L2.4 -2.2L2.8 1.6L-2.2 2.2Z" className="ln-thin" />
-        </g>
-      ))}
+      {BITS.map(([x0, z0, r], i) => {
+        const x = x0 + (px! - x0) * k * (0.7 + (i % 3) * 0.15);
+        const z = z0 + (pz! - z0) * k * (0.7 + (i % 3) * 0.15);
+        return (
+          <g key={i}>
+            {pull && <path d={`M${n3(x0)} ${n3(z0)}L${n3(x0 + (x - x0) * 0.6)} ${n3(z0 + (z - z0) * 0.6)}`} className="ln-faint" strokeDasharray="0.8 0.8" />}
+            <g transform={`translate(${n3(x)} ${n3(z)}) rotate(${r})`}>
+              <path d="M-2.6 -1.8L2.4 -2.2L2.8 1.6L-2.2 2.2Z" className="f-slip" />
+              <path d="M-2.6 -1.8L2.4 -2.2L2.8 1.6L-2.2 2.2Z" className="ln-thin" />
+            </g>
+          </g>
+        );
+      })}
     </g>
   );
 }
 
-function Comb() {
+function Comb({ pi }: DrawProps<"comb">) {
   const W = STATIC.combW / 2;
   const teeth: string[] = [];
   for (let x = -W + 2; x <= W - 2; x += 2.2) teeth.push(`M${n3(x)} -1V${STATIC.combD / 2}`);
@@ -396,6 +454,7 @@ function Comb() {
       <rect x={-W} y={-STATIC.combD / 2} width={STATIC.combW} height={4.4} rx={1.4} className="f-black" />
       <path d={teeth.join("")} className="ln" />
       <rect x={-W} y={-STATIC.combD / 2} width={STATIC.combW} height={4.4} rx={1.4} className="ln" />
+      <ChargeMarks q={pi.part.params.charge ?? 0} spots={[-28, -20, -12, -4, 4, 12, 20, 28].map((x) => [x, -STATIC.combD / 2 - 3] as [number, number])} />
     </g>
   );
 }

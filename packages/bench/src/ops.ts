@@ -4,6 +4,7 @@
 import { parseAnchor } from "./anchors";
 import { PITCH, boardGeometry, boardOrigin, holeAtOffset, holeWorld, nearestHole } from "./board";
 import { anchorPosition, gateSpot, isOnBoard, partPose } from "./layout";
+import { chargeable, rub, settle } from "./static";
 import { canMountOnBoard, defaultParams, footprintOf, isFlying, partDef, rotateXZ } from "./parts";
 import { heldOf, holderOf, popSpot, seatNear, seatPose, seatsOf } from "./seats";
 import type {
@@ -173,8 +174,15 @@ export function addPart<K extends BenchPartKind>(
  * otherwise (or when nothing fits) it lies on the desk.
  */
 export function movePart(bench: BenchState, id: string, to: Vec2, opts: { rot?: number; reach?: number; seat?: boolean } = {}): BenchState {
-  const part = bench.parts.find((p) => p.id === id);
+  let part = bench.parts.find((p) => p.id === id);
   if (!part) return bench;
+  // The static toy: moving a balloon, a comb or a plastic spoon over the scarf rubs it; a balloon sticks to a wall
+  // (or falls from it) and keeps away from another charged balloon.
+  if (chargeable(part)) {
+    bench = rub(bench, id, to);
+    part = bench.parts.find((p) => p.id === id)!;
+  }
+  if (part.kind === "balloon") to = settle(bench, id, to);
   // A gate clips onto the clip lead it is dropped on, or lies on the desk.
   if (part.kind === "gate") return clipGate(bench, id, to);
   if (opts.seat !== false) {

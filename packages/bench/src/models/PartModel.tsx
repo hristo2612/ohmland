@@ -119,13 +119,13 @@ export function PartModel(props: PartModelProps) {
     case "piece":
       return <PieceModel params={props.params as never} />;
     case "balloon":
-      return <BalloonModel params={props.params as never} />;
+      return <BalloonModel params={props.params as never} id={props.id} />;
     case "scarf":
-      return <ScarfModel />;
+      return <ScarfModel params={props.params as never} />;
     case "paper":
-      return <PaperBitsModel />;
+      return <PaperBitsModel id={props.id} />;
     case "comb":
-      return <CombModel />;
+      return <CombModel params={props.params as never} />;
     case "wall":
       return <WallModel />;
   }

@@ -82,9 +82,10 @@ export type BatterySize = "9v" | "aa" | "coin";
 /**
  * What a material sample is: a bare copper wire and a plastic ruler (Unit 1), and the junk drawer's everyday objects
  * (Start here): a key, a coin, a foil strip, a pencil lead, a plastic spoon, a rubber eraser, a glass marble, a dry
- * wooden stick, a piece of string and a plastic-coated paper clip (bare only at its cut ends).
+ * wooden stick, a piece of string, a plastic-coated paper clip (bare only at its cut ends), and a metal spoon (the
+ * static toy's).
  */
-export type SampleMaterial = "copper" | "plastic" | "key" | "coin" | "foil" | "pencil" | "spoon" | "eraser" | "marble" | "wood" | "string" | "clip";
+export type SampleMaterial = "copper" | "plastic" | "key" | "coin" | "foil" | "pencil" | "spoon" | "metal-spoon" | "eraser" | "marble" | "wood" | "string" | "clip";
 
 /** Symbols drawn in ink: on a drawer's face, a schematic card, a torn piece of one. */
 export type SymbolKind = "battery" | "cell" | "resistor" | "led" | "switch" | "lamp";
@@ -198,7 +199,7 @@ export type PartParamsMap = {
    * A material sample with a clip point at each end (`a`, `b`): a bare copper wire, a plastic ruler or an everyday
    * object. The coated paper clip also has `coat`, a spot on its plastic coating that joins nothing.
    */
-  sample: { material: SampleMaterial; /** overrides the material's resistance */ ohms?: number };
+  sample: { material: SampleMaterial; /** overrides the material's resistance */ ohms?: number; /** static charge in marks (see static.ts) */ charge?: number };
   /**
    * A white card with a pencil line drawn from its 0 mark: `length` in cm (0 to 10, 0.5 cm steps), `layers` of
    * graphite (0 to 4), narrow or wide. Probe points every 0.5 cm along the line (legs p0 to p20).
@@ -258,14 +259,17 @@ export type PartParamsMap = {
   schematic: { symbols: SchematicSymbol[]; torn?: number; held?: Held; title?: string };
   /** A torn-off piece of a schematic card with one symbol, turned by `turn` degrees (tap it to turn it a quarter). */
   piece: { symbol: SymbolKind; turn?: number; text?: string };
-  /** The static toy (docs/curriculum/start-here.md, SH3): a balloon on a string. See `static.ts` for its charge. */
-  balloon: { color?: "red" | "blue" | "yellow" };
-  /** A wool scarf to rub things on. */
-  scarf: Record<string, never>;
+  /**
+   * The static toy (docs/curriculum/start-here.md, SH3): a balloon on a string. `charge` is its static charge in marks
+   * (negative: minus marks), which rubbing it on the scarf builds up (see static.ts).
+   */
+  balloon: { color?: "red" | "blue" | "yellow"; charge?: number };
+  /** A wool scarf to rub things on (it keeps the plus marks it gives away). */
+  scarf: { charge?: number };
   /** A little heap of paper bits. */
   paper: Record<string, never>;
   /** A plastic comb. */
-  comb: Record<string, never>;
+  comb: { charge?: number };
   /** A strip of wall (wallpaper) a charged balloon can stick to. */
   wall: Record<string, never>;
 };

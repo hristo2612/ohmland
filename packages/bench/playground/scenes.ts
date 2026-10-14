@@ -328,13 +328,14 @@ export function staticBench(): BenchState {
   const b = emptyBench(null);
   b.parts = [
     pp("WL1", "wall", {}, [0, -90]),
-    pp("BL0", "balloon", { color: "yellow" }, [-40, -66]),
-    pp("BL1", "balloon", { color: "red" }, [-60, 20]),
-    pp("BL2", "balloon", { color: "blue" }, [70, -30]),
-    pp("SF1", "scarf", {}, [-60, 90]),
-    pp("PB1", "paper", {}, [40, 50]),
-    pp("CB1", "comb", {}, [90, 90]),
-    pp("MS1", "sample", { material: "spoon" }, [120, 20]),
+    // Stuck to the wall's face: charged.
+    pp("BL0", "balloon", { color: "yellow", charge: -6 }, [-40, -90 + 5 + 17]),
+    pp("BL1", "balloon", { color: "red", charge: -7 }, [40, 30]),
+    pp("BL2", "balloon", { color: "blue" }, [100, -20]),
+    pp("SF1", "scarf", { charge: 7 }, [-70, 80]),
+    pp("PB1", "paper", {}, [42, 62]),
+    pp("CB1", "comb", { charge: -3 }, [110, 100]),
+    pp("MS1", "sample", { material: "metal-spoon" }, [150, 40]),
   ];
   return b;
 }

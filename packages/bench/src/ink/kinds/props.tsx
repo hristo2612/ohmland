@@ -7,7 +7,7 @@ import { tagText } from "../../flow";
 import { useLabels } from "../../labels";
 import { CLIP_PATH } from "../../parts";
 import type { Moisture, PartParamsMap, SampleMaterial, Vec2 } from "../../types";
-import { InkSymbol } from "./start";
+import { ChargeMarks, InkSymbol } from "./start";
 import { segments } from "../draw/segments";
 import { BAND_TOKEN } from "../styles";
 import { Upright, localLegs, n3, rrect } from "./common";
@@ -168,7 +168,13 @@ function Sample({ pi }: DrawProps<"sample">) {
       </g>
     );
   }
-  if (pi.part.params.material !== "copper") return <EverydayObject material={pi.part.params.material} />;
+  if (pi.part.params.material !== "copper")
+    return (
+      <g>
+        <EverydayObject material={pi.part.params.material} />
+        <ChargeMarks q={pi.part.params.charge ?? 0} spots={[-38, -30, -22, -14, 24, 30, 36, 28].map((x, i) => [x, i < 4 ? 0 : (i - 5.5) * 3] as [number, number])} />
+      </g>
+    );
   const W = SAMPLE.wire / 2;
   const d = `M${-W} 0C${-W * 0.8} 0.9 ${-W * 0.7} 1.8 ${-W * 0.55} 1.8S${-W * 0.25} -1.2 ${-W * 0.1} -1.2S${W * 0.2} 1.4 ${W * 0.35} 1.4S${W * 0.8} 0 ${W} 0`;
   const w = { ["--w" as string]: `${SAMPLE.wireR * 2}px` };
@@ -241,12 +247,14 @@ function EverydayObject({ material }: { material: Exclude<SampleMaterial, "coppe
           <rect x={-L} y={-o.w / 2} width={o.len} height={o.w} rx={1} className="ln" />
         </g>
       );
-    case "spoon": {
+    case "spoon":
+    case "metal-spoon": {
       const d = `M${-L} -2.6Q${-L} -3.6 ${-L + 1.4} -3.6L14 -2Q20 -11 32 -10.5Q${L} -9 ${L} 0Q${L} 9 32 10.5Q20 11 14 2L${-L + 1.4} 3.6Q${-L} 3.6 ${-L} 2.6Z`;
       return (
         <g>
           {shade(d)}
-          <path d={d} className="f-spoon" />
+          <path d={d} className={material === "spoon" ? "f-spoon" : "f-metal-hi"} />
+          {material === "metal-spoon" && <path d="M-40 -1H10M24 -6a9 6 0 0 1 12 -1" className="sheen" />}
           <ellipse cx={31} cy={0} rx={10} ry={7} className="ln-soft" />
           <path d={d} className="ln" />
         </g>

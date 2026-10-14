@@ -13,6 +13,7 @@ export { createBenchStore, useBench, useBenchStore, BenchStoreContext, type Benc
 export { dotSpeed, dotRate, flowMap, gateAmps, advanceGates, formatGate, expandPrefix, tagText, pushMap, traceLoop, boxNets, type FlowMap, type GateCounts, type PushMap, type Trace, type TraceStep } from "./flow";
 export { symbolInk, slotTurn, tornOutline, type SymbolInk } from "./symbols";
 export { hiddenParts } from "./seats";
+export { chargeable, charge as staticCharge, stuckTo, lifting, apart } from "./static";
 export { seatsOf, heldOf, holderOf, seatNear, SEAT_REACH } from "./seats";
 export * as benchOps from "./ops";
 export { emptyBench, defaultMeter } from "./ops";

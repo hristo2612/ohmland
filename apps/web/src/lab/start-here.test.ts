@@ -142,6 +142,43 @@ describe("Start here lab API", () => {
     run(lab);
   });
 
+  it("the clingy balloon: rubbed, it lifts paper bits and sticks to the wall; a metal spoon rubbed does nothing", () => {
+    const lab = defineLab({
+      id: "t-static",
+      title: "t",
+      bench: {
+        board: "none",
+        parts: [
+          { id: "WL1", kind: "wall", at: "desk:0,-100" },
+          { id: "BL1", kind: "balloon", at: "desk:-80,20" },
+          { id: "SF1", kind: "scarf", at: "desk:-60,90" },
+          { id: "PB1", kind: "paper", at: "desk:60,60" },
+          { id: "MS1", kind: "sample", at: "desk:140,40", params: { material: "metal-spoon" } },
+        ],
+        tray: [],
+        instruments: [],
+      },
+      tasks: [
+        { id: "rub-it", prompt: "", hints: [], success: "", goal: (l) => l.static("BL1") < -3 && l.static("SF1") > 3 },
+        { id: "paper-hop", prompt: "", hints: [], success: "", goal: (l) => l.lifted("PB1") === "BL1" },
+        { id: "stick-it", prompt: "", hints: [], success: "", goal: (l) => l.heldFor(1, l.stuck("BL1")) },
+        { id: "spoon", prompt: "", hints: [], success: "", goal: (l) => l.static("MS1") === 0 && l.task("stick-it") === "done" },
+      ],
+      solution: [
+        { do: "rub", part: "BL1", on: "SF1" },
+        { do: "check", task: "rub-it" },
+        { do: "move", part: "BL1", at: "desk:60,40" },
+        { do: "check", task: "paper-hop" },
+        { do: "move", part: "BL1", at: "desk:0,-74" },
+        { do: "wait", seconds: 1.2 },
+        { do: "check", task: "stick-it" },
+        { do: "rub", part: "MS1", on: "SF1" },
+        { do: "check", task: "spoon" },
+      ],
+    });
+    run(lab);
+  });
+
   it("prefix tags tap open, the knob box's tag too, and the torn drawing mends the right way round", () => {
     const lab = defineLab({
       id: "t-tags",

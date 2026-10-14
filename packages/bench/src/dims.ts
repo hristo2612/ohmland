@@ -120,12 +120,13 @@ export { PITCH };
  * Everyday objects for the junk drawer (Start here), lying on the desk along x with a clip point near each end:
  * length, width and thickness in mm, and how far in from each end the clip bites.
  */
-export const OBJECT: Record<"key" | "coin" | "foil" | "pencil" | "spoon" | "eraser" | "marble" | "wood" | "string" | "clip", { len: number; w: number; t: number; clip: number }> = {
+export const OBJECT: Record<"key" | "coin" | "foil" | "pencil" | "spoon" | "metal-spoon" | "eraser" | "marble" | "wood" | "string" | "clip", { len: number; w: number; t: number; clip: number }> = {
   key: { len: 54, w: 22, t: 2.2, clip: 4 },
   coin: { len: 24, w: 24, t: 2, clip: 2.5 },
   foil: { len: 64, w: 12, t: 0.3, clip: 4 },
   pencil: { len: 60, w: 2, t: 2, clip: 3 },
   spoon: { len: 92, w: 24, t: 3, clip: 6 },
+  "metal-spoon": { len: 92, w: 24, t: 2.4, clip: 6 },
   eraser: { len: 40, w: 20, t: 9, clip: 4 },
   marble: { len: 16, w: 16, t: 16, clip: 1.5 },
   wood: { len: 90, w: 10, t: 2, clip: 5 },

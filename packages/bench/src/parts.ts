@@ -906,6 +906,7 @@ const MATERIAL_OHMS: Record<SampleMaterial, number> = {
   foil: 0.01,
   pencil: 5,
   spoon: 1e13,
+  "metal-spoon": 0.02,
   eraser: 1e13,
   marble: 1e13,
   wood: 1e12,

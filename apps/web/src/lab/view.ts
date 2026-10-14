@@ -2,7 +2,7 @@
  * Builds the LabView goals read. Pure: the runtime and the headless solution replay both feed it the bench, the latest
  * snapshot, the recent snapshot history and the notebook.
  */
-import { gateAmps, isThrowSwitch, partLegs, slotTurn, tagText, traceLoop, type BenchNetlist, type BenchState, type GateCounts, type MeterSocket, type PlacedPart } from "@ohmland/bench/core";
+import { apart, gateAmps, isThrowSwitch, lifting, partLegs, slotTurn, staticCharge, stuckTo, tagText, traceLoop, type BenchNetlist, type BenchState, type GateCounts, type MeterSocket, type PlacedPart } from "@ohmland/bench/core";
 import type { NodeId, PartState, SimEvent, SimEventType, Snapshot } from "@ohmland/sim";
 import { resolveAttach } from "./anchors";
 import type { DrawingState, LabView, LabViews, MeterView, PanelState, Reading, Stats, StopwatchRun, TaskStatus } from "./define";
@@ -618,6 +618,10 @@ export function createLabView(input: LabViewInput): LabView {
       const x = snapshot?.parts[id]?.extra?.["soc"];
       return typeof x === "number" ? x : null;
     },
+    static: (id) => staticCharge(partOf(id)),
+    stuck: (id) => stuckTo(bench, id) !== null,
+    lifted: (id) => lifting(bench, id),
+    apart: (a, b) => apart(bench, a, b),
 
     readingsLog: readings,
     logged(tag) {

@@ -8,6 +8,7 @@ import { Billboard } from "@react-three/drei";
 import { useStore } from "zustand";
 import { AA, BOX, CABINET, DRAWER, GATE, OBJECT, SCHEM, STATIC, TRAY } from "../dims";
 import { dotRate, formatGate, gateAmps, tagText } from "../flow";
+import { lifting, stuckTo } from "../static";
 import { useLabels } from "../labels";
 import { CLIP_PATH, schematicSlot } from "../parts";
 import { BenchStoreContext, type BenchStore, type BenchStoreState } from "../store";
@@ -632,7 +633,8 @@ export function EverydayModel({ material, quality = "high" }: { material: Exclud
     }
     case "pencil":
       return <mesh geometry={memoGeo("obj-lead", () => new THREE.CylinderGeometry(1, 1, o.len, 12).rotateZ(Math.PI / 2))} material={mat.plastic("#3a3b3f", 0.35)} position={[0, 1, 0]} castShadow />;
-    case "spoon": {
+    case "spoon":
+    case "metal-spoon": {
       const geo = memoGeo("obj-spoon", () => {
         const pts: [number, number][] = [];
         // Handle, then round the bowl.
@@ -644,7 +646,7 @@ export function EverydayModel({ material, quality = "high" }: { material: Exclud
         pts.push([14, 2], [-L, 2.6]);
         return extrude(flatShape(pts), 1.4, 0.5);
       });
-      return <mesh geometry={geo} material={mat.plastic("#f3efe6", 0.4)} position={[0, 0.5, 0]} castShadow receiveShadow />;
+      return <mesh geometry={geo} material={material === "spoon" ? mat.plastic("#f3efe6", 0.4) : mat.steel()} position={[0, 0.5, 0]} castShadow receiveShadow />;
     }
     case "eraser":
       return (
@@ -791,20 +793,76 @@ export function AaCutawayModel() {
 
 const BALLOON_HEX = { red: "#d9483b", blue: "#3f6cc8", yellow: "#e8be2c" };
 
-export function BalloonModel({ params }: { params: PartParamsMap["balloon"] }) {
+/** Minus (or plus) marks for a static charge, printed on a small transparent card that faces the camera. */
+function ChargeMarks3D({ q, at, w = 26 }: { q: number; at: [number, number, number]; w?: number }) {
+  const n = Math.min(8, Math.round(Math.abs(q)));
+  const tex = useMemo(
+    () =>
+      canvasTexture(`charge:${n}:${q > 0}`, 256, 160, (ctx, cw, ch) => {
+        ctx.clearRect(0, 0, cw, ch);
+        const spots = [
+          [0.2, 0.25],
+          [0.55, 0.18],
+          [0.38, 0.5],
+          [0.78, 0.45],
+          [0.15, 0.7],
+          [0.6, 0.75],
+          [0.85, 0.15],
+          [0.4, 0.88],
+        ];
+        for (const [x, y] of spots.slice(0, n)) {
+          for (const [col, wd] of [
+            [PAPER, 22],
+            [INK, 10],
+          ] as const) {
+            ctx.strokeStyle = col;
+            ctx.lineWidth = wd;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(x! * cw - 18, y! * ch);
+            ctx.lineTo(x! * cw + 18, y! * ch);
+            if (q > 0) {
+              ctx.moveTo(x! * cw, y! * ch - 18);
+              ctx.lineTo(x! * cw, y! * ch + 18);
+            }
+            ctx.stroke();
+          }
+        }
+      }),
+    [n, q],
+  );
+  // Drawn on top of the thing they sit on (a balloon's round face would hide a flat card).
+  const material = useMemo(() => new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false, toneMapped: false }), [tex]);
+  useLayoutEffect(() => () => material.dispose(), [material]);
+  if (!n) return null;
+  return (
+    <Billboard position={at}>
+      <mesh material={material} renderOrder={33}>
+        <planeGeometry args={[w, (w * 160) / 256]} />
+      </mesh>
+    </Billboard>
+  );
+}
+
+export function BalloonModel({ params, id }: { params: PartParamsMap["balloon"]; id?: string }) {
   const R = STATIC.balloon / 2;
   const color = BALLOON_HEX[params.color ?? "red"];
+  // Stuck to a wall, a balloon hangs up against it rather than lying on the desk.
+  const store = useContext(BenchStoreContext);
+  const stuck = useStore(store ?? NULL_STORE, (s: Partial<BenchStoreState>) => (s.bench && id ? stuckTo(s.bench, id) !== null : false));
+  const lift = stuck ? STATIC.wallH * 0.5 : 0;
   const string = memoGeo("balloon-string", () => bentTube([[0, 2.2, R * 1.15 + 1], [0, 1, R * 1.15 + 6], [2, 0.6, R * 1.15 + 11], [-1, 0.5, R * 1.15 + 16]], 0.25, 0.8, 6));
   return (
-    <group>
+    <group position={[0, lift, 0]}>
       <mesh geometry={memoGeo("balloon-body", () => new THREE.SphereGeometry(R, 32, 24))} material={mat.glossy(color)} position={[0, R * 0.85, 0]} scale={[1, 0.85, 1.15]} castShadow />
       <mesh geometry={memoGeo("balloon-knot", () => new THREE.ConeGeometry(1.6, 2.6, 12).rotateX(Math.PI / 2))} material={mat.glossy(color)} position={[0, 2.4, R * 1.15]} castShadow />
-      <mesh geometry={string} material={mat.rubber("#e3d6ba")} />
+      {!stuck && <mesh geometry={string} material={mat.rubber("#e3d6ba")} />}
+      <ChargeMarks3D q={params.charge ?? 0} at={[0, R * 0.85 + 2, R * 0.6]} w={24} />
     </group>
   );
 }
 
-export function ScarfModel() {
+export function ScarfModel({ params }: { params?: PartParamsMap["scarf"] }) {
   const tex = useMemo(
     () =>
       canvasTexture("wool", 512, 256, (ctx, w, h) => {
@@ -831,6 +889,7 @@ export function ScarfModel() {
       {Array.from({ length: 26 }, (_, i) => (
         <mesh key={i} geometry={memoGeo("scarf-fringe", () => new THREE.CylinderGeometry(0.35, 0.35, 5, 5).rotateX(Math.PI / 2))} material={mat.rubber("#b8574a")} position={[-STATIC.scarfW / 2 + 3 + i * 4.2, 0.6, STATIC.scarfD / 2 + 2.2]} />
       ))}
+      <ChargeMarks3D q={params?.charge ?? 0} at={[0, 10, 0]} w={36} />
     </group>
   );
 }
@@ -845,20 +904,34 @@ const BITS: [number, number, number][] = [
   [0, -1, 5],
 ];
 
-export function PaperBitsModel() {
+export function PaperBitsModel({ id }: { id?: string }) {
+  // Charge nearby pulls the bits up to it.
+  const store = useContext(BenchStoreContext);
+  const pull = useStore(store ?? NULL_STORE, (s: Partial<BenchStoreState>) => {
+    const by = s.bench && id ? lifting(s.bench, id) : null;
+    const me = by ? s.bench!.parts.find((p) => p.id === id) : null;
+    const p = by ? s.bench!.parts.find((x) => x.id === by) : null;
+    return p && me ? `${p.pos[0] - me.pos[0]},${p.pos[1] - me.pos[1]},${p.kind === "balloon" ? STATIC.balloon * 0.4 : 6}` : "";
+  });
+  const [px, pz, py] = pull ? pull.split(",").map(Number) : [0, 0, 0];
   return (
     <group>
-      {BITS.map(([x, z, r], i) => (
-        <mesh key={i} geometry={memoGeo("paper-bit", () => roundedBox(5, 0.15, 4, 0.05, 1))} material={mat.white()} position={[x, 0.1, z]} rotation={[0, (r * Math.PI) / 180, 0]} castShadow receiveShadow />
-      ))}
+      {BITS.map(([x0, z0, r], i) => {
+        const k = pull ? 0.35 + (i % 3) * 0.12 : 0;
+        const x = x0 + (px! - x0) * k;
+        const z = z0 + (pz! - z0) * k;
+        const y = pull ? 0.1 + py! * (0.3 + (i % 3) * 0.25) : 0.1;
+        return <mesh key={i} geometry={memoGeo("paper-bit", () => roundedBox(5, 0.15, 4, 0.05, 1))} material={mat.white()} position={[x, y, z]} rotation={[pull ? 0.6 : 0, (r * Math.PI) / 180, pull ? 0.3 : 0]} castShadow receiveShadow />;
+      })}
     </group>
   );
 }
 
-export function CombModel() {
+export function CombModel({ params }: { params?: PartParamsMap["comb"] }) {
   const W = STATIC.combW;
   return (
     <group>
+      <ChargeMarks3D q={params?.charge ?? 0} at={[0, 9, 0]} w={34} />
       <mesh geometry={memoGeo("comb-spine", () => roundedBox(W, 2.4, 4.4, 1, 2))} material={mat.blackPlastic()} position={[0, 1.2, -STATIC.combD / 2 + 2.2]} castShadow />
       {Array.from({ length: Math.floor((W - 4) / 2.2) }, (_, i) => (
         <mesh key={i} geometry={memoGeo("comb-tooth", () => roundedBox(0.9, 1.4, 8, 0.3, 1))} material={mat.blackPlastic()} position={[-W / 2 + 2.4 + i * 2.2, 0.7, 2]} castShadow />

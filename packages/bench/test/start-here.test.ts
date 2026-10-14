@@ -8,6 +8,8 @@ import { benchToNetlist } from "../src/netlist";
 import { addPart, emptyBench, movePart, removeLead, seatPart, setPartParams } from "../src/ops";
 import { conducts, materialOhms, partDef } from "../src/parts";
 import { hiddenParts, holderOf } from "../src/seats";
+import { APART_MM, MAX_MARKS, apart, lifting, stuckTo } from "../src/static";
+import { STATIC } from "../src/dims";
 import { createBenchStore } from "../src/store";
 import type { BenchState, PlacedPart, SampleMaterial } from "../src/types";
 
@@ -309,5 +311,58 @@ describe("tags", () => {
     expect(expandPrefix("9 V")).toBe("9 V");
     expect(tagText("470 Ω", true)).toBe("470 Ω");
     expect(tagText("1 kΩ", false)).toBe("1 kΩ");
+  });
+});
+
+describe("the static toy", () => {
+  const toy = (): BenchState => ({
+    ...emptyBench(null),
+    parts: [
+      part("SF1", "scarf", {}, [0, 100]),
+      part("BL1", "balloon", {}, [-30, 100]),
+      part("BL2", "balloon", {}, [140, 0]),
+      part("WL1", "wall", {}, [0, -100]),
+      part("PB1", "paper", {}, [100, 100]),
+      part("MS1", "sample", { material: "metal-spoon" }, [20, 100]),
+      part("CB1", "comb", {}, [-200, 0]),
+    ],
+  });
+  const q = (b: BenchState, id: string) => (b.parts.find((p) => p.id === id)!.params as { charge?: number }).charge ?? 0;
+
+  it("rubbing on the scarf moves charge onto a balloon (minus) and leaves the scarf plus; metal keeps none", () => {
+    let b = toy();
+    for (let k = 0; k < 8; k++) b = movePart(b, "BL1", [k % 2 ? -30 : 30, 100]);
+    expect(q(b, "BL1")).toBeLessThan(-MAX_MARKS + 0.01);
+    expect(q(b, "SF1")).toBeCloseTo(-q(b, "BL1"), 6);
+    for (let k = 0; k < 8; k++) b = movePart(b, "MS1", [k % 2 ? -20 : 20, 100]);
+    expect(q(b, "MS1")).toBe(0);
+    // Moving it off the scarf does not rub it.
+    const before = q(b, "BL1");
+    b = movePart(b, "BL1", [-30, 0]);
+    expect(q(b, "BL1")).toBe(before);
+  });
+
+  it("a charged balloon lifts the paper bits and sticks to the wall; an uncharged one falls off it", () => {
+    let b = toy();
+    for (let k = 0; k < 4; k++) b = movePart(b, "BL1", [k % 2 ? -30 : 30, 100]);
+    expect(lifting(b, "PB1")).toBeNull();
+    b = movePart(b, "BL1", [100, 80]);
+    expect(lifting(b, "PB1")).toBe("BL1");
+    const face = -100 + STATIC.wallD / 2 + STATIC.balloon / 2;
+    b = movePart(b, "BL1", [0, face + 2]);
+    expect(stuckTo(b, "BL1")).toBe("WL1");
+    b = movePart(b, "BL2", [40, face + 2]);
+    expect(stuckTo(b, "BL2")).toBeNull();
+    expect(b.parts.find((p) => p.id === "BL2")!.pos[1]).toBeGreaterThan(face + 20);
+  });
+
+  it("two charged balloons push each other apart", () => {
+    let b = toy();
+    for (const id of ["BL1", "BL2"]) {
+      b = movePart(b, id, [0, 100]);
+      for (let k = 0; k < 6; k++) b = movePart(b, id, [k % 2 ? -30 : 30, 100]);
+      b = movePart(b, id, id === "BL1" ? [-100, 0] : [-90, 0]);
+    }
+    expect(apart(b, "BL1", "BL2")).toBeGreaterThanOrEqual(APART_MM);
   });
 });

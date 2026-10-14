@@ -363,6 +363,8 @@ export type SolutionStep =
   | { do: "view"; name: OverlayName | "xray"; on: boolean }
   /** Run the loop tracer from a terminal ("B1.neg"), as tapping it would; null clears the ink. */
   | { do: "trace"; from: Attach | null }
+  /** The static toy: rub a balloon, comb or spoon back and forth on the scarf, `strokes` times (default 6). */
+  | { do: "rub"; part: string; on: string; strokes?: number }
   | { do: "wait"; seconds: number }
   /** Checkpoint: by here this task must be done. Splits the solution for "Show me". */
   | { do: "check"; task: string };
@@ -577,6 +579,17 @@ export type LabView = {
   trace(from: Attach): TraceResult;
   /** A battery's state of charge, 0..1 (its `charge` param starts it), or null. */
   charge(batteryId: string): number | null;
+  /**
+   * The static toy (its own small model, not the circuit simulator): a thing's static charge in marks, negative for
+   * minus marks (a balloon rubbed on the scarf), positive for plus marks (the scarf). 0 for anything uncharged.
+   */
+  static(id: string): number;
+  /** A balloon is stuck to a wall (charged, against its face). */
+  stuck(balloonId: string): boolean;
+  /** What is pulling a heap of paper bits up (a charged balloon or comb close by), or null. */
+  lifted(paperId: string): string | null;
+  /** Centre to centre distance between two balloons, in mm (two charged ones keep apart). */
+  apart(a: string, b: string): number;
 
   /** Stable meter readings captured by the notebook, oldest first. */
   readonly readingsLog: readonly Reading[];
