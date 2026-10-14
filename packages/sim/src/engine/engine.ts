@@ -10,6 +10,7 @@ import type { InputKey, InputValue, Netlist, PartState, SimEvent, SimEventType }
 import { createDevice } from "../devices";
 import { Device, GMIN, type Binder, type Ctx, type Method, type Reactive } from "./device";
 import { WireDevice } from "../devices/basic";
+import { EdgeWatch } from "./watch";
 
 export type EngineOptions = {
   /** Largest step in seconds. Defaults to 2 ms, or one audio sample period when a speaker is present. */
@@ -149,6 +150,8 @@ export class Engine implements Ctx {
   events: SimEvent[] = [];
   /** Optional hook called after every accepted step (audio sampling, meters). */
   onAccept: ((e: Engine) => void) | null = null;
+  /** Watched nodes (Netlist.watch): crossings counted and timed after every accepted step. */
+  edgeWatch: EdgeWatch | null = null;
 
   stats = { steps: 0, iterations: 0, factorizations: 0, rejected: 0, failed: 0, rescued: 0, remembered: 0, located: 0, forced: 0 };
   private tinySteps = 0;
@@ -384,6 +387,10 @@ export class Engine implements Ctx {
     e.hmax = opts.maxStep ?? (e.hasSpeaker ? 1 / AUDIO_RATE : DEFAULT_MAX_STEP);
 
     if (prev) e.inherit(prev);
+    if (netlist?.watch?.length) {
+      const named = [...new Set([...e.nodeIndex.values()].filter((k) => k >= 0))];
+      e.edgeWatch = new EdgeWatch(netlist.watch, (nm) => e.nodeIndex.get(nm), named, prev?.edgeWatch ?? null);
+    }
     e.needBreak = true;
     e.freshStart = true;
     return e;
@@ -922,6 +929,7 @@ export class Engine implements Ctx {
     this.stats.steps++;
     for (const d of this.acceptDevs) d.accept(x, this);
     if (this.onAccept) this.onAccept(this);
+    if (this.edgeWatch) this.edgeWatch.accept(this.t, this.x);
   }
 
   // -------------------------------------------------------------------------------------------------------------

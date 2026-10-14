@@ -3,7 +3,8 @@
 import type { AudioListener, RunOptions, SimulateForOptions, Simulation, SimulationOptions, SnapshotListener } from "./api";
 import { AudioStream, SAMPLE_RATE } from "./audio";
 import { Engine } from "./engine/engine";
-import type { InputKey, InputValue, Netlist, SimEvent, Snapshot } from "./types";
+import { mergeEdges } from "./engine/watch";
+import type { EdgeLog, InputKey, InputValue, Netlist, SimEvent, Snapshot } from "./types";
 
 const now = (): number => (typeof performance !== "undefined" ? performance.now() : Date.now());
 
@@ -22,6 +23,8 @@ export class SimulationImpl implements Simulation {
   private readonly snapListeners = new Set<SnapshotListener>();
   private readonly audioListeners = new Set<AudioListener>();
   private pending: SimEvent[] = [];
+  /** Crossings of watched nodes since the last snapshot (kept across rebuilds). */
+  private pendingEdges = new Map<string, EdgeLog>();
   private audio: AudioStream | null = null;
   private runFlag = false;
   private speed = 1;
@@ -49,6 +52,7 @@ export class SimulationImpl implements Simulation {
 
   load(netlist: Netlist): void {
     this.collect();
+    this.collectEdges();
     this.engine = Engine.build(netlist, this.engine, this.engineOpts());
     this.hookAudio();
   }
@@ -95,6 +99,11 @@ export class SimulationImpl implements Simulation {
     const e = this.engine;
     const s: Snapshot = { t: e.t, nodes: e.nodeVoltages(), parts: e.partStates(), events: this.pending, lag: this.runFlag ? this.lag : 0 };
     this.pending = [];
+    this.collectEdges();
+    if (this.pendingEdges.size) {
+      s.edges = Object.fromEntries(this.pendingEdges);
+      this.pendingEdges = new Map();
+    }
     return s;
   }
 
@@ -141,6 +150,11 @@ export class SimulationImpl implements Simulation {
       }
       this.pending.push(ev);
     }
+  }
+
+  private collectEdges(): void {
+    const w = this.engine.edgeWatch;
+    if (w) mergeEdges(this.pendingEdges, w.drain(this.engine.t, this.engine.x));
   }
 
   private hookAudio(): void {
