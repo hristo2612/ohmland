@@ -109,7 +109,8 @@ export default defineLab({
     { do: "move", part: "C1", at: "d11-d13" },
     { do: "wait", seconds: 3 },
     { do: "check", task: "fix-one-hole" },
-    // The secret.
+    // The secret (its "Show me" starts with the tapper off too).
+    { do: "tapper", on: true },
     { do: "move", part: "C1", at: "desk:-80,40" },
     { do: "move", part: "C3", at: "d11-d13" },
     { do: "wait", seconds: 3 },
