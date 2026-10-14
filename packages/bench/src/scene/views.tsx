@@ -5,7 +5,7 @@ import * as THREE from "three";
 import type { PartState } from "@ohmland/sim";
 import { boardGeometry, boardOrigin, holeWorld } from "../board";
 import { BOARD_TOP, BOX, CABINET, PITCH, TOGGLE_BASE } from "../dims";
-import { METER, anchorPosition, isOnBoard, outwardHeading, partPose, probeTip, socketWorld, meterLocalToWorld } from "../layout";
+import { METER, anchorPosition, isOnBoard, outwardHeading, partPose, probeTip, socketWorld, meterLocalToWorld, workCenter } from "../layout";
 import { parseAnchor } from "../anchors";
 import { partDef, rotateXZ, type Hotspot } from "../parts";
 import { PartModel, flyingLeads, type PartModelProps } from "../models/PartModel";
@@ -19,7 +19,7 @@ import { GATE } from "../dims";
 import type { BenchState, MeterState, PlacedPart, ProbeColor, Quality, TestLead, Vec3, Wire } from "../types";
 import { Proxy, localBox } from "./pick";
 import { prefersReducedMotion, useAnimating } from "../three/anim";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { usePaperPalette } from "./palette";
 import { BarrelPlug, PerfboardModel } from "../models/Solder";
 import { extraLookKey, useProbeState } from "../probe";
@@ -523,26 +523,35 @@ export function LeadView({
 // ---------------------------------------------------------------------------------------------------------------
 // Meter with plugs, cables and probes.
 
-function probePose(bench: BenchState, meter: MeterState, color: ProbeColor): { tip: THREE.Vector3; axis: THREE.Vector3 } {
+/**
+ * `turned`: the camera looks along the bench from its left end (a tall screen), not from the front; the probes lean
+ * away from it all the same.
+ */
+function probePose(bench: BenchState, meter: MeterState, color: ProbeColor, turned = false): { tip: THREE.Vector3; axis: THREE.Vector3 } {
   const tipArr = probeTip(bench, color);
   const tip = v3(tipArr);
   const pr = meter.probes[color];
   const sock = pr.socket ? socketWorld(meter, pr.socket) : ([pr.plugPos[0], 0, pr.plugPos[1]] as Vec3);
   if (pr.tip.to) {
-    // Lean the probe back toward the meter (and a little away from the viewer) so it does not hide the board.
-    const tx = sock[0] - tip.x;
-    const tz = sock[2] - tip.z;
-    const tl = Math.hypot(tx, tz) || 1;
-    let hx = tx / tl;
-    let hz = tz / tl - 0.55;
-    const hl = Math.hypot(hx, hz) || 1;
+    // Held steep and leaning out to the side, away from the middle of the work and a little away from the viewer:
+    // seen from the front, the handle rises beside the circuit instead of over it or toward the camera.
+    const [cx, cz] = workCenter(bench);
+    // Toward the viewer, and across the view, on the desk.
+    const [vx, vz] = turned ? [-1, 0] : [0, 1];
+    const [sx, sz] = [vz, -vx];
+    const off = (tip.x - cx) * sx + (tip.z - cz) * sz;
+    const side = Math.abs(off) > 8 ? Math.sign(off) : color === "red" ? 1 : -1;
+    let hx = side * sx - 0.35 * vx;
+    let hz = side * sz - 0.35 * vz;
+    const hl = Math.hypot(hx, hz);
     hx /= hl;
     hz /= hl;
+    // The two probes fan apart a little when they stand on the same side.
     const bias = color === "red" ? 0.22 : -0.22;
     const c = Math.cos(bias);
     const sn = Math.sin(bias);
     [hx, hz] = [hx * c - hz * sn, hx * sn + hz * c];
-    const el = 0.88;
+    const el = 1.08;
     return { tip, axis: new THREE.Vector3(hx * Math.cos(el), Math.sin(el), hz * Math.cos(el)).normalize() };
   }
   const toward = new THREE.Vector3(sock[0] - tip.x, 0, sock[2] - tip.z);
@@ -568,6 +577,8 @@ export function MeterView({
   selected: boolean;
   floor: FloorFn;
 }) {
+  // On a tall screen the board is seen from its left end (viewRig's quarter turn).
+  const turned = useThree((st) => st.size.width / Math.max(1, st.size.height) < 0.85) && !!bench.board;
   const rotY = (meter.rot * Math.PI) / 180;
   const dialLabelPos = (i: number): [number, number, number] => {
     const a = (i * 45 * Math.PI) / 180;
@@ -590,7 +601,7 @@ export function MeterView({
       </group>
       {(["red", "black"] as const).map((color) => {
         const pr = meter.probes[color];
-        const { tip, axis } = probePose(bench, meter, color);
+        const { tip, axis } = probePose(bench, meter, color, turned);
         const back = tip.clone().addScaledVector(axis, PROBE_LEN);
         let plugPos: THREE.Vector3;
         let plugQuat: THREE.Quaternion;
