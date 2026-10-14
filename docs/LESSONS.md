@@ -267,7 +267,7 @@ The build fails a lesson that breaks them (`apps/web/src/content/schema.ts`):
 | On demand (`hint`, `wrong`) | 22 words each, 120 words in all |
 | Pop-up cards | one per lesson, only when it is truly hands-on |
 
-The reference lessons use about 245 and 275 words on the main path for six beats with a secret and a fix-it: most
+The reference lessons use about 245 and 280 words on the main path for six beats with a secret and a fix-it: most
 lessons land between 180 and 300, and the cap is not a target. The lab's hints, nudges and success lines are not counted, but keep each to a robot line.
 
 The learner acts within 5 seconds: the start screen has one button, and the first beat asks for a bench action.

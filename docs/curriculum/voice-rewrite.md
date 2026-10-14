@@ -37,7 +37,7 @@ probe"). Never telegraph ("Quick one.", "Still dark.", "Your turn.").
 
 **Length.** About 22 words at most for a robot line (both why-first sentences together), notes 6, rules 8. The schema
 enforces 22 / 6 / 8 per line, 320 words on the main path and 120 of on-demand lines; the references use about 245 and
-275 on the main path. Shorter is better when nothing is lost; the cap is not a target.
+280 on the main path. Shorter is better when nothing is lost; the cap is not a target.
 
 **The test for every beat:** a 12-year-old with zero electronics finishes reading and knows what to do, where to do it,
 and what to look for.
@@ -67,10 +67,12 @@ and what to look for.
 11. Hints, `wrong` lines and nudges stand alone. A hint the learner asks for is written under the robot's line (the line
     stays); a `wrong` line, a check's `hint` after a wrong answer and a nudge take the line's place for a moment, so
     they name the thing again and say the move.
-12. On a phone, in 3D and in Ink, what the line names is on screen while the learner works. A phone frames the task's
-    `highlight` (or the beat's `spot`). If the line names something off screen, reword the line toward what is framed
-    (welcome's break beat now pulls "the black clip off the lamp", which is where a phone frames that task), or add a
-    `spot` if that frames it well. Report framing bugs instead of changing the bench.
+12. On a phone, in 3D and in Ink, what the line names is on screen while the learner works, and its marks can be told
+    apart. A phone frames the task's `highlight` (or the beat's `spot`). If the line names something off screen or too
+    small, add a `spot` that frames it (what-resists' secret spots the skin patch, so the 2 and 4 marks are readable),
+    or reword the line toward what is framed. Report framing bugs instead of changing the bench.
+13. Say how to tell look-alikes apart by what the learner can see. The 3D battery's two snaps carry no readable + or
+    −, so welcome says "the metal stud the black wire is clipped to".
 
 ## What to touch
 
@@ -112,7 +114,8 @@ In `content/labs/<lab>.ts`, for the tasks this lesson walks:
 |---|---|---|---|
 | start | | My desk lamp is dark. Take the case? | My desk lamp won't light. Will you help me find out why? |
 | b0 | why first (lesson) | Flip its switch. | Let's try the easy fix first. Flip the switch, the silver lever on the wooden block, over to ON. |
-| b1 | clear | Still dark. Tap the battery's minus snap. | Tap the minus (−) snap, a metal stud on the battery, and my pencil will trace the path from there. |
+| b1 | clear | Still dark. Tap the battery's minus snap. | Tap the battery's minus (−) snap, the metal stud the black wire is clipped to. My pencil will trace the path from there. |
+| b1 wrong | | That's plus. Minus is the other snap. | That's the plus (+) snap. Tap the other metal stud, the one with the black wire. |
 | b1 done | because | (none) | My pencil stops at the red clip, the jaws on the red wire, because it bites plastic, not metal. |
 | b2 | clear | Move that clip onto the metal snap. | Drag the red clip off the battery's plastic wrapper and onto its plus (+) snap, the other metal stud. |
 | b2 done | because | (the lab's "It glows!") | It glows, because electricity can now flow through metal all the way round. |
@@ -133,7 +136,7 @@ The lab (`content/labs/welcome-to-the-bench.ts`):
 |---|---|---|
 | close-the-switch hint | The lever on the wooden block. | The switch is the wooden block with OFF and ON printed on it. Tap or drag its lever over to ON. |
 | close-the-switch success | Click. Nothing. | Click. The switch is on, but the lamp is still dark. |
-| find-the-gap hint | Drag the clip onto the shiny snap. | The red clip sits on the battery's plastic wrapper. Drag it onto the metal stud marked plus (+). |
+| find-the-gap hint | Drag the clip onto the shiny snap. | The red clip sits on the battery's plastic wrapper. Drag it onto the round metal stud, the plus (+) snap. |
 | find-the-gap nudge | Keep the switch on for this one. | Flip the switch back to ON: the loop is open there too. |
 | break-the-loop hint | Drag any clip off its part. | Drag the black clip off the lamp's leg and drop it on the empty desk. |
 | break-the-loop nudge | Keep the switch on for this one. | Flip the switch back to ON, so a clip is the only gap. |
@@ -195,9 +198,8 @@ Work in your own worktree and run `git merge main` before each commit (another a
 
 ## Known gaps (do not fix in the rewrite)
 
-- A phone at reading scale frames one place. A line that names two far-apart places (a clip at the battery and the lamp)
-  shows only one; reword toward the framed one.
-- On a phone in Ink, the docked meter panel can cover the front of a part (the skin patch's tabs).
+- A phone frames one task's working parts. A line that names two far-apart places may show only one; check, then add a
+  `spot` or reword toward the framed one.
 - Nudges and wrong lines replace the robot's line instead of adding under it, unlike hints.
 - The blueprints in `docs/curriculum/` quote the old 12-word budget and old lines. This brief and `docs/LESSONS.md`
   win.
