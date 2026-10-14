@@ -18,6 +18,8 @@ import type { BenchStore } from "../store";
 import type { Anchor, BenchAction, BenchState, MeterMode, Selection, TestLead, TrayItem, Vec2 } from "../types";
 import { leadCable, makeFloor } from "./views";
 import { PICK_LAYER, pickOf, type Pick } from "./pick";
+import type { BenchLabels } from "../labels";
+import { TOUCH_SNAP, dragName, type LoupeFeed } from "../view/Loupe";
 
 export type InteractionApi = {
   /** Start dragging a tray item from a DOM pointer event. */
@@ -78,6 +80,7 @@ export function useInteraction({
   emit,
   viewPad,
   view,
+  loupe,
 }: {
   store: BenchStore;
   element: HTMLElement | null;
@@ -88,6 +91,8 @@ export function useInteraction({
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
   /** Camera framing from the view rig (home view, focus on targets). */
   view?: React.MutableRefObject<{ home(top: boolean, smooth?: boolean): void; focus(targets: string[]): void } | null>;
+  /** The touch loupe (view/Loupe.tsx): fed while a finger drags, cleared when it lifts. */
+  loupe?: { feed: LoupeFeed; labels: () => BenchLabels };
 }) {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as unknown as CameraControlsImpl | null;
@@ -194,7 +199,7 @@ export function useInteraction({
         // Never onto something that already hangs off the thing being dragged (a probe touching this clip, say).
         (t) => !opts.exclude || !(t.kind === "probe" || t.kind === "lead") || !hangsOn(b, t.anchor, opts.exclude),
       );
-      const radius = touch ? 40 : 26;
+      const radius = touch ? TOUCH_SNAP : 26;
       let best: Anchor | null = null;
       let bestD = radius;
       for (const t of targets) {
@@ -442,10 +447,17 @@ export function useInteraction({
         default:
           break;
       }
+      // A finger hides what it touches: the loupe shows it, and names where a drop would land.
+      if (g.touch && loupe && (d.kind === "clip" || d.kind === "probe" || d.kind === "part" || d.kind === "leg" || d.kind === "wireEnd")) {
+        const r = element.getBoundingClientRect();
+        const st = store.getState();
+        loupe.feed.set({ x: cx - r.left, y: cy - r.top, name: dragName(st.bench, d as Parameters<typeof dragName>[1], st.ui.snapTarget, loupe.labels()) });
+      }
       invalidate();
     };
 
     const endDrag = (g: Gesture) => {
+      loupe?.feed.set(null);
       const d = g.drag;
       const s = store.getState();
       if (!d) return;
@@ -466,7 +478,7 @@ export function useInteraction({
         // Dropped right on a part of the same kind: the two swap places and wiring (a fresh LED for a dead one).
         const target = ops.swapTarget(s.bench, d.id);
         if (target && !s.locked.includes(target.id)) {
-          const from = s.txBase?.parts.find((p) => p.id === d.id)?.pos ?? ([target.pos[0], target.pos[1] + 34] as Vec2);
+          const from = s.txBase?.parts.find((p) => p.id === d.id)?.pos ?? ops.asideSpot(s.bench, target, [target.pos[0], target.pos[1] + 34], [d.id]);
           s.apply((b) => ops.dropOnto(b, d.id, target.id, from));
         } else if (d.cable && d.to) {
           // A gate dropped on a cable as drawn: on that lead.
@@ -740,6 +752,7 @@ export function useInteraction({
     };
 
     const onCancel = (e: PointerEvent) => {
+      loupe?.feed.set(null);
       const g = gesture.current;
       if (!g || g.pointerId !== e.pointerId) return;
       gesture.current = null;
@@ -854,6 +867,7 @@ export function useInteraction({
         };
         const up = (ev: PointerEvent) => {
           if (ev.pointerId !== g.pointerId) return;
+          loupe?.feed.set(null);
           window.removeEventListener("pointermove", move);
           window.removeEventListener("pointerup", up);
           window.removeEventListener("pointercancel", up);
@@ -889,7 +903,7 @@ export function useInteraction({
               // A fresh part dropped right on one of its kind takes its place and wiring; the old one moves aside.
               const id = g.drag.id;
               const target = ops.swapTarget(st.bench, id);
-              if (target && !st.locked.includes(target.id)) st.apply((b) => ops.dropOnto(b, id, target.id, [target.pos[0], target.pos[1] + 34]));
+              if (target && !st.locked.includes(target.id)) st.apply((b) => ops.dropOnto(b, id, target.id, ops.asideSpot(b, target, [target.pos[0], target.pos[1] + 34], [id])));
             }
             st.commit();
             if (g.drag?.kind === "part") emit({ type: "part:add", partId: g.drag.id, kind: item.kind as never });
@@ -965,7 +979,7 @@ export function useInteraction({
       element.removeEventListener("contextmenu", onContext);
       api.current = null;
     };
-  }, [element, camera, controls, scene, gl, store, readOnly, invalidate, api, emit, viewPad, view]);
+  }, [element, camera, controls, scene, gl, store, readOnly, invalidate, api, emit, viewPad, view, loupe]);
 }
 
 /** Whether an attach point is, or hangs off (clip on a probe tip, tip on a clip ...), something starting with `prefix`. */

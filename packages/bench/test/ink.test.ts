@@ -14,6 +14,7 @@ import { hitTest, nextPoint, navPoints, shapeDistance } from "../src/ink/hit";
 import { hasInkKind, PartDrawing } from "../src/ink/kinds";
 import { anchorInk, buildModel, dialLabelLocal, targetOwners, targetPoint, toWorld } from "../src/ink/model";
 import { lodFor, gridCell } from "../src/ink/view";
+import { targetPoint as sharedTargetPoint } from "../src/view/targets";
 import { demoBench, glowBench, propsBench, blocksBench } from "../playground/scenes";
 
 const close = (a: readonly number[], b: readonly number[], eps = 1e-6) => a.every((v, i) => Math.abs(v - b[i]!) < eps);
@@ -101,6 +102,15 @@ describe("ink model: every lead lands on its true hole or clip point", () => {
     expect(lcd[1]).toBeLessThan(meter[1]);
     expect(targetPoint(model, "D1")).toEqual(targetPoint(model, "part:D1"));
     expect(targetPoint(model, "nothing")).toBeNull();
+  });
+
+  it("puts an LED's stress bar mark on the same desk point as the 3D view, behind the LED", () => {
+    for (const b of [demoBench(), glowBench()]) {
+      const m = buildModel(b);
+      const shared = sharedTargetPoint(b, "part:D1/stress")!;
+      expect(close(targetPoint(m, "part:D1/stress")!, [shared[0], shared[2]])).toBe(true);
+      expect(shared[2]).toBeLessThan(sharedTargetPoint(b, "part:D1")![2]);
+    }
   });
 
   it("works out what a spotlight keeps lit", () => {
