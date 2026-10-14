@@ -169,8 +169,8 @@ export function BenchInk(props: BenchInkProps) {
       // On a phone a whole breadboard is too small to touch: frame the busy part of it at a usable scale instead
       // (the learner pans to the rest).
       const MIN_TOUCH = 3.6;
-      if (compact && cam.s < MIN_TOUCH && !store.getState().frame) {
-        const busy = busyRect(modelRef.current) ?? r;
+      const busy = compact && cam.s < MIN_TOUCH && !store.getState().frame ? busyRect(modelRef.current) : null;
+      if (busy) {
         const c = fitRect(busy, view.vp, padRef.current, 14);
         view.fit(busy, padRef.current, { instant, max: 14 });
         if (c.s < MIN_TOUCH) view.set({ ...view.cam, s: MIN_TOUCH }, false);
@@ -221,7 +221,9 @@ export function BenchInk(props: BenchInkProps) {
     if (!spot) return "";
     const owners = [...targetOwners(model, spot)];
     const not = owners.map((o) => `:not([data-own="${o.replace(/"/g, "")}"])`).join("");
-    return `#${defsId}-svg [data-own]${not}{opacity:.16}`;
+    // Parts fade almost away; the board stays as quiet context.
+    const dim = `#${defsId}-svg [data-own]${not}{opacity:.16}`;
+    return owners.includes("board") ? dim : `${dim}#${defsId}-svg.is-spot [data-own="board"]{opacity:.42 !important}`;
   }, [spot, model, defsId]);
 
   // Announcements for screen readers.

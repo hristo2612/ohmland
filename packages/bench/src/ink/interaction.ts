@@ -117,13 +117,24 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
   const { element, store, view, emit } = ctx;
   const bench = () => store.getState().bench;
   const setUi = store.getState().setUi;
+  // The bench's page position, read at most every 100 ms (reading it forces a layout).
+  let rect: DOMRect | null = null;
+  let rectAt = 0;
+  const box = () => {
+    const now = performance.now();
+    if (!rect || now - rectAt > 100) {
+      rect = element.getBoundingClientRect();
+      rectAt = now;
+    }
+    return rect;
+  };
   const local = (cx: number, cy: number): [number, number] => {
-    const r = element.getBoundingClientRect();
+    const r = box();
     return [cx - r.left, cy - r.top];
   };
   const world = (cx: number, cy: number): Vec2 => view.toWorld(...local(cx, cy));
   const toClient = (x: number, z: number): [number, number] => {
-    const r = element.getBoundingClientRect();
+    const r = box();
     const [sx, sy] = view.toScreen(x, z);
     return [sx + r.left, sy + r.top];
   };
@@ -445,6 +456,7 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
   };
 
   const onDown = (e: PointerEvent) => {
+    rect = null;
     // Overlay controls (buttons, tray) handle themselves.
     if ((e.target as HTMLElement | null)?.closest?.("[data-ink-ui]")) return;
     const touch = e.pointerType !== "mouse";
