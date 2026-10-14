@@ -1,0 +1,62 @@
+# A bench lesson (docs/LESSONS.md). One idea: hidden metal strips join some holes.
+# Lab: content/labs/how-a-breadboard-works.ts (the LED and rail tasks, and the secret).
+format: bench
+id: how-a-breadboard-works
+version: 1
+title: How a breadboard works
+summary: Find the hidden metal strips inside a breadboard, then use them to light an LED.
+minutes: 6
+lab: how-a-breadboard-works
+unlocks:
+  parts: [breadboard]
+  isle: breadboard-patch
+
+start:
+  title: The secret wiring
+  say: This is a breadboard. Parts just push in.
+  go: Show me
+
+beats:
+  - say: Tap any hole.
+    objective: Meet the board
+    tap: { anyHole: true }
+    note: { at: tap, text: "this is {hole}" }
+    done: Every hole has a name.
+
+  - say: X-ray on. Tap a hole. See its strip.
+    xray: true
+    tap: { anyHole: true }
+    note: { at: tap, text: joined underneath }
+    rule: "Same number, same side: joined."
+
+  - say: Game time. Tap a hole joined to the red one.
+    objective: Which holes join?
+    tap: { joinedTo: b14 }
+
+  - say: Now this one. Careful near the middle.
+    tap: { joinedTo: e18 }
+
+  - say: Last one. This hole sits on a rail.
+    tap: { joinedTo: "rail+:21" }
+    rule: Rails run the whole length.
+
+  - say: Both legs share strip 10. Dark. Fix it.
+    objective: Light it up
+    do: fix-led
+    done: It glows! Each leg, its own strip.
+    note: { at: D1, text: "in at 10, out at 11" }
+    rule: Each leg needs its own strip.
+
+  - say: Slide the black wire along the blue rail.
+    do: rail-slide
+    done: Still glowing.
+    note: { at: W1.b, text: "still minus, way over here" }
+
+secret:
+  task: short-the-rails
+  say: Curious? Draw a wire from plus to minus.
+  done: Whoa. A short. The battery gets hot.
+  note: { at: B1, text: "all current, no part" }
+
+end:
+  say: You speak breadboard now. Most grown-ups don't.

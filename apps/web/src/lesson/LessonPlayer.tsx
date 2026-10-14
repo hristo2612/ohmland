@@ -1,5 +1,8 @@
 /**
- * The lesson player: a focused, full-screen flow of steps (hook, lab, explain, quiz, wrap) and the finale.
+ * The lesson player. A bench lesson (format: bench) plays in BenchLesson: the learner stays at the bench, one beat
+ * at a time (docs/LESSONS.md). A classic lesson plays in the stepper below, until every lesson has moved over.
+ *
+ * The stepper: a focused, full-screen flow of steps (hook, lab, explain, quiz, wrap) and the finale.
  * Progress is saved after every change and resumed on return. Keyboard: Enter runs the step's primary action when
  * focus is not in a control; focus moves to each step's heading so screen readers hear where they are.
  */
@@ -19,11 +22,17 @@ import { LabStepHost } from "./steps/LabStepHost";
 import { QuizStep } from "./steps/QuizStep";
 import { WrapStep } from "./steps/WrapStep";
 import { answerKey, type Answers, type PlayerProps } from "./types";
+import { BenchLesson } from "./bench/BenchLesson";
+import type { StepLessonData } from "../content/load";
 import "./lesson.css";
 
 const INTERACTIVE = "input, textarea, select, button, a[href], [role=radio], [role=button], [role=tab], [contenteditable=true], summary";
 
 export default function LessonPlayer(props: PlayerProps) {
+  return props.lesson.format === "bench" ? <BenchLesson {...props} lesson={props.lesson} /> : <StepPlayer {...props} lesson={props.lesson} />;
+}
+
+function StepPlayer(props: PlayerProps & { lesson: StepLessonData }) {
   const { lesson, outline, parts, module, next, mapHref } = props;
   const ready = useLearnerReady(outline);
   const muted = useLearner((s) => s.learner.settings.muted);

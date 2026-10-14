@@ -8,6 +8,8 @@ landmark:
   # caption: A tower with a glowing display rises by the bridge. Now the island can measure itself.
   # mascot: Now we can see what we're doing. Finally.
 lessons:
+  # how-a-breadboard-works sits here for now; it moves into the new first unit, Start here, later.
+  - how-a-breadboard-works
   - welcome-to-the-bench
   - meet-the-meter
   - tiny-and-huge-numbers

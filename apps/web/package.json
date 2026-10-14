@@ -25,6 +25,7 @@
     "@astrojs/react": "7.0.1",
     "@fontsource/inter": "5.3.0",
     "@fontsource/jetbrains-mono": "5.3.0",
+    "@fontsource/kalam": "5.3.0",
     "@fontsource/space-grotesk": "5.3.0",
     "@ohmland/bench": "workspace:*",
     "@ohmland/isle": "workspace:*",

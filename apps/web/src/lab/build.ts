@@ -17,6 +17,7 @@ import {
   partDef,
   partLegs,
   shuffleFor,
+  trayUsed,
   type BenchPartKind,
   type BenchState,
   type InspectSpec,
@@ -485,8 +486,8 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
     }
   }
 
-  // The tray. `count` means how many the tray holds, so add what is already on the bench of the same kind (the
-  // bench counts every placed part of a kind against an item's count).
+  // The tray. `count` means how many the tray holds, so add what is already on the bench that the bench counts
+  // against the item (leads of its colour, parts of its kind with its params: trayUsed).
   let spareFuses: number | null = null;
   const tray: TrayItem[] = [];
   for (const item of config.tray) {
@@ -500,8 +501,7 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
       continue;
     }
     if (t.count !== undefined) {
-      const already = t.kind === "lead" ? bench.leads.length : bench.parts.filter((p) => p.kind === t.kind).length;
-      t.count += already;
+      t.count += trayUsed(t, bench);
     }
     tray.push(t);
   }

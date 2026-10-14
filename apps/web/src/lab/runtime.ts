@@ -484,7 +484,8 @@ export class LabRuntime {
     for (let i = 0; i < seg.start; i++) {
       const e = applyStep(bench, this.lab.solution[i]!);
       bench = e.bench;
-      for (const inp of e.inputs) if (!inp.after) inputs.push(inp);
+      // A delayed input (a timed press's release) has happened by the next step: keep its final value, undelayed.
+      for (const { after: _after, ...inp } of e.inputs) inputs.push(inp);
     }
     return { bench, inputs };
   }
