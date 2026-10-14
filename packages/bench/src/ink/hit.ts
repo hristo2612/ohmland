@@ -30,9 +30,29 @@ export function shapeDistance(s: Shape, x: number, z: number): number {
 
 /**
  * What the pointer would grab at a desk point. `tol` is the reach in mm (a few screen pixels, more for touch).
- * Among everything within reach, handles beat bodies; then the closest; then whatever is drawn on top.
+ * Among everything within reach, handles beat bodies; then the closest; then whatever is drawn on top. `pad` (mm,
+ * larger than `tol`) is invisible hit padding round small things: when nothing is within reach, the nearest thing
+ * within `pad` is grabbed, so every handle has a target of a comfortable size without drawing it bigger.
  */
-export function hitTest(model: InkModel, x: number, z: number, tol: number): InkPick | null {
+export function hitTest(model: InkModel, x: number, z: number, tol: number, pad = tol): InkPick | null {
+  const near = hitWithin(model, x, z, tol);
+  if (near || pad <= tol) return near;
+  let best: HitItem | null = null;
+  let bestKey = Infinity;
+  for (const h of model.hits) {
+    const d = shapeDistance(h.shape, x, z);
+    if (d > pad) continue;
+    // The nearest wins; a handle a hair further off still beats a body.
+    const key = d - pickRank(h.pick) * 0.25 - h.order * 1e-6;
+    if (key < bestKey) {
+      bestKey = key;
+      best = h;
+    }
+  }
+  return best?.pick ?? null;
+}
+
+function hitWithin(model: InkModel, x: number, z: number, tol: number): InkPick | null {
   let best: HitItem | null = null;
   let bestKey = -Infinity;
   let bestD = Infinity;
