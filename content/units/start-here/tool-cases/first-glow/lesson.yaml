@@ -24,8 +24,10 @@ beats:
     do: mend-blueprint
     note: { at: "part:CARD/D1", text: the triangle points away from plus }
 
+  # The drawing and the board's working strips (5 to 10, between the two jumpers), framed at a size to build on.
   - say: Build it on the board. Follow the lines.
     objective: Build it
+    spot: [CARD, "hole:a5", "hole:e10"]
     do: build-loop
     done: It glows! Built from a drawing.
     note: { at: CARD, text: "each line: a connection" }
