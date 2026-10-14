@@ -577,7 +577,11 @@ export class Engine implements Ctx {
         // voltages are continuous across it, and the first-order error of that one step (it grows with the square
         // of its size) stays well under 0.1% of the timing.
         this.needBreak = true;
-        const hr = Math.min(H_EDGE_RESTART, this.hmax * this.stepScale, Math.max(H_BREAK, EDGE_RESTART_SHARE * this.hSmooth));
+        // Without capacitors or coils there is nothing to integrate: carry on with full steps.
+        const hr =
+          this.reactives.length === 0
+            ? this.hmax * this.stepScale
+            : Math.min(H_EDGE_RESTART, this.hmax * this.stepScale, Math.max(H_BREAK, EDGE_RESTART_SHARE * this.hSmooth));
         this.hRestart = hr;
         this.hNext = hr;
       }
@@ -943,7 +947,12 @@ export class Engine implements Ctx {
 
   partStates(): Record<string, PartState> {
     const out: Record<string, PartState> = {};
-    for (const d of this.devices) if (!(d instanceof WireDevice)) out[d.id] = d.state(this.x);
+    for (const d of this.devices) {
+      if (d instanceof WireDevice) continue;
+      out[d.id] = d.state(this.x);
+      const sub = d.subStates(this.x);
+      if (sub) Object.assign(out, sub);
+    }
     if (this.wires.length > 0) {
       const wi = this.wireCurrents();
       for (const w of this.wires) {
@@ -1048,7 +1057,7 @@ export class Engine implements Ctx {
   }
 }
 
-export const INPUT_KEYS: InputKey[] = ["pressed", "closed", "position", "light", "mode", "range", "to", "ohms", "bounce", "proximity"];
+export const INPUT_KEYS: InputKey[] = ["pressed", "closed", "position", "light", "mode", "range", "to", "ohms", "bounce", "proximity", "power"];
 
 /**
  * Greedy minimum-degree ordering of the unknowns (devices couple all of their nodes). Eliminating low-degree nodes

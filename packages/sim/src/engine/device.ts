@@ -362,6 +362,13 @@ export abstract class Device {
   get audioVolts(): number {
     return 0;
   }
+  /**
+   * Parts built into this one that the snapshot lists on their own (a board's lamps: "U1:L", "U1:ON"), or null.
+   * They are read-outs only: they have no pins in the netlist.
+   */
+  subStates(_x: Float64Array): Record<string, PartState> | null {
+    return null;
+  }
 }
 
 export function baseState(i: number, v: number, p: number, temp = AMBIENT, health: Health = "ok"): PartState {
