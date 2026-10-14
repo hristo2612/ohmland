@@ -12,11 +12,13 @@ unlocks:
   isle: led-lamp
 
 start:
-  say: My face is one LED. It's been dark for weeks. Wire me a glow?
+  title: Wake the robot's face
+  say: My face is one LED. Dark for weeks. Wire me a glow?
   go: Let's wire it
 
 beats:
   - say: This is an LED. Tap it.
+    objective: Make it glow
     meet: D1
     note: { at: D1, text: LED }
 
@@ -29,6 +31,7 @@ beats:
     popup: { widget: resistor-slider, at: R1, props: { part: R1, led: D1, values: [470, 1000, 1500, 4700, 10000] } }
 
   - say: Quick one. Tap the long leg.
+    objective: The one-way rule
     tap: { answer: D1.anode, among: [D1.anode, D1.cathode] }
     wrong: { D1.cathode: "That's the short leg. Try the other." }
     note: { at: D1.anode, text: "long leg: anode, toward plus" }
@@ -44,17 +47,17 @@ beats:
   - say: Now make it glow again.
     do: flip-back
 
-fixit:
-  say: Fix-it time. No glow here. Why?
-  tasks:
-    - task: fix-reversed
-
 secret:
   task: no-resistor
   say: Curious? Leave the resistor out. It's free here.
   done: Pop. That LED gave its life for science.
   note: { at: D1, text: about 1 A for a blink }
   rule: Every LED needs a resistor.
+
+fixit:
+  say: Fix-it time. No glow here. Why?
+  tasks:
+    - task: fix-reversed
 
 end:
   say: You built that from scratch. My face approves.

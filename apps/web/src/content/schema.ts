@@ -276,15 +276,23 @@ export const lessonSchema = z
 // Each beat is one short robot line plus one thing to do (a lab task, a tap on the bench, a pick, a number), and
 // optionally a discovery: an ink note drawn onto a part and a rule stamped into the margin. docs/LESSONS.md.
 
-/** The longest any one line may be, in words. Most lines should stay under 12. */
-export const LINE_MAX_WORDS = 16;
-/** The most words a whole bench lesson may show (every line the learner reads, not the UI chrome). */
+/** Word limits per kind of line (docs/LESSONS.md, "Budgets"): a robot line, a note on a part, a rule, a chip. */
+export const WORDS = { say: 12, note: 6, rule: 8, chip: 4, onDemand: 12 } as const;
+/** The most words a lesson's main path may show (every line on the way through, not hints or the UI chrome). */
 export const LESSON_MAX_WORDS = 150;
+/** The most words of on-demand text (hints and lines for wrong taps or picks) in the lesson file. */
+export const ON_DEMAND_MAX_WORDS = 60;
 
 export const countWords = (s: string): number => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
 
-/** One short line of plain text (no markdown): a robot line, a note, a rule, a chip. */
-const line = text.refine((s) => countWords(s) <= LINE_MAX_WORDS, `keep it under ${LINE_MAX_WORDS} words`);
+/** One short line of plain text (no markdown), at most `max` words. */
+const words = (max: number) => text.refine((s) => countWords(s) <= max, `at most ${max} words`);
+/** A robot line (or a done line, a start button). */
+const line = words(WORDS.say);
+const noteLine = words(WORDS.note);
+const ruleLine = words(WORDS.rule);
+const chip = words(WORDS.chip);
+const onDemand = words(WORDS.onDemand);
 
 /**
  * Something on the bench, in the lab's shorthand: a part ("D1"), a part's lead ("D1.anode"), a hole ("e12",
@@ -296,7 +304,7 @@ const anchor = z.string().trim().regex(/^[A-Za-z0-9_+:.-]+$/, "must name a part,
 const labId = z.string().trim().regex(/^[A-Za-z][A-Za-z0-9_-]*$/, "must be a lab part or task id");
 
 /** A discovery drawn onto the bench: an arrow from a short line of ink to `at`. `at: tap` means where the learner tapped. */
-const noteSchema = z.strictObject({ at: z.union([anchor, z.literal("tap")]), text: line });
+const noteSchema = z.strictObject({ at: z.union([anchor, z.literal("tap")]), text: noteLine });
 
 export const POPUP_WIDGETS = ["resistor-slider"] as const;
 export type PopupWidget = (typeof POPUP_WIDGETS)[number];
@@ -321,9 +329,9 @@ const tapSchema = z
 
 const pickSchema = z
   .strictObject({
-    options: z.array(line).min(2).max(4),
+    options: z.array(chip).min(2).max(4),
     /** The right option (its text). Without one, the pick is an ungraded question. */
-    answer: line.optional(),
+    answer: chip.optional(),
     /** Point at a part while asking ("What is this?"). */
     on: anchor.optional(),
   })
@@ -353,7 +361,7 @@ const popupSchema = z.strictObject({
 
 /** A prediction right before an action: the learner guesses, then does it and sees. Never graded. */
 const guessSchema = z
-  .strictObject({ options: z.array(line).min(2).max(4), answer: line.optional() })
+  .strictObject({ options: z.array(chip).min(2).max(3), answer: chip.optional() })
   .superRefine((g, ctx) => {
     if (g.answer !== undefined && !g.options.includes(g.answer)) ctx.addIssue({ code: "custom", message: "answer must be one of the options", path: ["answer"] });
   });
@@ -385,17 +393,22 @@ export const beatSchema = z
 
     /** A guess before a `do` action. */
     guess: guessSchema.optional(),
-    /** A nudge after a wrong tap, pick or number (a `do` beat uses its lab task's hints). */
-    hint: line.optional(),
-    /** Lines for particular wrong taps or picks, by anchor or option text. */
-    wrong: z.record(z.string(), line).optional(),
+    /** A nudge after a wrong tap, pick or number (a `do` beat uses its lab task's hints). On demand. */
+    hint: onDemand.optional(),
+    /** Lines for particular wrong taps or picks, by anchor or option text. On demand. */
+    wrong: z.record(z.string(), onDemand).optional(),
 
     // The discovery, shown when the beat is done.
     /** The robot's reaction. */
     done: line.optional(),
     note: noteSchema.optional(),
     /** A rule stamped into the margin and the notebook. */
-    rule: line.optional(),
+    rule: ruleLine.optional(),
+    /**
+     * Starts an objective: a short name that groups this beat and the ones after it (until the next objective). The
+     * robot's eyes fill in equal steps as objectives finish. Never shown as a list.
+     */
+    objective: words(5).optional(),
   })
   .superRefine((b, ctx) => {
     const actions = (["meet", "do", "tap", "pick", "number", "popup"] as const).filter((k) => b[k] !== undefined);
@@ -405,19 +418,18 @@ export const beatSchema = z
     if (b.wrong && !b.tap && !b.pick) ctx.addIssue({ code: "custom", message: "wrong lines go with a tap or a pick", path: ["wrong"] });
   });
 
-/** Every line a bench lesson shows, for the word budget. */
+/** Every line on a bench lesson's main path, for the word budget (hints and wrong lines are on demand). */
 export function benchLessonLines(l: Pick<z.infer<typeof benchLessonObject>, "start" | "beats" | "fixit" | "secret" | "end">): string[] {
   const out: string[] = [l.start.say];
+  if (l.start.title) out.push(l.start.title);
   if (l.start.go) out.push(l.start.go);
   for (const b of l.beats) {
     out.push(b.say);
     if (b.done) out.push(b.done);
     if (b.note) out.push(b.note.text);
     if (b.rule) out.push(b.rule);
-    if (b.hint) out.push(b.hint);
     if (b.guess) out.push(...b.guess.options);
     if (b.pick) out.push(...b.pick.options);
-    if (b.wrong) out.push(...Object.values(b.wrong));
   }
   if (l.fixit) out.push(l.fixit.say, ...l.fixit.tasks.flatMap((t) => (t.say ? [t.say] : [])));
   if (l.secret) {
@@ -428,6 +440,11 @@ export function benchLessonLines(l: Pick<z.infer<typeof benchLessonObject>, "sta
   }
   out.push(l.end.say);
   return out;
+}
+
+/** The lesson file's on-demand lines: hints and lines for wrong taps or picks. */
+export function benchLessonOnDemand(l: Pick<z.infer<typeof benchLessonObject>, "beats">): string[] {
+  return l.beats.flatMap((b) => [...(b.hint ? [b.hint] : []), ...Object.values(b.wrong ?? {})]);
 }
 
 const benchLessonObject = z.strictObject({
@@ -442,8 +459,8 @@ const benchLessonObject = z.strictObject({
     .default({ parts: [] }),
   /** content/labs/<lab>.ts: the bench, its tasks and their solution. */
   lab: idSchema,
-  /** The first screen: the robot's opening line and the button that opens the bench. */
-  start: z.strictObject({ say: line, go: line.optional() }),
+  /** The first screen: the mission's title, the robot's opening line and the button that opens the bench. */
+  start: z.strictObject({ title: words(5).optional(), say: line, go: chip.optional() }),
   beats: z.array(beatSchema).min(1).max(16),
   /** The closing check: broken benches to fix. Relaxed by default; the learner may race a clock. */
   fixit: z
@@ -457,15 +474,19 @@ const benchLessonObject = z.strictObject({
     .optional(),
   /** The secret bonus: a bonus lab task, offered at the end if the learner has not found it by then. */
   secret: z
-    .strictObject({ task: labId, say: line, done: line.optional(), note: noteSchema.optional(), rule: line.optional() })
+    .strictObject({ task: labId, say: line, done: line.optional(), note: noteSchema.optional(), rule: ruleLine.optional() })
     .optional(),
   /** The robot's last line, on the signed-off notebook page. */
   end: z.strictObject({ say: line }),
 });
 
 export const benchLessonSchema = benchLessonObject.superRefine((l, ctx) => {
-  const words = benchLessonLines(l).reduce((n, s) => n + countWords(s), 0);
-  if (words > LESSON_MAX_WORDS) ctx.addIssue({ code: "custom", message: `${words} words of text; a bench lesson stays under ${LESSON_MAX_WORDS}`, path: ["beats"] });
+  const main = benchLessonLines(l).reduce((n, s) => n + countWords(s), 0);
+  if (main > LESSON_MAX_WORDS) ctx.addIssue({ code: "custom", message: `${main} words on the main path; a bench lesson stays under ${LESSON_MAX_WORDS}`, path: ["beats"] });
+  const extra = benchLessonOnDemand(l).reduce((n, s) => n + countWords(s), 0);
+  if (extra > ON_DEMAND_MAX_WORDS) ctx.addIssue({ code: "custom", message: `${extra} words of hints and wrong lines; keep them under ${ON_DEMAND_MAX_WORDS}`, path: ["beats"] });
+  const rules = l.beats.filter((b) => b.rule).length + (l.secret?.rule ? 1 : 0);
+  if (rules > 3) ctx.addIssue({ code: "custom", message: `${rules} rules; stamp 1 or 2, 3 at most`, path: ["beats"] });
   const popups = l.beats.filter((b) => b.popup).length;
   if (popups > 1) ctx.addIssue({ code: "custom", message: "a lesson has at most one pop-up card", path: ["beats"] });
   const tasks = [...l.beats.flatMap((b) => (b.do ? [b.do] : [])), ...(l.fixit?.tasks.map((t) => t.task) ?? []), ...(l.secret ? [l.secret.task] : [])];

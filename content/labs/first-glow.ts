@@ -29,10 +29,12 @@ export default defineLab({
       // 5 mm, longer anode lead, flat spot on the cathode side of the rim.
       { id: "D1", kind: "led", at: "desk:58,12", rot: 180, params: { color: "red", maxmA: 50 }, locked: true, label: "Red LED" },
     ],
+    // Three clip leads in all. The bench counts leads together whatever their colour, so each colour says 3: the
+    // tray steps aside once three are out.
     tray: [
-      { kind: "lead", params: { color: "red" }, count: 1 },
-      { kind: "lead", params: { color: "green" }, count: 1 },
-      { kind: "lead", params: { color: "black" }, count: 1 },
+      { kind: "lead", params: { color: "red" }, count: 3 },
+      { kind: "lead", params: { color: "green" }, count: 3 },
+      { kind: "lead", params: { color: "black" }, count: 3 },
     ],
     instruments: [],
   },

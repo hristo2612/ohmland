@@ -51,6 +51,15 @@ export function momentsOf(lesson: BenchLessonData): Moment[] {
     if (beat.rule) m.rule = beat.rule;
     out.push(m);
   });
+  // The secret is offered once the required beats are done, then the fix-it round closes the lesson.
+  if (lesson.secret) {
+    const s = lesson.secret;
+    const m: Moment = { key: "secret", kind: "secret", say: s.say, action: "task", task: s.task };
+    if (s.done) m.done = s.done;
+    if (s.note) m.note = s.note;
+    if (s.rule) m.rule = s.rule;
+    out.push(m);
+  }
   const fixit = lesson.fixit;
   fixit?.tasks.forEach((t, i) => {
     out.push({
@@ -62,14 +71,6 @@ export function momentsOf(lesson: BenchLessonData): Moment[] {
       fix: { index: i, count: fixit.tasks.length, intro: fixit.say, timer: fixit.timer },
     });
   });
-  if (lesson.secret) {
-    const s = lesson.secret;
-    const m: Moment = { key: "secret", kind: "secret", say: s.say, action: "task", task: s.task };
-    if (s.done) m.done = s.done;
-    if (s.note) m.note = s.note;
-    if (s.rule) m.rule = s.rule;
-    out.push(m);
-  }
   out.push({ key: "end", kind: "end", say: lesson.end.say, action: "finish" });
   return out;
 }
@@ -144,10 +145,30 @@ export function rulesFound(moments: readonly Moment[], index: number, tasks: rea
   return out;
 }
 
-/** Progress for the robot's eyes, 0..1: moments finished out of all of them (the sign-off counts as the last). */
+/**
+ * Progress for the robot's eyes, 0..1. With objectives, the eyes fill in equal steps as each objective (and the
+ * fix-it round) finishes; without them, moment by moment. The secret never counts: it is a bonus.
+ */
 export function progressOf(moments: readonly Moment[], index: number, currentDone: boolean): number {
-  const total = Math.max(1, moments.length - 1);
-  return Math.min(1, (index + (currentDone ? 1 : 0)) / total);
+  const finished = (i: number) => i < index || (i === index && currentDone);
+  const counted = moments.filter((m) => m.kind !== "secret" && m.kind !== "end");
+  const starts = counted.filter((m) => m.beat?.objective);
+  if (!starts.length) {
+    const total = Math.max(1, counted.length);
+    return Math.min(1, counted.filter((m) => finished(moments.indexOf(m))).length / total);
+  }
+  // Each objective ends at the beat before the next one starts; the fix-it round is one more step.
+  const beats = moments.filter((m) => m.kind === "beat");
+  const groups: number[] = [];
+  beats.forEach((m, i) => {
+    if (m.beat?.objective || i === 0) groups.push(i);
+  });
+  const ends = groups.map((_, g) => (g + 1 < groups.length ? groups[g + 1]! - 1 : beats.length - 1));
+  const fixes = moments.filter((m) => m.kind === "fix");
+  const steps = ends.length + (fixes.length ? 1 : 0);
+  let done = ends.filter((e) => finished(moments.indexOf(beats[e]!))).length;
+  if (fixes.length && finished(moments.indexOf(fixes[fixes.length - 1]!))) done++;
+  return Math.min(1, done / steps);
 }
 
 /** Fills a note's placeholders: {hole} is the hole the learner tapped. */

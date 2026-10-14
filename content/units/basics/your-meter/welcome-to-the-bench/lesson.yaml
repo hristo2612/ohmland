@@ -12,17 +12,19 @@ unlocks:
   isle: switch
 
 start:
+  title: First light
   say: Welcome to the bench. My face runs on fumes.
   go: Let's look
 
 beats:
   - say: This is a switch. Flip it on.
-    spot: [S1]
+    objective: Light the lamp
     do: close-the-switch
     done: A glow! First light on this island in ages.
     note: { at: D1, text: current flows all the way round }
 
   - say: Unclip any one lead. Guess first.
+    objective: Break it, mend it
     guess: { options: [It stays on, It gets dimmer, It goes out], answer: It goes out }
     do: break-the-loop
     done: Dark. Everywhere at once.
@@ -36,16 +38,16 @@ beats:
     pick: { on: S1, options: [A switch, A battery, A resistor], answer: A switch }
     rule: A switch opens and closes the loop.
 
-fixit:
-  say: Fix-it time. The switch is on. No light.
-  tasks:
-    - task: fix-switch
-
 secret:
   task: swap-battery-leads
   say: Curious? Swap the battery's two clips.
   done: Dark, and nothing broke.
   note: { at: D1, text: "backwards: no light, no harm" }
+
+fixit:
+  say: Fix-it time. The switch is on. No light.
+  tasks:
+    - task: fix-switch
 
 end:
   say: One loop, one light. The island looks brighter already.

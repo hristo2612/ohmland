@@ -48,6 +48,8 @@ export type StageApi = {
   replace(card: FriedCard): void;
   /** A name for a bench anchor, for screen readers and the notebook. */
   labelOf(anchor: string): string;
+  /** A short name to write on the bench ("cathode, the short leg", "1.5 kΩ resistor"). */
+  nameOf(anchor: string): string;
   /** A hole id for what the learner typed ("c7", "+21"), or null. */
   holeFor(text: string): string | null;
   /** Lets go of whatever the bench has selected (a new beat starts clean). */
@@ -234,16 +236,6 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
 
   const controllerRef = useRef<BenchController | null>(null);
 
-  // Spotlight and frame the parts in play.
-  const spotKey = (props.spot ?? []).join(",");
-  useEffect(() => {
-    const c = controllerRef.current;
-    if (!c) return;
-    const raw = (props.spot ?? []).map((s) => resolveAnchor(runtime.store.getState().bench, s)).filter((x): x is string => !!x);
-    c.spotlight(raw.length ? raw.map((a) => a.replace(/^part:/, "")) : null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spotKey, runtime]);
-
   const api = useMemo<StageApi>(
     () => ({
       lab,
@@ -282,6 +274,15 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         const st = runtime.store.getState();
         if (st.ui.selection || st.ui.menu) st.setUi({ selection: null, menu: null });
       },
+      nameOf(anchor) {
+        const b = runtime.store.getState().bench;
+        const raw = resolveAnchor(b, anchor) ?? anchor;
+        const [kind, rest = ""] = raw.split(":") as [string, string?];
+        if (kind === "hole") return holeName(rest);
+        const [id = "", leg] = rest.split(".");
+        if (leg) return m.lessonBench.legs[leg] ?? leg;
+        return (built.labels[id] ?? id).toLowerCase();
+      },
       holeFor(text) {
         const b = runtime.store.getState().bench;
         if (!b.board) return null;
@@ -301,11 +302,11 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   // The tray shows only while a task may need it, and only with something left in it. It is decided as a beat begins
   // and kept for the whole beat: every change reframes the bench, which must never happen under the learner's hand.
   const trayHas = () => {
+    // The same count as the bench's tray: leads together, other parts by kind.
     const b = runtime.store.getState().bench;
     return built.tray.some((item) => {
       if (item.count === undefined) return true;
-      const color = item.kind === "lead" ? (item.params as { color?: string } | undefined)?.color : undefined;
-      const used = item.kind === "lead" ? b.leads.filter((l) => !color || l.color === color).length : b.parts.filter((p) => p.kind === item.kind).length;
+      const used = item.kind === "lead" ? b.leads.length : b.parts.filter((p) => p.kind === item.kind).length;
       return item.count - used > 0;
     });
   };
@@ -317,6 +318,19 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   const [quality] = useState(() => pickQuality());
   const [benchReady, setBenchReady] = useState(false);
   const readOnly = props.readOnly || !!ui.showing;
+
+  // Frame and spotlight the parts in play (a whole-bench view when none are named). On a phone the bench is small, so
+  // a beat about one part brings that part close.
+  const spotKey = (props.spot ?? []).join(",");
+  useEffect(() => {
+    const c = controllerRef.current;
+    if (!c || !benchReady) return;
+    const b = runtime.store.getState().bench;
+    const raw = (props.spot ?? []).map((s) => resolveAnchor(b, s)).filter((x): x is string => !!x);
+    c.spotlight(raw.length ? raw : null);
+    c.focus(raw);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spotKey, runtime, benchReady]);
 
   return (
     <div className="bl-stage" data-bench-ready={benchReady || undefined} data-lab-ready data-lab={lab.id} onPointerDownCapture={() => audio.unlock()} onKeyDownCapture={() => audio.unlock()}>

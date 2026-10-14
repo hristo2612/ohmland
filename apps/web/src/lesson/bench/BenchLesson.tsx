@@ -65,6 +65,24 @@ function warmBench(labId: string): void {
 }
 
 type Phase = "guess" | "act" | "done";
+
+/**
+ * The parts in play for a moment: the beat's own `spot`, or the part a meet, tap or pick is about (the whole part, so
+ * the spotlight never gives away which leg is right). Null frames the whole bench.
+ */
+function spotOf(mo: Moment): string[] | null {
+  const b = mo.beat;
+  if (b?.spot) return b.spot;
+  if (mo.part) return [mo.part];
+  const partOf = (a: string) => a.replace(/^(pin|part):/, "").split(".")[0]!;
+  if (b?.tap?.answer !== undefined) {
+    const all = [...(Array.isArray(b.tap.answer) ? b.tap.answer : [b.tap.answer]), ...(b.tap.among ?? [])];
+    return [...new Set(all.filter((a) => !/^(hole:|[a-j]\d|rail|top)/.test(a)).map(partOf))];
+  }
+  if (b?.pick?.on) return [partOf(b.pick.on)];
+  // A pop-up card leaves the whole bench in view: what it changes shows somewhere else (the LED).
+  return null;
+}
 type Line = { text: string; mood: RobotMood; key: number };
 
 const INTERACTIVE = "input, textarea, select, button, a[href], [role=radio], [role=button], [role=application], [contenteditable=true], summary";
@@ -386,7 +404,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
         const target = st.holeFor(tap.joinedTo.replace(/^rail\+:/, "+").replace(/^rail-:/, "-")) ?? tap.joinedTo;
         const verdict = judgeJoined(bench, target, where);
         if (verdict === "self") {
-          say(m.lessonBench.holes.self ?? "", "thinking");
+          say(m.lessonBench.holes["self"] ?? "", "thinking");
           return;
         }
         const right = verdict === "right";
@@ -397,7 +415,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
           addMark({ id: `tick-${mo.key}`, kind: "tick", at: anchor, tone: "blue" });
           complete(mo, { tapped: anchor });
         } else {
-          addMark({ id: `miss-${where}`, kind: "ring", at: anchor, tone: "red" });
+          // Not marked wrong: the bench shows where the tapped hole's own strip runs.
+          addMark({ id: `miss-strip-${mo.key}`, kind: "strip", at: anchor, tone: "ink" });
           say(m.lessonBench.holes[verdict] ?? m.lessonBench.wrongTap, "thinking");
         }
         return;
@@ -410,7 +429,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
         addMark({ id: `tick-${mo.key}`, kind: "tick", at: anchor, tone: "blue" });
         complete(mo, { tapped: anchor });
       } else {
-        addMark({ id: `miss-${anchor}`, kind: "ring", at: anchor, tone: "red" });
+        // Not marked wrong: the tapped thing shows its own name (the three-period lesson's second period).
+        addMark({ id: `miss-${anchor}`, kind: "label", at: anchor, text: st.nameOf(anchor), tone: "ink" });
         say(mo.beat?.wrong?.[anchor] ?? mo.beat?.hint ?? m.lessonBench.wrongTap, "thinking");
       }
     },
@@ -538,7 +558,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
             ? { kind: "holes" }
             : null;
   const readOnly = !started || phase === "guess" || check?.kind === "targets";
-  const spot = started ? (moment.beat?.spot ?? (moment.part ? [moment.part] : null)) : null;
+  const spot = started ? spotOf(moment) : null;
   const popup = started && phase === "act" && moment.action === "popup" ? (moment.beat?.popup ?? null) : null;
   const friedHere = friedAll.filter((f) => f.lessonId === lesson.id).map((f) => f.label);
   const fixedCount = moments.filter((mo) => mo.kind === "fix" && mo.task && tasks.includes(mo.task)).length;
@@ -644,7 +664,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
           e.preventDefault();
           const h = api?.holeFor(holeText);
           if (h) onTap(`hole:${h}`);
-          else say(m.lessonBench.holes.unknown ?? "", "thinking");
+          else say(m.lessonBench.holes["unknown"] ?? "", "thinking");
         }}
       >
         <label className="bl-number__label" htmlFor="bl-hole">{m.lessonBench.holes.field}</label>
@@ -689,6 +709,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   }
 
   const fix = moment.fix;
+  // The current objective's name, as a quiet kicker: one thing at a time, never the whole list.
+  const objective = moment.kind === "beat" ? moments.slice(0, index + 1).reverse().find((mo) => mo.beat?.objective)?.beat?.objective : undefined;
   const stepsDone = Math.min(moments.length, index + 1);
 
   return (
@@ -750,9 +772,15 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
             )}
           </div>
           <div className="bl-margin__body">
-            {fix && (
-              <p className="bl-kicker bl-kicker--red">
-                {m.lessonBench.fixit.kicker} · {m.lessonBench.fixit.of(fix.index + 1, fix.count)}
+            {!started && lesson.start.title && (
+              <hgroup className="bl-mission">
+                <p className="bl-kicker bl-kicker--red">{m.lessonBench.mission}</p>
+                <h1 className="bl-mission__title">{lesson.start.title}</h1>
+              </hgroup>
+            )}
+            {started && (fix || moment.kind === "secret" || objective) && (
+              <p className="bl-kicker bl-kicker--red" key={`k-${fix ? "fix" : moment.kind === "secret" ? "secret" : objective}`}>
+                {fix ? `${m.lessonBench.fixit.kicker} · ${m.lessonBench.fixit.of(fix.index + 1, fix.count)}` : moment.kind === "secret" ? m.lessonBench.secretKicker : objective}
               </p>
             )}
             <p className="bl-line" ref={lineRef} tabIndex={-1} data-step-heading key={`${moment.key}-${line?.key ?? 0}-${started}`}>

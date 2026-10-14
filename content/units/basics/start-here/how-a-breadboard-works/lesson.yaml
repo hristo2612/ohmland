@@ -12,11 +12,13 @@ unlocks:
   isle: breadboard-patch
 
 start:
+  title: The secret wiring
   say: This is a breadboard. Parts just push in.
   go: Show me
 
 beats:
   - say: Tap any hole.
+    objective: Meet the board
     tap: { anyHole: true }
     note: { at: tap, text: "this is {hole}" }
     done: Every hole has a name.
@@ -28,17 +30,18 @@ beats:
     rule: "Same number, same side: joined."
 
   - say: Game time. Tap a hole joined to the red one.
+    objective: Which holes join?
     tap: { joinedTo: b14 }
 
   - say: Now this one. Careful near the middle.
     tap: { joinedTo: e18 }
-    rule: The channel splits the two sides.
 
   - say: Last one. This hole sits on a rail.
     tap: { joinedTo: "rail+:21" }
     rule: Rails run the whole length.
 
   - say: Both legs share strip 10. Dark. Fix it.
+    objective: Light it up
     spot: [D1]
     do: fix-led
     done: It glows! Each leg, its own strip.
@@ -55,7 +58,6 @@ secret:
   say: Curious? Draw a wire from plus to minus.
   done: Whoa. A short. The battery gets hot.
   note: { at: B1, text: "all current, no part" }
-  rule: Never join plus and minus directly.
 
 end:
   say: You speak breadboard now. Most grown-ups don't.

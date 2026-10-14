@@ -286,6 +286,8 @@ export const en = {
       beat: (s: number) => `Fixed with ${s} s to spare.`,
     },
     secret: "Secret found",
+    secretKicker: "Secret",
+    mission: "Mission",
     popup: {
       resistorTitle: "Try another resistor",
       resistor: "Resistor",
