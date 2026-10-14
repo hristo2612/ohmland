@@ -555,7 +555,8 @@ async function generic(page, shot, id) {
   await shot("01-start");
   await primary(page).click();
   const show = async (task) => {
-    await page.evaluate((t) => void window.ohmlandLab.showMe(t), task);
+    // The whole "Show me" plays out before the learner moves on (a second one while it runs is ignored).
+    await page.evaluate((t) => window.ohmlandLab.showMe(t), task);
     await taskDone(page, task);
   };
   for (let i = 0; i < doc.beats.length; i++) {
