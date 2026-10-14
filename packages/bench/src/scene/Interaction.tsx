@@ -9,7 +9,7 @@ import { parseAnchor } from "../anchors";
 import { BOARD_PRINT, boardGeometry, boardOrigin, nearestHole } from "../board";
 import { BOARD_TOP } from "../dims";
 import { DIAL_MODES, METER, anchorPosition, clipTargets, fitCamera, meterLocalToWorld, nearestSocket, partPose, workCenter } from "../layout";
-import { CARD } from "../dims";
+import { BOX, CARD } from "../dims";
 import * as ops from "../ops";
 import { penStroke, settingParams } from "../ops";
 import { canMountOnBoard, footprintOf, isThrowSwitch, partDef, rotateXZ } from "../parts";
@@ -350,7 +350,11 @@ export function useInteraction({
           const part = b.parts.find((p) => p.id === d.id);
           if (!part) return;
           const pose = partPose(b, part);
-          const c = ops.partCenter(b, part);
+          // A box's knob sits on its front strip: turn round the knob, not the box's middle.
+          const c: [number, number] =
+            part.kind === "box"
+              ? ((([x, z]) => [part.pos[0] + x, part.pos[1] + z] as [number, number])(rotateXZ(0, BOX.d / 2 - BOX.strip / 2, pose.rot)))
+              : ops.partCenter(b, part);
           const wp = planePoint(cx, cy, pose.origin[1] + 5);
           if (!wp) return;
           const [lx, lz] = rotateXZ(wp.x - c[0], wp.z - c[1], -pose.rot);

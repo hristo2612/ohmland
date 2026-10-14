@@ -102,11 +102,14 @@ Optional, on any beat:
   themselves; leave `spot` out when the result shows somewhere else (a switch that lights a lamp).
 - `guess` (only with `do`): an ungraded prediction just before the action. The notebook keeps it in blue ink.
 - `done`, `note`, `rule`: the discovery. A beat with any of them ends on a Next button so the learner can read it; a
-  beat without one moves on by itself after a beat of the robot's success line.
+  beat without one moves on by itself after a beat of the robot's success line. A beat with nothing to do draws its
+  `note` and stamps its `rule` as it begins, beside its line, and the learner taps Next when they have read it.
 - `hint` (checks) and `wrong` (lines for particular wrong taps or chips). A `do` beat uses its lab task's `hints`.
 - `xray: true`: the breadboard's metal strips show during the beat.
-- `tool`: the one instrument or panel the beat needs: `meter`, `scope`, `logger`, `stopwatch`, `tapper`, `controls`
-  or a lab panel id. Without it, a lab panel tied to the beat's task (its `show`) appears. Never two at once. The
+- `trace: B1.neg`: the loop tracer runs from that terminal once the beat's action is done (the right tap on it, the
+  task's goal met), or as the beat begins when it has nothing to do. Its red pencil line clears when the beat ends.
+- `tool`: the one instrument or panel the beat needs: `meter`, `scope`, `logger`, `stopwatch`, `tapper`, `controls`,
+  `views` (the lab's overlay toggles, Flow, Electrons and Push, from `overlays.offer`) or a lab panel id. Without it, a lab panel tied to the beat's task (its `show`) appears. Never two at once. The
   fix-it round and the secret take a `tool` too (`fixit: { tool: meter, ... }`, `secret: { tool: meter, ... }`): the
   meter's range, for one, can only be changed on its panel.
 

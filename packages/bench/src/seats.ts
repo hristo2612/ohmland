@@ -32,11 +32,13 @@ export function holderOf(bench: BenchState, partId: string): { holder: PlacedPar
   return null;
 }
 
-/** World position (mm, y up) and turn of a part in a seat. */
-export function seatPose(holder: PlacedPart, seat: SeatDef, held: PlacedPart): { origin: Vec3; rot: number } {
+/** World position (mm, y up) and turn of a part in a seat, and whether it lies on its back (see SeatDef.place). */
+export function seatPose(holder: PlacedPart, seat: SeatDef, held: PlacedPart): { origin: Vec3; rot: number; lie?: boolean } {
   const p = seat.place(held);
   const [rx, rz] = rotateXZ(p.at[0], p.at[2], holder.rot);
-  return { origin: [holder.pos[0] + rx, p.at[1], holder.pos[1] + rz], rot: (((holder.rot + (p.rot ?? 0)) % 360) + 360) % 360 };
+  const out: { origin: Vec3; rot: number; lie?: boolean } = { origin: [holder.pos[0] + rx, p.at[1], holder.pos[1] + rz], rot: (((holder.rot + (p.rot ?? 0)) % 360) + 360) % 360 };
+  if (p.lie) out.lie = true;
+  return out;
 }
 
 /** The nearest seat that accepts `part` within `reach` mm of a desk point (a full seat only when nothing else is free). */
@@ -56,6 +58,19 @@ export function seatNear(bench: BenchState, part: PlacedPart, to: Vec2, reach = 
     }
   }
   return best ? { holder: best.holder, seat: best.seat } : null;
+}
+
+/**
+ * Parts out of sight inside a closed box (the box's lid is shut): the views draw nothing of them and no clip, probe or
+ * pointer can reach them. They still conduct.
+ */
+export function hiddenParts(bench: BenchState): Set<string> {
+  const out = new Set<string>();
+  for (const p of bench.parts) {
+    if (p.kind !== "box" || p.params.lid) continue;
+    for (const id of Object.values(heldOf(p))) if (id) out.add(id);
+  }
+  return out;
 }
 
 /** Desk spot a part is pushed out to when another one takes its seat: in front of the holder. */

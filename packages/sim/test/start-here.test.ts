@@ -11,7 +11,15 @@ type Battery = Extract<PartSpec, { kind: "battery" }>;
 type Meter = Extract<PartSpec, { kind: "multimeter" }>;
 
 /** A battery on the bench snaps: + is node "bat+", − is the reference. */
-const battery = (id: string, emf = 9.4, internalOhms = 1.7): Battery => ({ id, kind: "battery", pins: { pos: "bat+", neg: "gnd" }, emf, internalOhms, mAh: 500 });
+const battery = (id: string, emf = 9.4, internalOhms = 1.7, soc?: number): Battery => ({
+  id,
+  kind: "battery",
+  pins: { pos: "bat+", neg: "gnd" },
+  emf,
+  internalOhms,
+  mAh: 500,
+  ...(soc !== undefined ? { soc } : {}),
+});
 const lead = (id: string, a: string, b: string): PartSpec => ({ id, kind: "wire", pins: { a, b }, ohms: 0.15 });
 
 type LoopOptions = {
@@ -111,15 +119,12 @@ describe("Start here: push (SH5) and squeeze (SH6)", () => {
 
 describe("Start here: the tired battery (SH7)", () => {
   test("a battery at 8% fades the lamp out over hours of time-lapse", () => {
-    // The bench's start charge (B1 in the blueprint) is the simulator's state of charge. A netlist cannot set it
-    // directly today, so drain the battery through a load and rebuild: the charge carries over to the lamp loop.
+    // The bench's start charge (B1 in the blueprint, the battery's `charge` param) is the simulator's `soc`.
     const sim = createSimulation();
-    sim.load({ parts: [battery("B1"), resistor("RL", "bat+", "gnd", 20, 5)] });
-    let charge = 1;
-    while (charge > 0.08) charge = soc(sim.step(charge > 0.1 ? 60 : 2, { speed: 3600 }), "B1");
-    sim.load({ parts: lampLoop() });
-    let s = sim.step(120); // let the drain's polarisation settle
+    sim.load({ parts: lampLoop({ battery: battery("B1", 9.4, 1.7, 0.08) }) });
+    let s = sim.step(120);
     expect(soc(s, "B1")).toBeGreaterThan(0.079);
+    expect(soc(s, "B1")).toBeLessThan(0.08);
     let prev = s.parts.D1!.glow!;
     expect(prev).toBeGreaterThan(0.5); // dimmer than with a fresh battery (0.73), still plainly lit
 
@@ -216,7 +221,39 @@ describe("Start here: the lamp backwards (SH1 secret)", () => {
     expect(d1.v).toBeLessThan(-9); // nearly the whole battery the wrong way round (the secret's goal needs v < -1)
     expect(Math.abs(d1.i)).toBeLessThan(1e-4); // the soft breakdown above 5 V leaks only tens of µA
     expect(d1.extra!.damage).toBe(0);
-    // It warns (`reversed`) but is never damaged and never dies.
-    expect(allEvents(s).filter((e) => e.partId === "D1").map((e) => e.type)).toEqual(["reversed"]);
+    // It warns (`reversed`) but is never damaged and never dies, and the warning says so: 1 kΩ keeps it safe.
+    const events = allEvents(s).filter((e) => e.partId === "D1");
+    expect(events.map((e) => e.type)).toEqual(["reversed"]);
+    expect(events[0]!.data?.risk).toBe("none");
+    expect(events[0]!.message).not.toMatch(/damage/);
+    expect(events[0]!.message).toMatch(/no harm/);
+  });
+
+  test("straight across the battery the wrong way, the warning names the risk", () => {
+    const parts: PartSpec[] = [
+      battery("B1"),
+      { id: "D1", kind: "led", pins: { anode: "gnd", cathode: "bat+" }, color: "red", maxmA: 50 },
+    ];
+    const e = allEvents(simulateFor({ parts }, 0.5, { sampleEvery: 0.1 })).find((x) => x.type === "reversed" && x.partId === "D1");
+    expect(e?.data?.risk).toBe("damage");
+    expect(e?.message).toMatch(/could be damaged/);
+  });
+});
+
+describe("Start here: a battery's starting charge", () => {
+  test("soc sets a new battery's charge; a rebuild keeps the charge it has", () => {
+    const sim = createSimulation();
+    sim.load({ parts: lampLoop({ battery: battery("B1", 9.4, 1.7, 0.3) }) });
+    const a = sim.step(0.5);
+    expect(soc(a, "B1")).toBeCloseTo(0.3, 3);
+    // Open-circuit voltage follows the charge: lower than a fresh battery's.
+    expect(Number(a.parts.B1!.extra!.emf)).toBeLessThan(9.4 * 0.9);
+    // Draining it and rebuilding with a different start charge does not refill it: the part is not new.
+    sim.step(3600, { speed: 3600 });
+    const drained = soc(sim.snapshot(), "B1");
+    sim.load({ parts: lampLoop({ battery: battery("B1", 9.4, 1.7, 0.9) }) });
+    expect(soc(sim.step(0.1), "B1")).toBeCloseTo(drained, 3);
+    // Without soc a battery starts full, as before.
+    expect(soc(last(simulateFor({ parts: lampLoop() }, 0.1)), "B1")).toBeGreaterThan(0.999);
   });
 });

@@ -6,10 +6,10 @@ import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { CameraControls as CameraControlsImpl } from "@react-three/drei";
 import { boardGeometry, boardOrigin } from "../board";
-import { BOARD_TOP } from "../dims";
+import { BOARD_TOP, GATE } from "../dims";
 import { METER, anchorPosition, isOnBoard } from "../layout";
 import { parseAnchor } from "../anchors";
-import { rotateXZ } from "../parts";
+import { partMarks, rotateXZ } from "../parts";
 import type { BenchStore } from "../store";
 import type { BenchState, Vec3 } from "../types";
 import { prefersReducedMotion } from "../three/anim";
@@ -180,6 +180,10 @@ export function ViewRig({
             return p ? pointBox(p, parsed.sub === "display" ? 30 : 10) : null;
           }
           return meterBox(b);
+        }
+        if (parsed.sub) {
+          const p = targetPoint(b, t);
+          return p ? pointBox(p, 10) : null;
         }
         const obj = scene.getObjectByName(`part:${parsed.id}`);
         const box = obj ? contentBox(obj) : new THREE.Box3();
@@ -357,7 +361,18 @@ export function ViewRig({
       if (c.points.has(t)) return c.points.get(t)!;
       const parsed = parseTarget(t);
       let p: Vec3 | null = null;
-      if (parsed?.type === "part" && !(b.meter && parsed.id === b.meter.id)) {
+      const gate = parsed?.type === "part" && parsed.sub ? b.parts.find((x) => x.id === parsed.id && x.kind === "gate") : undefined;
+      if (gate && parsed?.type === "part" && parsed.sub) {
+        // A gate rides its cable as drawn: its marks (the flag, the unit button) are on the rendered gate.
+        const flag = get().scene.getObjectByName(`part:${gate.id}`)?.getObjectByName("gate-flag");
+        const m = partMarks(gate)[parsed.sub];
+        if (flag && m) {
+          // On the flag, which turns to face the camera.
+          flag.updateWorldMatrix(true, false);
+          const w = flag.localToWorld(new THREE.Vector3(m[0], m[1] - GATE.lift, 1.6));
+          p = [w.x, w.y, w.z];
+        } else p = targetPoint(b, t);
+      } else if (parsed?.type === "part" && !parsed.sub && !(b.meter && parsed.id === b.meter.id)) {
         const obj = get().scene.getObjectByName(`part:${parsed.id}`);
         const box = obj ? contentBox(obj) : null;
         if (box && !box.isEmpty()) {
