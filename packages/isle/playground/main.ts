@@ -99,7 +99,9 @@ async function rebuild(): Promise<void> {
   view = null;
   dressPage();
   const only = q.get("only");
-  events = only ? madeUp(state.l * 5, state.m * 5, 5).filter((e) => e.unit === only).slice(0, state.l + state.m) : madeUp(state.l, state.m, state.u);
+  // Start here is the made-up history's sixth unit (appended after the first five, which stay as they were)
+  const spread = only === "start-here" ? 6 : 5;
+  events = only ? madeUp(state.l * spread, state.m * spread, spread).filter((e) => e.unit === only).slice(0, state.l + state.m) : madeUp(state.l, state.m, state.u);
   const plan = makeIsle(state.seed, events);
   const time = timeOf(state.time);
   view = await mountIsle(host, plan, {
