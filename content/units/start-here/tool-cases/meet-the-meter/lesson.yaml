@@ -28,10 +28,10 @@ beats:
     spot: ["part:M1"]
     tool: meter
     do: set-dial
-    note: { at: "part:M1", text: "V push, A flow, Ω squeeze" }
+    note: { at: "part:M1/dial", text: "V push, A flow, Ω squeeze" }
 
   - say: Which letter counts flow?
-    pick: { on: "part:M1", options: [V, A, Ω], answer: A }
+    pick: { on: "part:M1/dial", options: [V, A, Ω], answer: A }
     hint: A is for amps, and amps count flow.
 
   - say: Touch a probe tip to each brass terminal.
@@ -40,13 +40,13 @@ beats:
     tool: meter
     guess: { options: [Exactly 9, A bit under, A bit over], answer: A bit over }
     do: read-battery
-    note: { at: "part:M1", text: "9.4 V: a fresh 9 V" }
+    note: { at: "part:M1/display", text: "9.4 V: a fresh 9 V" }
 
   - say: Now swap the probes.
     spot: [BX, "part:M1"]
     tool: meter
     do: swap-probes
-    note: { at: "part:M1", text: "minus: red is on the − side" }
+    note: { at: "part:M1/display", text: "minus: red is on the − side" }
     rule: The sign shows which side is plus.
 
   - say: Tap the plus terminal.

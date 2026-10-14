@@ -21,12 +21,12 @@ beats:
     objective: Battery and switch
     spot: [DRB, B2]
     do: file-battery
-    note: { at: DRB, text: "long line: plus" }
+    note: { at: "part:DRB/face", text: "long line: plus" }
 
   - say: Clip the switch into the gap. Flip it.
     spot: [S2, TL2.b, TL3.a]
     do: test-switch
-    note: { at: DRS, text: a gap you open and close }
+    note: { at: "part:DRS/face", text: a gap you open and close }
 
   - say: Now the LED. Try it both ways.
     objective: One-way LED
@@ -36,24 +36,24 @@ beats:
     rule: "LED: long leg toward plus."
 
   - say: See its symbol? The triangle points the way flow goes.
-    spot: [DRL]
-    note: { at: DRL, text: "triangle: the way flow goes" }
+    spot: ["part:DRL/face"]
+    note: { at: "part:DRL/face", text: "triangle: the way flow goes" }
 
   - say: And the resistor.
     objective: File them all
     spot: [RB, TL2.b, TL3.a]
     do: test-resistor
-    note: { at: DRR, text: "zigzag: a squeeze" }
+    note: { at: "part:DRR/face", text: "zigzag: a squeeze" }
 
   - say: File them all.
     do: file-all
 
   - say: Show me the LED's symbol.
-    tap: { answer: DRL, among: [DRB, DRS, DRR, DRL] }
-    wrong: { DRB: "That's the battery: long line, short line.", DRS: That one opens and closes a gap., DRR: "That zigzag squeezes." }
+    tap: { answer: "part:DRL/face", among: ["part:DRB/face", "part:DRS/face", "part:DRR/face", "part:DRL/face"] }
+    wrong: { "part:DRB/face": "That's the battery: long line, short line.", "part:DRS/face": That one opens and closes a gap., "part:DRR/face": "That zigzag squeezes." }
 
   - say: What is this?
-    pick: { on: DRR, options: [A resistor, A switch, An LED], answer: A resistor }
+    pick: { on: "part:DRR/face", options: [A resistor, A switch, An LED], answer: A resistor }
 
 secret:
   task: button-drawer

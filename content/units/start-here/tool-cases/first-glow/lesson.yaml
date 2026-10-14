@@ -22,7 +22,7 @@ beats:
     objective: Mend the blueprint
     spot: [CARD, PC]
     do: mend-blueprint
-    note: { at: CARD, text: the triangle points away from plus }
+    note: { at: "part:CARD/D1", text: the triangle points away from plus }
 
   - say: Build it on the board. Follow the lines.
     objective: Build it
