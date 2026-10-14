@@ -37,6 +37,9 @@ export { resistorBands, formatOhms, formatFarads } from "./colorCode";
 // The store needs React and zustand but not three.js, so a host can own it before the 3D view loads.
 export { createBenchStore, type BenchStore, type BenchStoreState, type BenchUi, type InspectSpec } from "./store";
 export { DEFAULT_LABELS, type BenchLabels } from "./labels";
+// Unit 3: the solder station engine, joints, perfboard, wire and heat-shrink (src/solder).
+export * from "./solder";
+export { spotAnchor } from "./anchors";
 
 export type {
   Anchor,

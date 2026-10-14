@@ -401,7 +401,9 @@ function SolderLayer({ store, view, compact, readOnly = false, tray = false }: S
     <div
       ref={rootRef}
       className={`ohs-root${compact ? " ohs-compact" : ""}${tray ? "" : " ohs-notray"}`}
+      // Both views leave pointer events from their own chrome alone.
       data-ink-ui=""
+      data-bench-ui=""
       onPointerMove={onMove}
       onPointerUp={onUp}
       onPointerCancel={onUp}
@@ -478,14 +480,16 @@ function SolderLayer({ store, view, compact, readOnly = false, tray = false }: S
               aria-label={`${L.spot(s.id)}${what}${here}`}
               data-spot={s.id}
               onPointerDown={(e) => {
-                if (mode !== "none" && s.kind === "pad") {
-                  const { x, y } = local(e);
-                  begin(e, { tool: mode, id: e.pointerId, from: s.id, x, y, near: null });
+                const { x, y } = local(e);
+                // Hit areas overlap on a small board: the spot nearest the finger wins, not the one drawn last.
+                const id = nearest(x, y, (q) => q.kind === s.kind) ?? s.id;
+                const spot = placed.find((q) => q.s.id === id)?.s ?? s;
+                if (mode !== "none" && spot.kind === "pad") {
+                  begin(e, { tool: mode, id: e.pointerId, from: spot.id, x, y, near: null });
                   return;
                 }
-                const { x, y } = local(e);
-                if (station.quickMode && s.work) act((b, st2) => quickPress(b, st2, s.id));
-                begin(e, { tool: "spot", id: e.pointerId, spot: s.id, x0: x, y0: y, x, y, tugged: false });
+                if (station.quickMode && spot.work) act((b, st2) => quickPress(b, st2, spot.id));
+                begin(e, { tool: "spot", id: e.pointerId, spot: spot.id, x0: x, y0: y, x, y, tugged: false });
               }}
               onKeyDown={(e) => onSpotKey(s, e, true)}
               onKeyUp={(e) => onSpotKey(s, e, false)}

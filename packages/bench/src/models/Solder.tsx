@@ -61,10 +61,26 @@ export const IronModel = memo(function IronModel({ bench }: { bench: BenchState 
     const dir = grip.clone().sub(tip).normalize();
     return { tip, quat: new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir) };
   }, [pose?.tip[0], pose?.tip[1], pose?.tip[2], pose?.grip[0], pose?.grip[1], pose?.grip[2]]);
+  const st = bench.parts.find((p) => p.kind === "solder-station");
+  const cord = useMemo(() => {
+    if (!q || !st || !pose) return null;
+    // From the back of the grip to the side of the base.
+    const end = q.tip.clone().add(new THREE.Vector3(88, 0, 0).applyQuaternion(q.quat));
+    const r = (st.rot * Math.PI) / 180;
+    const bx = G.station.base.x + G.station.base.w / 2;
+    const bz = 14;
+    const home = new THREE.Vector3(st.pos[0] + bx * Math.cos(r) + bz * Math.sin(r), 8, st.pos[1] - bx * Math.sin(r) + bz * Math.cos(r));
+    const mid = end.clone().lerp(home, 0.5).setY(1.2);
+    return new THREE.TubeGeometry(new THREE.CatmullRomCurve3([end, end.clone().lerp(mid, 0.4).setY(Math.max(2, end.y * 0.5)), mid, home.clone().setY(2), home]), 48, 1.2, 8);
+  }, [q, st?.pos[0], st?.pos[1], st?.rot, pose?.at]);
+  useLayoutEffect(() => () => cord?.dispose(), [cord]);
   if (!pose || !q || held) return null;
   return (
-    <group position={q.tip} quaternion={q.quat}>
-      <IronBody tinning={tinning} />
+    <group>
+      <group position={q.tip} quaternion={q.quat}>
+        <IronBody tinning={tinning} />
+      </group>
+      {cord && <mesh geometry={cord} material={mat.insulation("#3a3d42")} castShadow />}
     </group>
   );
 });

@@ -89,7 +89,7 @@ async function solderPad(page: Page, view: View, spot: string, opts: { feedMs?: 
   const to = await at(page, view, `spot:${spot}`);
   await page.mouse.move(end.x, end.y);
   await page.mouse.down();
-  await page.mouse.move(to.x + 3, to.y - 3, { steps: 12 });
+  await page.mouse.move(to.x, to.y, { steps: 12 });
   await page.waitForTimeout(opts.feedMs ?? 1100);
   if (opts.snap) await shot(page, opts.snap);
   await page.mouse.up();
@@ -132,8 +132,7 @@ for (const view of ["ink", "3d"] as const) {
       });
       // A warm LED is a little dim; give it a moment to cool.
       await page.waitForTimeout(3000);
-      const glow = await page.evaluate(() => (window as unknown as SolderWindow).__bench.getState().snapshot?.parts.D1?.glow ?? 0);
-      expect(glow).toBeGreaterThan(0.5);
+      const glow = await page.evaluate(() => (window as unknown as SolderWindow).__bench.getState().snapshot?.parts.D1?.glow ?? 0);      expect(glow).toBeGreaterThan(0.5);
       await shot(page, `solder-${view}-lit`);
     });
 
@@ -163,7 +162,8 @@ for (const view of ["ink", "3d"] as const) {
     test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
     test("quick mode: press and hold a joint", async ({ page }) => {
-      await open(page, view, "scene=solder&joints=none&quick=1");
+      // A lesson frames the board on a phone; quick mode needs only the joint.
+      await open(page, view, "scene=solder&joints=none&quick=1&focus=part:PB1");
       const p = await at(page, view, "spot:PB1.A1");
       // Hold for a few seconds with a touch: the iron rests, solder feeds once the work is hot.
       const cdp = await page.context().newCDPSession(page);

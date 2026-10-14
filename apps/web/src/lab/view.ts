@@ -2,9 +2,10 @@
  * Builds the LabView goals read. Pure: the runtime and the headless solution replay both feed it the bench, the latest
  * snapshot, the recent snapshot history and the notebook.
  */
-import { isThrowSwitch, partLegs, type BenchNetlist, type BenchState, type MeterSocket, type PlacedPart } from "@ohmland/bench/core";
+import { isThrowSwitch, partLegs, type BenchNetlist, type BenchState, type MeterSocket, type PlacedPart, type StationState } from "@ohmland/bench/core";
 import type { NodeId, PartState, SimEvent, SimEventType, Snapshot } from "@ohmland/sim";
 import { resolveAttach } from "./anchors";
+import { solderLab } from "./solder";
 import type { LabView, MeterView, PanelState, Reading, Stats, StopwatchRun, TaskStatus } from "./define";
 
 export type LabViewInput = {
@@ -40,6 +41,8 @@ export type LabViewInput = {
   onTrigger?: (name: string) => void;
   /** When each task was done in this visit, with the meter as it read then. */
   doneAt?: Readonly<Record<string, { t: number; meter: MeterView | null }>>;
+  /** The solder station's live state (temperatures, molten joints), when the bench has one running. */
+  station?: StationState | null;
 };
 
 const SPDT = { has: (kind: string) => isThrowSwitch(kind as PlacedPart["kind"]) };
@@ -582,7 +585,11 @@ export function createLabView(input: LabViewInput): LabView {
     control: (id) => input.controls?.[id],
     task: (id) => input.status?.[id] ?? "todo",
     trigger: (name) => input.onTrigger?.(name),
+    get solder() {
+      return (solder ??= solderLab(bench, input.station ?? null));
+    },
   };
+  let solder: LabView["solder"] | undefined;
   return view;
 }
 

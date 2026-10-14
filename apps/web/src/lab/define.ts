@@ -11,7 +11,9 @@
  */
 import type { BenchPartKind, BenchState, LeadColor, MeterSocket, PartParamsMap, PlacedPart, WireColor } from "@ohmland/bench/core";
 import type { InputKey, InputValue, MeterMode, NodeId, PartKind, PartState, SimEvent, SimEventType, Snapshot } from "@ohmland/sim";
+import type { SolderLab } from "./solder";
 
+export type { SolderLab, SolderBoard, SolderJoint } from "./solder";
 export type { BenchPartKind, BenchState, InputKey, InputValue, LeadColor, MeterMode, MeterSocket, NodeId, PartKind, PartState, PlacedPart, SimEvent, SimEventType, Snapshot, WireColor };
 export { createLabView } from "./view";
 
@@ -560,6 +562,8 @@ export type LabView = {
   task(id: string): TaskStatus;
   /** Fire an achievement trigger (once per visit). */
   trigger(name: string): void;
+  /** Soldering, perfboard, wire and wall adapters (Unit 3): the iron, joints, tugs, clips, strips, tubes, boards, plans. */
+  readonly solder: SolderLab;
 };
 
 // ---------------------------------------------------------------------------------------------------------------

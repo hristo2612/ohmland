@@ -17,8 +17,8 @@ export const GEOM = {
   station: {
     /** The base unit (dial, display, switch) and the stand beside it. */
     base: { x: -34, z: 0, w: 66, d: 60, h: 34 },
-    display: { x: -34, z: 8, w: 34, d: 13 },
-    dial: { x: -34, z: 21, r: 8 },
+    display: { x: -34, z: 1, w: 34, d: 13 },
+    dial: { x: -34, z: 19, r: 7.5 },
     power: { x: -9, z: 23 },
     stand: { x: 34, z: 2, w: 60, d: 46 },
     sponge: { x: 26, z: 12, w: 26, d: 17 },
