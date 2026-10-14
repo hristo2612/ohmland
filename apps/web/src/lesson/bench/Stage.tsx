@@ -6,9 +6,9 @@
  * The player (BenchLesson.tsx) owns the flow. It tells the stage which task may complete right now (`gate`; the
  * secret bonus is always armed), and the stage reports tasks, fried parts, nudges and taps back.
  */
-import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { useStore } from "zustand";
-import { PRINTED_KINDS, boardGeometry, trayLeft, type BenchState } from "@ohmland/bench/core";
+import { PRINTED_KINDS, boardGeometry, trayCoverOf, trayLeft, type BenchState } from "@ohmland/bench/core";
 import { isOptional, type LabDefinition, type LabTask, type SolutionStep } from "../../lab/define";
 import { m } from "../../i18n";
 import { Icon } from "../../components/Icon";
@@ -393,17 +393,24 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   const tool = props.tool ?? defaultTool(lab, props.gate);
   // The docked tool's size: when it comes, goes or changes size the bench is framed again.
   const [dockKey, setDockKey] = useState("");
+  // The parts tray, when it shows: the docked tool sits above its strip (a phone) or beside its column, never on it.
+  const [stageW, setStageW] = useState(0);
+  const cover = trayShown && !readOnly ? trayCoverOf(props.view, built.tray.length, stageW) : { left: 0, bottom: 0 };
+  const trayKey = `${cover.left},${cover.bottom}`;
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage || !benchReady) return;
-    const measure = () => setDockKey(insetKey(dockInset(stage)));
+    const measure = () => {
+      setStageW(stage.clientWidth);
+      setDockKey(insetKey(dockInset(stage)));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(stage);
     const dock = stage.querySelector(":scope > .bl-tool");
     if (dock) ro.observe(dock);
     return () => ro.disconnect();
-  }, [tool, benchReady]);
+  }, [tool, benchReady, trayKey]);
   useEffect(() => {
     const c = controllerRef.current;
     const stage = stageRef.current;
@@ -431,7 +438,16 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   }, [spotKey, frameKey, runtime, benchReady, dockKey, quietPins]);
 
   return (
-    <div ref={stageRef} className="bl-stage" data-bench-ready={benchReady || undefined} data-lab-ready data-lab={lab.id} onPointerDownCapture={() => audio.unlock()} onKeyDownCapture={() => audio.unlock()}>
+    <div
+      ref={stageRef}
+      className="bl-stage"
+      style={{ "--bl-tray-left": `${cover.left}px`, "--bl-tray-bottom": `${cover.bottom}px` } as CSSProperties}
+      data-bench-ready={benchReady || undefined}
+      data-lab-ready
+      data-lab={lab.id}
+      onPointerDownCapture={() => audio.unlock()}
+      onKeyDownCapture={() => audio.unlock()}
+    >
       <Boundary onError={() => cb.current.onBenchFailed()}>
         <Suspense fallback={<StageSkeleton />}>
           <Surface

@@ -31,6 +31,7 @@ import { InkView } from "./view";
 import { TagSlips, type SlipProjector } from "../view/TagSlips";
 import { SolderOverlay, type SolderViewApi } from "../solder/overlay/SolderOverlay";
 import { IronLayer, ScorchLayer } from "./kinds/solder";
+import { trayCoverOf } from "../view/tray-cover";
 
 export type BenchInkProps = Omit<BenchRendererProps, "labels"> & {
   /** Translated UI strings (the shared BenchLabels plus the ink view's few, see INK_LABELS). */
@@ -152,13 +153,17 @@ export function BenchInk(props: BenchInkProps) {
   }, [compact, showTray]);
   const padRef = useRef(pad);
   padRef.current = pad;
+  const trayStripRef = useRef(0);
+  trayStripRef.current = showTray && compact ? trayCoverOf("ink", tray.length, size.w).bottom : 0;
   /** The part of the view a docked panel covers (focus's `inset`): framing keeps clear of it. */
   const insetRef = useRef<Pad>(NO_PAD);
   /** The room to keep clear at each edge: the view's own chrome plus the docked panel. */
   const padNow = useCallback((): Pad => {
     const p = padRef.current;
     const i = insetRef.current;
-    return { top: p.top + i.top, right: p.right + i.right, bottom: p.bottom + i.bottom, left: p.left + i.left };
+    // A panel docked above the tray strip reports the strip in its inset too: count the strip once.
+    const strip = trayStripRef.current;
+    return { top: p.top + i.top, right: p.right + i.right, bottom: p.bottom + Math.max(0, i.bottom - strip), left: p.left + i.left };
   }, []);
 
   /**
