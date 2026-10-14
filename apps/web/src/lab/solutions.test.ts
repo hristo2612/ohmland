@@ -12,7 +12,7 @@ const labs = Object.entries(import.meta.glob<{ default: LabDefinition }>("../../
   .map(([path, mod]) => ({ file: path.split("/").pop()!, lab: mod.default }))
   .sort((a, b) => a.file.localeCompare(b.file));
 
-/** Labs used by the basics unit's lessons (their `lab:` steps). */
+/** Labs used by the basics unit's lessons (their `lab:` steps, or a bench lesson's `lab:`). */
 const BASICS = new Set(
   Object.values(import.meta.glob<string>("../../../../content/units/basics/**/lesson.yaml", { eager: true, query: "?raw", import: "default" })).flatMap((yaml) =>
     [...yaml.matchAll(/^\s*lab:\s*([a-z0-9-]+)\s*$/gm)].map((m) => m[1]!),
@@ -22,7 +22,8 @@ const BASICS = new Set(
 describe("lab solutions", () => {
   it("finds the labs", () => {
     expect(labs.length).toBeGreaterThan(0);
-    expect(BASICS.size).toBe(18);
+    // 18 classic Unit 1 labs, plus how-a-breadboard-works (at the start of Your meter until Start here exists).
+    expect(BASICS.size).toBe(19);
   });
 
   for (const { file, lab } of labs) {

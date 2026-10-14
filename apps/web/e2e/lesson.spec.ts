@@ -1,17 +1,18 @@
 import { expect, test } from "@playwright/test";
 import { FIRST_LESSON_URL, playFirstLesson } from "./first-lesson";
 
-test("a guest finishes the first lesson and sees XP on the finale", async ({ page }) => {
+test("a guest finishes the first lesson and sees XP on the signed-off page", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "Start learning" }).first().click();
   await expect(page).toHaveURL(new RegExp(FIRST_LESSON_URL));
 
   await playFirstLesson(page);
 
-  // Finale: 30 for the lesson + 5 first tries x 10 + 3 lab tasks x 15 + "First spark" (20) + "Clean sweep" (25) = 170 XP.
+  // 30 for the lesson + 3 checks first try x 10 + 2 bench tasks x 15, plus "First spark" (20) and "Clean sweep" (25)
+  // = 135 XP.
   const finale = page.locator("[data-finale]");
-  await expect(finale.getByRole("heading", { name: "Lesson complete!" })).toBeVisible();
-  await expect(page.locator(".finale__xp")).toHaveText("+170 XP");
+  await expect(finale.getByRole("heading", { name: "How a breadboard works, done" })).toBeVisible();
+  await expect(page.locator(".finale__xp")).toHaveText("+135 XP");
 
   // The XP survives a reload: the header chip on the course map shows level 2.
   await page.goto("/learn");
@@ -23,8 +24,9 @@ test("a lesson's first load carries no three.js", async ({ page }) => {
   page.on("response", (res) => {
     if (res.request().resourceType() === "script") scripts.push(res.text().catch(() => ""));
   });
-  await page.goto("/learn/basics/welcome-to-the-bench", { waitUntil: "networkidle" });
-  await expect(page.locator("[data-step-type=hook]")).toBeVisible();
+  await page.goto("/learn/basics/first-glow", { waitUntil: "networkidle" });
+  // The start screen is up and ready to tap; the bench loads after the learner's first gesture.
+  await expect(page.locator('.bl[data-phase="start"] [data-primary]')).toBeVisible();
   const bodies = await Promise.all(scripts);
   expect(bodies.length).toBeGreaterThan(0);
   // three.js names its renderer in its source, and so does the island

@@ -1,60 +1,99 @@
 import { expect, type Page } from "@playwright/test";
-import { playWelcomeLab } from "./lab";
+import { atMoment, benchReady, drag, project, taskDone, tapHole } from "./lab";
 
-export const FIRST_LESSON = "welcome-to-the-bench";
+/** The first lesson of the course: a bench lesson (format: bench). */
+export const FIRST_LESSON = "how-a-breadboard-works";
 export const FIRST_LESSON_URL = `/learn/basics/${FIRST_LESSON}`;
 
-const primary = (page: Page) => page.locator("[data-primary]");
+const primary = (page: Page) => page.locator("[data-primary]").first();
+const narrow = (page: Page) => (page.viewportSize()?.width ?? 1000) < 600;
 
-async function checkAndContinue(page: Page) {
-  await primary(page).click(); // Check answer
-  await expect(page.locator(".feedback[data-tone=good]")).toBeVisible();
-  await primary(page).click(); // Next question / Continue
+/** Turns the breadboard's LED a quarter turn: pick it up by its dome, then the bench's Rotate button. */
+async function rotateLed(page: Page) {
+  if (narrow(page)) {
+    await page.evaluate(() => window.ohmlandLab!.step!({ do: "rotate", part: "D1" }));
+    return;
+  }
+  // Look up the screen from the legs for the LED's dome (what the bench would grab there), then tap it.
+  const a = await project(page, "pin:D1.anode");
+  const k = await project(page, "pin:D1.cathode");
+  const x = (a.x + k.x) / 2;
+  let y = (a.y + k.y) / 2;
+  for (let dy = 0; dy <= 90; dy += 3) {
+    const hit = await page.evaluate(([px, py]) => JSON.stringify(window.ohmlandLab!.pickAt(px!, py!) ?? null), [x, y - dy]);
+    if (hit.includes('"D1"')) {
+      y -= dy;
+      break;
+    }
+  }
+  await page.mouse.click(x, y);
+  await page.getByRole("button", { name: "Rotate" }).first().click();
+}
+
+/** Slides the black jumper's rail end far along the minus rail. */
+async function slideRailEnd(page: Page) {
+  if (narrow(page)) {
+    await page.evaluate(() => {
+      window.ohmlandLab!.step!({ do: "unwire", wire: "W1" });
+      window.ohmlandLab!.step!({ do: "wire", id: "W1", from: "a11", to: "rail-:26", color: "black" });
+    });
+    return;
+  }
+  await drag(page, await project(page, "wire:W1.b"), await project(page, "hole:bn26"));
 }
 
 /**
- * Plays the first lesson from its hook to the finale, every quiz item right on the first try. On a first completion
- * the island reveal opens before the finale: it checks the caption names the lesson, then continues.
+ * Plays the first lesson from its start screen to the finale, every check right on the first try. A first completion
+ * places an island piece, so the island reveal opens before the finale; it is closed and the finale shown.
  */
 export async function playFirstLesson(page: Page, opts: { expectReveal?: boolean } = {}) {
-  // Hook: make a guess, then find out.
-  await page.locator("[data-predict-option]").nth(2).click();
+  // The start screen: the mission and one way in.
+  await expect(page.locator('.bl[data-phase="start"]')).toBeVisible();
+  await primary(page).click();
+  await benchReady(page);
+
+  // Meet the board: any hole has a name. Then the x-ray.
+  await atMoment(page, "b0", "act");
+  await tapHole(page, "c7");
+  await atMoment(page, "b0", "done");
+  await primary(page).click();
+  await atMoment(page, "b1", "act");
+  await tapHole(page, "h9");
+  await atMoment(page, "b1", "done");
   await primary(page).click();
 
-  // Lab: the real bench. Flip the switch, unclip a lead, clip it back (three tasks, 45 XP).
-  await playWelcomeLab(page);
+  // The game: three holes, each joined to the marked one, right the first time.
+  await atMoment(page, "b2", "act");
+  await tapHole(page, "d14");
+  await atMoment(page, "b3", "act");
+  await tapHole(page, "a18");
+  await atMoment(page, "b4", "act");
+  await tapHole(page, "bp27");
+  await atMoment(page, "b4", "done");
   await primary(page).click();
 
-  // Four explain cards.
-  for (let i = 0; i < 4; i++) await primary(page).click();
+  // The LED with both legs in one strip, then the rail.
+  await atMoment(page, "b5", "act");
+  await rotateLed(page);
+  await taskDone(page, "fix-led");
+  await atMoment(page, "b5", "done");
+  await primary(page).click();
+  await atMoment(page, "b6", "act");
+  await slideRailEnd(page);
+  await taskDone(page, "rail-slide");
+  await atMoment(page, "b6", "done");
+  await primary(page).click();
 
-  // Quiz: every item right on the first try.
-  await page.locator("[data-option]", { hasText: "None of them" }).click();
-  await checkAndContinue(page);
-
-  // Match: the left column starts active and moves to the next unpaired item, so pick the partners in order.
-  for (const right of ["the flow of charge", "the push that drives the flow", "how hard a path is to flow through", "a complete loop current can flow around"])
-    await page.locator("[data-match-right]", { hasText: right }).click();
-  await checkAndContinue(page);
-
-  await page.locator("[data-option]", { hasText: "It stays dark" }).click();
-  await checkAndContinue(page);
-
-  await page.locator("[data-option]", { hasText: "From the battery's plus terminal" }).click();
-  await checkAndContinue(page);
-
-  await page.locator("[data-option]", { hasText: "A 9 V battery" }).click();
-  await checkAndContinue(page);
-
-  // Wrap: finish.
-  await expect(page.locator("[data-step-type=wrap]")).toBeVisible();
+  // The secret is optional: skip it. Then sign the page.
+  await atMoment(page, "secret", "act");
+  await page.locator(".bl-link", { hasText: "Skip" }).click();
+  await atMoment(page, "end", "act");
   await primary(page).click();
 
   if (opts.expectReveal ?? true) {
-    // The island reveal: a modal dialog with the new piece's caption and one way on.
+    // The island reveal: a modal dialog with one way on.
     const reveal = page.getByRole("dialog");
-    await expect(reveal).toBeVisible();
-    await expect(reveal.locator(".reveal__lines")).toContainText("Welcome to the bench");
+    await expect(reveal).toBeVisible({ timeout: 20_000 });
     await reveal.getByRole("button", { name: "Continue" }).click();
     await expect(reveal).toBeHidden();
   }

@@ -1,0 +1,100 @@
+/**
+ * Bench lessons against their labs: every beat's task exists, the lab's required tasks are exactly the lesson's do
+ * and fix-it tasks in the same order (the runtime checks them one at a time), setups open their task's solution
+ * steps, and every anchor a beat names exists on the bench. The content loader cannot see the TypeScript labs, so
+ * this is where the two meet.
+ */
+import { describe, expect, it } from "vitest";
+import type { BenchState } from "@ohmland/bench/core";
+import { loadCourse, type BenchLessonData } from "../../content/load";
+import { buildBench } from "../../lab/build";
+import { isOptional, type LabDefinition } from "../../lab/define";
+import { applyStep, solutionSegments } from "../../lab/steps";
+import { momentsOf } from "./flow";
+import { resolveAnchor } from "./marks";
+
+const labs = new Map(
+  Object.values(import.meta.glob<{ default: LabDefinition }>("../../../../../content/labs/*.ts", { eager: true })).map((mod) => [mod.default.id, mod.default]),
+);
+const lessons = loadCourse().lessons.filter((l): l is BenchLessonData => l.format === "bench");
+
+/** The bench at the start and after every solution step. */
+function benches(lab: LabDefinition): BenchState[] {
+  let b = buildBench(lab.bench).bench;
+  const out = [b];
+  for (const s of lab.solution) {
+    b = applyStep(b, s).bench;
+    out.push(b);
+  }
+  return out;
+}
+
+describe("bench lessons", () => {
+  it("finds the reference lessons", () => {
+    expect(lessons.map((l) => l.id)).toEqual(expect.arrayContaining(["first-glow", "welcome-to-the-bench", "how-a-breadboard-works"]));
+  });
+
+  for (const lesson of lessons) {
+    describe(lesson.id, () => {
+      const lab = labs.get(lesson.lab);
+      it("has its lab", () => expect(lab, `content/labs/${lesson.lab}.ts`).toBeDefined());
+      if (!lab) return;
+      const moments = momentsOf(lesson);
+      const taskIds = new Set(lab.tasks.map((t) => t.id));
+
+      it("names only tasks the lab has", () => {
+        for (const mo of moments) if (mo.task) expect(taskIds.has(mo.task), `${mo.key}: task "${mo.task}"`).toBe(true);
+      });
+
+      it("walks the lab's required tasks in order", () => {
+        const required = lab.tasks.filter((t) => !isOptional(t)).map((t) => t.id);
+        const walked = moments.filter((mo) => mo.task && mo.kind !== "secret").map((mo) => mo.task);
+        expect(walked).toEqual(required);
+      });
+
+      it("keeps the secret a bonus", () => {
+        if (!lesson.secret) return;
+        const t = lab.tasks.find((x) => x.id === lesson.secret!.task);
+        expect(t && isOptional(t)).toBe(true);
+      });
+
+      it("starts each setup task's solution with its setup", () => {
+        const segments = solutionSegments(lab.solution);
+        for (const t of lab.tasks) {
+          if (!t.setup?.length) continue;
+          const seg = segments.get(t.id);
+          expect(seg, `a check for "${t.id}"`).toBeDefined();
+          expect(lab.solution.slice(seg!.start, seg!.start + t.setup.length), `"${t.id}" solution steps`).toEqual(t.setup);
+        }
+      });
+
+      it("names only tools the lab has", () => {
+        const built = buildBench(lab.bench);
+        const have = new Set<string>([...(lab.panels ?? []).map((p) => p.id)]);
+        if (built.bench.meter) have.add("meter");
+        if (built.scope) have.add("scope");
+        if (built.logger) have.add("logger");
+        if (built.stopwatch) have.add("stopwatch");
+        if (built.tapper) have.add("tapper");
+        if (built.controls.length) have.add("controls");
+        for (const b of lesson.beats) if (b.tool) expect(have.has(b.tool), `tool "${b.tool}"`).toBe(true);
+      });
+
+      it("points only at things on the bench", () => {
+        const all = benches(lab);
+        const anchors = new Set<string>();
+        for (const b of lesson.beats) {
+          if (b.meet) anchors.add(b.meet);
+          if (b.note && b.note.at !== "tap") anchors.add(b.note.at);
+          for (const s of b.spot ?? []) anchors.add(s);
+          if (b.pick?.on) anchors.add(b.pick.on);
+          if (b.popup) anchors.add(b.popup.at);
+          if (b.tap?.joinedTo) anchors.add(b.tap.joinedTo);
+          for (const a of [b.tap?.answer ?? [], b.tap?.among ?? []].flat()) anchors.add(a);
+        }
+        if (lesson.secret?.note && lesson.secret.note.at !== "tap") anchors.add(lesson.secret.note.at);
+        for (const a of anchors) expect(all.some((b) => resolveAnchor(b, a) !== null), `"${a}" on the bench`).toBe(true);
+      });
+    });
+  }
+});

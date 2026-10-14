@@ -58,7 +58,7 @@ async function drag(page, from, to) {
 }
 async function leadFromTray(page, color, anchor) {
   const before = new Set((await benchState(page)).leads.map((l) => l.id));
-  const box = await page.locator(".ohb-tray .ohb-item", { hasText: color }).first().boundingBox();
+  const box = await page.locator(".ohb-tray .ohb-item, .ohi-tray .ohi-item", { hasText: color }).first().boundingBox();
   await drag(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, await project(page, anchor));
   return (await benchState(page)).leads.find((l) => !before.has(l.id)).id;
 }
@@ -67,8 +67,21 @@ async function clipTo(page, lead, end, anchor) {
   const from = e.to ? await project(page, e.to) : await project(page, [e.pos[0], 4, e.pos[1]]);
   await drag(page, from, await project(page, anchor));
 }
+/**
+ * Opens a lesson at its lab. A stepper lesson: make the guess, then Continue to the lab step. A bench lesson: tap the
+ * start button, then play the first beat when it only names a part (first-glow's "This is an LED"), so the bench is
+ * ready for work.
+ */
 async function openLab(page, base, lesson, option = 0) {
   await page.goto(`${base}/learn/${lesson}/`);
+  if (await page.locator('.bl[data-phase="start"]').count()) {
+    await page.locator("[data-primary]").click();
+    await page.locator("[data-bench-ready]").waitFor({ timeout: 60_000 });
+    const meet = page.locator('.bl[data-action="meet"] [data-tap]');
+    if (await meet.count()) await meet.first().click();
+    await page.waitForTimeout(1200);
+    return;
+  }
   const opt = page.locator("[data-predict-option]");
   if (await opt.count()) await opt.nth(option).click();
   await page.locator("[data-primary]").click();
@@ -77,7 +90,7 @@ async function openLab(page, base, lesson, option = 0) {
 }
 async function flipBlockSwitch(page, id) {
   const p = (await benchState(page)).parts.find((x) => x.id === id);
-  const at = await project(page, [p.pos[0], 24, p.pos[1] - 5.5]);
+  const at = (await page.evaluate(() => window.ohmlandLab.view?.() ?? "3d")) === "ink" ? await project(page, `part:${id}`) : await project(page, [p.pos[0], 24, p.pos[1] - 5.5]);
   await page.mouse.click(at.x, at.y);
 }
 async function buildFirstGlow(page) {
@@ -178,16 +191,14 @@ const SHOTS = [
   ["lab-phone-dark", PHONE, "dark", async (page, base) => {
     await openLab(page, base, "basics/first-glow", 1);
     await buildFirstGlow(page);
-    await page.locator(".lab__grip").click();
     await page.waitForTimeout(500);
   }],
   ["lab-loading-desktop-dark", DESKTOP, "dark", async (page, base) => {
-    // the bench chunk never arrives, so its loading state stays on screen
-    await page.route(/BenchView\.[\w-]+\.js$/, () => {});
+    // the bench chunks never arrive, so the lesson's loading state stays on screen
+    await page.route(/(Stage|BenchSurface)\.[\w-]+\.js$/, () => {});
     await page.goto(`${base}/learn/basics/welcome-to-the-bench/`);
-    await page.locator("[data-predict-option]").nth(2).click();
     await page.locator("[data-primary]").click();
-    await page.locator(".lab__skeleton").waitFor();
+    await page.locator(".bl-skeleton").waitFor();
     await page.waitForTimeout(600);
   }],
   ["lab-fried-desktop-light", DESKTOP, "light", async (page, base) => {

@@ -303,7 +303,21 @@ export type LabTask = {
   note?: NoteSpec | NoteSpec[];
   /** Achievement trigger fired when this task is done (see progress/achievements.ts, `labEvent`). */
   trigger?: string;
+  /**
+   * Bench lessons (docs/LESSONS.md): actions applied when this task's beat begins, on top of the bench the solution
+   * reaches at the previous check. Parts coming into play, or a fix-it round's broken circuit. The solution must
+   * start this task's steps with the same actions (spread one const into both), so replays and "Show me" agree.
+   */
+  setup?: SolutionStep[];
+  /**
+   * Bench lessons: gentle lines for typical mistakes, checked while this task is current. The first whose `when`
+   * holds is said once the bench has shown it for a moment ("Dark? Turn the LED around.").
+   */
+  nudges?: Nudge[];
 };
+
+/** A short robot line for a mistake the bench is showing right now. `when` is pure, like a goal. */
+export type Nudge = { when: (lab: LabView) => boolean; say: string };
 
 // ---------------------------------------------------------------------------------------------------------------
 // Solutions: bench actions as data. A test replays them headlessly; "Show me" plays them on the bench.

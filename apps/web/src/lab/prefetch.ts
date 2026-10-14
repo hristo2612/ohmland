@@ -11,10 +11,10 @@ import type { BenchViewProps } from "./BenchView";
 import type { LabStepProps } from "./LabStep";
 import { loadLab } from "./labs";
 
-type Preloadable<P, M> = { preload(): Promise<M>; Component: FunctionComponent<P> };
+export type Preloadable<P, M> = { preload(): Promise<M>; Component: FunctionComponent<P> };
 
 /** A lazy component that renders at once, without suspending, when its chunk has already loaded. */
-function preloadable<P extends object, M extends { default: ComponentType<P> }>(load: () => Promise<M>): Preloadable<P, M> {
+export function preloadable<P extends object, M extends { default: ComponentType<P> }>(load: () => Promise<M>): Preloadable<P, M> {
   let loaded: ComponentType<P> | null = null;
   let pending: Promise<M> | null = null;
   const preload = () =>
@@ -37,7 +37,7 @@ export const LabStepChunk = preloadable<LabStepProps, typeof import("./LabStep")
 export const BenchViewChunk = preloadable<BenchViewProps, typeof import("./BenchView")>(() => import("./BenchView"));
 
 /** Runs `fn` when the browser is idle (soon, where idle callbacks are missing). */
-function whenIdle(fn: () => void): void {
+export function whenIdle(fn: () => void): void {
   if (typeof requestIdleCallback === "function") requestIdleCallback(fn, { timeout: 2000 });
   else setTimeout(fn, 200);
 }
@@ -54,12 +54,16 @@ export function prefetchLab(labId: string): void {
     .then((bench) => whenIdle(bench.prepare))
     .catch(() => undefined);
   void loadLab(labId).catch(() => undefined);
-  if (!warmSim) {
-    warmSim = import("@ohmland/sim/client").then((m) => m.createSimClient());
-    warmSim.catch(() => {
-      warmSim = null;
-    });
-  }
+  warmSimulator();
+}
+
+/** Starts the simulator worker ahead of time; takeSim() hands it out. */
+export function warmSimulator(): void {
+  if (warmSim) return;
+  warmSim = import("@ohmland/sim/client").then((m) => m.createSimClient());
+  warmSim.catch(() => {
+    warmSim = null;
+  });
 }
 
 /** A simulator client: the warm one when there is one (each is handed out once), else a new one. */
