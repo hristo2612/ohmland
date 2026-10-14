@@ -37,6 +37,8 @@ export type BenchLabels = {
   actions: Record<string, string>;
   /** Touch-feel words for the heat readout. */
   heat: { cool: string; warm: string; hot: string; ouch: string };
+  /** The solder station's overlay, spots and joints (Unit 3). */
+  solder: SolderLabels;
   /** Words printed on lab props. */
   print: {
     rejects: string;
@@ -66,6 +68,81 @@ export type BenchLabels = {
     lo?: string;
     pulse?: string;
   };
+};
+
+export type SolderLabels = {
+  /** A spot's spoken name: "Pad B4", "D1 anode lead", "Splice HW1 b", "Stand". */
+  spot: (id: string) => string;
+  iron: string;
+  solder: string;
+  braid: string;
+  /** The heat view and quick mode toggles, the tip readout. */
+  heatView: string;
+  quick: string;
+  tip: string;
+  degrees: string;
+  magnifier: string;
+  close: string;
+  /** Spoken hints for the tools. */
+  ironHint: string;
+  feedHint: string;
+  quickHint: string;
+  /** A joint's phase, shape and finish, and what a tug finds. */
+  phase: { bare: string; molten: string; set: string };
+  shape: { none: string; volcano: string; ball: string; ring: string; lump: string; frosty: string; bridge: string; burnt: string };
+  finish: { liquid: string; bright: string; satin: string; dull: string; dark: string };
+  tug: { held: string; loose: string; pulled: string };
+  /** Words printed on the station and the spools. */
+  station: string;
+  spool: { leaded: string; "lead-free": string; acid: string };
+  /** Tools on the dock: bend a leg, add an underside link. */
+  bend: string;
+  link: string;
+  /** Said when a tool cannot be used yet. */
+  flipFirst: string;
+};
+
+export const DEFAULT_SOLDER_LABELS: SolderLabels = {
+  spot: (id) => {
+    const dot = id.lastIndexOf(".");
+    const owner = dot > 0 ? id.slice(0, dot) : id;
+    const sub = dot > 0 ? id.slice(dot + 1) : "";
+    if (sub === "stand") return "Iron stand";
+    if (sub === "wool") return "Brass wool";
+    if (sub === "sponge") return "Sponge";
+    if (/^[A-Z]\d{1,2}$/.test(sub)) return `Pad ${sub}`;
+    return `${owner} ${sub}`;
+  },
+  iron: "Soldering iron",
+  solder: "Solder",
+  braid: "Braid",
+  heatView: "Heat",
+  quick: "Quick",
+  tip: "Tip",
+  degrees: "°C",
+  magnifier: "Magnifier",
+  close: "Close",
+  ironHint: "Drag the iron onto a joint. It rests there.",
+  feedHint: "Hold the solder on the hot joint.",
+  quickHint: "Press and hold a joint to solder it.",
+  phase: { bare: "no solder", molten: "molten", set: "set" },
+  shape: {
+    none: "bare metal",
+    volcano: "a smooth little volcano",
+    ball: "a round ball hiding the lead",
+    ring: "a thin ring, the hole showing",
+    lump: "a dull, grainy lump with a gap",
+    frosty: "a frosty, cracked surface",
+    bridge: "a neck of solder to the next pad",
+    burnt: "dark, burnt flux",
+  },
+  finish: { liquid: "liquid", bright: "bright", satin: "satin", dull: "dull", dark: "dark" },
+  tug: { held: "It holds.", loose: "It rocks.", pulled: "It pulls free." },
+  station: "SOLDER STATION",
+  spool: { leaded: "Sn63 Pb37, rosin core, 0.8 mm", "lead-free": "Sn96.5 Ag3.0 Cu0.5, lead-free, rosin core, 0.8 mm", acid: "acid core, for sheet metal and plumbing" },
+  bend: "Bend",
+  link: "Link",
+  flipFirst: "Flip the board to reach the copper.",
 };
 
 export const DEFAULT_LABELS: BenchLabels = {
@@ -121,6 +198,18 @@ export const DEFAULT_LABELS: BenchLabels = {
     chart: "Colour chart",
     clock: "Clock",
     showcase: "Display case",
+    "solder-station": "Solder station",
+    "solder-spool": "Solder",
+    "solder-braid": "Desoldering braid",
+    perfboard: "Perfboard",
+    "plan-card": "Plan card",
+    "heat-sink-clip": "Heat sink",
+    "hookup-wire": "Hookup wire",
+    "wire-stripper": "Wire stripper",
+    "heat-shrink": "Heat-shrink",
+    "heat-gun": "Heat gun",
+    "barrel-jack": "Barrel jack",
+    "wall-adapter": "Wall adapter",
     gate: "Gate",
     box: "Sealed box",
     schematic: "Drawing",
@@ -170,6 +259,15 @@ export const DEFAULT_LABELS: BenchLabels = {
     "card.length": { label: "Line", unit: "cm" },
     "card.layers": { label: "Layers" },
     "card.wide": { label: "Width", values: { false: "Narrow", true: "Wide" } },
+    "solder-station.on": { label: "Power", values: { false: "Off", true: "On" } },
+    "solder-station.setC": { label: "Tip", unit: "°C" },
+    "perfboard.flipped": { label: "Side", values: { false: "Top", true: "Copper" } },
+    "perfboard.flexed": { label: "Board", values: { false: "Resting", true: "Pressed" } },
+    "heat-sink-clip.metal": { label: "Metal", values: { copper: "Copper", steel: "Steel" } },
+    "wire-stripper.notch": { label: "Notch", unit: "AWG" },
+    "wire-stripper.scale": { label: "Scale", values: { solid: "Solid", stranded: "Stranded" } },
+    "heat-shrink.size": { label: "Size", unit: "mm" },
+    "heat-gun.on": { label: "Heat gun", values: { false: "Off", true: "On" } },
     "gate.mode": { label: "Gate", values: { ticks: "Ticks", number: "Number" } },
     "gate.unit": { label: "Unit", values: { A: "A", mA: "mA" } },
     "box.lid": { label: "Lid", values: { false: "Shut", true: "Open" } },
@@ -179,7 +277,16 @@ export const DEFAULT_LABELS: BenchLabels = {
     "dpdt-switch.bounce": { label: "Bounce", values: { false: "Off", true: "On" } },
     "regulator7805.heatsink": { label: "Heat sink", values: { false: "Off", true: "On" } },
   },
-  actions: { "card.erase": "Erase", "cup.salt": "Add salt" },
+  actions: {
+    "card.erase": "Erase",
+    "cup.salt": "Add salt",
+    "solder-braid.snip": "Snip used end",
+    "wire-stripper.strip": "Strip",
+    "hookup-wire.twist": "Twist",
+    "hookup-wire.snip-a": "Snip end A",
+    "hookup-wire.snip-b": "Snip end B",
+  },
+  solder: DEFAULT_SOLDER_LABELS,
   heat: { cool: "cool", warm: "warm", hot: "hot", ouch: "ouch" },
   print: {
     rejects: "REJECTS",
@@ -233,6 +340,7 @@ export function mergeLabels(over?: Partial<BenchLabels>): BenchLabels {
     settings: { ...DEFAULT_LABELS.settings, ...(over.settings ?? {}) },
     actions: { ...DEFAULT_LABELS.actions, ...(over.actions ?? {}) },
     heat: { ...DEFAULT_LABELS.heat, ...(over.heat ?? {}) },
+    solder: { ...DEFAULT_LABELS.solder, ...(over.solder ?? {}) },
     print: { ...DEFAULT_LABELS.print, ...(over.print ?? {}), bands: { ...DEFAULT_LABELS.print.bands, ...(over.print?.bands ?? {}) } },
   };
 }

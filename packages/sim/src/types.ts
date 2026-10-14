@@ -118,6 +118,23 @@ export type PartSpec =
     })
   // 7805 linear regulator (TO-220: in, gnd, out). heatsink: bolted to a heat sink (default false, free air).
   | (Base & { kind: "regulator7805"; pins: { in: NodeId; gnd: NodeId; out: NodeId }; heatsink?: boolean })
+  // A wall adapter's output (the mains side is never modelled). Three kinds:
+  // - regulated DC: holds `emf` behind `ohms` up to `amps`, then limits and folds back toward a quarter of that;
+  // - unregulated DC (`regulated` false): `emf` behind `ohms`, with a ripple of about I / (rippleHz x filterFarads)
+  //   riding on it when `filterFarads` is set (a rectifier and its filter capacitor);
+  // - AC (`ac`): a sine of `emf` volts RMS at `hz`.
+  | (Base & {
+      kind: "supply";
+      pins: { pos: NodeId; neg: NodeId };
+      emf: number;
+      ohms?: number; // output resistance: default 0.05 regulated, 1 unregulated, 0.5 AC
+      regulated?: boolean;
+      amps?: number; // rating; a regulated supply limits a little above it. Default 1
+      filterFarads?: number;
+      rippleHz?: number; // default 2 x MAINS_HZ (full-wave rectified mains)
+      ac?: boolean;
+      hz?: number; // default MAINS_HZ
+    })
   // An Uno-style microcontroller board running a bench C program (@ohmland/code) on simulated time. Pins by header
   // name (MCU_PINS lists them); unconnected pins may be left out. See README "Microcontroller board".
   | (Base & {
@@ -282,6 +299,9 @@ export type InputKey =
   | "proximity" // timer555, logic, mcuboard: how close a hand is to the chip, 0..1 (floating inputs pick up more hum)
   | "power" // mcuboard: "usb", "jack" or "off"
   | "reset" // mcuboard: true presses the reset button (the program starts again from setup)
-  | "millis"; // mcuboard: sets the board's clock so millis() reads this many ms now (the day-49 jump)
+  | "millis" // mcuboard: sets the board's clock so millis() reads this many ms now (the day-49 jump)
+  // led, diode, npn: the temperature of the part's body in °C, from outside heat (a soldering iron on a lead).
+  // The junction runs at this plus its own self-heating; null or a value at or below 25 means no outside heat.
+  | "bodyC";
 
 export type InputValue = number | string | boolean;

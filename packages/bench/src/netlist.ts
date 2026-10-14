@@ -104,6 +104,8 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; sp
   };
   const seat = (anchor: Anchor, hole: string | undefined, who: string) => {
     if (!hole) return;
+    // A hole in a perfboard ("PB1:B4"): the leg touches its pad only through solder (the board's contacts).
+    if (hole.includes(":")) return;
     if (!geom || !geom.holes.has(hole)) {
       warnings.push(`hole-missing: ${who} -> ${hole}`);
       return;
@@ -128,6 +130,16 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; sp
       if (!part || !s.joins) continue;
       const legs = partDef(part.kind).legs;
       for (const [leg, own] of Object.entries(seatJoins(s, part))) if (legs.includes(leg)) uf.union(pinAnchor(part.id, leg), pinAnchor(holder.id, own));
+    }
+  }
+  // Contacts a part makes itself: solder joints and bridges on a perfboard, a soldered splice.
+  for (const part of bench.parts) {
+    const contacts = (partDef(part.kind) as { contacts?: (p: PlacedPart, b: BenchState) => [Anchor, Anchor][] }).contacts;
+    if (!contacts) continue;
+    for (const [a, b] of contacts(part, bench)) {
+      add(a);
+      add(b);
+      uf.union(a, b);
     }
   }
 
@@ -253,12 +265,19 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
   const geom = bench.board ? boardGeometry(bench.board) : null;
 
   // Reference node: the first 9 V battery's minus, else an AA pack's or a bench supply's, else a lemon cell's, else a
-  // microcontroller board's GND (it makes its own 5 V from USB).
+  // microcontroller board's GND (it makes its own 5 V from USB), else the minus of a wall adapter's jack.
   const groundPart =
     SOURCE_KINDS.map((k) => bench.parts.find((p) => p.kind === k)).find((p) => !!p) ?? bench.parts.find((p) => p.kind === "lemon");
   const boardPart = groundPart ? undefined : bench.parts.find((p) => p.kind === "mcu-board");
-  const groundRoot = groundPart ? uf.find(pinAnchor(groundPart.id, "neg")) : boardPart ? uf.find(pinAnchor(boardPart.id, "gnd")) : null;
-  if (!groundPart && !boardPart) warnings.push("no-ground: no battery or cell on the bench");
+  const adapterAnchor = groundPart || boardPart ? null : adapterMinus(bench);
+  const groundRoot = groundPart
+    ? uf.find(pinAnchor(groundPart.id, "neg"))
+    : boardPart
+      ? uf.find(pinAnchor(boardPart.id, "gnd"))
+      : adapterAnchor
+        ? uf.find(adapterAnchor)
+        : null;
+  if (!groundPart && !boardPart && !adapterAnchor) warnings.push("no-ground: no battery or cell on the bench");
 
   // Name each set after the most readable thing in it.
   const names = new Map<string, NodeId>();
@@ -301,7 +320,7 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
   };
 
   const specs: PartSpec[] = [];
-  const ctx: NetContext = { part: (id) => bench.parts.find((p) => p.id === id), pin: (id, leg) => nodeOf(pinAnchor(id, leg)) };
+  const ctx: NetContext = { part: (id) => bench.parts.find((p) => p.id === id), pin: (id, leg) => nodeOf(pinAnchor(id, leg)), node: nodeOf, bench };
   for (const part of bench.parts) {
     const def = partDef(part.kind);
     // Mystery parts are wired inside in a shuffled order: leg `fn` of the model is whichever terminal carries it.
@@ -346,6 +365,16 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
   }
 
   return { netlist: { parts: specs }, nodeOf, warnings };
+}
+
+/** The jack pin a plugged-in wall adapter's minus reaches (the reference when there is no battery). */
+function adapterMinus(bench: BenchState): Anchor | null {
+  for (const p of bench.parts) {
+    if (p.kind !== "wall-adapter" || !p.params.into) continue;
+    const jack = bench.parts.find((j) => j.id === p.params.into && j.kind === "barrel-jack");
+    if (jack) return pinAnchor(jack.id, p.params.centre === "minus" ? "tip" : "sleeve");
+  }
+  return null;
 }
 
 /** Parameters with defaults filled in, typed by kind. */

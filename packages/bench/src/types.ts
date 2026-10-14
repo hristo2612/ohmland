@@ -2,6 +2,7 @@
 // Units: millimetres on the desk plane. x grows to the right, z grows toward the viewer, y is up.
 
 import type { Bounce, InputKey, LedColor, LogicModel, MeterMode, NodeId, Netlist } from "@ohmland/sim";
+import type { SolderParamsMap } from "./solder/params";
 
 export type { Bounce, InputKey, LedColor, LogicModel, MeterMode, NodeId, Netlist };
 
@@ -75,7 +76,24 @@ export type BenchPartKind =
   | "mcu-board"
   // Chips (Unit 4): DIP chips and their socket, the 7-segment display, the 5 V regulator, the DIP switch, the logic
   // probe, AA battery packs and an adjustable bench supply.
-  | ChipKind;
+  | ChipKind
+  // Unit 3 (making it permanent): the solder station and its tools, perfboard, wire and power from the wall.
+  | SolderKind;
+
+/** Unit 3 kinds: soldering, perfboard, hookup wire and heat-shrink, wall adapters (src/solder). */
+export type SolderKind =
+  | "solder-station"
+  | "solder-spool"
+  | "solder-braid"
+  | "perfboard"
+  | "plan-card"
+  | "heat-sink-clip"
+  | "hookup-wire"
+  | "wire-stripper"
+  | "heat-shrink"
+  | "heat-gun"
+  | "barrel-jack"
+  | "wall-adapter";
 
 /** The Unit 4 kinds (see chips.ts). */
 export type ChipKind = "chip" | "sevenseg" | "regulator7805" | "ic-socket" | "dip-switch" | "logic-probe" | "battery-pack" | "bench-supply";
@@ -315,7 +333,8 @@ export type PartParamsMap = {
     /** The random generator's state at reset (default 1, as on a real board). */
     seed?: number;
   };
-} & ChipParamsMap;
+} & ChipParamsMap &
+  SolderParamsMap;
 
 /** Params of the Unit 4 kinds. */
 export type ChipParamsMap = {

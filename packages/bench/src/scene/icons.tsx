@@ -86,6 +86,30 @@ export function PartIcon({ kind, color }: { kind: BenchPartKind | "lead" | "mete
       return box([<rect key="c" x="4" y="9" width="24" height="16" rx="3" fill="#e9e4da" />, <rect key="l" x="8" y="13" width="16" height="8" fill="#b9c7a6" />]);
     case "showcase":
       return box([<rect key="g" x="4" y="6" width="24" height="18" rx="1" fill="#eef6fb" />, <rect key="b" x="3" y="24" width="26" height="4" fill="#a97a48" />]);
+    case "solder-station":
+      return box([<rect key="b" x="3" y="12" width="15" height="15" rx="2" fill="#d9dee5" />, <rect key="d" x="6" y="15" width="9" height="4" fill="#c9d1bb" />, <path key="i" d="M17 8l11 13" strokeWidth="2.4" />]);
+    case "solder-spool":
+      return box([<circle key="s" cx="14" cy="16" r="10" fill="#c9ccd0" />, <circle key="h" cx="14" cy="16" r="3" />, <path key="e" d="M22 20c3 2 5 2 7 1" />]);
+    case "solder-braid":
+      return box([<circle key="s" cx="13" cy="16" r="8" fill="#e9a07a" />, <path key="e" d="M20 18h9" stroke="#c87533" strokeWidth="2.6" />]);
+    case "perfboard":
+      return box([<rect key="b" x="4" y="6" width="24" height="20" rx="1" fill="#e9d9a8" />, <path key="h" d="M9 11h0M14 11h0M19 11h0M24 11h0M9 16h0M14 16h0M19 16h0M24 16h0M9 21h0M14 21h0M19 21h0M24 21h0" strokeWidth="2.4" />]);
+    case "plan-card":
+      return box([<rect key="c" x="4" y="6" width="24" height="20" rx="1" fill="#fbfaf6" />, <path key="l" d="M9 12h8v8h6" strokeDasharray="2 2" />]);
+    case "heat-sink-clip":
+      return box([<path key="c" d="M6 12h20l-4 8H10z" fill="#d9875a" />, <path key="f" d="M10 12V6M16 12V6M22 12V6" />]);
+    case "hookup-wire":
+      return box([<path key="w" d="M4 22c8-14 16 6 24-10" stroke={c === "currentColor" ? "#c2412b" : c} strokeWidth="3" />, <path key="e" d="M2 23l3-2M27 13l3-2" />]);
+    case "wire-stripper":
+      return box([<path key="a" d="M4 10l14 6-14 6" strokeWidth="2.2" />, <path key="b" d="M18 16h10" strokeWidth="3" />]);
+    case "heat-shrink":
+      return box([<rect key="t" x="6" y="12" width="20" height="8" rx="3" fill="#2b2925" />]);
+    case "heat-gun":
+      return box([<rect key="b" x="4" y="9" width="18" height="9" rx="3" fill="#d6573a" />, <path key="h" d="M15 18l-2 9" strokeWidth="3" />, <path key="n" d="M22 13h6" strokeWidth="3" />]);
+    case "barrel-jack":
+      return box([<rect key="b" x="8" y="5" width="16" height="16" rx="2" fill="#2b2925" />, <circle key="s" cx="16" cy="13" r="3" fill="#bbb" />, <path key="p" d="M13 21v7M19 21v7" />]);
+    case "wall-adapter":
+      return box([<rect key="b" x="5" y="5" width="16" height="14" rx="2" fill="#2b2925" />, <path key="c" d="M13 19c0 6 6 8 12 6" />, <rect key="p" x="24" y="22" width="5" height="6" rx="1" fill="#555" />]);
     case "gate":
       return box([<path key="w" d="M3 24c8-3 18-3 26 0" stroke="#c8453a" strokeWidth="2.2" />, <rect key="r" x="13" y="19" width="6" height="8" rx="2" fill="#f4efe6" />, <rect key="f" x="7" y="5" width="18" height="10" rx="1.5" fill="#fffdf6" />, <path key="s" d="M16 15v4M10 10h4" />]);
     case "box":
