@@ -20,6 +20,7 @@ import { partShownName } from "../labels";
 import { PartDrawing } from "./kinds";
 import { buildModel, type PartInk } from "./model";
 import { WIRE_TOKEN } from "./styles";
+import { useOverflowX } from "../view/useOverflowX";
 
 const WIRE_COLORS: WireColor[] = ["red", "black", "blue", "green", "yellow", "orange", "white", "purple"];
 const LEAD_COLORS: LeadColor[] = ["red", "black", "green", "yellow", "blue", "white"];
@@ -33,8 +34,10 @@ export function itemLabel(item: TrayItem, labels: InkLabels): { name: string; de
   else if (item.kind === "led" && typeof p.color === "string") detail = labels.colors[p.color as WireColor] ?? String(p.color);
   else if (item.kind === "fuse" && typeof p.amps === "number") detail = `${p.amps} A`;
   else if (item.kind === "cup" && typeof p.water === "string") detail = labels.water[p.water as "tap"];
+  else if ((item.kind === "npn" || item.kind === "diode") && typeof p.model === "string") detail = p.model;
   else detail = chipDetail(item.kind, p);
-  if (item.label) return { name: item.label };
+  // A lab's own name for the item; a part number printed on the part still shows under it ("Transistor", "2N3904").
+  if (item.label) return { name: item.label, detail: (item.kind === "npn" || item.kind === "diode") && typeof p.model === "string" ? p.model : undefined };
   return { name: labels.partName[item.kind] ?? item.kind, detail };
 }
 
@@ -159,6 +162,8 @@ export function InkOverlay({ store, labels, tray, readOnly, compact, api, size, 
   // Items that are used up leave the tray (fewer things to look at).
   const items = useMemo(() => tray.map((item) => ({ item, left: trayLeft(item, bench) })).filter((x) => x.left !== 0), [tray, bench]);
   const showTray = !readOnly && items.length > 0;
+  // A strip that scrolls lets a sideways swipe scroll it; an upward drag takes a part out.
+  const [stripScrolls, stripRef] = useOverflowX(items.length);
 
   const actions = (inMenu: boolean) => {
     const out: ReactNode[] = [];
@@ -277,7 +282,7 @@ export function InkOverlay({ store, labels, tray, readOnly, compact, api, size, 
       {showTray && (
         <div className="ohi-slip ohi-tray" role="list" aria-label={labels.tray}>
           <h2>{labels.tray}</h2>
-          <div className="ohi-tray-list">
+          <div className="ohi-tray-list" ref={stripRef} data-scroll={stripScrolls || undefined}>
             {items.map(({ item, left }, i) => {
               const { name, detail } = itemLabel(item, labels);
               return (

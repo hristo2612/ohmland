@@ -13,6 +13,11 @@ const STRAY_LEAD: SolutionStep[] = [
 ];
 
 const onVolts = (lab: LabView) => lab.meter?.mode === "dcv" && lab.meter.red === "vohm";
+/** The latest logged reading with this tag, else the volts across the two points now. */
+const logged = (lab: LabView, tag: string, plus: string, minus: string): number => {
+  const r = si(latest(lab, tag));
+  return Number.isFinite(r) ? r : (lab.volts(plus, minus) ?? Number.NaN);
+};
 const reversed = (lab: LabView, id: string) => onVolts(lab) && lab.across(id, "rev");
 
 export default defineLab({
@@ -74,9 +79,10 @@ export default defineLab({
       prompt: "Add the resistor and LED readings. Type the total.",
       goal: (lab) => {
         const sum = lab.note("sum");
-        const r = si(latest(lab, "across:R1"));
-        const d = si(latest(lab, "across:D1"));
-        const b = si(latest(lab, "across:B1"));
+        // The readings logged on the beats before; a resumed lesson has none, so the bench's own drops stand in.
+        const r = logged(lab, "across:R1", "R1.a", "R1.b");
+        const d = logged(lab, "across:D1", "D1.anode", "D1.cathode");
+        const b = logged(lab, "across:B1", "B1.pos", "B1.neg");
         return sum !== null && Math.abs(sum - (r + d)) <= 0.05 && Math.abs(sum - b) <= 0.15;
       },
       note: { id: "sum", label: "Resistor + LED", unit: "V" },

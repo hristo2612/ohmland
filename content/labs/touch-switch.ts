@@ -89,9 +89,9 @@ export default defineLab({
       prompt: "Move R5's far leg to Q2's base.",
       setup: Q2_IN,
       goal: (lab) => lab.connected("Q2.e", "Q1.b") && lab.connected("Q2.c", "Q1.c") && padsFeed(lab, "Q2.b") && !lab.connected("R5.a", "Q1.b") && !lab.connected("R5.b", "Q1.b"),
-      hints: ["Drag R5's end out of row 21.", "Drop it in far row 18: Q2's middle leg."],
+      hints: ["Drag R5's end out of strip 21.", "Drop it in far strip 18: Q2's middle leg."],
       highlight: ["pin:R5.b", "pin:Q2.b"],
-      nudges: [{ when: (lab) => !padsFeed(lab, "Q1.b") && !padsFeed(lab, "Q2.b") && !!lab.benchPart("R5"), say: "R5's leg goes to Q2's middle leg, far row 18." }],
+      nudges: [{ when: (lab) => !padsFeed(lab, "Q1.b") && !padsFeed(lab, "Q2.b") && !!lab.benchPart("R5"), say: "R5's leg goes to Q2's middle leg, far strip 18." }],
       success: "Q2 now feeds Q1.",
     },
     {
@@ -110,7 +110,7 @@ export default defineLab({
         if (lab.benchPart("Q2") && !lab.connected("Q2.e", "Q1.b")) lab.memory["astray"] = true;
         return lab.memory["astray"] === true && darlington(lab) && light(lab) && lab.heldFor(0.3, glow(lab) >= 0.75);
       },
-      hints: ["Follow the yellow jumper from Q2's emitter.", "It must land in Q1's base row, row 21."],
+      hints: ["Follow the yellow jumper from Q2's emitter.", "It must land in Q1's base strip, strip 21."],
       highlight: ["wire:W3.b"],
       success: "Lit again, by a feather.",
     },

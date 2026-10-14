@@ -8,7 +8,8 @@
  */
 import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { useStore } from "zustand";
-import { PRINTED_KINDS, boardGeometry, trayCoverOf, trayLeft, type BenchState } from "@ohmland/bench/core";
+import { PRINTED_KINDS, boardGeometry, isOnBoard, trayCoverOf, trayLeft, type BenchState } from "@ohmland/bench/core";
+import { DrawingSlip } from "@ohmland/bench/view";
 import { isOptional, type LabDefinition, type LabTask, type SolutionStep } from "../../lab/define";
 import { m } from "../../i18n";
 import { Icon } from "../../components/Icon";
@@ -30,7 +31,7 @@ import { legPin, partChip, pinNumber } from "../../lab/chips";
 import { resolveAttach } from "../../lab/anchors";
 import { Annotations, useSize, useViewTick } from "./Annotations";
 import { holeName, type PinName } from "./flow";
-import { allHoles, resolveAnchor, type Mark } from "./marks";
+import { allHoles, choiceScale, namedParts, resolveAnchor, wholeTargets, type Mark } from "./marks";
 import { ResistorSlider } from "./ResistorSlider";
 import { ContinuityInk, MeterInk, continuityFor } from "./ToolInk";
 import { CoachMark } from "./CoachMark";
@@ -92,10 +93,12 @@ export type StageProps = {
   /** Anchors to frame without a spotlight (a breadboard corner for a hole check). */
   frame: string[] | null;
   /**
-   * Hands-on work: a beat's bench task ("beat") or a fix-it bench ("fix"). Its parts in play are framed at a reading
-   * scale, and on a phone a beat with no `spot` frames its task's working parts (the lab's `highlight`).
+   * Hands-on work: a beat's bench task ("beat") or a fix-it bench ("fix"). While its task is open, its parts in play
+   * (and on a phone a beat's working parts, the lab's `highlight`) are framed whole, no closer than a reading scale.
    */
   hands?: "beat" | "fix" | null;
+  /** The robot's line for the moment: hands-on framing keeps every part it names in view. */
+  line?: string;
   xray: boolean;
   /** Hint highlights of the current task. */
   hintHighlight: string[] | undefined;
@@ -194,7 +197,9 @@ const NUDGE_HOLD = 0.8;
 /** Reading scales for hands-on framing: CSS px between neighbouring breadboard holes on a phone and on a desktop. */
 const READ_PHONE = 20;
 const READ_DESK = 32;
-const READ_DESK_ZOOM = 2;
+/** The docked drawing slip on a phone: its width, and the room it takes at the top of the bench (framing keeps clear). */
+const SLIP_WIDTH = 150;
+const SLIP_TOP = 146;
 
 function StageRunner(props: StageProps & { lab: LabDefinition }) {
   const { lab, lessonId } = props;
@@ -457,6 +462,8 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   }, [tool, benchReady, trayKey]);
   /** Where the hands last worked on a phone: a beat that names no parts picks up there. */
   const lastHands = useRef<string[] | null>(null);
+  /** On a phone, the drawing being built from, docked as a slip above the bench while the board is framed close. */
+  const [drawing, setDrawing] = useState<string | null>(null);
   // With the coach mark, a phone frames the beat's first move (where the ghost draws) rather than the task's highlight.
   const coachAt = useMemo(() => (props.coach ? coachAnchors(firstMove(runtime.lab, props.coach, runtime.store.getState().bench)) : []), [props.coach, runtime]);
   useEffect(() => {
@@ -468,37 +475,64 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     const spotted = resolve(props.spot);
     let framed = [...spotted, ...resolve(props.frame), ...toolFrame];
     c.spotlight(spotted.length ? spotted : null, quietPins ? { pins: false } : undefined);
-    const inset = dockInset(stage);
+    const inset: { top?: number; bottom?: number; right?: number } = dockInset(stage);
     const box = stage.getBoundingClientRect();
     const w = box.width - (inset.right ?? 0);
     const free = Math.max(0, Math.min(w, box.height - (inset.bottom ?? 0)));
-    // Hands-on work on a phone: the working parts come close enough to aim a finger at (holes and legs at least
-    // READ_PHONE px apart); a beat that names none keeps the view where the hands already are. On a desktop, parts in
-    // play come to a reading scale (a resistor's body about 80 px long).
-    // Only while the task is open: once it is done, the discovery (a note, a glow) is framed as any beat's.
+    const phone = w < 640;
+    // Hands-on work, while its task is open (once done, the discovery is framed as any beat's): the parts in play,
+    // every part the robot's line names and, on a phone, the task's working parts (its hint highlight, a lead whole)
+    // are all kept in view, no closer than a reading scale (holes about READ_PHONE px apart on a phone). What does
+    // not fit at that scale is fitted, and the touch loupe does the aiming. A phone beat that names nothing keeps the
+    // view where the hands already are.
     const working = !!props.hands && !!props.gate;
-    const phoneHands = w < 640 && working;
-    const read = working && framed.length ? (w < 640 ? READ_PHONE : READ_DESK) : phoneHands ? READ_PHONE : undefined;
-    if (phoneHands && !framed.length && props.hands === "beat") framed = resolve(coachAt.length ? coachAt : lab.tasks.find((t) => t.id === props.gate)?.highlight);
-    if (phoneHands && !framed.length && props.hands === "beat" && lastHands.current?.length) {
-      c.focus(lastHands.current, { inset, read: READ_PHONE });
-      return;
+    let read: number | undefined;
+    let slip: string | null = null;
+    if (working) {
+      const named = namedParts(props.line ?? "", b, built.labels).map((id) => `part:${id}`);
+      const beat = props.hands === "beat";
+      // A fix-it's hint highlight is its answer, and its line names the symptom: they never steer the view.
+      // With the coach mark, the beat's first move (where the ghost draws) rather than the task's highlight.
+      if (phone && beat) framed = [...framed, ...wholeTargets(b, coachAt.length ? coachAt : lab.tasks.find((t) => t.id === props.gate)?.highlight)];
+      if ((phone && beat) || framed.length) framed = [...framed, ...named];
+      // Probing: the probes' tips are what the hands move, so they stay in view with what they will touch.
+      if (framed.length && tool === "meter" && b.meter) framed = [...framed, "probe:red", "probe:black"];
+      framed = [...new Set(framed)];
+      read = phone ? READ_PHONE : READ_DESK;
+      if (phone && !framed.length && beat && lastHands.current?.length) framed = lastHands.current;
+      // Nothing named on a phone: the circuit on the board, whole (a whole breadboard would be too small to touch).
+      if (phone && !framed.length && b.board) framed = [...b.parts.filter((p) => isOnBoard(b, p)).map((p) => `part:${p.id}`), ...b.wires.map((x) => `wire:${x.id}`)];
+      if (phone && beat && framed.length) lastHands.current = framed;
     }
+    // Working from a drawing: on a phone the drawing does not fit beside the parts at a usable scale, so while other
+    // parts are framed it is docked as a slip above the bench (framing keeps clear of it). A beat about the drawing
+    // alone frames the drawing itself.
+    const card = phone ? b.parts.find((p) => p.kind === "schematic") : undefined;
+    const onCard = (t: string) => t === `part:${card?.id}` || b.parts.some((p) => p.kind === "piece" && t === `part:${p.id}`);
+    if (card && framed.some((t) => !onCard(t))) {
+      framed = framed.filter((t) => !onCard(t));
+      slip = card.id;
+      inset.top = SLIP_TOP;
+    }
+    setDrawing(slip);
     // A part in play keeps some bench around it: close enough to tell its legs apart and tap them, never a lone
     // close-up (both views frame at least about 24 mm of bench). A phone is narrow, so a smaller share of it goes to
     // the margin, and one big printed prop (a colour chart, a pencil card) fills the bench so its print can be read; a
     // value tag is small and reads with the usual margin.
-    const phone = w < 640;
     const one = spotted.length === 1 && framed.length === 1 ? b.parts.find((p) => `part:${p.id}` === spotted[0]) : undefined;
     const close = phone && !!one && PRINTED_KINDS.has(one.kind) && one.kind !== "tag";
     // Several parts in play are their own context: a modest margin keeps them close.
     const padding = close ? 8 : Math.round(free * (framed.length > 1 ? 0.06 : phone ? 0.12 : 0.3));
-    // A desktop pointer aims well: there the reading scale only nudges the view closer, never far past a fit.
-    const zoom = read && w >= 640 ? { readZoom: READ_DESK_ZOOM } : {};
-    if (phoneHands && framed.length) lastHands.current = framed;
-    c.focus(framed, framed.length ? { padding, inset, ...(read ? { read, ...zoom } : {}) } : { inset });
+    // On a phone, work across several parts comes only as close as its choices need (neighbouring holes, or the
+    // closest terminals of two different parts, about READ_PHONE px apart), and takes in the lab's whole view when
+    // that is close enough. Work on one part (a gate's button, a box's lid) is simply framed.
+    const near = phone && working && framed.length ? choiceScale(b, framed, READ_PHONE) : 0;
+    c.focus(framed, framed.length ? { padding, inset, ...(read ? { read } : {}), ...(near > 0 ? { near, withHome: true } : {}) } : { inset });
+    // What the bench frames and what the line names, for tests and screenshot checks.
+    stage.dataset.framed = framed.join(" ");
+    stage.dataset.named = namedParts(props.line ?? "", b, built.labels).join(" ");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spotKey, frameKey, runtime, benchReady, dockKey, quietPins, props.hands, props.gate, coachAt]);
+  }, [spotKey, frameKey, runtime, benchReady, dockKey, quietPins, props.hands, props.gate, props.line, tool, coachAt]);
 
   return (
     <div
@@ -533,6 +567,11 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
       </Boundary>
       {benchReady && (
         <div className="bl-overlay">
+          {drawing && (
+            <div className="bl-drawing" data-drawing={drawing}>
+              <DrawingSlip bench={bench} id={drawing} width={SLIP_WIDTH} title={built.labels[drawing]} />
+            </div>
+          )}
           <Annotations controllerRef={controllerRef} bench={bench} marks={props.marks} />
           {props.coach && !readOnly && <CoachMark controllerRef={controllerRef} runtime={runtime} bench={bench} task={props.coach} />}
           {/* The meter's fuse has its own Replace on the docked meter. */}

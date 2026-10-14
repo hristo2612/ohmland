@@ -245,7 +245,27 @@ export type PanelConfig = PanelShow &
   /** Tap every hole joined to `start` on a little map of the board (columns `cols`), then check. */
   | { kind: "hole-hunt"; id: string; start: string; cols: [number, number]; title?: string }
   /** Build a schematic symbol: two slots and an optional dashed link. `answer` is what counts as right. */
-  | { kind: "symbol"; id: string; answer: { slots: [SymbolKind, SymbolKind]; linked: boolean }; title?: string });
+  | { kind: "symbol"; id: string; answer: { slots: [SymbolKind, SymbolKind]; linked: boolean }; title?: string }
+  /**
+   * The resistor colour code as a slip of real text: each colour with its digit (the third stripe: that many zeros),
+   * gold and silver with what they do in third place and on the right. Nothing to answer.
+   */
+  | { kind: "chart"; id: string; title?: string }
+  /**
+   * A table of readings that writes itself: one row per `rows` entry (its `label`, then the number the learner typed
+   * into the note `note`). From the task `multiply` on, a third column grows: tapping a row writes its number times
+   * `by` (`multiplied` heads it). Goals read which rows are multiplied as `lab.panel(id).cells["r1"]` (first row 1).
+   * Solutions tap a row with `{ do: "panel", id, value: { row: 1 } }`.
+   */
+  | {
+      kind: "readings";
+      id: string;
+      rows: { label: string; note: string; by: number }[];
+      /** Column heads: what each row is, the number typed, the product. */
+      heads: [string, string, string];
+      multiply: string;
+      title?: string;
+    });
 
 /** Panels show all the time, or only while one of `show`'s tasks is the current one (and after it is done). */
 export type PanelShow = { show?: string[] };

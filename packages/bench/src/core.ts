@@ -55,7 +55,7 @@ export {
 } from "./chips";
 export { resolveLeg, canonicalAnchor, perches } from "./parts";
 export { logicProbeReading, useProbeState, PULSE_HOLD, type ProbeLevel, type ProbeReading } from "./probe";
-export { resistorBands, formatOhms, formatFarads } from "./colorCode";
+export { resistorBands, formatOhms, formatFarads, DIGIT_COLORS, type BandColor } from "./colorCode";
 export {
   DOT_SPACING,
   dotSpeed,
@@ -78,7 +78,7 @@ export {
 } from "./flow";
 export { symbolInk, slotTurn, tornOutline, type SymbolInk } from "./symbols";
 export { hiddenParts } from "./seats";
-export { materialOhms, conducts, schematicSlot, partSpots, partMarks, CLIP_PATH } from "./parts";
+export { materialOhms, conducts, schematicSlot, partSpots, partMarks, padlockFaces, padlockOpen, CLIP_PATH } from "./parts";
 export { gateSpot } from "./layout";
 export { chargeable, charge as staticCharge, stuckTo, lifting, apart, MAX_MARKS, PULL_MARKS, APART_MM } from "./static";
 // The store needs React and zustand but not three.js, so a host can own it before the 3D view loads.

@@ -293,6 +293,12 @@ export function submitPanel(cfg: PanelConfig, state: PanelState, value: unknown,
       correct = !!v && v.linked === want.linked && sameSet([...got].sort(), [...want.slots].sort());
       break;
     }
+    case "readings": {
+      // A tap on a row multiplies it: nothing to get wrong, so no submission is counted.
+      const row = (value as { row?: number } | null)?.row;
+      if (typeof row !== "number" || row < 1 || row > cfg.rows.length) return state;
+      return { ...state, cells: { ...state.cells, [`r${row}`]: true } };
+    }
     default:
       return state;
   }

@@ -43,7 +43,7 @@ beats:
     pick: { on: F2, options: [A fuse, A resistor, A battery], answer: A fuse }
 
 fixit:
-  say: Fix-it time. This short should blow the fuse. It doesn't.
+  say: Fix-it time. Something here is hot.
   tasks:
     - task: fix-short
 

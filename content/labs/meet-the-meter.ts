@@ -1,4 +1,4 @@
-// Start here, case 8: "The black box" (docs/curriculum/start-here.md, SH8). A bench lesson (docs/LESSONS.md): its
+// Start here, case 8: "The sealed box" (docs/curriculum/start-here.md, SH8). A bench lesson (docs/LESSONS.md): its
 // tasks are the beats of content/units/start-here/tool-cases/meet-the-meter/lesson.yaml, in the same order.
 // One idea: the meter turns push into a number, in volts, and its sign says which side is plus.
 // A sealed box with two plain brass terminals hides a fresh 9 V battery, plus wired to the right terminal (t2).
@@ -18,13 +18,13 @@ const DIAL_ON_MA: SolutionStep[] = [
 
 export default defineLab({
   id: "meet-the-meter",
-  title: "The black box",
+  title: "The sealed box",
   bench: {
     board: "none",
     frame: ["desk:-184,-62", "desk:110,84"],
     parts: [
-      // The black box: two identical brass posts; inside, the battery's plus goes to the right one.
-      { id: "BX", kind: "box", at: "desk:-58,10", params: { marks: "plain", wiring: { "s1.pos": "t2", "s1.neg": "t1" } }, locked: true, label: "Black box" },
+      // The sealed box: two identical brass posts; inside, the battery's plus goes to the right one.
+      { id: "BX", kind: "box", at: "desk:-58,10", params: { marks: "plain", wiring: { "s1.pos": "t2", "s1.neg": "t1" } }, locked: true, label: "Sealed box" },
       { id: "B1", kind: "battery", at: "in:BX.s1", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 volt battery" },
       // A scuffed, used battery off to the left, for the secret.
       { id: "B2", kind: "battery", at: "desk:-162,30", params: { emf: 7.6, internalOhms: 6, mAh: 500, worn: true }, locked: true, label: "Tired 9 volt battery" },

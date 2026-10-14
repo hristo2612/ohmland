@@ -2,7 +2,7 @@
 # first island by a cable bridge (docs/curriculum/unit-2.md, section 1).
 id: switching
 title: Switching
-summary: One current steering another. Switches, relays, breadboards, capacitors, transistors, light and sound.
+summary: "One current steering another: switches, relays, capacitors, transistors."
 isle:
   theme: switchback-isle
   seed: 2

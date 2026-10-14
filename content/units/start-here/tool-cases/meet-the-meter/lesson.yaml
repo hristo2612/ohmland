@@ -3,8 +3,8 @@
 # Lab: content/labs/meet-the-meter.ts (a sealed box with plain terminals, a meter with its leads unplugged).
 format: bench
 id: meet-the-meter
-version: 2
-title: The black box
+version: 3
+title: The sealed box
 summary: Plug in a meter, read a sealed box in volts, and find out which side is plus.
 minutes: 8
 lab: meet-the-meter
@@ -13,7 +13,7 @@ unlocks:
   isle: meter-kiosk
 
 start:
-  title: The black box
+  title: The sealed box
   say: Is there a battery in this box? Which side is plus?
   go: Let's find out
 
@@ -30,9 +30,12 @@ beats:
     do: set-dial
     note: { at: "part:M1/dial", text: "V push, A flow, Ω squeeze" }
 
-  - say: Which letter counts flow?
-    pick: { on: "part:M1/dial", options: [V, A, Ω], answer: A }
-    hint: Look at the dial. Which letter sits by mA?
+  - say: Tap a letter that counts flow.
+    tap:
+      answer: ["part:M1/dca-ma", "part:M1/dca-10a"]
+      among: ["part:M1/dcv", "part:M1/ohm", "part:M1/dca-ma", "part:M1/dca-10a"]
+    wrong: { "part:M1/dcv": V counts push., "part:M1/ohm": Ω counts squeeze. }
+    hint: Flow is counted in amps, A.
 
   - say: Probe the two brass posts. A fresh 9 V reads...
     objective: Read the box
