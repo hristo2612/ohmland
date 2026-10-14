@@ -1,23 +1,30 @@
-// Blueprint: docs/curriculum/unit-2.md, Lesson 15. Start switch S1 (the slide switch at the left end) feeds the near +
-// rail. R1 (1 kΩ) runs from the rail into row 11; trimmer P1 (10 kΩ, rows 11 to 13) is a variable resistor from row
-// 11 to its wiper in row 12, where C1 (1,000 µF) bends down to the minus rail. Reset button S2 (rows 12 and 14) empties
-// C1 through R3 (100 Ω). Relay K1 straddles the channel at row 20 (coil 20, COM 23, NO 27), with its far coil pin on
-// the far minus rail and a 1N4001 across the coil. NO feeds R2 and the green LED. At the start a jumper joins C1's +
-// row straight to the coil (row 12 to row 20); the learner swaps it for Q1 in rows 20 to 22: emitter on the coil,
-// base jumped back to row 12, collector jumped to the + rail. The stopwatch starts when S1 is switched on and stops
-// when the relay pulls in; it notes C1's voltage at the start, so a run without a reset shows up.
+// Blueprint: docs/curriculum/unit-2.md, Lesson 15 (its first half); docs/curriculum/conversion-guide.md, 15.
+// A bench lesson's lab (docs/LESSONS.md): content/units/switching/transistors/delay-timer. Tuning the delay with a
+// trimmer moved to tune-the-timer. One idea: a load that drains the timing capacitor ruins the timer; a transistor
+// buffer fixes it.
 //
-// Measured in the simulator: without Q1, C1 sticks at 3.16 V and K1 never clicks; with Q1 and the trimmer at 0 the
-// relay clicks after about 1.45 s; 5 s needs the trimmer near 23% (this C1 is a little over 1,000 µF).
-import { defineLab, type LabView } from "@ohmland/lab";
+// Start switch S1 (the slide switch at the left end) feeds the near + rail. R1 (1 kΩ) runs from the rail into row 10,
+// where C1 (1,000 µF) bends down to the minus rail. Reset button S2 (rows 10 and 12) empties C1 through R3 (100 Ω).
+// Relay K1 straddles the channel at row 20 (coil 20, COM 23, NO 27), with its far coil pin on the far minus rail and
+// a 1N4001 across the coil. NO feeds R2 and the green LED. At the start the yellow jumper W6 joins C1's row straight
+// to the coil (row 10 to row 20). Two jumpers already wait for Q1: W7 from C1's row to row 21 (the base) and W8 from
+// the + rail to row 22 (the collector). The learner pulls W6 and plugs Q1 into rows 20 to 22, emitter on the coil.
+// The stopwatch starts when S1 is switched on and stops when the relay pulls in; it notes C1's voltage at the start,
+// so a run without a reset shows up.
+//
+// Measured in the simulator: without Q1, C1 sticks at 3.16 V and K1 never clicks; with Q1 the relay clicks 1.47 s
+// after switching on from an empty C1. Settled, C1 sits at 8.86 V and the emitter at 8.12 V (0.74 V lower). With
+// S1 off, the coil drains C1 through Q1 within a second or so; switched off and on at once, the relay never lets go.
+import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 
-/** The stopwatch's last `n` runs, each started from an empty capacitor, all within [lo, hi] seconds. */
-function lastRuns(lab: LabView, n: number, lo: number, hi: number): boolean {
-  const runs = lab.runs().slice(-n);
-  return runs.length >= n && runs.every((r) => (r.watch ?? 9) < 0.5 && r.seconds >= lo && r.seconds <= hi);
-}
-
+/** Q1 as an emitter follower: base on C1, emitter on the coil, collector on the + rail. */
 const follower = (lab: LabView) => lab.connected("Q1.b", "C1.pos") && lab.connected("Q1.e", "K1.coil1") && lab.connected("Q1.c", "K1.com1");
+/** C1 joined straight to the coil, as on the first try. */
+const bypassed = (lab: LabView) => lab.connected("C1.pos", "K1.coil1");
+const clicked = (lab: LabView) => lab.events.some((e) => e.type === "clicked" && e.partId === "K1" && e.data?.["to"] === "no");
+
+/** The fix-it bench: the yellow jumper back in, C1 straight to the coil again, with Q1 still in place. */
+const JUMPER_BACK: SolutionStep[] = [{ do: "wire", id: "W6", from: "a10", to: "a20", color: "yellow" }];
 
 export default defineLab({
   id: "delay-timer",
@@ -28,11 +35,10 @@ export default defineLab({
     parts: [
       { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "a2", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "S1", kind: "slide-switch", at: "b1", params: { to: "a" }, locked: true, label: "Start switch S1" },
-      { id: "R1", kind: "resistor", at: "rail+:11-b11", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor R1" },
-      { id: "P1", kind: "trimmer", at: "c11", params: { ohms: 10_000, position: 0 }, locked: true, label: "10 kΩ trimmer P1" },
-      { id: "C1", kind: "electrolytic-cap", at: "b12-rail-:13", params: { farads: 1000e-6, volts: 16 }, locked: true, label: "1,000 µF capacitor C1" },
-      { id: "S2", kind: "pushbutton", at: "e12", params: { cap: "white" }, locked: true, label: "Reset button S2" },
-      { id: "R3", kind: "resistor", at: "b14-rail-:15", params: { ohms: 100 }, locked: true, label: "100 Ω resistor R3" },
+      { id: "R1", kind: "resistor", at: "rail+:10-b10", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor R1" },
+      { id: "C1", kind: "electrolytic-cap", at: "c10-rail-:11", params: { farads: 1000e-6, volts: 16 }, locked: true, label: "1,000 µF capacitor C1" },
+      { id: "S2", kind: "pushbutton", at: "e10", params: { cap: "white" }, locked: true, label: "Reset button S2" },
+      { id: "R3", kind: "resistor", at: "b12-rail-:13", params: { ohms: 100 }, locked: true, label: "100 Ω resistor R3" },
       { id: "K1", kind: "relay", at: "e20", params: { coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, locked: true, label: "Relay K1" },
       { id: "D1", kind: "diode", at: "h20-d20", params: { model: "1N4001" }, locked: true, label: "1N4001 diode D1" },
       { id: "R2", kind: "resistor", at: "c27-c32", params: { ohms: 470 }, locked: true, label: "470 Ω resistor R2" },
@@ -45,110 +51,102 @@ export default defineLab({
       { id: "W4", from: "a23", to: "rail+:23", color: "red" },
       { id: "W5", from: "a33", to: "rail-:33", color: "black" },
       // The first try: C1 straight to the coil.
-      { id: "W6", from: "a12", to: "a20", color: "yellow" },
+      { id: "W6", from: "a10", to: "a20", color: "yellow" },
+      // Waiting for Q1: its base row to C1, its collector row to plus.
+      { id: "W7", from: "d10", to: "a21", color: "white" },
+      { id: "W8", from: "a22", to: "rail+:22", color: "red" },
     ],
     tray: [{ id: "Q1", kind: "npn", count: 1, label: "2N3904" }],
     instruments: [
       { kind: "stopwatch", start: { part: "S1", to: "b" }, stop: { part: "K1", contact: "no" }, watch: "C1.pos" },
       { kind: "meter", at: "desk:-178,22", rot: 16, mode: "dcv", tips: { red: "desk:-52,48", black: "desk:-40,54" } },
     ],
-    controls: [{ id: "trim", label: "Trimmer P1", part: "P1", key: "position", min: 0, max: 1, value: 0, step: 0.005, unit: "%" }],
   },
   mascot: {
     start: "You know how to make time. Let's make a timer.",
     hint: "Reset C1 before each run.",
-    success: "Wait for it... wait for it... click!",
     fried: "Straight from the supply into the base: nothing limited the current.",
-    exit: "Five seconds. I counted. Twice.",
   },
   fried: { npn: "2N3904, base wired straight to the supply" },
-  triggers: {
-    // Three runs in a row within 5% of five seconds.
-    "five-seconds-tight": (lab) => lab.task("five-seconds") === "done" && lastRuns(lab, 3, 4.75, 5.25),
-  },
   tasks: [
     {
       id: "no-click",
-      prompt: "Press reset (S2), switch on S1, wait ten seconds. Note C1's volts.",
-      note: { id: "stuck", label: "C1's voltage", unit: "V" },
+      prompt: "Switch on S1 and wait.",
       goal: (lab) => {
         const v = lab.volts("C1.pos") ?? 0;
-        const x = lab.note("stuck");
-        return lab.heldFor(8, lab.closed("S1")) && v >= 2.8 && v <= 3.5 && !lab.events.some((e) => e.type === "clicked" && e.partId === "K1" && e.data?.["to"] === "no") && x !== null && Math.abs(x - v) <= 0.2;
+        return lab.heldFor(8, lab.closed("S1")) && bypassed(lab) && v >= 2.8 && v <= 3.5 && !clicked(lab);
       },
-      hints: ["DC volts: red on C1's + leg, black on its stripe."],
-      highlight: ["C1"],
-      success: "Stuck near 3.2 V. The coil drains C1 as fast as it fills.",
+      hints: ["Slide S1, at the board's left end. Then wait a few seconds."],
+      highlight: ["S1"],
+      success: "Ten seconds. Not a peep.",
+    },
+    {
+      id: "buffer-in",
+      prompt: "Pull the yellow jumper. Plug Q1 into rows 20 to 22.",
+      goal: (lab) => !bypassed(lab) && follower(lab) && lab.isLit("D2"),
+      hints: ["Drag the yellow jumper off the board.", "Q1 in rows 20 to 22, flat face toward you.", "Keep S1 on."],
+      highlight: ["wire:W6.b", "hole:c20", "hole:c21", "hole:c22"],
+      nudges: [{ when: (lab) => !bypassed(lab) && follower(lab) && !lab.closed("S1"), say: "Now switch S1 on." }],
+      success: "Click!",
     },
     {
       id: "add-q1",
-      prompt:
-        "Switch off and remove the yellow jumper. Let **Q1** feed the coil.",
-      goal: (lab) => !lab.connected("C1.pos", "K1.coil1") && follower(lab) && lab.runs().some((r) => r.seconds >= 0.9 && r.seconds <= 2.2) && lab.isLit("D2"),
-      hints: [
-        "Q1 in rows 20 to 22, flat face toward you.",
-        "Base (row 21) to C1's row 12; collector (row 22) to plus.",
-        "Reset C1 before each run: press S2 while S1 is off.",
-      ],
-      highlight: ["hole:c20", "hole:c21", "hole:c22"],
-      success: "Click! C1 only feeds the base; Q1 feeds the coil.",
+      prompt: "Time a fair run: S1 off, reset, then on.",
+      goal: (lab) => follower(lab) && !bypassed(lab) && lab.runs().some((r) => (r.watch ?? 9) < 0.5 && r.seconds >= 0.9 && r.seconds <= 2.2) && lab.isLit("D2"),
+      hints: ["Slide S1 off. Press S2 to empty C1.", "Then slide S1 on and watch the stopwatch."],
+      highlight: ["S1", "S2"],
+      nudges: [{ when: (lab) => { const r = lab.runs().at(-1); return !!r && (r.watch ?? 0) > 0.5; }, say: "C1 wasn't empty. Press reset while S1 is off." }],
+      success: "Click, after about a second and a half.",
       notice: "The emitter follows C1, about 0.7 V below it.",
-      mascot: { success: "The transistor carries the coil so the capacitor doesn't have to." },
     },
     {
-      id: "five-seconds",
-      prompt: "Trim to **5 s**: three runs in a row, each within 0.5 s.",
-      goal: (lab) => follower(lab) && lastRuns(lab, 3, 4.5, 5.5),
-      hints: ["More resistance, longer delay.", "With 1,000 µF, aim for about 3.7 kΩ in all."],
-      highlight: ["P1"],
-      success: "Five seconds, on demand. That's a timer.",
+      id: "fix-bypass",
+      prompt: "The timer never clicks. Fix it.",
+      setup: JUMPER_BACK,
+      // Bypassed first (the setup), then the follower alone feeding the coil, and a click.
+      goal: (lab) => {
+        if (bypassed(lab)) lab.memory["bypassed"] = true;
+        return lab.memory["bypassed"] === true && !bypassed(lab) && follower(lab) && lab.isLit("D2");
+      },
+      hints: ["Is anything feeding the coil straight from C1?", "Q1 must carry the coil alone. Pull the yellow jumper."],
+      highlight: ["wire:W6.b"],
+      success: "Click. Q1 carries the coil again.",
     },
     {
       id: "impatient-restart",
-      prompt: "Switch S1 off, then straight back on, without pressing reset. Time it.",
+      prompt: "Switch S1 off, then straight back on, without pressing reset.",
       goal: (lab) => {
-        const runs = lab.runs();
-        const last = runs[runs.length - 1];
-        const prev = runs[runs.length - 2];
-        return !!last && !!prev && (last.watch ?? 0) > 1 && last.seconds < 0.7 * prev.seconds;
+        const last = lab.runs().at(-1);
+        return !!last && (last.watch ?? 0) > 1.5 && last.seconds < 1.3;
       },
-      hints: ["Be quick: while off, the coil slowly drains C1 through Q1.", "Off and straight back on, within a quarter of a second."],
-      success: "Much shorter: C1 still held charge. Real timers empty theirs first.",
+      hints: ["Be quick: off and straight back on.", "Don't press reset this time."],
+      success: "Barely a wait: C1 was still full.",
+      bonus: true,
     },
   ],
   solution: [
-    { do: "press", part: "S2", seconds: 0.4 },
     { do: "flip", part: "S1", to: "b" },
-    { do: "probe", red: "C1.pos", black: "C1.neg" },
     { do: "wait", seconds: 8.5 },
-    { do: "note", id: "stuck", value: "3.16" },
     { do: "check", task: "no-click" },
-    { do: "flip", part: "S1", to: "a" },
     { do: "unwire", wire: "W6" },
     { do: "place", part: "Q1", kind: "npn", at: "c20" },
-    { do: "wire", id: "W7", from: "a21", to: "a12", color: "yellow" },
-    { do: "wire", id: "W8", from: "a22", to: "rail+:22", color: "red" },
+    { do: "wait", seconds: 2 },
+    { do: "check", task: "buffer-in" },
+    { do: "flip", part: "S1", to: "a" },
     { do: "press", part: "S2", seconds: 0.6 },
     { do: "flip", part: "S1", to: "b" },
     { do: "wait", seconds: 2.5 },
     { do: "check", task: "add-q1" },
-    { do: "control", id: "trim", value: 0.23 },
-    { do: "flip", part: "S1", to: "a" },
-    { do: "press", part: "S2", seconds: 0.6 },
-    { do: "flip", part: "S1", to: "b" },
-    { do: "wait", seconds: 5.8 },
-    { do: "flip", part: "S1", to: "a" },
-    { do: "press", part: "S2", seconds: 0.6 },
-    { do: "flip", part: "S1", to: "b" },
-    { do: "wait", seconds: 5.8 },
-    { do: "flip", part: "S1", to: "a" },
-    { do: "press", part: "S2", seconds: 0.6 },
-    { do: "flip", part: "S1", to: "b" },
-    { do: "wait", seconds: 5.8 },
-    { do: "check", task: "five-seconds" },
+    ...JUMPER_BACK,
+    { do: "wait", seconds: 3 },
+    { do: "unwire", wire: "W6" },
+    { do: "wait", seconds: 2 },
+    { do: "check", task: "fix-bypass" },
+    // The secret: off and straight back on, with C1 still full.
+    { do: "wait", seconds: 3 },
     { do: "flip", part: "S1", to: "a" },
     { do: "flip", part: "S1", to: "b" },
-    { do: "wait", seconds: 5 },
+    { do: "wait", seconds: 1 },
     { do: "check", task: "impatient-restart" },
   ],
 });
