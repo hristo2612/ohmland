@@ -500,6 +500,9 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
     const mo = moment;
     if (!api || !mo.task || phase !== "act") return;
     if (api.runtime.setNote(spec.id, notebookText[spec.id] ?? "") === null) return say(m.lessonBench.number.invalid, "thinking");
+    // A task with several boxes is only judged once every box has a value: no nudge for a right first number.
+    const all = notesOf(api.task(mo.task)?.note);
+    if (all.some((n) => n.id !== spec.id && !(notebookText[n.id] ?? "").trim())) return;
     window.setTimeout(() => {
       const cur = state.current;
       if (cur.moment === mo && cur.phase === "act" && !cur.tasks.includes(mo.task!)) say(m.lessonBench.number.wrong, "thinking");
@@ -742,7 +745,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   // A `do` beat whose lab task asks for a number read off the bench: one box per note, above the help links.
   const noteBoxes =
     started && phase === "act" && moment.task
-      ? notesOf(api?.task(moment.task)?.note).map((spec) => {
+      ? notesOf(api?.task(moment.task)?.note).map((spec, _i, boxes) => {
           const text = notebookText[spec.id] ?? "";
           const field = `bl-note-${spec.id}`;
           return (
@@ -750,7 +753,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               <label className="bl-number__label" htmlFor={field}>{spec.label}</label>
               <input id={field} className="bl-number__input" inputMode="decimal" autoComplete="off" value={text} onChange={(e) => setNotebookText((t) => ({ ...t, [spec.id]: e.target.value }))} />
               {spec.unit && <span className="bl-number__unit">{spec.unit}</span>}
-              <button type="submit" className="btn btn--primary" data-primary disabled={!text.trim()}>
+              <button type="submit" className="btn btn--primary" data-primary={boxes.length === 1 ? "" : undefined} disabled={!text.trim()}>
                 {m.lessonBench.number.check}
               </button>
             </form>
@@ -915,7 +918,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               marks={marks}
               check={check}
               popup={popup}
-              tool={started && phase !== "guess" ? (moment.beat?.tool ?? null) : null}
+              tool={started && phase !== "guess" ? (moment.tool ?? null) : null}
               keyboardOpen={keyboard}
               onApi={setApi}
               onBenchReady={() => setBenchReady(true)}
