@@ -144,7 +144,13 @@ export type PartParamsMap = {
   phototransistor: { size?: 3 | 5 };
   diode: { model?: "1N4001" | "1N4148" };
   speaker: { ohms?: number; /** cone diameter in mm */ size?: number };
-  cup: { water: WaterKind; /** overrides the default resistance for the water kind */ ohms?: number };
+  cup: {
+    water: WaterKind;
+    /** overrides the default resistance for the water kind */
+    ohms?: number;
+    /** pinches of salt stirred in (the "Add salt" action): each one adds its own path for the flow */
+    salt?: number;
+  };
   lemon: { emf?: number; internalOhms?: number };
   /** Two slide-switch poles on one slider (desk block, six terminals). */
   "dpdt-switch": { to: "a" | "b"; /** A short name printed on the block. */ tag?: string } & Mystery;

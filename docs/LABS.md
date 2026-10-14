@@ -83,7 +83,8 @@ shows the inside.
 Holders (`holder`, `station`, `fruit`, `bin`) have **seats**: a part dropped on one goes in (the one already there
 pops out), and a seated part's leads touch the holder's contacts. Props have **settings** (moisture, the test load,
 the pencil line) on their selection bar, and some have clickable spots on the model (the skin's moisture tabs, the
-tester's load switch); dragging along a pencil card draws or shades its line. Dropping a part right onto one of its
+tester's load switch); dragging along a pencil card draws or shades its line, and a cup's "Add salt" stirs in a pinch
+(`salt` counts them; each adds a parallel 7.5 kΩ). Dropping a part right onto one of its
 own kind swaps the two, clips and probe tips included (a fresh LED for a dead one, an old battery for a fresh one).
 
 **Places** (`at`):

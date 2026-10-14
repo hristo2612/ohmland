@@ -162,7 +162,8 @@ pushbuttons `normallyClosed`.
 
 Part mapping: resistor, led, diode, npn, phototransistor and fuse map one to one; slide and toggle switches are `spdt`;
 ceramic and electrolytic capacitors are `capacitor` (`polarized` set); the trimmer is `pot`; the cup of water is
-`probe-resistance` (distilled 600 kΩ, tap 30 kΩ, salty 1.2 kΩ); the lemon is a `cell`. The DPDT relay becomes two
+`probe-resistance` (distilled 600 kΩ, tap 30 kΩ, salty 1.2 kΩ; each pinch of `salt`, the cup's "Add salt" action, adds
+a parallel 7.5 kΩ, up to 10 pinches); the lemon is a `cell`. The DPDT relay becomes two
 simulator relays, `K1` and `K1:2`, whose coils sit in parallel at twice the coil resistance (and inductance) each,
 so coil current and pull-in voltage match one real coil; a `poles: 1` relay is one simulator relay. The DPDT switch is a
 simulator `dpdt` (two poles on one slider). Touch pads are a `probe-resistance` (a fingertip, 100 kOhm to 2 MOhm, set with the

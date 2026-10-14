@@ -144,7 +144,7 @@ export const DEFAULT_LABELS: BenchLabels = {
     "card.layers": { label: "Layers" },
     "card.wide": { label: "Width", values: { false: "Narrow", true: "Wide" } },
   },
-  actions: { "card.erase": "Erase" },
+  actions: { "card.erase": "Erase", "cup.salt": "Add salt" },
   heat: { cool: "cool", warm: "warm", hot: "hot", ouch: "ouch" },
   print: {
     rejects: "REJECTS",

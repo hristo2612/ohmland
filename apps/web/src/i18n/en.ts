@@ -785,7 +785,7 @@ export const en = {
       "card.layers": { label: "Layers" },
       "card.wide": { label: "Width", values: { false: "Narrow", true: "Wide" } },
     } as Record<string, { label: string; values?: Record<string, string>; unit?: string }>,
-    actions: { "card.erase": "Erase" } as Record<string, string>,
+    actions: { "card.erase": "Erase", "cup.salt": "Add salt" } as Record<string, string>,
     heat: { cool: "cool", warm: "warm", hot: "hot", ouch: "ouch" },
     /** Words printed on lab props. */
     print: {

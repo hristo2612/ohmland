@@ -250,14 +250,15 @@ function Cup({ pi }: DrawProps<"cup">) {
   const R = CUP.dia / 2;
   const L = localLegs(pi);
   const rot = pi.f.rot;
-  const salty = pi.part.params.water === "salty";
+  // Salt grains: a salty cup, or the pinches stirred in.
+  const grains = pi.part.params.water === "salty" ? 5 : Math.min(5, (pi.part.params.salt ?? 0) * 2);
   return (
     <g>
       <circle cx={1.4} cy={2} r={R} className="f-shade" />
       <circle r={R} className="f-glass" />
       <circle r={R - 3.2} className="f-water" />
       <path d={`M${-R * 0.55} -6Q${-R * 0.3} -9 ${-R * 0.05} -6T${R * 0.45} -6M${-R * 0.4} 9Q${-R * 0.15} 6 ${R * 0.1} 9T${R * 0.55} 9`} className="ln-soft s-water" />
-      {salty && ([[-14, -14], [8, -18], [16, 12], [-6, 16], [-20, 6]] as Vec2[]).map(([x, z], i) => <rect key={i} x={x} y={z} width={0.9} height={0.9} className="f-slip ln-thin" />)}
+      {([[-14, -14], [8, -18], [16, 12], [-6, 16], [-20, 6]] as Vec2[]).slice(0, grains).map(([x, z], i) => <rect key={i} x={x} y={z} width={0.9} height={0.9} className="f-slip ln-thin" />)}
       <circle r={R - 3.2} className="ln-faint" />
       <circle r={R} className="ln" />
       {[L.a!, L.b!].map((p, i) => (
