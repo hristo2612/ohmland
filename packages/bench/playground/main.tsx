@@ -5,7 +5,7 @@ import type { Health, PartState, Snapshot } from "@ohmland/sim";
 // galleries load their 3D code when opened.
 import { benchToNetlist, createBenchStore, emptyBench, type BenchAction, type BenchState, type InspectSpec, type Quality } from "../src/core";
 import { BenchView, type BenchController, type BenchViewKind } from "../src/view";
-import { FULL_TRAY, blocksBench, clipBench, demoBench, glowBench, modulesBench, propsBench, smokeBench } from "./scenes";
+import { CHIP_TRAY, FULL_TRAY, blocksBench, chipPartsBench, chipsBench, clipBench, demoBench, glowBench, modulesBench, propsBench, smokeBench } from "./scenes";
 
 type GalleryProps = { view?: { position: [number, number, number]; target: [number, number, number] }; rows?: number[]; row: string | null; focus: string | null };
 const GalleryApp = lazy(() =>
@@ -46,9 +46,45 @@ function initialBench(): BenchState {
       return modulesBench();
     case "blocks":
       return blocksBench();
+    case "chips":
+      return chipsBench();
+    case "chipparts":
+      return chipPartsBench();
     default:
       return demoBench();
   }
+}
+
+/**
+ * Unit 4 look in the mock: `segs=DS1:abcdg.;DS2:bc` lights segments ("." is the dot), `temp=U2:140` warms a part,
+ * `probe=LP1:H` feeds a logic probe (H, L or X).
+ */
+function chipMock(bench: BenchState, parts: Record<string, PartState>): Record<string, number> {
+  const nodes: Record<string, number> = { gnd: 0 };
+  for (const pair of (q.get("segs") ?? "").split(";").filter(Boolean)) {
+    const [id, lit = ""] = pair.split(":");
+    const s = id ? parts[id] : undefined;
+    if (!s) continue;
+    const extra: Record<string, number | string> = { lit: lit.replace(".", "") };
+    for (const seg of ["a", "b", "c", "d", "e", "f", "g"]) extra[seg] = lit.includes(seg) ? 0.85 : 0;
+    extra["dp"] = lit.includes(".") ? 0.85 : 0;
+    s.extra = extra;
+    s.glow = lit ? 0.85 : 0;
+  }
+  for (const p of bench.parts) if ((p.kind === "chip" || p.kind === "regulator7805") && parts[p.id]) parts[p.id]!.extra = { ...(parts[p.id]!.extra ?? {}), powered: true };
+  for (const pair of (q.get("temp") ?? "").split(",").filter(Boolean)) {
+    const [id, t] = pair.split(":");
+    if (id && parts[id]) parts[id]!.temp = Number(t);
+  }
+  const probe = q.get("probe");
+  if (probe) {
+    const [id, level] = probe.split(":");
+    const { nodeOf } = benchToNetlist(bench);
+    nodes[nodeOf(`pin:${id}.vcc`)] = 5;
+    nodes[nodeOf(`pin:${id}.gnd`)] = 0;
+    nodes[nodeOf(`pin:${id}.tip`)] = level === "H" ? 4.9 : level === "L" ? 0.1 : 2.5;
+  }
+  return nodes;
 }
 
 type Mock = {
@@ -88,8 +124,62 @@ function toSnapshot(bench: BenchState, m: Mock): Snapshot {
     parts[p.id] = s;
   }
   if (bench.meter) parts[bench.meter.id] = { i: 0, v: 0, p: 0, temp: 25, health: "ok", display: m.display, unit: m.unit };
+  const nodes = chipMock(bench, parts);
   // `t` (simulated seconds) runs the desk clock.
-  return { t: Number(q.get("t") ?? 0), nodes: {}, parts, events: [] };
+  return { t: Number(q.get("t") ?? 0), nodes, parts, events: [] };
+}
+
+/**
+ * `sim=1`: the real simulator instead of the mock, in this thread, rebuilt from the bench on every change. `simAt=3`
+ * runs it 3 simulated seconds first; `simrun=0` then holds it there (for screenshots); `speed=2` runs it faster.
+ */
+function useRealSim(store: ReturnType<typeof createBenchStore>, on: boolean): { snapshot: Snapshot | null; input: (a: BenchAction) => void } {
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const sim = useRef<import("@ohmland/sim").Simulation | null>(null);
+  useEffect(() => {
+    if (!on) return;
+    let alive = true;
+    let raf = 0;
+    let off = () => {};
+    void import("@ohmland/sim").then((m) => {
+      if (!alive) return;
+      const s = m.createSimulation();
+      sim.current = s;
+      const load = (b: BenchState) => s.load({ ...benchToNetlist(b).netlist, seed: "playground" });
+      load(store.getState().bench);
+      off = store.subscribe((st, prev) => {
+        if (st.bench !== prev.bench && !st.txBase) load(st.bench);
+      });
+      const at = Number(q.get("simAt") ?? 0);
+      if (at > 0) setSnapshot(s.step(at, { speed: 1 }));
+      if (q.get("simrun") === "0") {
+        markReady();
+        return;
+      }
+      const speed = Number(q.get("speed") ?? 1);
+      let last = performance.now();
+      const tick = () => {
+        if (!alive) return;
+        const now = performance.now();
+        const dt = Math.min(0.1, (now - last) / 1000) * speed;
+        last = now;
+        if (dt > 0) setSnapshot(s.step(dt));
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    });
+    return () => {
+      alive = false;
+      cancelAnimationFrame(raf);
+      off();
+      sim.current?.dispose();
+      sim.current = null;
+    };
+  }, [store, on]);
+  const input = (a: BenchAction) => {
+    if (a.type === "input") sim.current?.setInput(a.partId, a.key, a.value);
+  };
+  return { snapshot, input };
 }
 
 const panelStyle: React.CSSProperties = {
@@ -205,7 +295,9 @@ function BenchApp() {
   const [bench, setBench] = useState(() => store.getState().bench);
   const [mock, setMock] = useState(initialMock);
   const [log, setLog] = useState<string[]>([]);
-  const snapshot = useMemo(() => toSnapshot(bench, mock), [bench, mock]);
+  const real = useRealSim(store, q.get("sim") === "1");
+  const mocked = useMemo(() => toSnapshot(bench, mock), [bench, mock]);
+  const snapshot = q.get("sim") === "1" ? real.snapshot : mocked;
   useEffect(() => store.subscribe((s) => setBench(s.bench)), [store]);
   useEffect(() => {
     const hover = q.get("hover");
@@ -229,7 +321,10 @@ function BenchApp() {
       },
     });
   }, [store]);
-  const onAction = (a: BenchAction) => setLog((l) => [...l, JSON.stringify(a)]);
+  const onAction = (a: BenchAction) => {
+    real.input(a);
+    setLog((l) => [...l, JSON.stringify(a)]);
+  };
   const camera = q.get("cam") ? { position: num3(q.get("cam"))!, target: num3(q.get("target")) ?? ([0, 0, 0] as [number, number, number]) } : undefined;
   const highlight = q.get("hint")?.split(",");
   const showPanel = q.get("panel") !== "0";
@@ -241,7 +336,7 @@ function BenchApp() {
             <BenchView
               view={v}
               store={store}
-              tray={q.get("tray") === "0" ? [] : FULL_TRAY}
+              tray={q.get("tray") === "0" ? [] : (q.get("scene") ?? "").startsWith("chip") ? CHIP_TRAY : FULL_TRAY}
               snapshot={snapshot}
               quality={quality}
               readOnly={q.get("ro") === "1"}
@@ -275,6 +370,8 @@ function BenchApp() {
           <a href="?scene=glow">First glow</a>
           <a href="?scene=props">Props</a>
           <a href="?scene=modules">Modules</a>
+          <a href="?scene=chips&sim=1">Chips</a>
+          <a href="?scene=chipparts">Chip parts</a>
           <a href="?scene=empty">Empty</a>
           <a href="?mode=gallery">Gallery</a>
           <a href="?mode=preview">Preview</a>

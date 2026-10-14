@@ -273,6 +273,28 @@ export function chipsBench(): BenchState {
   return b;
 }
 
+/** The Unit 4 tray (the chips scenes use it). */
+export const CHIP_TRAY: TrayItem[] = [
+  { kind: "chip", params: { model: "555" } },
+  { kind: "chip", params: { model: "555-cmos" } },
+  { kind: "chip", params: { model: "74HC00" } },
+  { kind: "chip", params: { model: "4026B" } },
+  { kind: "chip", params: { model: "74HC86", hidden: true, label: "?1" } },
+  { kind: "chip", params: { model: "74HC08", package: "soic" } },
+  { kind: "ic-socket", params: { pins: 8 } },
+  { kind: "sevenseg", params: { common: "cathode" } },
+  { kind: "sevenseg", params: { common: "cathode", carrier: true } },
+  { kind: "regulator7805", params: { heatsink: false } },
+  { kind: "dip-switch", params: { positions: 8 } },
+  { kind: "pushbutton", params: { bounce: false } },
+  { kind: "diode", params: { model: "1N4148" } },
+  { kind: "logic-probe" },
+  { kind: "battery-pack", params: { cells: 3 } },
+  { kind: "bench-supply", params: { position: 0.5 } },
+  { kind: "resistor", params: { ohms: 10_000 } },
+  { kind: "led", params: { color: "red" } },
+];
+
 /** Every Unit 4 part on one bench (`?scene=chipparts`): on the board and on the desk. */
 export function chipPartsBench(): BenchState {
   const b = emptyBench({ kind: "bb830" });
