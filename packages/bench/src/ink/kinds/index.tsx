@@ -9,13 +9,14 @@ import type { PartInk } from "../model";
 import { AXIAL } from "./axial";
 import { HoleDot, Upright, localLegs, n3 } from "./common";
 import { CONTROLS } from "./controls";
+import { MCU } from "./mcu";
 import { POWER } from "./power";
 import { PROPS } from "./props";
 import { RADIAL } from "./radial";
 import { START } from "./start";
 import type { DrawProps, InkKind, InkRegistry } from "./types";
 
-export const INK_KINDS: InkRegistry = { ...AXIAL, ...RADIAL, ...CONTROLS, ...POWER, ...PROPS, ...START };
+export const INK_KINDS: InkRegistry = { ...AXIAL, ...RADIAL, ...CONTROLS, ...POWER, ...PROPS, ...START, ...MCU };
 
 function Fallback({ pi }: DrawProps) {
   const labels = useLabels();

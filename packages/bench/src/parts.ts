@@ -37,6 +37,7 @@ import {
   PITCH,
 } from "./dims";
 import type { BenchPartKind, Moisture, PartParamsMap, PlacedPart, PlacedPartOf, SampleMaterial, SymbolKind, Vec3, WaterKind } from "./types";
+import { MCU_LEGS, MCU_SIM_PIN, mcuDeskLegs } from "./mcuBoard";
 
 /** A lead position in board pitches at rotation 0, relative to the first lead. */
 export type FootprintLeg = { leg: string; dx: number; dz: number };
@@ -857,6 +858,27 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
   paper: { kind: "paper", prefix: "PB", legs: [], defaults: {}, deskLegs: () => ({}), toSpecs: () => [] },
   comb: { kind: "comb", prefix: "CB", legs: [], defaults: {}, deskLegs: () => ({}), toSpecs: () => [] },
   wall: { kind: "wall", prefix: "WL", legs: [], defaults: {}, deskLegs: () => ({}), toSpecs: () => [] },
+  // ---- Unit 5 ---------------------------------------------------------------------------------------------------
+
+  "mcu-board": {
+    kind: "mcu-board",
+    prefix: "U",
+    legs: MCU_LEGS,
+    // The two GND sockets are one conductor on the board.
+    bridges: [["gnd", "gnd2"]],
+    defaults: { power: "usb" },
+    deskLegs: () => mcuDeskLegs(),
+    toSpecs: (p, n) => {
+      const pins: Record<string, NodeId> = {};
+      for (const leg of MCU_LEGS) if (leg !== "gnd2") pins[MCU_SIM_PIN[leg]] = n(leg);
+      const spec: PartSpec = { id: p.id, kind: "mcuboard", pins, power: p.params.power ?? "usb" };
+      if (p.params.program !== undefined) spec.program = p.params.program;
+      if (p.params.upload !== undefined) spec.upload = p.params.upload;
+      if (p.params.clockStart !== undefined) spec.clockStart = p.params.clockStart;
+      if (p.params.seed !== undefined) spec.seed = p.params.seed;
+      return [spec];
+    },
+  },
 };
 
 /**

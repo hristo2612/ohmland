@@ -104,6 +104,13 @@ export function PartIcon({ kind, color }: { kind: BenchPartKind | "lead" | "mete
       return box([<rect key="c" x="4" y="10" width="24" height="5" rx="1" fill="#2f3136" />, <path key="t" d="M6 15v7M9 15v7M12 15v7M15 15v7M18 15v7M21 15v7M24 15v7" />]);
     case "wall":
       return box([<rect key="w" x="5" y="3" width="22" height="26" fill="#efe7d6" />, <path key="p" d="M5 10h22M5 17h22M5 24h22" stroke="#d8ccb2" />]);
+    case "mcu-board":
+      return box([
+        <rect key="b" x="3" y="7" width="26" height="19" rx="2" fill="#2b5d4f" />,
+        <path key="h1" d="M9 9.5h17M12 23.5h14" stroke="#1c1d20" strokeWidth="2.2" />,
+        <rect key="c" x="15" y="13" width="6" height="6" fill="#1c1d20" />,
+        <rect key="u" x="1" y="11" width="5" height="5" rx="1" fill="#d8d9d6" />,
+      ]);
     case "lead":
       return box([<path key="c" d="M4 26c6-10 10 2 16-8" stroke={c} strokeWidth="2.4" />, <path key="j" d="M20 18l7-8M22 21l7-6" />]);
     case "meter":

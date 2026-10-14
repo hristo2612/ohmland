@@ -6,10 +6,11 @@
  */
 import { describe, expect, it } from "vitest";
 import { partLegs, type BenchState } from "@ohmland/bench/core";
+import { targetPoint } from "@ohmland/bench/view";
 import { loadCourse, type BenchLessonData } from "../../content/load";
 import { resolveAttach } from "../../lab/anchors";
 import { buildBench } from "../../lab/build";
-import { isOptional, type LabDefinition } from "../../lab/define";
+import { isOptional, type LabDefinition, type SolutionStep } from "../../lab/define";
 import { applyStep, solutionSegments } from "../../lab/steps";
 import { momentsOf } from "./flow";
 import { resolveAnchor } from "./marks";
@@ -96,7 +97,28 @@ describe("bench lessons", () => {
           for (const a of [b.tap?.answer ?? [], b.tap?.among ?? []].flat()) anchors.add(a);
         }
         if (lesson.secret?.note && lesson.secret.note.at !== "tap") anchors.add(lesson.secret.note.at);
-        for (const a of anchors) expect(all.some((b) => resolveAnchor(b, a) !== null), `"${a}" on the bench`).toBe(true);
+        // A mark (part:M1/dial) must be one its part really has.
+        const on = (b: BenchState, a: string) => (/^part:[^/]+\//.test(a) ? targetPoint(b, a) !== null : resolveAnchor(b, a) !== null);
+        for (const a of anchors) expect(all.some((b) => on(b, a)), `"${a}" on the bench`).toBe(true);
+      });
+
+      it("applies each check's then steps to the bench", () => {
+        const all = benches(lab);
+        for (const b of lesson.beats) {
+          if (!b.then) continue;
+          const steps = b.then as SolutionStep[];
+          // Somewhere in the lab's run the steps fit: every part, lead and spot they name is there.
+          const fits = all.some((bench) => {
+            let cur = bench;
+            for (const s of steps) {
+              const e = applyStep(cur, s);
+              if (e.problem) return false;
+              cur = e.bench;
+            }
+            return true;
+          });
+          expect(fits, `then: ${JSON.stringify(steps)}`).toBe(true);
+        }
       });
 
       it("traces only from terminals on the bench", () => {
