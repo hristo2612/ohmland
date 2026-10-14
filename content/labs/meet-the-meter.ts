@@ -21,13 +21,13 @@ export default defineLab({
   title: "The black box",
   bench: {
     board: "none",
-    frame: ["desk:-120,-62", "desk:110,84"],
+    frame: ["desk:-184,-62", "desk:110,84"],
     parts: [
       // The black box: two identical brass posts; inside, the battery's plus goes to the right one.
       { id: "BX", kind: "box", at: "desk:-58,10", params: { marks: "plain", wiring: { "s1.pos": "t2", "s1.neg": "t1" } }, locked: true, label: "Black box" },
       { id: "B1", kind: "battery", at: "in:BX.s1", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
-      // A scuffed, used battery at the back, for the secret.
-      { id: "B2", kind: "battery", at: "desk:-96,-50", params: { emf: 7.6, internalOhms: 6, mAh: 500, worn: true }, locked: true, label: "Tired 9 V battery" },
+      // A scuffed, used battery off to the left, for the secret.
+      { id: "B2", kind: "battery", at: "desk:-162,30", params: { emf: 7.6, internalOhms: 6, mAh: 500, worn: true }, locked: true, label: "Tired 9 V battery" },
     ],
     tray: [],
     // Both leads lying unplugged next to the meter.
@@ -100,7 +100,7 @@ export default defineLab({
     },
     {
       id: "tired-battery",
-      prompt: "Measure the tired battery at the back.",
+      prompt: "Measure the tired battery on the left.",
       goal: (lab) => lab.meter?.mode === "dcv" && lab.probed("B2.pos", "B2.neg", "either") && (readsIn(lab, 7.2, 8.0) || readsIn(lab, -8.0, -7.2)),
       hints: ["Same as the box: a tip on each snap."],
       highlight: ["B2"],

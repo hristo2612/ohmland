@@ -32,9 +32,9 @@ beats:
 
   - say: Which letter counts flow?
     pick: { on: "part:M1/dial", options: [V, A, Ω], answer: A }
-    hint: A is for amps, and amps count flow.
+    hint: Look at the dial. Which letter sits by mA?
 
-  - say: Touch a probe tip to each brass terminal.
+  - say: Probe the two brass posts. A fresh 9 V reads...
     objective: Read the box
     spot: [BX, "part:M1"]
     tool: meter
@@ -63,7 +63,7 @@ beats:
 
 secret:
   task: tired-battery
-  say: "Secret: measure the tired battery at the back."
+  say: "Secret: measure the tired battery on the left."
   tool: meter
   note: { at: B2, text: "same label, less push left" }
 
