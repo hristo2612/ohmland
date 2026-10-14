@@ -1,3 +1,8 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# THREE.Clock is deprecated since three r183; R3F's store still builds one (and three warns on every bench page).
+# The patch keeps the store's clock API on top of THREE.Timer. Drop it once a fiber release does the same.
+patchedDependencies:
+  "@react-three/fiber@9.8.1": patches/@react-three__fiber@9.8.1.patch

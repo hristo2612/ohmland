@@ -1,0 +1,189 @@
+diff --git a/dist/events-21d8cd92.cjs.dev.js b/dist/events-21d8cd92.cjs.dev.js
+index 9b43bdf7d5f4e4fa58d53e0a53954d3595569459..15604df5d597c0660d964f03d75e611289beb853 100644
+--- a/dist/events-21d8cd92.cjs.dev.js
++++ b/dist/events-21d8cd92.cjs.dev.js
+@@ -30,6 +30,49 @@ function _interopNamespace(e) {
+ 
+ var React__namespace = /*#__PURE__*/_interopNamespace(React);
+ var THREE__namespace = /*#__PURE__*/_interopNamespace(THREE);
++
++// Ohmland patch: THREE.Clock is deprecated since three r183 and warns when constructed. The store keeps the Clock
++// shape (getDelta, elapsedTime, oldTime, start, stop, running) on top of THREE.Timer.
++function createTimerClock() {
++  const timer = new THREE__namespace.Timer();
++  const clock = {
++    autoStart: true,
++    startTime: 0,
++    oldTime: 0,
++    elapsedTime: 0,
++    running: false,
++    start() {
++      timer.reset();
++      clock.startTime = performance.now();
++      clock.oldTime = clock.startTime;
++      clock.elapsedTime = 0;
++      clock.running = true;
++    },
++    stop() {
++      clock.getElapsedTime();
++      clock.running = false;
++      clock.autoStart = false;
++    },
++    getElapsedTime() {
++      clock.getDelta();
++      return clock.elapsedTime;
++    },
++    getDelta() {
++      if (clock.autoStart && !clock.running) {
++        clock.start();
++        return 0;
++      }
++      if (!clock.running) return 0;
++      timer.update();
++      const delta = timer.getDelta();
++      clock.oldTime = performance.now();
++      clock.elapsedTime += delta;
++      return delta;
++    },
++  };
++  return clock;
++}
++
+ var w1__default = /*#__PURE__*/_interopDefault(w1);
+ 
+ var threeTypes = /*#__PURE__*/Object.freeze({
+@@ -1076,7 +1119,7 @@ const createStore = (invalidate, advance) => {
+       linear: false,
+       flat: false,
+       controls: null,
+-      clock: new THREE__namespace.Clock(),
++      clock: createTimerClock(),
+       pointer,
+       mouse: pointer,
+       frameloop: 'always',
+diff --git a/dist/events-9ce18a08.esm.js b/dist/events-9ce18a08.esm.js
+index ea6b4c903fe1a45092eca8440397ebcef2de7341..86f38fed96e33329db60c95f70486b65796ca910 100644
+--- a/dist/events-9ce18a08.esm.js
++++ b/dist/events-9ce18a08.esm.js
+@@ -7,6 +7,49 @@ import { suspend, preload, clear } from 'suspend-react';
+ import w1, { unstable_getCurrentPriorityLevel, unstable_IdlePriority, unstable_LowPriority, unstable_NormalPriority, unstable_UserBlockingPriority, unstable_ImmediatePriority, unstable_scheduleCallback } from 'scheduler';
+ import { useFiber, useContextBridge, traverseFiber, useActivityBridge as useActivityBridge$1 } from 'its-fine';
+ 
++// Ohmland patch: THREE.Clock is deprecated since three r183 and warns when constructed. The store keeps the Clock
++// shape (getDelta, elapsedTime, oldTime, start, stop, running) on top of THREE.Timer.
++function createTimerClock() {
++  const timer = new THREE.Timer();
++  const clock = {
++    autoStart: true,
++    startTime: 0,
++    oldTime: 0,
++    elapsedTime: 0,
++    running: false,
++    start() {
++      timer.reset();
++      clock.startTime = performance.now();
++      clock.oldTime = clock.startTime;
++      clock.elapsedTime = 0;
++      clock.running = true;
++    },
++    stop() {
++      clock.getElapsedTime();
++      clock.running = false;
++      clock.autoStart = false;
++    },
++    getElapsedTime() {
++      clock.getDelta();
++      return clock.elapsedTime;
++    },
++    getDelta() {
++      if (clock.autoStart && !clock.running) {
++        clock.start();
++        return 0;
++      }
++      if (!clock.running) return 0;
++      timer.update();
++      const delta = timer.getDelta();
++      clock.oldTime = performance.now();
++      clock.elapsedTime += delta;
++      return delta;
++    },
++  };
++  return clock;
++}
++
++
+ var threeTypes = /*#__PURE__*/Object.freeze({
+   __proto__: null
+ });
+@@ -1051,7 +1094,7 @@ const createStore = (invalidate, advance) => {
+       linear: false,
+       flat: false,
+       controls: null,
+-      clock: new THREE.Clock(),
++      clock: createTimerClock(),
+       pointer,
+       mouse: pointer,
+       frameloop: 'always',
+diff --git a/dist/events-a816cbab.cjs.prod.js b/dist/events-a816cbab.cjs.prod.js
+index c26a227f3264c978f78d2ab7a7231ce943fe911f..8f0bd08520079c452a36b454e495c6581be79d69 100644
+--- a/dist/events-a816cbab.cjs.prod.js
++++ b/dist/events-a816cbab.cjs.prod.js
+@@ -30,6 +30,49 @@ function _interopNamespace(e) {
+ 
+ var React__namespace = /*#__PURE__*/_interopNamespace(React);
+ var THREE__namespace = /*#__PURE__*/_interopNamespace(THREE);
++
++// Ohmland patch: THREE.Clock is deprecated since three r183 and warns when constructed. The store keeps the Clock
++// shape (getDelta, elapsedTime, oldTime, start, stop, running) on top of THREE.Timer.
++function createTimerClock() {
++  const timer = new THREE__namespace.Timer();
++  const clock = {
++    autoStart: true,
++    startTime: 0,
++    oldTime: 0,
++    elapsedTime: 0,
++    running: false,
++    start() {
++      timer.reset();
++      clock.startTime = performance.now();
++      clock.oldTime = clock.startTime;
++      clock.elapsedTime = 0;
++      clock.running = true;
++    },
++    stop() {
++      clock.getElapsedTime();
++      clock.running = false;
++      clock.autoStart = false;
++    },
++    getElapsedTime() {
++      clock.getDelta();
++      return clock.elapsedTime;
++    },
++    getDelta() {
++      if (clock.autoStart && !clock.running) {
++        clock.start();
++        return 0;
++      }
++      if (!clock.running) return 0;
++      timer.update();
++      const delta = timer.getDelta();
++      clock.oldTime = performance.now();
++      clock.elapsedTime += delta;
++      return delta;
++    },
++  };
++  return clock;
++}
++
+ var w1__default = /*#__PURE__*/_interopDefault(w1);
+ 
+ var threeTypes = /*#__PURE__*/Object.freeze({
+@@ -1076,7 +1119,7 @@ const createStore = (invalidate, advance) => {
+       linear: false,
+       flat: false,
+       controls: null,
+-      clock: new THREE__namespace.Clock(),
++      clock: createTimerClock(),
+       pointer,
+       mouse: pointer,
+       frameloop: 'always',
