@@ -7,6 +7,7 @@ import { useStore } from "zustand";
 import type { Snapshot } from "@ohmland/sim";
 import { advanceGates, type GateCounts } from "./flow";
 import * as ops from "./ops";
+import type { StationState } from "./solder/station";
 import type {
   Anchor,
   BenchAction,
@@ -77,6 +78,13 @@ export type BenchStoreState = {
   inspect: readonly InspectSpec[];
   /** Room lighting, 1 bright to about 0.1 dim (faint LED glows show up in a dim room). */
   ambient: number;
+  /**
+   * The solder station's live state (tip temperature, molten joints, heat in leads), when the bench has a station
+   * or solder work; null otherwise. The solder overlay runs it (src/solder/station.ts).
+   */
+  station: StationState | null;
+  /** What drives the station's clock: the simulator's time (snapshots) when one runs, else the wall clock. */
+  stationClock: "auto" | "wall" | "sim";
   overlay: BenchOverlay;
   /** Dots each gate has counted so far (from the snapshots: a gate ticks once per dot that rides past). */
   gates: GateCounts;
@@ -169,6 +177,8 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
       snapshot: null,
       inspect: [],
       ambient: 1,
+      station: null,
+      stationClock: "auto",
       overlay: { flow: "off", push: false, trace: null },
       gates: {},
       ui: initialUi(),
@@ -212,7 +222,7 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
       },
 
       addPart: (kind, params, at, wanted) => {
-        const free = wanted && !ops.nextIdTaken(get().bench, wanted) ? wanted : undefined;
+        const free = ops.trayId(get().bench, wanted);
         const [next, id] = ops.addPart(get().bench, kind, params, at, free);
         record(next, { type: "part:add", partId: id, kind });
         return id;
@@ -244,7 +254,7 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
         if (get().ui.selection?.id === id) get().select(null);
       },
       addLead: (color, at, wanted) => {
-        const free = wanted && !ops.nextIdTaken(get().bench, wanted) ? wanted : undefined;
+        const free = ops.trayId(get().bench, wanted);
         const [next, id] = ops.addLead(get().bench, color, at, free);
         record(next, { type: "lead:add", leadId: id });
         return id;
@@ -306,4 +316,19 @@ export function useBenchStore(): BenchStore {
 /** Select from the nearest <Bench> store. */
 export function useBench<T>(selector: (s: BenchStoreState) => T): T {
   return useStore(useBenchStore(), selector);
+}
+
+const NO_STORE: BenchStore = createBenchStore();
+
+/**
+ * Select from the nearest bench store when there is one; a model drawn alone (a gallery, a preview, a test) reads an
+ * empty bench instead of throwing.
+ */
+export function useBenchMaybe<T>(selector: (s: BenchStoreState) => T): T {
+  return useStore(useContext(BenchStoreContext) ?? NO_STORE, selector);
+}
+
+/** The nearest bench store, or null outside one. */
+export function useBenchStoreMaybe(): BenchStore | null {
+  return useContext(BenchStoreContext);
 }

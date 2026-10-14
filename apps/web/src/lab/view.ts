@@ -2,9 +2,10 @@
  * Builds the LabView goals read. Pure: the runtime and the headless solution replay both feed it the bench, the latest
  * snapshot, the recent snapshot history and the notebook.
  */
-import { apart, gateAmps, isThrowSwitch, lifting, partLegs, slotTurn, staticCharge, stuckTo, tagText, traceLoop, type BenchNetlist, type BenchState, type GateCounts, type MeterSocket, type PlacedPart } from "@ohmland/bench/core";
+import { apart, gateAmps, isThrowSwitch, lifting, partLegs, slotTurn, staticCharge, stuckTo, tagText, traceLoop, type BenchNetlist, type BenchState, type GateCounts, type MeterSocket, type PlacedPart, type StationState } from "@ohmland/bench/core";
 import type { NodeId, PartState, SimEvent, SimEventType, Snapshot } from "@ohmland/sim";
 import { resolveAttach } from "./anchors";
+import { solderLab } from "./solder";
 import { chipLeg, chipPinNode, chipPinRef, chipSeat, levelOf, partChip, pinNumber, specChip, type Level } from "./chips";
 import type { CaptureView, DrawingState, EdgeCount, LabView, LabViews, MeterView, PanelState, Reading, RollsView, Stats, StopwatchRun, TaskStatus, TimingView } from "./define";
 import { distinctRun, dutyOf, edgesOf, midLevel, pressesOf, tallyOf, widthsOf, type Edge, type EdgeTrack } from "./signals";
@@ -43,6 +44,8 @@ export type LabViewInput = {
   onTrigger?: (name: string) => void;
   /** When each task was done in this visit, with the meter as it read then. */
   doneAt?: Readonly<Record<string, { t: number; meter: MeterView | null }>>;
+  /** The solder station's live state (temperatures, molten joints), when the bench has one running. */
+  station?: StationState | null;
   /** The views and overlays that are on (the bench store's overlay and x-ray). */
   views?: Readonly<LabViews>;
   /** Dots each gate has counted. */
@@ -735,6 +738,9 @@ export function createLabView(input: LabViewInput): LabView {
     control: (id) => input.controls?.[id],
     task: (id) => input.status?.[id] ?? "todo",
     trigger: (name) => input.onTrigger?.(name),
+    get solder() {
+      return (solder ??= solderLab(bench, input.station ?? null));
+    },
 
     pin(chip, ref) {
       const info = partChip(partOf(chip)) ?? specChip(simNetlist?.parts.find((x) => x.id === chip));
@@ -773,6 +779,7 @@ export function createLabView(input: LabViewInput): LabView {
     rolls: (id) => input.rolls?.[id] ?? NO_ROLLS,
     capture: () => input.capture ?? null,
   };
+  let solder: LabView["solder"] | undefined;
   return view;
 }
 

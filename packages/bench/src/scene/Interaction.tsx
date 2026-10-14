@@ -15,7 +15,8 @@ import { penStroke, settingParams } from "../ops";
 import { canMountOnBoard, footprintOf, isThrowSwitch, partDef, rotateXZ } from "../parts";
 import { holderOf } from "../seats";
 import type { BenchStore } from "../store";
-import type { Anchor, BenchAction, BenchState, MeterMode, Selection, TrayItem, Vec2 } from "../types";
+import type { Anchor, BenchAction, BenchState, MeterMode, Selection, TestLead, TrayItem, Vec2 } from "../types";
+import { leadCable, makeFloor } from "./views";
 import { PICK_LAYER, pickOf, type Pick } from "./pick";
 
 export type InteractionApi = {
@@ -31,11 +32,16 @@ export type InteractionApi = {
   stats: () => { calls: number; triangles: number; geometries: number; textures: number };
   /** What the pointer would grab at a client point (for tests and tutorials). */
   pickAt: (clientX: number, clientY: number) => Pick | null;
+  /** The desk point (mm) under an element-relative CSS px point. */
+  deskAt: (x: number, y: number) => [number, number] | null;
 };
 
 type Drag =
-  /** `to`: where the part was last dragged (it goes into a holder's seat only when dropped there). */
-  | { kind: "part"; id: string; offset: Vec2; spawned?: boolean; to?: Vec2 }
+  /**
+   * `to`: where the part was last dragged (it goes into a holder's seat only when dropped there). `cable`: for a gate,
+   * the lead drawn under the pointer there.
+   */
+  | { kind: "part"; id: string; offset: Vec2; spawned?: boolean; to?: Vec2; cable?: { lead: string; at: number } | null }
   | { kind: "leg"; id: string; leg: string; flying: boolean }
   | { kind: "wireEnd"; id: string; end: "a" | "b" }
   | { kind: "wireNew"; from: string }
@@ -152,7 +158,9 @@ export function useInteraction({
         const p = pickOf(h.object);
         if (!p) continue;
         // Prefer handles, but only among things close to the nearest hit (do not reach through a whole part).
-        const score = PRIORITY[p.type] * 100 - (h.distance - nearest);
+        // A probe's tip end gives way to a pencil card's drawing strip under it (the grip does not).
+        const rank = p.type === "probe" && p.tip ? 1.4 : PRIORITY[p.type];
+        const score = rank * 100 - (h.distance - nearest);
         if (h.distance - nearest > 40) break;
         seen.push(p);
         if (score > bestScore) {
@@ -278,6 +286,57 @@ export function useInteraction({
       return DIAL_MODES[i]!;
     };
 
+    /** Cable points as the 3D view draws them, per lead object (they change only when the lead does). */
+    const cables = new WeakMap<TestLead, THREE.Vector3[]>();
+    let floorFor: { board: BenchState["board"]; meter: BenchState["meter"]; floor: ReturnType<typeof makeFloor> } | null = null;
+    /**
+     * For a gate whose clamp is dragged to the desk point `to`: the clip lead whose cable, as drawn, passes nearest the
+     * clamp on screen, and how far along it by length (the cable bows well off the line between its clips, so the
+     * straight-line test in ops can pick the wrong lead mid-span).
+     */
+    const cableAt = (id: string, to: Vec2, touch: boolean): { lead: string; at: number } | null => {
+      const b = bench();
+      if (b.parts.find((p) => p.id === id)?.kind !== "gate") return null;
+      const clamp = toScreen([to[0], 2, to[1]]);
+      const [cx, cy] = [clamp.x, clamp.y];
+      if (!floorFor || floorFor.board !== b.board || floorFor.meter !== b.meter) floorFor = { board: b.board, meter: b.meter, floor: makeFloor(b) };
+      const reach = touch ? 36 : 22;
+      let best: { lead: string; at: number } | null = null;
+      let bestD = reach;
+      for (const l of b.leads) {
+        let pts = cables.get(l);
+        if (!pts) {
+          pts = leadCable(b, l, floorFor.floor).cable;
+          cables.set(l, pts);
+        }
+        let total = 0;
+        for (let i = 1; i < pts.length; i++) total += pts[i]!.distanceTo(pts[i - 1]!);
+        if (total <= 0) continue;
+        // Each stretch of the cable on screen: the clamp's distance to it, and how far along the cable that is.
+        let run = 0;
+        let prev = toScreen([pts[0]!.x, pts[0]!.y, pts[0]!.z]);
+        for (let i = 1; i < pts.length; i++) {
+          const len = pts[i]!.distanceTo(pts[i - 1]!);
+          const sp = toScreen([pts[i]!.x, pts[i]!.y, pts[i]!.z]);
+          if (!sp.behind && !prev.behind) {
+            const vx = sp.x - prev.x;
+            const vy = sp.y - prev.y;
+            const l2 = vx * vx + vy * vy;
+            const k = l2 ? Math.max(0, Math.min(1, ((cx - prev.x) * vx + (cy - prev.y) * vy) / l2)) : 0;
+            const d = Math.hypot(prev.x + vx * k - cx, prev.y + vy * k - cy);
+            const t = (run + len * k) / total;
+            if (d < bestD && t >= 0.05 && t <= 0.95) {
+              bestD = d;
+              best = { lead: l.id, at: Math.round(Math.max(0.15, Math.min(0.85, t)) * 100) / 100 };
+            }
+          }
+          run += len;
+          prev = sp;
+        }
+      }
+      return best;
+    };
+
     const dragMove = (g: Gesture, cx: number, cy: number) => {
       const d = g.drag!;
       const s = store.getState();
@@ -285,9 +344,13 @@ export function useInteraction({
         case "part": {
           const wp = workPoint(cx, cy);
           if (!wp) return;
-          // On its way it never sits in a holder: passing over a full bin must not push a part out of it.
-          d.to = [wp.x - d.offset[0], wp.z - d.offset[1]];
-          s.apply((b) => ops.movePart(b, d.id, d.to!, { seat: false }));
+          // On its way it never sits in a holder: passing over a full bin must not push a part out of it. A gate
+          // clips onto the cable drawn under the pointer (else the straight-line test in ops decides).
+          const to: Vec2 = [wp.x - d.offset[0], wp.z - d.offset[1]];
+          d.to = to;
+          d.cable = cableAt(d.id, to, g.touch);
+          const cable = d.cable;
+          s.apply((b) => (cable ? ops.clipGate(b, d.id, to, cable) : ops.movePart(b, d.id, to, { seat: false })));
           break;
         }
         case "leg": {
@@ -405,6 +468,10 @@ export function useInteraction({
         if (target && !s.locked.includes(target.id)) {
           const from = s.txBase?.parts.find((p) => p.id === d.id)?.pos ?? ([target.pos[0], target.pos[1] + 34] as Vec2);
           s.apply((b) => ops.dropOnto(b, d.id, target.id, from));
+        } else if (d.cable && d.to) {
+          // A gate dropped on a cable as drawn: on that lead.
+          const [to, cable] = [d.to, d.cable];
+          s.apply((b) => ops.clipGate(b, d.id, to, cable));
         } else if (d.to) {
           // Dropped on a holder: into the nearest free seat.
           const to = d.to;
@@ -854,6 +921,11 @@ export function useInteraction({
         return true;
       },
       pickAt: (x, y) => hit(x, y),
+      deskAt: (x, y) => {
+        const r = element.getBoundingClientRect();
+        const p = planePoint(x + r.left, y + r.top, 0);
+        return p ? [p.x, p.z] : null;
+      },
       stats: () => ({
         calls: gl.info.render.calls,
         triangles: gl.info.render.triangles,

@@ -1,150 +1,58 @@
+# Blueprint: docs/curriculum/unit-2.md, Lesson 13; docs/curriculum/conversion-guide.md, 13 (split, the kept half).
+# A bench lesson (docs/LESSONS.md). One idea: a trickle into the base lets a big flow through.
+# Lab: content/labs/meet-the-transistor.ts. Measuring the gain is the next lesson, count-the-gain.
+format: bench
 id: meet-the-transistor
-version: 1
+version: 2
 title: A tiny current in charge
-summary: Place a 2N3904 the right way round, steer an LED with a trickle of base current, and measure its gain.
-minutes: 12
+summary: Plug in a 2N3904 the right way round and steer an LED with a trickle of base current.
+minutes: 7
+lab: meet-the-transistor
 unlocks:
   parts: [npn-transistor]
   isle: transistor
-steps:
-  - type: hook
-    body: |
-      A relay lets a small current control a big one, but it clicks, wears out and takes milliseconds to move. Now
-      meet a black crumb of plastic with three legs and no moving parts at all.
 
-      Feed its middle leg about a thousandth of the current a relay coil needs, and it lets a much bigger current
-      flow through the other two. It's the most important invention you've never noticed: there are billions inside
-      the device you're using right now.
-    visual: { kind: part, part: npn-transistor }
-    predict:
-      prompt: You feed the transistor's base about 20 µA. Roughly how much current do you think can flow through the LED?
-      options:
-        - About 20 µA
-        - A few mA
-        - Several amps
-    mascot: Tiny trickle, big river. I love this part.
+start:
+  title: A tiny current in charge
+  say: No clicks, no wear. Meet my favourite crumb.
+  go: Show me
 
-  - type: lab
-    lab: meet-the-transistor
-    intro: The LED waits on the collector side. A button and a base resistor feed the base. Mind which leg goes where.
+beats:
+  - say: This is a transistor. Plug it into rows 20 to 22.
+    objective: Plug it in
+    do: place-q1
+    note: { at: Q1, text: "flat face: E, B, C" }
 
-  - type: explain
-    cards:
-      - title: Three legs, three jobs
-        body: |
-          The **collector** is where the big current comes in, the **emitter** is where it leaves, and the **base**
-          is the control. On the symbol, the arrow sits on the emitter and points the way conventional current flows
-          out of an NPN.
+  - say: Show me its base.
+    tap: { answer: Q1.b, among: [Q1.e, Q1.b, Q1.c] }
+    wrong: { Q1.e: "That's E, the emitter. Try its neighbour.", Q1.c: "That's C, the collector. Try the middle." }
+    note: { at: Q1.b, text: "base: the control leg" }
 
-          Hold a 2N3904 flat face toward you, legs down: E, B, C. Always check the datasheet, though. Not every
-          three-legged black part agrees.
-        mascot: E, B, C. Flat face, friendly face.
-      - title: A trickle controls a river
-        body: |
-          Picture a faucet where a tiny stream on the handle decides how much water flows from a big pipe. The base
-          current is the trickle. The collector current is the river.
+  - say: Press S1. The base gets 18 µA. And the LED?
+    objective: Small steers big
+    guess: { options: [About 18 µA, A few mA, Several amps], answer: A few mA }
+    do: small-steers-big
+    note: { at: D1, text: "3.6 mA: 200 times more" }
+    rule: A small base flow steers a big one.
 
-          Their ratio is the **gain**, β (also written hFE). For a 2N3904 it's typically 100 to 300. The current
-          still comes from the battery: the transistor only decides how much.
-      - title: The 0.7 V door
-        body: |
-          Between base and emitter is a junction that behaves like a diode. Nothing much happens until the base is
-          about 0.6 to 0.7 V above the emitter. Past that, base current rises very steeply with voltage.
+  - say: Where does the LED's flow come from?
+    pick: { options: [The battery, The transistor, The base], answer: The battery }
+    wrong: { The transistor: "It only opens the way. It makes nothing.", The base: "The base only sets how much." }
+    note: { at: B1, text: "battery pushes, Q1 decides" }
 
-          That's why the base always gets a resistor. It turns a voltage into a sensible current: 9 V through 470 kΩ
-          gives about 18 µA.
-        mascot: That transistor gave its life for science. Hall of Fried Parts, row two.
-      - title: NPN and PNP
-        body: |
-          You're using an **NPN**: pull its base up and current flows from collector to emitter.
+  - say: Last one. What is this?
+    pick: { on: Q1, options: [A transistor, A resistor, A switch], answer: A transistor }
 
-          Its mirror twin, the **PNP** (like the 2N3906), turns on when its base is pulled down below its emitter, and
-          its symbol's arrow points in. Same idea, opposite directions.
+secret:
+  task: no-resistor
+  say: Curious? Jumper past the base resistor. Press S1.
+  done: Fried. Nothing held the base flow back.
+  note: { at: Q1, text: "the base needs its resistor" }
 
-  - type: quiz
-    items:
-      - id: leg-order
-        type: order
-        prompt: Hold a 2N3904 with its flat face toward you and its legs pointing down. Name its legs from left to right.
-        items:
-          - Emitter
-          - Base
-          - Collector
-        explain: Flat face toward you, legs down, E, B, C. The base is in the middle.
+fixit:
+  say: Fix-it time. Press S1. Why so dim?
+  tasks:
+    - task: fix-backwards
 
-      - id: find-beta
-        type: choice
-        prompt: The base current is 0.04 mA and the collector current is 7.6 mA. What is β?
-        options:
-          - text: "19"
-            why: Check the decimal point. 0.04 goes into 7.6 more times than that.
-          - text: "190"
-            correct: true
-            why: "7.6 ÷ 0.04 = 190."
-          - text: "304"
-            why: That's 7.6 × 40. Divide the currents instead.
-          - text: "1,900"
-            why: Check the decimal point. That's ten times too big.
-        hint: β = Ic ÷ Ib.
-        explain: "β = collector current ÷ base current = 7.6 mA ÷ 0.04 mA = 190."
-
-      - id: base-current
-        type: numeric
-        prompt: 9 V feeds the base through 100 kΩ. Taking the base-emitter voltage as 0.7 V, what is the base current?
-        answer: 83
-        unit: µA
-        tolerance: 3
-        hint: The resistor has 9 V - 0.7 V across it.
-        explain: "(9 V - 0.7 V) ÷ 100,000 Ω = 0.000083 A = 83 µA."
-
-      - id: why-base-resistor
-        type: choice
-        prompt: Why must the base always have a resistor, or some other current limit?
-        options:
-          - text: Above about 0.7 V the base-emitter junction conducts like a diode, so the current would soar
-            correct: true
-            why: The resistor sets a safe base current.
-          - text: To make the transistor slower
-            why: Speed isn't the reason.
-          - text: Because the base needs exactly 9 V
-            why: When on, the base sits about 0.7 V above the emitter.
-        explain: A junction past its threshold takes as much current as the supply allows, unless something limits it.
-
-      - id: where-from
-        type: choice
-        prompt: Where does the collector current come from?
-        options:
-          - text: The transistor generates it
-            why: Transistors don't create energy.
-          - text: The battery, through the LED and resistor, with the transistor controlling how much
-            correct: true
-            why: It's a valve, not a pump.
-          - text: The base current, amplified inside
-            why: The base current only sets the level. The battery supplies the current.
-        explain: The supply pushes the current. The transistor opens or closes the path.
-
-      - id: arrow-in
-        type: choice
-        prompt: On a transistor symbol, the arrow on the emitter points in toward the base. What type is it?
-        options:
-          - text: NPN
-            why: NPN arrows point out of the emitter.
-          - text: PNP
-            correct: true
-            why: An arrow pointing in means PNP.
-        explain: "The arrow shows conventional current at the emitter: out for NPN, in for PNP."
-
-  - type: wrap
-    rules:
-      - "2N3904, flat face toward you, legs down: E, B, C."
-      - Collector current is about β times the base current.
-      - The base turns on at about 0.7 V above the emitter.
-      - Always limit base current with a resistor.
-    realWorld:
-      parts:
-        - A 2N3904 transistor
-        - 470 Ω, 470 kΩ and 220 kΩ resistors
-        - A red LED and a pushbutton
-        - A multimeter, a 9 V battery and a breadboard
-      safety:
-        - Never connect a battery straight across any two transistor legs.
+end:
+  say: A trickle in, a river out. You run transistors now.

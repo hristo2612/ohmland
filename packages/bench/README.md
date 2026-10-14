@@ -162,7 +162,8 @@ pushbuttons `normallyClosed`.
 
 Part mapping: resistor, led, diode, npn, phototransistor and fuse map one to one; slide and toggle switches are `spdt`;
 ceramic and electrolytic capacitors are `capacitor` (`polarized` set); the trimmer is `pot`; the cup of water is
-`probe-resistance` (distilled 600 kΩ, tap 30 kΩ, salty 1.2 kΩ); the lemon is a `cell`. The DPDT relay becomes two
+`probe-resistance` (distilled 600 kΩ, tap 30 kΩ, salty 1.2 kΩ; each pinch of `salt`, the cup's "Add salt" action, adds
+a parallel 7.5 kΩ, up to 10 pinches); the lemon is a `cell`. The DPDT relay becomes two
 simulator relays, `K1` and `K1:2`, whose coils sit in parallel at twice the coil resistance (and inductance) each,
 so coil current and pull-in voltage match one real coil; a `poles: 1` relay is one simulator relay. The DPDT switch is a
 simulator `dpdt` (two poles on one slider). Touch pads are a `probe-resistance` (a fingertip, 100 kOhm to 2 MOhm, set with the
@@ -459,6 +460,111 @@ background, a stroke-width variable and a level of detail (fine print and hole c
 readable). The board's 830 holes are one path, drawn once. A part's geometry is cached by identity, so a drag rebuilds
 only the moving part, and each part re-renders only when its look changes (glow in 2% steps), so a steady circuit
 costs nothing per snapshot. Outlines keep their pen width at every zoom (`vector-effect: non-scaling-stroke`).
+
+## Unit 3: soldering, perfboard, wire and wall power (`src/solder`)
+
+The solder station for docs/curriculum/unit-3.md: an iron that heats over seconds, joints that answer with their shape,
+a tug and the meter, heat that creeps up a lead into an LED, pad-per-hole perfboard, hookup wire with a stripper,
+heat-shrink with a heat gun, and wall adapters into a barrel-jack board. Everything works and looks the same in the
+3D and ink views.
+
+![Ink: soldering a pad, heat view on](screenshots/solder-ink-feeding.png)
+
+![3D: the iron resting on the work while solder is fed](screenshots/solder-3d-feeding.png)
+
+![Ink: the copper side, every joint shape](screenshots/solder-ink-desktop.png) ![Magnifier: a cold joint](screenshots/solder-3d-magnifier.png)
+
+![Phone, quick mode, 3D](screenshots/solder-3d-phone-quick.png) ![Phone, quick mode, ink](screenshots/solder-ink-phone-quick.png)
+
+### Kinds
+
+| Kind | What | Leads | Simulator |
+|---|---|---|---|
+| `solder-station` | Base (display, dial 150 to 450 °C, power rocker), stand with sponge, brass wool and coil, the iron on its cord. `on`, `setC`, `iron` (where it is: `"stand"`, a spot, `"desk"` with `ironAt`), `tinning`, `spool` | none | none |
+| `solder-spool` | A reel with its label; `alloy` `"leaded"` (Sn63 Pb37, 183 °C), `"lead-free"` (SAC305, 217 to 220 °C), `"acid"` | none | none |
+| `solder-braid` | Desoldering braid; `used` (0 to 1, the silvered end); action `snip` | none | none |
+| `perfboard` | Pad-per-hole board, `cols` x `rows`, pads `A1` (row letter, column number). `flipped` (copper side up: left becomes right), `tack`, `flexed`, `joints`, `bends`, `links`, `plan`, `snipped` | one per pad (`pin:PB1.B4`) | joints and bridges (below) |
+| `plan-card` | A plan: `ghosts` (`{ id, kind, legs: { leg: pad } }`) and numbered `lines` (pad pairs); drawn on a card and over its board | none | none |
+| `heat-sink-clip` | Copper or steel (`metal`); dragged near a lead it grips it (`on: "D1.anode"`, `mm` from the body) | none | none (heat only) |
+| `hookup-wire` | `color`, `awg`, `stranded`, `len`; ends `a` and `b` go into breadboard or perfboard holes; stripped `ends`, every strip in `tries`, splice `joints`; actions `twist`, `snip-a`, `snip-b` | `a b` (one conductor) | splice joints |
+| `wire-stripper` | Notches 30 to 16 AWG on a solid and a stranded scale (`notch`, `scale`), jaw stop `stopMm`; action `strip` strips the wire end in its jaws | none | none |
+| `heat-shrink` | 2:1 tube, `size` 1.6, 3.2 or 6.4 mm; slid onto a wire only past a free end (`on`, `at`), `shrink` 0 to 1, `split` | none | none |
+| `heat-gun` | `on`; its hot air shrinks tubes in front of the nozzle (cooler further away) | none | none |
+| `barrel-jack` | A small board with a barrel socket; two pins one hole apart for the rails | `tip sleeve` | (the adapter's supply) |
+| `wall-adapter` | `volts`, `amps`, `type` (`"regulated"`, `"unregulated"`, `"ac"`), `centre` (`"plus"`, `"minus"`), `into` (a jack); its barrel plug is a flying lead dragged into a jack | `plug` | `supply` between the jack's pins (centre minus swaps them); unregulated ones read about 1.45 x the label with a 400 µF ripple filter |
+
+Parts go through perfboard holes like breadboard holes: `holes: { anode: "PB1:C7", cathode: "PB1:C8" }`, and dragging
+a part over a board (top side up) seats it in the nearest free holes. A part soldered in no longer lifts out. Flipped
+over, the board shows its copper: parts are underneath (both views hide them) and only their legs show, mirrored.
+
+### The perfboard's netlist
+
+A leg in a hole touches its pad only through solder. At each pad, everything metal (legs through the hole, legs bent
+onto it, link ends) is joined to the pad by the pad's joint: a good joint (and too much solder, a bridge, a burnt joint
+whose pad held) is metal; a cold, disturbed or very thin joint is a wire of a few ohms that opens while the board is
+`flexed`; a lifted pad is open. A bridge also joins the neighbouring pad and what comes through it. Bare legs or bare
+links that cross underneath touch. In `tack` mode legs that meet at a pad conduct without solder (MP10). These are
+`PartDef.contacts` (metal) and `toSpecs` (the resistive joints), so `connectivity` and `benchToNetlist` see them.
+
+### The station engine and the overlay
+
+`stepStation(bench, station, dt)` is pure: the iron (a 60 W heater with temperature control: 20 s to 330 °C, still
+above 200 °C a minute after switch-off), the joint under it and every live joint (SE2: heat the work through a contact
+that a tinned tip and a molten bridge improve, feed solder, wet, set, verdict), heat running up leads into parts with
+clips (SE3), tubes in front of the gun, the desk scorching. What lasts goes into BenchState (where the iron rests, a
+joint once it sets, a tube's shrink); temperatures and molten solder live in the store's `station`. It returns
+simulator inputs (`bodyC` on parts warmed through their leads), which the overlay sends as `input` actions, so a host
+that forwards `onAction` inputs to `sim.setInput` needs nothing more.
+
+The solder overlay (`SolderOverlay`, mounted by both renderers, nothing on benches without solder kinds) runs the clock
+(the simulator's time when snapshots arrive, so time-lapse cools an iron; else the wall clock; `stationClock` forces
+one) and the hands-on part, drawn over either view through its `project()`:
+
+- **Iron**: drag it by its handle and drop the tip on a joint: it rests there. Dropped on the desk it scorches the
+  paper, then slides home. **Solder**: drag the spool's free end to the hot joint (or to the tip) and hold to feed.
+  **Braid**: drag its end onto a joint, rest the iron on it. **Quick mode** (dock): press and hold a joint; the iron
+  rests and feeds once the work is hot; release lifts both, and a ring fills as the solder goes on.
+- A **tap** on a joint opens the **magnifier** (the joint side on, named in words); a drag away from it **tugs**.
+- **Bend** and **Link** (dock, copper side up): drag from a pad with a leg to another pad to bend the leg, or add a
+  bare wire link.
+- **Heat view** (dock): ink hatching over everything warm (denser is hotter), with numbers on the tip and warm bodies.
+- **Keyboard**: every spot is a focusable button; `I` rests or lifts the iron there, hold `S` to feed, `T` tugs, `M`
+  or `Enter` opens the magnifier, `H` heat view, `W` wipes the tip, `Q` quick mode (then hold `Enter` or `Space`).
+  Screen readers hear each spot's name, its joint's phase and, once looked at, its shape.
+
+The pure actions are exported for labs and tests: `placeIron`, `holdIron`, `feedAt`, `quickPress`, `tug`, `layBraid`,
+`magnify`, `wipe`, `readJoint`, `stationSpots`, `ironPose`. Spots are anchors (`spot:PB1.B4`, `spot:D1.anode`,
+`spot:HW1.b`, `spot:ST1.stand`, `spot:ST1.tip`, `spot:SD1.end`), so `project()`, `focus()` and `spotlight()` take them.
+
+### The joint and heat models
+
+Verdicts, checked in order: burnt (above 420 °C, or held molten more than 10 s on a pad, 15 s on wire, 20 s on
+14 AWG; a pad lifts 6 s later), bridge, disturbed (moved
+while setting), cold (wetted under 0.6, or never 15 °C above the melt), too much (over 1.8 x ideal), too little (under
+0.5 x), good. `jointLook` (shape: volcano, ball, ring, lump, frosty, bridge, burnt; finish bright, satin, dull, dark),
+`jointElectric` (0.005 Ω sound; cold and disturbed intermittent) and `tugResult` (held, loose, pulled) read the
+record. `test/solder-joint.test.ts` checks every calibration row of unit-3.md 3.4 (a crossed pair melts in 2 to 3 s, a
+pad in 1 to 2 s, lead-free about 20% slower, an oxidised tip never, 14 AWG in 8 to 12 s, a carried bead balls up cold,
+a tug while setting disturbs, extra feed bridges, braid heals, 20 s burns and lifts the pad).
+
+`LeadHeat` is a 1 mm lumped network from the iron (or a hot pad) along each lead to the body, with copper or steel
+clips as lumps gripping a segment. With the simulator's LED die model (`ledHeatDim`, `ledHeatRate`), an iron at 330 °C
+12 mm down an LED's leg takes a third of its glow at 12 to 18 s and kills it at 25 to 35 s; a copper clip between
+keeps it above 0.8 of its glow at 120 s; a steel clip only delays it (dead at 50 to 80 s); 370 °C is about 20% sooner
+(`test/solder-station.test.ts` runs it through the simulator). A normal 3 s joint at an LED's pad only warms it; held
+far too long it cooks it.
+
+### Wire, tubes, adapters
+
+`stripWire` (notch against the copper: too small nicks or cuts strands, too big slips) and `stripEnd`/`stripNearest`
+keep every try. `moveTube` lets a tube onto a wire only past a free end (both ends held: no way on, MP7), `stepTube`
+shrinks it with the gun's air (`gunAirC` falls with distance) and splits it if held too hot; `tubeGrips` says whether a
+shrunk tube holds what it covers. `movePlug` puts an adapter's plug into the nearest jack's socket.
+
+Playground: `?scene=solder` (`&top=1` the top with the plan's ghosts, `&joints=all|none`, `&lead=leaded`, `&heat=1`,
+`&quick=1`), `?scene=heatsink` (`&clip=0`), `?scene=wires`; these scenes run the real simulator in the page.
+`pnpm --filter @ohmland/bench shots:solder` drives the flow in both views (mouse, touch, keyboard) and saves the
+`solder-*` screenshots.
 
 ## BenchState
 

@@ -33,7 +33,7 @@ export type Mark = {
  * and marks ("part:M1/dial") pass through.
  */
 export function resolveAnchor(bench: BenchState, s: string): string | null {
-  if (/^(pin|hole|wire|lead|probe|socket|part):/.test(s)) return s;
+  if (/^(pin|hole|wire|lead|probe|socket|part|spot):/.test(s)) return s;
   if (bench.parts.some((p) => p.id === s) || bench.meter?.id === s) return `part:${s}`;
   if (bench.wires.some((w) => w.id === s)) return `wire:${s}.b`;
   if (bench.leads.some((l) => l.id === s)) return `lead:${s}.a`;

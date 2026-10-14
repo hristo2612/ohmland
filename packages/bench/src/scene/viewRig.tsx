@@ -9,7 +9,7 @@ import { boardGeometry, boardOrigin } from "../board";
 import { BOARD_TOP, GATE } from "../dims";
 import { METER, anchorPosition, isOnBoard } from "../layout";
 import { parseAnchor } from "../anchors";
-import { partMarks, rotateXZ } from "../parts";
+import { PRINTED_KINDS, partMarks, rotateXZ } from "../parts";
 import type { BenchStore } from "../store";
 import type { BenchState, Vec3 } from "../types";
 import { prefersReducedMotion } from "../three/anim";
@@ -18,6 +18,7 @@ import { SPOT_LAYER, type Spotlight } from "../three/post";
 import type { PaperPalette } from "../three/paper";
 import type { FocusOptions, Inset, ScreenPoint } from "../view/controller";
 import { meterSpot, parseTarget, targetPoint } from "../view/targets";
+import { frameWithParts } from "../view/framing";
 
 export type ViewApi = {
   /** Element-relative CSS px of a target or a world point. */
@@ -164,7 +165,9 @@ export function ViewRig({
   const invalidate = useThree((s) => s.invalidate);
   const home = useRef<{ position: THREE.Vector3; target: THREE.Vector3; top: boolean } | null>(null);
   const homed = useRef(initialCamera);
-  const cache = useRef<{ bench: BenchState | null; points: Map<string, Vec3 | null> }>({ bench: null, points: new Map() });
+  const cache = useRef<{ bench: BenchState | null; frame: number; points: Map<string, Vec3 | null> }>({ bench: null, frame: -1, points: new Map() });
+  /** Drawn frames so far, and how many more frames overlays hear about after a bench change. */
+  const frames = useRef({ n: 0, settle: 0 });
 
   useLayoutEffect(() => {
     const controls = () => get().controls as unknown as CameraControlsImpl | null;
@@ -219,14 +222,32 @@ export function ViewRig({
     };
 
     /**
-     * The work area: the lab's own frame when it sets one, else the board, every part, the meter body and the leads
-     * that hold something.
+     * The work area: the lab's own frame when it sets one (with a part that pokes a little out of it taken in whole),
+     * else the board, every part, the meter body and the leads that hold something.
      */
     const workBoxes = (portrait: boolean): THREE.Box3[] => {
       const frame = store.getState().frame;
-      if (frame) return [new THREE.Box3(new THREE.Vector3(frame[0], 0, frame[1]), new THREE.Vector3(frame[2], 16, frame[3]))];
       const b = bench();
       const scene = get().scene;
+      if (frame) {
+        const fb = new THREE.Box3(new THREE.Vector3(frame[0], 0, frame[1]), new THREE.Vector3(frame[2], 16, frame[3]));
+        const boxes: THREE.Box3[] = [];
+        for (const p of b.parts) {
+          const obj = scene.getObjectByName(`part:${p.id}`);
+          const box = obj ? contentBox(obj) : null;
+          if (box && !box.isEmpty()) boxes.push(box);
+        }
+        const mb = meterBox(b);
+        if (mb) boxes.push(mb);
+        // The same rule as the ink view (frameWithParts), on the desk plane.
+        const [x0, z0, x1, z1] = frameWithParts(
+          frame,
+          boxes.map((x) => [x.min.x, x.min.z, x.max.x, x.max.z] as [number, number, number, number]),
+        );
+        // The grown frame on the desk, and the parts whole inside it (their height counts).
+        const inside = boxes.filter((x) => x.min.x >= x0 - 0.01 && x.max.x <= x1 + 0.01 && x.min.z >= z0 - 0.01 && x.max.z <= z1 + 0.01);
+        return [new THREE.Box3(new THREE.Vector3(x0, 0, z0), new THREE.Vector3(x1, 16, z1)), ...inside];
+      }
       const out: THREE.Box3[] = [];
       const bb = boardBox(b);
       if (bb) out.push(bb);
@@ -354,12 +375,17 @@ export function ViewRig({
       return { x, y, visible };
     };
 
-    /** World point of a target, cached until the bench changes. Parts use the centre of their rendered model. */
+    /**
+     * World point of a target, cached within a drawn frame of one bench. Parts use the centre of their rendered model,
+     * which follows a bench change a frame or two late (a part moved from the desk into the board still has its desk
+     * pose until React has rendered it), so nothing is kept from one frame to the next.
+     */
     const worldPoint = (t: string): Vec3 | null => {
       const b = bench();
       const c = cache.current;
-      if (c.bench !== b) {
+      if (c.bench !== b || c.frame !== frames.current.n) {
         c.bench = b;
+        c.frame = frames.current.n;
         c.points.clear();
       }
       if (c.points.has(t)) return c.points.get(t)!;
@@ -406,7 +432,13 @@ export function ViewRig({
         // Leave some of the bench around the targets, so the learner sees where they are.
         const { width, height } = get().size;
         const padding = opts.padding ?? Math.max(defaultPadding(), Math.round(Math.min(width, height) * 0.14));
-        const pose = frame(boxes, { padding, turn: shouldTurn(boxes), minSize: MIN_FRAME });
+        // Print (a colour chart, a value tag) is read upright: no quarter turn on a tall screen.
+        const printed = targets.some((t) => {
+          const pt = parseTarget(t);
+          const kind = pt?.type === "part" ? bench().parts.find((p) => p.id === pt.id)?.kind : undefined;
+          return !!kind && PRINTED_KINDS.has(kind);
+        });
+        const pose = frame(boxes, { padding, turn: !printed && shouldTurn(boxes), minSize: MIN_FRAME });
         home.current = null;
         move(pose, !opts.instant);
       },
@@ -430,7 +462,8 @@ export function ViewRig({
     };
   }, [get, store, apiRef, viewPad, inset, invalidate, setSpotTargets]);
 
-  // Tell overlays when the camera, the canvas size or the bench changed (once per drawn frame, before it is drawn).
+  // Tell overlays when the camera, the canvas size or the bench changed (once per drawn frame, before it is drawn), and
+  // for a few frames after a bench change, while the models catch up.
   const last = useRef({ m: new THREE.Matrix4(), p: new THREE.Matrix4(), w: -1, h: -1, bench: null as BenchState | null });
   useFrame(() => {
     const { camera, size } = get();
@@ -454,7 +487,13 @@ export function ViewRig({
       api.home(home.current.top, false);
       camera.updateMatrixWorld();
     }
-    if (!resized && bench === l.bench && l.m.equals(camera.matrixWorld) && l.p.equals(camera.projectionMatrix)) return;
+    const f = frames.current;
+    f.n++;
+    // The models catch up with a bench change over the next frame or two: overlays hear about those frames too.
+    if (bench !== l.bench) f.settle = 3;
+    const settling = f.settle > 0;
+    if (settling) f.settle--;
+    if (!settling && !resized && bench === l.bench && l.m.equals(camera.matrixWorld) && l.p.equals(camera.projectionMatrix)) return;
     l.m.copy(camera.matrixWorld);
     l.p.copy(camera.projectionMatrix);
     l.w = size.width;

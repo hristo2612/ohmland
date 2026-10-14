@@ -7,6 +7,8 @@ import { anchorPosition, gateSpot, isOnBoard, partPose } from "./layout";
 import { chargeable, rub, settle } from "./static";
 import { canMountOnBoard, defaultParams, footprintOf, isFlying, partDef, rotateXZ } from "./parts";
 import { heldOf, holderOf, popSpot, seatFits, seatNear, seatPose, seatsOf } from "./seats";
+import { flyingToPerf, moveClip, movePlug, moveTube, perfCenter, placeOnPerf, solderedIn, tidyBends } from "./solder/ops";
+import { perfMount } from "./solder/perfboard";
 import type {
   Anchor,
   BenchPartKind,
@@ -37,6 +39,18 @@ export function nextId(bench: BenchState, prefix: string): string {
     ...(bench.meter ? [bench.meter.id] : []),
   ]);
   for (let i = 1; ; i++) if (!used.has(`${prefix}${i}`)) return `${prefix}${i}`;
+}
+
+/**
+ * The id for a thing placed from a tray item that declares `wanted`: that id while it is free, else the next free one
+ * counting on from it ("R8" placed, the item's second "R9"), so a tray item of two places the ids the lab names.
+ */
+export function trayId(bench: BenchState, wanted: string | undefined): string | undefined {
+  if (!wanted || !nextIdTaken(bench, wanted)) return wanted;
+  const m = /^(.*?)(\d+)$/.exec(wanted);
+  if (!m) return undefined;
+  for (let n = Number(m[2]) + 1; n < Number(m[2]) + 100; n++) if (!nextIdTaken(bench, `${m[1]}${n}`)) return `${m[1]}${n}`;
+  return undefined;
 }
 
 /** Whether an id is already used by a part, wire, lead or the meter. */
@@ -122,6 +136,8 @@ export function fitOnBoard(
 
 /** Centre of a part's footprint on the desk (board parts) or its body position (desk parts). */
 export function partCenter(bench: BenchState, part: PlacedPart): Vec2 {
+  const perf = perfCenter(bench, part);
+  if (perf) return perf;
   if (isOnBoard(bench, part)) {
     const pts = Object.values(part.holes ?? {})
       .map((h) => (h ? holeWorld(bench.board!, h) : null))
@@ -175,6 +191,12 @@ export function addPart<K extends BenchPartKind>(
  * `seat: "free"` only into a seat nobody holds (a drop by hand never pushes another part out).
  */
 export function movePart(bench: BenchState, id: string, to: Vec2, opts: { rot?: number; reach?: number; seat?: boolean | "free" } = {}): BenchState {
+  const next = movePartTo(bench, id, to, opts);
+  // A part lifted off a perfboard takes its bent legs with it.
+  return next !== bench && perfMount(bench, bench.parts.find((p) => p.id === id)!) ? tidyBends(next) : next;
+}
+
+function movePartTo(bench: BenchState, id: string, to: Vec2, opts: { rot?: number; reach?: number; seat?: boolean | "free" }): BenchState {
   let part = bench.parts.find((p) => p.id === id);
   if (!part) return bench;
   const nose = (partDef(part.kind) as { nose?: string }).nose;
@@ -188,6 +210,14 @@ export function movePart(bench: BenchState, id: string, to: Vec2, opts: { rot?: 
   if (part.kind === "balloon") to = settle(bench, id, to);
   // A gate clips onto the clip lead it is dropped on, or lies on the desk.
   if (part.kind === "gate") return clipGate(bench, id, to);
+  // Unit 3: clips snap onto leads, tubes slide along wires, soldered parts stay put, parts go through perfboard.
+  if (part.kind === "heat-sink-clip") return moveClip(bench, part, to);
+  if (part.kind === "heat-shrink") return moveTube(bench, part, to);
+  if (solderedIn(bench, part)) return bench;
+  if (canMountOnBoard(part)) {
+    const onPerf = placeOnPerf(bench, part, to, opts.rot ?? part.rot, opts.reach);
+    if (onPerf) return tidyBends(replacePart(holderOf(bench, id) ? unseat(bench, id) : bench, onPerf));
+  }
   if (opts.seat !== false) {
     const near = seatNear(bench, part, to, undefined, opts.seat === "free");
     if (near) {
@@ -398,6 +428,12 @@ export function rotatePart(bench: BenchState, id: string, step = 90): BenchState
   }
   if (seatsOf(part).length) return syncHeld(replacePart(bench, { ...part, rot: (((part.rot + step) % 360) + 360) % 360 } as PlacedPart), id);
   const center = partCenter(bench, part);
+  if (perfMount(bench, part)) {
+    if (solderedIn(bench, part)) return bench;
+    const rot = (((Math.round(part.rot / 90) * 90 + step) % 360) + 360) % 360;
+    const turned = placeOnPerf(bench, part, center, rot, 1.1);
+    return turned ? tidyBends(replacePart(bench, turned)) : bench;
+  }
   if (isOnBoard(bench, part)) {
     const pose = partPose(bench, part);
     const span = currentSpan(bench, part);
@@ -449,6 +485,10 @@ export function moveSpanLeg(bench: BenchState, id: string, leg: string, to: Vec2
 export function moveFlyingLeg(bench: BenchState, id: string, leg: string, to: Vec2): BenchState {
   const part = bench.parts.find((p) => p.id === id);
   if (!part || !isFlying(part)) return bench;
+  // A wall adapter's barrel plug goes into a jack; other flying leads may go through a perfboard hole.
+  if (part.kind === "wall-adapter") return movePlug(bench, part, to);
+  const viaPerf = flyingToPerf(bench, part, leg, to);
+  if (viaPerf) return viaPerf;
   const hole = bench.board ? nearestHole(bench.board, to[0], to[1]) : null;
   const occupied = occupiedHoles(bench, { part: id, leg });
   const holes = { ...(part.holes ?? {}) };
@@ -484,8 +524,17 @@ function detach(bench: BenchState, gone: (a: Anchor) => boolean): BenchState {
 }
 
 export function removePart(bench: BenchState, id: string): BenchState {
-  const detached = detach(unseat(bench, id), (a) => a.startsWith(`pin:${id}.`));
-  return { ...detached, parts: detached.parts.filter((p) => p.id !== id) };
+  const detached = detach(unseat(bench, id), (a) => a.startsWith(`pin:${id}.`) || a.startsWith(`spot:${id}.`));
+  return tidyBends({ ...detached, parts: detached.parts.filter((p) => p.id !== id) });
+}
+
+/** Run a part's one-shot action: its whole-bench `run` (a stripper stripping), else its params. */
+export function runAction(bench: BenchState, id: string, action: string): BenchState {
+  const part = bench.parts.find((p) => p.id === id);
+  const def = part ? (partDef(part.kind).actions ?? []).find((a) => a.id === action) : undefined;
+  if (!part || !def) return bench;
+  if (def.run) return def.run(bench, id);
+  return setPartParams(bench, id, def.apply(part.params as Record<string, unknown>) as never);
 }
 
 export function setPartParams<K extends BenchPartKind>(bench: BenchState, id: string, params: Partial<PartParamsMap[K]>): BenchState {

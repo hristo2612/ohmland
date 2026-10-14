@@ -16,6 +16,7 @@ import { rectOfPoints, unionRect, type Rect } from "./camera";
 import { INK, boxCorners, toLocal, toWorld, type Box, type Frame } from "./frame";
 import { inkKind } from "./kinds";
 import { parseTarget } from "../view/targets";
+import { perfMount } from "../solder/perfboard";
 
 export { INK, boxCorners, frameTransform, toLocal, toWorld, type Box, type Frame } from "./frame";
 
@@ -41,7 +42,8 @@ export type InkPick =
   | { type: "dial" }
   | { type: "dialMode"; mode: MeterMode }
   | { type: "plug"; color: ProbeColor }
-  | { type: "probe"; color: ProbeColor };
+  /** `tip`: the probe's metal tip end, which a pencil card's drawing strip under it beats (the grip still wins). */
+  | { type: "probe"; color: ProbeColor; tip?: true };
 
 /** Handles beat bodies: a lead end or a button inside a part body wins over the body. */
 export const PRIORITY: Record<InkPick["type"], number> = {
@@ -61,6 +63,14 @@ export const PRIORITY: Record<InkPick["type"], number> = {
   wire: 1,
   meter: 0,
 };
+
+/** A probe's tip end: above bodies, below a pencil card's drawing strip (`draw`). */
+export const PROBE_TIP_RANK = 1.4;
+
+/** How strongly a pick claims the pointer (PRIORITY, with a probe's tip end just under a drawing strip). */
+export function pickRank(p: InkPick): number {
+  return p.type === "probe" && p.tip ? PROBE_TIP_RANK : PRIORITY[p.type];
+}
 
 export type HitItem = { pick: InkPick; shape: Shape; order: number };
 
@@ -138,6 +148,24 @@ function holderMap(bench: BenchState): Map<string, PlacedPart> {
   for (const h of bench.parts) {
     const held = (h.params as { held?: Record<string, string | undefined> }).held;
     if (held) for (const id of Object.values(held)) if (id) out.set(id, h);
+  }
+  // A part through a perfboard's holes follows the board (its pose changes when the board moves or flips).
+  for (const p of bench.parts) {
+    const board = perfMount(bench, p);
+    if (board) out.set(p.id, board);
+  }
+  // A clip on a lead or a tube on a wire follows its host.
+  for (const p of bench.parts) {
+    const host =
+      p.kind === "heat-sink-clip" && p.params.on
+        ? p.params.on.slice(0, p.params.on.lastIndexOf("."))
+        : p.kind === "heat-shrink" && p.params.on
+          ? p.params.on
+          : p.kind === "wall-adapter" && p.params.into
+            ? p.params.into
+            : null;
+    const h = host ? bench.parts.find((x) => x.id === host) : undefined;
+    if (h) out.set(p.id, h);
   }
   return out;
 }
@@ -433,6 +461,8 @@ export function buildModel(bench: BenchState): InkModel {
   for (const pi of parts.values()) {
     const id = pi.part.id;
     const kind = inkKind(pi.part.kind);
+    // Under a flipped perfboard: out of reach until the board is turned back.
+    if (pi.pose.under) continue;
     push({ type: "part", id }, { t: "box", f: pi.f, b: pi.box });
     for (const h of hotspotsOf(pi.part, pi.mount)) {
       const box: Box = [h.at[0] - h.size[0] / 2, h.at[2] - h.size[2] / 2, h.at[0] + h.size[0] / 2, h.at[2] + h.size[2] / 2];
@@ -482,7 +512,14 @@ export function buildModel(bench: BenchState): InkModel {
     for (const c of ["black", "red"] as const) {
       const pr = meter.probes[c];
       push({ type: "plug", color: c }, pr.plug.inSocket ? { t: "circle", x: pr.plug.at[0], z: pr.plug.at[1], r: INK.plugR + 1 } : { t: "capsule", ax: pr.plug.at[0], az: pr.plug.at[1], bx: pr.plug.top[0], bz: pr.plug.top[1], r: 3.2 });
-      push({ type: "probe", color: c }, { t: "capsule", ax: pr.tip[0], az: pr.tip[1], bx: pr.back[0], bz: pr.back[1], r: 3 });
+      // The metal tip end and the grip: a stroke started on a pencil card under a resting tip draws; the grip is the
+      // probe's handle everywhere.
+      const len = Math.hypot(pr.back[0] - pr.tip[0], pr.back[1] - pr.tip[1]) || 1;
+      const k = Math.min(0.5, INK.probeTip / len);
+      const mx = pr.tip[0] + (pr.back[0] - pr.tip[0]) * k;
+      const mz = pr.tip[1] + (pr.back[1] - pr.tip[1]) * k;
+      push({ type: "probe", color: c, tip: true }, { t: "capsule", ax: pr.tip[0], az: pr.tip[1], bx: mx, bz: mz, r: 3 });
+      push({ type: "probe", color: c }, { t: "capsule", ax: mx, az: mz, bx: pr.back[0], bz: pr.back[1], r: 3 });
     }
   }
 

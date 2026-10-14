@@ -21,6 +21,7 @@ import { Proxy, localBox } from "./pick";
 import { prefersReducedMotion, useAnimating } from "../three/anim";
 import { useFrame } from "@react-three/fiber";
 import { usePaperPalette } from "./palette";
+import { BarrelPlug, PerfboardModel } from "../models/Solder";
 import { extraLookKey, useProbeState } from "../probe";
 import { SUPPLY } from "../chips";
 
@@ -65,6 +66,9 @@ export function makeFloor(bench: BenchState): FloorFn {
 
 // ---------------------------------------------------------------------------------------------------------------
 // Selection frame: corner brackets on the surface around a box (always visible, both quality tiers).
+
+/** Where a probe's grip begins, above its tip and finger guard (mm along the probe). */
+const PROBE_GRIP = 20;
 
 function SelectionFrame({ box, color, pulse: wantPulse = false }: { box: THREE.Box3; color: string; pulse?: boolean }) {
   const reduced = useMemo(() => prefersReducedMotion(), []);
@@ -184,9 +188,15 @@ function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality,
   const pal = usePaperPalette();
   const body = (
     <group ref={model}>
-      <LivePartModel id={part.id} kind={part.kind} params={part.params} mount={pose.mount} span={pose.span} quality={quality} pressed={pressed} held={!!pose.heldBy} perched={pose.origin[1] > 0 && pose.mount === "desk" && !pose.heldBy} probing={probing} />
+      {part.kind === "perfboard" ? (
+        <PerfboardModel part={part} />
+      ) : (
+        <LivePartModel id={part.id} kind={part.kind} params={part.params} mount={pose.mount} span={pose.span} quality={quality} pressed={pressed} held={!!pose.heldBy} perched={pose.origin[1] > 0 && pose.mount === "desk" && !pose.heldBy} probing={probing} />
+      )}
     </group>
   );
+  // Under a perfboard turned copper side up: the board draws the legs that come through.
+  if (pose.under) return null;
   return (
     <group name={`part:${part.id}`}>
       <group position={pose.origin} rotation={turn}>
@@ -242,24 +252,30 @@ function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality,
           const [dx, dz] = rotateXZ(f.dir[0], f.dir[2], pose.rot);
           const fromDir = new THREE.Vector3(dx, f.dir[1], dz).normalize();
           const tip = v3(end.pos);
+          // Bare copper at the end: a snap lead's tinned end, a hookup wire's stripped length (if any).
+          const bare = part.kind === "hookup-wire" ? ((part.params as { ends?: Record<string, { mm?: number }> }).ends?.[leg]?.mm ?? 0) : part.kind === "wall-adapter" ? 6 : 5;
           let to: THREE.Vector3;
           let toDir: THREE.Vector3;
           let stripDir: THREE.Vector3;
           if (end.inHole) {
-            to = tip.clone().setY(BOARD_TOP + 1.6);
+            to = tip.clone().setY(tip.y + 1.6);
             toDir = new THREE.Vector3(0, 1, 0);
             stripDir = new THREE.Vector3(0, -1, 0);
           } else {
             const back = new THREE.Vector3(from.x - tip.x, 0, from.z - tip.z).normalize();
-            to = tip.clone().addScaledVector(back, 5).setY(0.75);
+            to = tip.clone().addScaledVector(back, bare).setY(0.75);
             toDir = back;
             stripDir = back.clone().negate();
           }
           return (
             <group key={leg}>
               <Cable from={from} fromDir={fromDir} to={to} toDir={toDir} length={Math.min(f.length, from.distanceTo(to) * 1.08 + 30)} radius={f.radius} color={f.color} floor={floor} bend={0.42} stiff={1} />
-              <StrippedEnd at={end.inHole ? tip : to.clone().setY(0.6)} dir={stripDir} inHole={end.inHole} />
-              <Proxy pick={{ type: "leg", id: part.id, leg, flying: true }} size={[4, 4, 4]} position={end.inHole ? [tip.x, BOARD_TOP + 2, tip.z] : [tip.x, 1.5, tip.z]} />
+              {part.kind === "wall-adapter" ? (
+                <BarrelPlug at={end.inHole ? tip : to.clone().setY(2.6)} dir={stripDir} />
+              ) : (
+                bare > 0 && <StrippedEnd at={end.inHole ? tip : to.clone().setY(0.6)} dir={stripDir} inHole={end.inHole} top={end.inHole ? tip.y : undefined} len={bare} />
+              )}
+              <Proxy pick={{ type: "leg", id: part.id, leg, flying: true }} size={[4, 4, 4]} position={end.inHole ? [tip.x, tip.y + 2, tip.z] : [tip.x, 1.5, tip.z]} />
             </group>
           );
         })}
@@ -603,7 +619,9 @@ export function MeterView({
             </group>
             <group position={tip} quaternion={quatFromY(axis)}>
               <Probe color={color} />
-              <Proxy pick={{ type: "probe", color }} size={[12, PROBE_LEN - 10, 12]} position={[0, PROBE_LEN / 2 + 4, 0]} />
+              {/* The tip end (to the finger guard) and the grip: a stroke on a pencil card under a resting tip draws. */}
+              <Proxy pick={{ type: "probe", color, tip: true }} size={[12, PROBE_GRIP - 9, 12]} position={[0, (PROBE_GRIP + 9) / 2, 0]} />
+              <Proxy pick={{ type: "probe", color }} size={[12, PROBE_LEN - 1 - PROBE_GRIP, 12]} position={[0, (PROBE_LEN - 1 + PROBE_GRIP) / 2, 0]} />
             </group>
             <Cable from={back} fromDir={axis} to={plugTop} toDir={plugDir} length={back.distanceTo(plugTop) * 1.12 + 70} radius={PROBE_CABLE_R} color={color} floor={floor} bend={0.42} stiff={1} />
           </group>
