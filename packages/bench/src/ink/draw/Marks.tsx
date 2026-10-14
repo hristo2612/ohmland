@@ -48,9 +48,11 @@ export type MarksProps = {
   spot: readonly string[] | null;
   /** Points joined to the hovered hole or lead (x-ray). */
   litPins: readonly Anchor[];
+  /** What keyboard focus is on, as a target ("part:R1", "lead:TL1.a", "probe:red", "part:M1/dial"). */
+  focus: string | null;
 };
 
-export const Marks = memo(function Marks({ model, ui, hintParts, hintAnchors, spot, litPins }: MarksProps) {
+export const Marks = memo(function Marks({ model, ui, hintParts, hintAnchors, spot, litPins, focus }: MarksProps) {
   const sel = ui.selection;
   const out: React.ReactNode[] = [];
   // Joined leads and jumper ends of the hovered point.
@@ -90,6 +92,10 @@ export const Marks = memo(function Marks({ model, ui, hintParts, hintAnchors, sp
       const r = targetRect(model, t);
       if (r) out.push(<Ring key={`s:${t}`} r={r} className="spot spot-pulse" pad={t.includes(":") && !t.startsWith("part:") ? 1.2 : 3.4} />);
     }
+  }
+  if (focus) {
+    const r = targetRect(model, focus);
+    if (r) out.push(<Ring key="focus" r={r} className="focus-ring" pad={focus.includes(":") && !focus.startsWith("part:") ? 2.2 : 3} />);
   }
   if (ui.snapTarget) {
     const p = anchorInk(model, ui.snapTarget);

@@ -134,12 +134,11 @@ export type OverlayProps = {
   /** The view has moved away from its fit (show the "show everything" button). */
   moved: boolean;
   onFit: () => void;
-  onZoom: (factor: number) => void;
   /** A tray item was armed from the keyboard: put the cursor on the bench. */
   onArmKey: () => void;
 };
 
-export function InkOverlay({ store, labels, tray, readOnly, compact, api, size, moved, onFit, onZoom, onArmKey }: OverlayProps) {
+export function InkOverlay({ store, labels, tray, readOnly, compact, api, size, moved, onFit, onArmKey }: OverlayProps) {
   const ui = useStore(store, (s) => s.ui);
   const bench = useStore(store, (s) => s.bench);
   const canUndo = useStore(store, (s) => s.past.length > 0);
@@ -339,12 +338,11 @@ export function InkOverlay({ store, labels, tray, readOnly, compact, api, size, 
           </div>
         </div>
       )}
-      {(!compact || moved) && (
+      {/* Zoom is the wheel, a pinch or + and -; the one button comes back only once the view has wandered. */}
+      {moved && (
         <div className="ohi-slip ohi-view">
           <div className="ohi-row">
-            {!compact && <Btn label={labels.zoomOut} icon="zoomOut" onClick={() => onZoom(0.8)} />}
-            {!compact && <Btn label={labels.zoomIn} icon="zoomIn" onClick={() => onZoom(1.25)} />}
-            {moved && <Btn label={labels.fit} icon="fit" onClick={onFit} />}
+            <Btn label={labels.fit} icon="fit" onClick={onFit} />
           </div>
         </div>
       )}

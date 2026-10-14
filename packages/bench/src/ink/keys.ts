@@ -177,7 +177,10 @@ function moveCursor(env: KeyEnv, dir: "left" | "right" | "up" | "down", fine: bo
   // Keep the cursor in view.
   const [sx, sy] = env.view.toScreen(cursor.pos[0], cursor.pos[1]);
   const m = 48;
-  if (sx < m || sy < m || sx > env.view.vp.w - m || sy > env.view.vp.h - m) env.view.glide({ ...env.view.cam, x: cursor.pos[0], z: cursor.pos[1] }, 220);
+  if (sx < m || sy < m || sx > env.view.vp.w - m || sy > env.view.vp.h - m) {
+    env.view.moved = true;
+    env.view.glide({ ...env.view.cam, x: cursor.pos[0], z: cursor.pos[1] }, 220);
+  }
   const s = env.store.getState();
   if (s.ui.mode === "wire" && s.ui.wireDraft) {
     const h = cursor.anchor?.startsWith("hole:") ? cursor.anchor.slice(5) : null;
@@ -310,6 +313,7 @@ export function handleInkKey(e: KeyboardEvent, env: KeyEnv, kb: string | null): 
       }
       const pin = at ? parseAnchor(at) : null;
       if (pin?.type === "pin") s.select({ type: "part", id: pin.part });
+      else if (pin?.type === "wire") s.select({ type: "wire", id: pin.wire });
       return true;
     }
     if ((e.key === "Delete" || e.key === "Backspace") && st.carry) {

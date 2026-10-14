@@ -228,7 +228,8 @@ switch), drag along the pencil card to draw; Wire mode for hole to hole jumpers;
 the menu. Hover a hole (or tap it) to light its metal strip and everything joined to it. Empty-paper drags pan; the
 wheel, trackpad pinch and two fingers zoom toward the pointer.
 
-**Keyboard.** The bench, every part, wire, clip, probe, plug and the dial are focusable with names. The 3D view's keys
+**Keyboard.** The bench, every part, clip, probe, plug and the dial are focusable with names (jumpers are reached with
+the cursor, so a busy board does not fill the tab order); the focus ring is a dashed blue mark. The 3D view's keys
 work (arrows move the selected part a hole, `R`, `Delete`, `Space` flips or presses, `W`, `X`, `Ctrl/Cmd+Z`,
 `Ctrl/Cmd+Shift+Z`), plus `+`, `-` and `0` to zoom and fit. With nothing selected the arrows walk a cursor between
 holes and leads (screen readers hear the point and what is joined to it); `Enter` on a clip, probe or plug picks it

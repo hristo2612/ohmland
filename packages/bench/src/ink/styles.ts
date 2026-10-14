@@ -350,9 +350,9 @@ export const INK_CSS = `
 @keyframes ohi-breathe{0%,100%{opacity:.9}50%{opacity:.45}}
 
 .ohi-svg .ohi-room{fill:var(--k-room);pointer-events:none;transition:opacity 400ms}
+/* SVG outlines would scale with the drawing: the focus ring is drawn as a mark instead. */
 .ohi-svg [tabindex]{outline:none}
-.ohi-svg [tabindex]:focus-visible{outline:2px solid var(--k-focus);outline-offset:3px}
-.ohi-svg .ohi-cursor:focus-visible{outline:none}
+.ohi-svg .focus-ring{fill:none;stroke:var(--k-focus);stroke-width:2.4px;vector-effect:non-scaling-stroke;stroke-dasharray:5 4}
 .ohi-svg .ohi-cursor:focus-visible .cursor{stroke-width:3px}
 
 /* Chrome: quiet slips that come and go. */

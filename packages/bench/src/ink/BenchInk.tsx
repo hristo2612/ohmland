@@ -21,7 +21,7 @@ import { n3 } from "./frame";
 import { attachInteraction, type InkApi } from "./interaction";
 import { KeyCursor, anchorName, handleInkKey, partName, startCursor, type KeyEnv } from "./keys";
 import { mergeInkLabels, type InkLabels } from "./labels";
-import { buildModel, targetOwners, targetPoint, targetsRect, type InkModel, type InkPick } from "./model";
+import { buildModel, targetOwners, targetPoint, targetRect, targetsRect, type InkModel, type InkPick } from "./model";
 import { InkOverlay, partDetail, useFollow } from "./Overlay";
 import { INK_CSS } from "./styles";
 import { InkView } from "./view";
@@ -68,6 +68,18 @@ export type InkController = BenchController & {
   /** The camera: desk point in the middle and px per mm. */
   camera(): { x: number; z: number; s: number };
 };
+
+/** The target a focused element stands for, for its focus ring. */
+function focusTarget(kb: string | null, meter: string | undefined): string | null {
+  if (!kb) return null;
+  if (kb.startsWith("part:")) return kb;
+  if (kb.startsWith("clip:")) return `lead:${kb.slice(5)}`;
+  if (kb.startsWith("probe:")) return kb;
+  if (kb.startsWith("plug:")) return meter ? `part:${meter}/sockets` : null;
+  if (kb === "dial") return meter ? `part:${meter}/dial` : null;
+  if (kb.startsWith("wire:")) return kb.slice(5);
+  return null;
+}
 
 /** The busy part of a breadboard: what sits in it and the jumpers, for framing on small screens. */
 function busyRect(model: InkModel): Rect | null {
@@ -253,8 +265,13 @@ export function BenchInk(props: BenchInkProps) {
     const kb = (e.target as Element).closest?.("[data-kb]")?.getAttribute("data-kb") ?? null;
     if (handleInkKey(e.nativeEvent, keyEnv(), kb)) e.preventDefault();
   };
+  // The keyboard's focus ring (drawn as a mark: an SVG outline would scale with the drawing).
+  const [focusKb, setFocusKb] = useState<string | null>(null);
+  const onFocusOut = () => setFocusKb(null);
   const onFocusIn = (e: React.FocusEvent) => {
     const kb = (e.target as Element).getAttribute?.("data-kb");
+    const visible = !!(e.target as Element).matches?.(":focus-visible");
+    setFocusKb(kb && kb !== "cursor" && visible ? kb : null);
     if (!kb) return;
     const s = store.getState();
     if (kb.startsWith("part:")) s.select({ type: "part", id: kb.slice(5) });
@@ -262,12 +279,20 @@ export function BenchInk(props: BenchInkProps) {
     else if (kb.startsWith("clip:")) s.select({ type: "lead", id: kb.slice(5).split(".")[0]! });
     else if (kb === "dial" || kb === "meter" || kb.startsWith("probe:") || kb.startsWith("plug:")) s.select({ type: "meter", id: s.bench.meter?.id ?? "M1" });
     else if (kb === "cursor") startCursor(keyEnv());
-    // Keep what has focus on screen.
-    if (kb !== "cursor") {
-      const p = targetPoint(modelRef.current, kb.startsWith("part:") ? kb : kb.startsWith("clip:") ? `lead:${kb.slice(5)}` : kb.startsWith("wire:") ? kb.slice(5) : kb === "dial" ? `part:${s.bench.meter?.id}/dial` : kb.startsWith("probe:") ? kb : `part:${s.bench.meter?.id}`);
-      if (p) {
-        const [sx, sy] = view.toScreen(p[0], p[1]);
-        if (sx < 40 || sy < 40 || sx > view.vp.w - 40 || sy > view.vp.h - 40) view.glide({ ...view.cam, x: p[0], z: p[1] }, 260);
+    // Keep what the keyboard focused on screen, whole (a click already shows where it is): glide over, and zoom out
+    // if it does not fit, never in.
+    if (kb !== "cursor" && visible) {
+      const t = focusTarget(kb, s.bench.meter?.id);
+      const r = t ? targetRect(modelRef.current, t) : null;
+      if (r) {
+        const [x0, y0] = view.toScreen(r[0], r[1]);
+        const [x1, y1] = view.toScreen(r[2], r[3]);
+        const p = padRef.current;
+        if (x0 < p.left || y0 < p.top || x1 > view.vp.w - p.right || y1 > view.vp.h - p.bottom) {
+          const cam = fitRect(growRect(r, 6), view.vp, p, view.cam.s);
+          view.moved = true;
+          view.glide({ ...cam, s: Math.min(view.cam.s, cam.s) }, 260);
+        }
       }
     }
   };
@@ -357,6 +382,7 @@ export function BenchInk(props: BenchInkProps) {
             onKeyDown={onKey}
             onKeyUp={onKey}
             onFocus={onFocusIn}
+            onBlur={onFocusOut}
             style={style}
           >
             <style>{INK_CSS}</style>
@@ -395,7 +421,7 @@ export function BenchInk(props: BenchInkProps) {
               {dimRoom && <rect width="100%" height="100%" className="ohi-room" style={{ opacity: Math.min(0.82, (1 - ambient) * 0.9) }} />}
               <g ref={topRef}>
                 {dimRoom && <GlowLayer parts={parts} store={store} defs={defsId} quality={quality} />}
-                <Marks model={model} ui={ui} hintParts={hintParts} hintAnchors={hintAnchors} spot={spot} litPins={xr?.pins ?? []} />
+                <Marks model={model} ui={ui} hintParts={hintParts} hintAnchors={hintAnchors} spot={spot} litPins={xr?.pins ?? []} focus={focusTarget(focusKb, bench.meter?.id)} />
                 <g
                   ref={cursorRef}
                   data-kb="cursor"
@@ -423,7 +449,6 @@ export function BenchInk(props: BenchInkProps) {
               size={size}
               moved={moved}
               onFit={() => fitHome(false)}
-              onZoom={(f) => view.zoomAt(view.vp.w / 2, view.vp.h / 2, f)}
               onArmKey={() => {
                 startCursor(keyEnv());
                 focusCursor();

@@ -36,7 +36,7 @@ export const WireView = memo(function WireView({ wi, name }: { wi: WireInk; name
   const d = `M${n3(a[0])} ${n3(a[1])}Q${n3(ctrl[0])} ${n3(ctrl[1])} ${n3(b[0])} ${n3(b[1])}`;
   const w = { ["--w" as string]: `${INK.jumperW}px` };
   return (
-    <g data-own={wi.wire.id} data-kb={`wire:${wi.wire.id}`} tabIndex={0} role="button" aria-label={name}>
+    <g data-own={wi.wire.id} data-kb={`wire:${wi.wire.id}`} tabIndex={-1} role="button" aria-label={name}>
       <path d={d} className="edge" style={w} />
       <path d={d} className="core" style={{ ...w, stroke: WIRE_TOKEN(wi.wire.color) }} />
       <circle cx={n3(a[0])} cy={n3(a[1])} r={0.62} className="f-metal ln-thin" />
