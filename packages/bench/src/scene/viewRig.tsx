@@ -18,6 +18,7 @@ import { SPOT_LAYER, type Spotlight } from "../three/post";
 import type { PaperPalette } from "../three/paper";
 import type { FocusOptions, Inset, ScreenPoint } from "../view/controller";
 import { meterSpot, parseTarget, targetPoint } from "../view/targets";
+import { frameWithParts } from "../view/framing";
 
 export type ViewApi = {
   /** Element-relative CSS px of a target or a world point. */
@@ -219,14 +220,32 @@ export function ViewRig({
     };
 
     /**
-     * The work area: the lab's own frame when it sets one, else the board, every part, the meter body and the leads
-     * that hold something.
+     * The work area: the lab's own frame when it sets one (with a part that pokes a little out of it taken in whole),
+     * else the board, every part, the meter body and the leads that hold something.
      */
     const workBoxes = (portrait: boolean): THREE.Box3[] => {
       const frame = store.getState().frame;
-      if (frame) return [new THREE.Box3(new THREE.Vector3(frame[0], 0, frame[1]), new THREE.Vector3(frame[2], 16, frame[3]))];
       const b = bench();
       const scene = get().scene;
+      if (frame) {
+        const fb = new THREE.Box3(new THREE.Vector3(frame[0], 0, frame[1]), new THREE.Vector3(frame[2], 16, frame[3]));
+        const boxes: THREE.Box3[] = [];
+        for (const p of b.parts) {
+          const obj = scene.getObjectByName(`part:${p.id}`);
+          const box = obj ? contentBox(obj) : null;
+          if (box && !box.isEmpty()) boxes.push(box);
+        }
+        const mb = meterBox(b);
+        if (mb) boxes.push(mb);
+        // The same rule as the ink view (frameWithParts), on the desk plane.
+        const [x0, z0, x1, z1] = frameWithParts(
+          frame,
+          boxes.map((x) => [x.min.x, x.min.z, x.max.x, x.max.z] as [number, number, number, number]),
+        );
+        // The grown frame on the desk, and the parts whole inside it (their height counts).
+        const inside = boxes.filter((x) => x.min.x >= x0 - 0.01 && x.max.x <= x1 + 0.01 && x.min.z >= z0 - 0.01 && x.max.z <= z1 + 0.01);
+        return [new THREE.Box3(new THREE.Vector3(x0, 0, z0), new THREE.Vector3(x1, 16, z1)), ...inside];
+      }
       const out: THREE.Box3[] = [];
       const bb = boardBox(b);
       if (bb) out.push(bb);
