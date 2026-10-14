@@ -612,12 +612,12 @@ export function MeterView({
           plugDir = d;
         }
         return (
-          <group key={color}>
+          <group key={color} name={`probe:${color}`}>
             <group position={plugPos} quaternion={plugQuat}>
               <BananaPlug color={color} />
               <Proxy pick={{ type: "plug", color }} size={[10, PLUG_TOP + 4, 10]} position={[0, PLUG_TOP / 2, 0]} />
             </group>
-            <group position={tip} quaternion={quatFromY(axis)}>
+            <group name="probe-body" position={tip} quaternion={quatFromY(axis)}>
               <Probe color={color} />
               {/* The tip end (to the finger guard) and the grip: a stroke on a pencil card under a resting tip draws. */}
               <Proxy pick={{ type: "probe", color, tip: true }} size={[12, PROBE_GRIP - 9, 12]} position={[0, (PROBE_GRIP + 9) / 2, 0]} />

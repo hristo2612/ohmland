@@ -39,6 +39,11 @@ const PORTRAIT_POLAR = 0.42;
 const FOV = 32;
 /** Nothing is framed smaller than this (mm), so one LED still shows a little of what is around it. */
 const MIN_FRAME = 24;
+/**
+ * Focused targets fill at most this share of the view's height (and half again of its width): a close-up keeps the
+ * camera back, so what stands round the targets does not swell into blurs between the camera and them.
+ */
+const MAX_FILL = 0.45;
 
 const tmpBox = new THREE.Box3();
 
@@ -332,7 +337,7 @@ export function ViewRig({
       invalidate();
     };
 
-    const frame = (boxes: THREE.Box3[], opts: { padding: number; top?: boolean; turn: boolean; minSize?: number }) => {
+    const frame = (boxes: THREE.Box3[], opts: { padding: number; top?: boolean; turn: boolean; minSize?: number; maxFill?: number }) => {
       // Fit the corners of each box (not of their union, whose far top corners hold nothing and push the view away).
       const pts: THREE.Vector3[] = [];
       const union = new THREE.Box3();
@@ -349,7 +354,15 @@ export function ViewRig({
         grow.expandByPoint(new THREE.Vector3(c.x, Math.max(grow.max.y, 4), c.z));
         pts.push(...boxPoints(grow));
       }
-      const rect = viewRect(opts.padding);
+      let rect = viewRect(opts.padding);
+      if (opts.maxFill) {
+        // A close-up never fills the view: the targets take at most this share of its height (NDC spans 2).
+        const cx = (rect.l + rect.r) / 2;
+        const cy = (rect.b + rect.t) / 2;
+        const hh = Math.min((rect.t - rect.b) / 2, opts.maxFill);
+        const hw = Math.min((rect.r - rect.l) / 2, opts.maxFill * 1.5);
+        rect = { l: cx - hw, r: cx + hw, b: cy - hh, t: cy + hh, aspect: rect.aspect };
+      }
       const cam = get().camera as THREE.PerspectiveCamera;
       return solveFrame(pts, angles(opts.turn, !!opts.top), cam.fov ?? FOV, rect.aspect, rect, 45);
     };
@@ -445,7 +458,7 @@ export function ViewRig({
           const kind = pt?.type === "part" ? bench().parts.find((p) => p.id === pt.id)?.kind : undefined;
           return !!kind && UPRIGHT_KINDS.has(kind);
         });
-        const pose = frame(boxes, { padding, turn: !printed && shouldTurn(boxes), minSize: MIN_FRAME });
+        const pose = frame(boxes, { padding, turn: !printed && shouldTurn(boxes), minSize: MIN_FRAME, maxFill: MAX_FILL });
         home.current = null;
         move(pose, !opts.instant);
       },
@@ -586,6 +599,84 @@ function spotCompanions(bench: BenchState, id: string): string[] {
 
 type Ring = { key: string; box: THREE.Box3; y: number };
 
+/**
+ * Things that may stand between the camera and the spotlit targets: parts, clip leads and meter probes that are not
+ * themselves lifted into the spotlight. A lead clipped to a target stays (it is part of what the learner looks at);
+ * meter probes are judged by the probe itself, not their cable.
+ */
+function blockerCandidates(scene: THREE.Object3D, bench: BenchState, targets: string[], lifted: THREE.Object3D[]): { obj: THREE.Object3D; box: THREE.Box3 }[] {
+  const ids = new Set<string>();
+  for (const t of targets) {
+    const p = parseTarget(t);
+    if (p?.type === "part") ids.add(p.id);
+    else if (p?.type === "anchor") {
+      const a = parseAnchor(p.anchor);
+      if (a?.type === "pin") ids.add(a.part);
+    }
+  }
+  for (const id of [...ids]) for (const c of spotCompanions(bench, id)) ids.add(c);
+  const partOf = (anchor: string | null) => {
+    const a = anchor ? parseAnchor(anchor) : null;
+    return a?.type === "pin" ? a.part : null;
+  };
+  const keepLead = new Set(bench.leads.filter((l) => ids.has(partOf(l.a.to) ?? "") || ids.has(partOf(l.b.to) ?? "")).map((l) => l.id));
+  const liftedSet = new Set(lifted);
+  const under = (o: THREE.Object3D) => {
+    for (let p: THREE.Object3D | null = o; p; p = p.parent) if (liftedSet.has(p)) return true;
+    return false;
+  };
+  // A lead carrying a spotlit gate holds it: hiding the lead would hide the gate.
+  const holds = new Set<THREE.Object3D>();
+  for (const l of lifted) for (let p = l.parent; p; p = p.parent) holds.add(p);
+  const out: { obj: THREE.Object3D; box: THREE.Box3 }[] = [];
+  scene.traverse((o) => {
+    const name = o.name;
+    if (!/^(part|lead|probe):/.test(name) || under(o) || holds.has(o)) return;
+    const [kind, id] = name.split(":") as [string, string];
+    if (kind === "part" && ids.has(id)) return;
+    if (kind === "lead" && keepLead.has(id)) return;
+    let box: THREE.Box3 | null;
+    if (kind === "probe") box = contentBox(o.getObjectByName("probe-body") ?? o);
+    else if (kind === "part" && bench.meter && id === bench.meter.id) box = meterBox(bench);
+    else box = contentBox(o);
+    if (box && !box.isEmpty()) out.push({ obj: o, box });
+  });
+  return out;
+}
+
+const tmpV = new THREE.Vector3();
+
+/** A box's screen rectangle (NDC) and its nearest and middle depth in front of the camera. */
+function screenBox(box: THREE.Box3, camera: THREE.Camera): { x0: number; y0: number; x1: number; y1: number; near: number; mid: number } {
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  let near = Infinity;
+  for (const p of boxPoints(box)) {
+    near = Math.min(near, -tmpV.copy(p).applyMatrix4(camera.matrixWorldInverse).z);
+    tmpV.copy(p).project(camera);
+    x0 = Math.min(x0, tmpV.x);
+    x1 = Math.max(x1, tmpV.x);
+    y0 = Math.min(y0, tmpV.y);
+    y1 = Math.max(y1, tmpV.y);
+  }
+  const mid = -box.getCenter(tmpV).applyMatrix4(camera.matrixWorldInverse).z;
+  return { x0, y0, x1, y1, near, mid };
+}
+
+/** The candidates whose middle is nearer the camera than a target they overlap on screen. */
+function inFront(b: { targets: THREE.Box3[]; candidates: { obj: THREE.Object3D; box: THREE.Box3 }[] }, camera: THREE.Camera): Set<THREE.Object3D> {
+  const out = new Set<THREE.Object3D>();
+  if (!b.targets.length) return out;
+  const ts = b.targets.map((t) => screenBox(t, camera));
+  for (const c of b.candidates) {
+    const s = screenBox(c.box, camera);
+    if (ts.some((t) => s.x0 < t.x1 && s.x1 > t.x0 && s.y0 < t.y1 && s.y1 > t.y0 && s.mid < t.near)) out.add(c.obj);
+  }
+  return out;
+}
+
 const viewEye = new THREE.Vector3();
 
 /** In the board: every lead in a hole, or a probe pen standing on its tip in one (the ring lies on the board). */
@@ -634,6 +725,10 @@ export function SpotlightRig({ store, targets, spot, palette }: { store: BenchSt
   const seen = useRef<{ bench: BenchState | null; targets: string[] | null; settle: number; eye: THREE.Vector3 }>({ bench: null, targets: null, settle: 0, eye: new THREE.Vector3() });
   const [rings, setRings] = useState<Ring[]>([]);
   const ringGroup = useRef<THREE.Group>(null);
+  /** What may stand between the camera and a target (worked out with the rings), and what is hidden now. */
+  const blockers = useRef<{ targets: THREE.Box3[]; candidates: { obj: THREE.Object3D; box: THREE.Box3 }[] }>({ targets: [], candidates: [] });
+  const hidden = useRef(new Set<THREE.Object3D>());
+  const lastView = useRef(new THREE.Matrix4());
   const material = useMemo(() => ringMaterial(palette.red), [palette.red]);
   useEffect(() => () => material.dispose(), [material]);
   const reduced = useMemo(() => prefersReducedMotion(), []);
@@ -665,6 +760,7 @@ export function SpotlightRig({ store, targets, spot, palette }: { store: BenchSt
       if (s.settle > 0) invalidate();
       const r: THREE.Object3D[] = [];
       const next: Ring[] = [];
+      const targetBoxes: THREE.Box3[] = [];
       for (const t of targets) {
         const parsed = parseTarget(t);
         if (!parsed) continue;
@@ -685,6 +781,7 @@ export function SpotlightRig({ store, targets, spot, palette }: { store: BenchSt
           const part = bench.parts.find((x) => x.id === parsed.id);
           const box = obj ? contentBox(obj) : null;
           if (box && !box.isEmpty()) {
+            targetBoxes.push(box);
             const y = part && standsInBoard(bench, part) ? BOARD_TOP : 0;
             next.push({ key: t, box: obj ? seenFootprint(obj, box, y, s.eye) : box, y });
           }
@@ -698,15 +795,34 @@ export function SpotlightRig({ store, targets, spot, palette }: { store: BenchSt
             if (obj) r.push(obj);
           }
           const p = anchorPosition(bench, parsed.anchor);
-          if (p) next.push({ key: t, box: pointBox(p, 1.4, 0.5), y: a?.type === "hole" || a?.type === "wire" ? BOARD_TOP : Math.max(0, p[1] - 1) });
+          if (p) {
+            next.push({ key: t, box: pointBox(p, 1.4, 0.5), y: a?.type === "hole" || a?.type === "wire" ? BOARD_TOP : Math.max(0, p[1] - 1) });
+            targetBoxes.push(pointBox(p, 3, 2));
+          }
         }
       }
+      blockers.current = { targets: targetBoxes, candidates: blockerCandidates(scene, bench, targets, r) };
+      lastView.current.identity();
       roots.current = r;
       setRings((prev) => (sameRings(prev, next) ? prev : next));
     }
     if (!targets && s.targets) {
       s.targets = null;
       roots.current = [];
+      blockers.current = { targets: [], candidates: [] };
+    }
+    // What stands between the camera and a target is not veiled but gone, so a close-up is never a blur of handles.
+    const camera = get().camera;
+    camera.updateMatrixWorld();
+    if (!lastView.current.equals(camera.matrixWorld)) {
+      lastView.current.copy(camera.matrixWorld);
+      const next = targets ? inFront(blockers.current, camera) : new Set<THREE.Object3D>();
+      for (const o of hidden.current) if (!next.has(o)) o.visible = true;
+      for (const o of next) o.visible = false;
+      hidden.current = next;
+    } else if (!targets && hidden.current.size) {
+      for (const o of hidden.current) o.visible = true;
+      hidden.current = new Set();
     }
     // Lift (or drop) the spotlit meshes.
     const now = new Set<THREE.Object3D>();
