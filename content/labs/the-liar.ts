@@ -28,8 +28,8 @@ export default defineLab({
   title: "The liar",
   bench: {
     board: "none",
-    // The resistors and the bin on the left; the meter on the right, where its panel docks over it.
-    frame: ["desk:-132,-100", "desk:150,62"],
+    // The resistors and the bin; the meter's reading shows on its panel.
+    frame: ["desk:-132,-100", "desk:60,62"],
     parts: [
       { id: "R1", kind: "resistor", at: `desk:${AT.R1}`, rot: 8, params: { ohms: 15, watts: 0.25, actualOhms: 15.2 }, label: "15 Ω resistor" },
       { id: "R2", kind: "resistor", at: `desk:${AT.R2}`, rot: -10, params: { ohms: 150, watts: 0.25, actualOhms: 148 }, label: "150 Ω resistor" },

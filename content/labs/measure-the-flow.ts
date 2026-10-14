@@ -21,8 +21,8 @@ export default defineLab({
   title: "Measuring the flow",
   bench: {
     board: "none",
-    // The loop and the meter on the left; the empty desk on the right is where the meter panel docks.
-    frame: ["desk:-110,-60", "desk:300,70"],
+    // The loop and the meter (the lesson frames it clear of the docked meter panel).
+    frame: ["desk:-110,-60", "desk:165,70"],
     parts: [
       { id: "B1", kind: "battery", at: "desk:-84,6", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
       { id: "R1", kind: "resistor", at: "desk:-6,-40", params: { ohms: 470, watts: 0.25 }, locked: true, label: "470 Ω resistor" },
@@ -87,7 +87,7 @@ export default defineLab({
         if (!lab.isLit("D1")) lab.memory["dark"] = true;
         return lab.memory["dark"] === true && counting(lab);
       },
-      hints: ["On mA the meter is nearly a wire. Across the LED, it steals the flow.", "Unclip a lead. Put the meter in the gap."],
+      hints: ["On mA the meter is nearly a wire. It steals the flow.", "Unclip a lead. Put the meter in the gap."],
       highlight: ["pin:D1.anode", "pin:D1.cathode"],
       success: "Fixed.",
     },

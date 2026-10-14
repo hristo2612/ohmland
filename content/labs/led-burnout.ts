@@ -30,7 +30,7 @@ export default defineLab({
   title: "How bright is too bright?",
   bench: {
     board: "half",
-    frame: ["desk:-50,-34", "desk:50,48"],
+    frame: ["desk:-50,-34", "desk:60,54"],
     parts: [
       { id: "B1", kind: "battery", at: "rails", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
       { id: "R1", kind: "resistor", at: "c6-c10", params: { ohms: 1500, watts: 0.25 }, label: "1.5 kΩ resistor" },
@@ -88,7 +88,7 @@ export default defineLab({
         if (safe && lab.part("D1")?.health === "dead" && inPlace(lab, "D1")) lab.memory["dark"] = true;
         return lab.memory["dark"] === true && safe && leds(lab).some((id) => lab.isLit(id) && inPlace(lab, id));
       },
-      hints: ["The 1.5 kΩ back in c6 to c10. Look at the LED.", "Pull the dead LED out. A spare goes in, long leg in 10."],
+      hints: ["The 1.5 kΩ back in c6 to c10. Look at the LED.", "Swap the dead LED for a spare. Long leg in 10."],
       highlight: ["D1"],
       nudges: [{ when: (lab) => loopOhms(lab) === 1500 && leds(lab).some((id) => id !== "D1" && (lab.part(id)?.v ?? 0) < -1), say: "Dark? Turn the new LED around." }],
       success: "Dead LEDs stay dead.",
@@ -123,7 +123,8 @@ export default defineLab({
     { do: "move", part: "R4", at: "desk:30,46" },
     { do: "move", part: "R1", at: "c6-c10" },
     { do: "wait", seconds: 1.2 },
-    { do: "move", part: "D1", at: "desk:40,30" },
+    // The dead LED goes on the desk in front of the board, out of the way.
+    { do: "move", part: "D1", at: "desk:52,44" },
     { do: "place", part: "D2", kind: "led", params: { color: "red", maxmA: 50 }, at: "e10" },
     { do: "check", task: "no-comeback" },
     ...AT_THE_LIMIT,

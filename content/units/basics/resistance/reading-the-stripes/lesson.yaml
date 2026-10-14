@@ -33,7 +33,7 @@ beats:
     done: Five for five.
 
   - say: Quick one. Which end do you read from?
-    pick: { options: [the gold end, the other end], answer: the other end, on: R3 }
+    pick: { options: [the gold end, the other end], answer: the other end }
     wrong: { the gold end: "Gold goes on the right. Start from the left." }
 
   - say: And what does the third stripe count?
