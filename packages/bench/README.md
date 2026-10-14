@@ -281,6 +281,76 @@ part drawn the same in both views from one geometry module, `src/mcuBoard.ts`.
 `?scene=mcu` in the playground shows lesson 12's bench (`lamp=0.85` sets the L lamp in the mock snapshot);
 `pnpm --filter @ohmland/bench shots:mcu` checks the clip points in both views and writes `mcu-*.png`.
 
+### Chips (Unit 4)
+
+![Unit 4 parts in 3D](screenshots/chips-gallery.png)
+
+![The counting demo in ink, run by the simulator: a 555 blinks an LED and clocks a 4026B into a 7-segment display](screenshots/chips-demo-ink.png)
+
+Pin tables, sizes and part definitions live in `src/chips.ts` (pure; the bench keeps its own copy of the simulator's
+pin tables and `test/chips.test.ts` checks them against `TIMER555_PINS`, `LOGIC_PINOUTS`, `SEVENSEG_PINS` and
+`REGULATOR7805_PINS`). Models are in `models/Chips.tsx`, ink drawings in `ink/kinds/chips.tsx`.
+
+| Kind | Params | Leads | Simulator |
+|---|---|---|---|
+| `chip` | `model` (`"555"`, `"555-cmos"`, `"74HC00"` `02` `04` `08` `14` `27` `32` `74` `86` `393`, `"4026B"`), `package` (`"dip"`, `"soic"`), `hidden`, `label` | `"1"` to `"8"`, `"14"` or `"16"` | `timer555` (`cmos` for 555-cmos) or `logic` with `model`: pin k is the k-th name of its pinout |
+| `ic-socket` | `pins` (8, 14, 16), `held: { chip }`, `turned` | `"1"` to n | none: a seated chip's pins join the socket's |
+| `sevenseg` | `common` (`"cathode"`, `"anode"`), `color`, `carrier`, `segmentOhms` (3.3 kΩ) | `e d com c dp` (pins 1 to 5) and `b a com2 f g` (6 to 10) | `sevenseg`; on a carrier a resistor `DS1:Ra` ... `DS1:Rdp` in front of each segment |
+| `regulator7805` | `heatsink` | `in gnd out` | `regulator7805` |
+| `dip-switch` | `positions` (4, 8), `s1` to `s8`, `tags`, `bounce` | `"1"` to `2n` | a `switch` `DIP1:k` from pin k to pin 2n + 1 - k, closed while `sk` is on |
+| `logic-probe` | none | `tip`, `vcc` (red), `gnd` (black) | none (it draws no current) |
+| `battery-pack` | `cells` (3, 4), `emf`, `internalOhms`, `mAh` | `pos neg` (flying) | `battery`, 1.55 V and 0.15 Ω a cell, 2400 mAh |
+| `bench-supply` | `position` (0 to 1), `max` (12 V) | `pos neg` (binding posts) | `battery` of `supplyVolts(params)` behind 0.05 Ω |
+
+- **DIP chips** straddle the channel: pins 1 to n/2 along row e from the left, the rest back along row f, rows 7.62 mm
+  apart. The body is black epoxy with the half-moon notch at the pin-1 end, a dimple by pin 1 and its part number
+  (NE555, 7555, 74HC00 ... 74HC393, CD4026B) in our own type, readable from the front. A chip can stand anywhere its
+  pins fit (one side of the channel shorts each pair, as on a real board).
+- **Turned round.** On the board a quarter turn of a DIP cannot fit across the channel, so `R` turns it round
+  (`PartDef.turnsRound`): the same holes, pin 1 at the far right. The netlist maps pins by number, so the simulator
+  sees every pin moved; a 74HC chip turned round gets its supply backwards and dies (`cause: "reverse"`), as the
+  simulator models. The print reads upside down then, in both views.
+- **Mystery chips** (`hidden: true`) carry a strip of paper tape with `label` ("?1") over the number. The netlist is
+  unchanged.
+- **Surface mount lookalike** (`package: "soic"`): 1.27 mm feet that no hole fits. It has no footprint, so dropped on
+  the board it lies on top of it (`PartDef.perch`), a little askew and lifted off it (a shadow in ink, a tilt in 3D).
+  `rejectedParts(bench)` lists such parts (a lab's `lab.bench.rejected`).
+- **Sockets** stand in the board like a DIP; a chip dropped near one seats in it (a `chip` seat that `fits` only DIP
+  chips no longer than the socket; pin 1 over the socket's pin 1). `R` on a seated chip turns it round in its socket
+  (`SeatDef.turn` flips `turned`), and the joins follow. Seats of holders that stand in the board follow its holes
+  (`seatPose(holder, seat, part, bench)`); `SeatDef.place` gets `{ board }` and `joins` may be a function of the
+  held part.
+- **Pin names.** Anchors and the netlist take a pin's function as well as its number (`PartDef.alias`):
+  `pin:U1.trig` is `pin:U1.2`, `pin:DS1.3` is `pin:DS1.com`. `chipLeg(model, name)`, `chipPinName(model, leg)`,
+  `resolveLeg(part, name)` and `canonicalAnchor(parts, anchor)` do the lookups.
+- **7-segment display**: a 0.56 inch, 10-pin display whose rows sit 0.6 inch apart (rows c and g). Each bar glows from
+  the snapshot's `extra.a` to `extra.g` and `extra.dp` (dead bars stay dark), with a wash of light over the face in 3D
+  and a soft glow in ink (drawn above the room's veil when the lights are down). The carrier is a green board with a
+  resistor (marked with its code, 332) beside each segment pin.
+- **7805** stands in three holes, print toward you and the tab behind; `heatsink` bolts a finned sink to the tab. On
+  the desk it lies on its back, legs toward you. Warmth from `temp` (brown body, straw tab in 3D; a warm wash and heat
+  lines in ink); the existing `inspect` heat readout works on it.
+- **DIP switch**: white sliders that you click one by one (hotspots, `PartDef.hotspots(params, mount)` now gets the
+  mount); ON is toward the far side. `tags` replace the switch numbers under the sliders.
+- **Logic probe**: a pen whose tip is a flying lead that moves with the pen (`PartDef.nose`): drag the pen and its tip
+  drops into the hole under it, where the pen stands leaning back toward you; its red and black leads go into holes
+  like a battery snap's. `logicProbeReading(bench, nodes, id)` reads the snapshot's node voltages: powered from 3 V
+  across its leads, HIGH above 70% and LOW below 30% of that, nothing between or on a floating pin.
+  `useProbeState(store, id, active)` adds the PULSE lamp (lit for 0.1 simulated seconds after the level changes) and
+  feeds both views' models.
+- **Battery packs** lie as AA cells (alternating) in a black holder with red and black leads. **Bench supply**: a box
+  with the volts on an LCD, a knob (drag it, or the arrow keys, like a trimmer) and two binding posts to clip to.
+- **Contact bounce.** `bounce` on pushbuttons, slide, toggle and DPDT switches and DIP switches goes to the simulator.
+  Its chip on the selection bar shows only once a lab gives the part a `bounce` param (`SettingDef.when`);
+  `benchToNetlist(bench, { bounce })` sets it on every contact that has none (a global "bounce on").
+- **Live looks.** Both views re-render a part when its segment glows (4% steps), dead segments or warmth (8 degree
+  steps of `temp` on chips and the regulator) change (`extraLookKey`). A warm chip darkens toward brown with a faint
+  ember glow (3D) or a warm wash with heat lines (ink); smoking chips smoke; a dead one shows a burst crater with
+  cracks and scorches the board.
+- **Pin numbers** (and the display's segment letters, the regulator's in, gnd, out) show up close: in ink from about
+  11 px per mm (`data-near`), in 3D when the camera is within about 16 cm; and in a spotlight in both.
+- The first `battery`, else `battery-pack`, else `bench-supply` minus terminal is `"gnd"`.
+
 ### `@ohmland/bench/core`
 
 The pure half of the package, with no React Three Fiber and no three.js: `benchOps`, `benchToNetlist`,
@@ -452,9 +522,13 @@ pnpm --filter @ohmland/bench dev     # vite playground, http://localhost:5199
   prop on one desk; `?scene=mcu` the microcontroller board wired to a lamp; `?scene=modules` the desk modules; `?scene=blocks` desk modules, single-pole and mystery relays
   (closed and peeked) and bendable capacitor legs on a half board; `?scene=glow` the first-glow loop (`glow0` before
   it is wired). Start here: `?scene=lamp` (`wrap=1` clips TL1 to the wrapper, `gates=1` adds two gates, `off=1`),
-  `junk`, `boxes` (`open=1`), `tired`, `symbols`, `static`.
-- `sim=1` runs the real simulator in the page instead of the mock snapshot (`speed=600` for a time-lapse); overlays:
-  `flow=current|electrons`, `push=1`, `trace=pin:B1.neg`.
+  `junk`, `boxes` (`open=1`), `tired`, `symbols`, `static`. Unit 4: `?scene=chips` the counting demo (a 555 blinker
+  clocking a 4026B into a 7-segment display on its carrier) and `?scene=chipparts` every Unit 4 part on one bench,
+  both with the Unit 4 tray.
+- `sim=1` runs the real simulator in the page instead of the mock snapshot (`speed=600` for a time-lapse; `simAt=4.3`
+  runs that many simulated seconds before the first frame, `simrun=0` then holds it there); overlays:
+  `flow=current|electrons`, `push=1`, `trace=pin:B1.neg`. Mock extras for Unit 4: `segs=DS1:abcdg.;DS2:bc` (lit bars,
+  `.` the dot), `temp=U2:150` (warmth), `probe=LP1:H` (a logic probe reading H, L or X).
 - A toggle above the bench switches between the 3D and ink views on the same store, or shows both side by side
   (`view=ink` starts in ink, `view=split` side by side, `toggle=0` hides it). `theme=dark` shows the night page. The
   playground loads no three.js until the 3D view or a gallery is shown.
@@ -473,7 +547,15 @@ pnpm --filter @ohmland/bench typecheck
 pnpm --filter @ohmland/bench shots       # Playwright: interaction, controller and view switch checks + screenshots
 pnpm --filter @ohmland/bench shots:ink   # Playwright: the ink view driven by mouse, touch and keyboard + ink-*.png
 pnpm --filter @ohmland/bench shots:mcu   # Playwright: the microcontroller board in both views + mcu-*.png (port 5363)
+BENCH_PORT=5471 pnpm --filter @ohmland/bench exec playwright test -c e2e/playwright.config.ts chips   # Unit 4: chips-*.png
 ```
+
+`test/chips.test.ts` covers the Unit 4 mapping: pin tables against the simulator's, a 555 by number and turned round,
+a 74HC chip turned round dying of a reversed supply, pin names, the surface mount refusal, sockets (seating, turning,
+fit), the display (rows c and g, the carrier's resistors, lighting a 1), the DIP switch, the 7805, packs and the
+supply as ground, bounce, the logic probe's tip and reading, and the counting demo run by the simulator (the LED
+blinks, the display counts). `e2e/chips.spec.ts` turns a chip round and flips a DIP switch in both views and takes
+the `chips-*` screenshots.
 
 The Playwright run starts the playground itself. On macOS headless Chromium renders WebGL through Metal; elsewhere the
 config switches to SwiftShader (`--use-angle=swiftshader --enable-unsafe-swiftshader`). If Chromium is missing:

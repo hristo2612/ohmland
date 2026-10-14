@@ -1,9 +1,9 @@
 // Bench data model. Everything in BenchState is plain JSON: it is saved for sandbox builds and lab checkpoints.
 // Units: millimetres on the desk plane. x grows to the right, z grows toward the viewer, y is up.
 
-import type { InputKey, LedColor, MeterMode, NodeId, Netlist } from "@ohmland/sim";
+import type { Bounce, InputKey, LedColor, LogicModel, MeterMode, NodeId, Netlist } from "@ohmland/sim";
 
-export type { InputKey, LedColor, MeterMode, NodeId, Netlist };
+export type { Bounce, InputKey, LedColor, LogicModel, MeterMode, NodeId, Netlist };
 
 /** A point on the desk plane: [x, z] in millimetres. */
 export type Vec2 = [number, number];
@@ -72,7 +72,20 @@ export type BenchPartKind =
   | "comb"
   | "wall"
   // Unit 5: an Uno-style microcontroller board (desk part with header sockets).
-  | "mcu-board";
+  | "mcu-board"
+  // Chips (Unit 4): DIP chips and their socket, the 7-segment display, the 5 V regulator, the DIP switch, the logic
+  // probe, AA battery packs and an adjustable bench supply.
+  | ChipKind;
+
+/** The Unit 4 kinds (see chips.ts). */
+export type ChipKind = "chip" | "sevenseg" | "regulator7805" | "ic-socket" | "dip-switch" | "logic-probe" | "battery-pack" | "bench-supply";
+
+/**
+ * What a `chip` is: "555" (NE555), "555-cmos" (a 7555-style CMOS timer), a 74HC gate, flip-flop or counter, or the
+ * 4026B counter with display outputs. The package follows: DIP-8 for timers, DIP-14 for 74HC parts, DIP-16 for the
+ * 4026B.
+ */
+export type ChipModel = "555" | "555-cmos" | LogicModel;
 
 export type WaterKind = "distilled" | "tap" | "salty";
 
@@ -117,6 +130,9 @@ type Mystery = {
   peek?: boolean;
 };
 
+/** Contact bounce on switches and pushbuttons (simulator `bounce`): off, on (1 to 5 ms) or the longest chatter in ms. */
+type Bouncy = { bounce?: Bounce };
+
 export type PartParamsMap = {
   resistor: {
     /** Nominal value: what the colour bands show. */
@@ -148,8 +164,8 @@ export type PartParamsMap = {
      */
     xray?: boolean;
   };
-  pushbutton: { cap?: "black" | "red" | "blue" | "yellow" | "white"; /** Connected until pressed. */ normallyClosed?: boolean } & Base;
-  "slide-switch": { to: "a" | "b" } & Base;
+  pushbutton: { cap?: "black" | "red" | "blue" | "yellow" | "white"; /** Connected until pressed. */ normallyClosed?: boolean } & Base & Bouncy;
+  "slide-switch": { to: "a" | "b" } & Base & Bouncy;
   "toggle-switch": {
     to: "a" | "b";
     /** Mounted on a small wooden block with screw terminals: a big, easy switch for desk circuits. Desk only. */
@@ -158,7 +174,7 @@ export type PartParamsMap = {
     tag?: string;
     /** 1: an on/off switch with only the com and b terminals (SPST). Default 2 (SPDT). */
     throws?: 1 | 2;
-  };
+  } & Bouncy;
   fuse: { amps: number };
   "ceramic-cap": { farads: number; volts?: number; /** The real value, for an out-of-spec part (labs). */ actualFarads?: number };
   "electrolytic-cap": { farads: number; volts?: number; /** The real value, for an out-of-spec part (labs). */ actualFarads?: number };
@@ -181,7 +197,7 @@ export type PartParamsMap = {
   cup: { water: WaterKind; /** overrides the default resistance for the water kind */ ohms?: number };
   lemon: { emf?: number; internalOhms?: number };
   /** Two slide-switch poles on one slider (desk block, six terminals). */
-  "dpdt-switch": { to: "a" | "b"; /** A short name printed on the block. */ tag?: string } & Mystery;
+  "dpdt-switch": { to: "a" | "b"; /** A short name printed on the block. */ tag?: string } & Mystery & Bouncy;
   /** A pair of copper touch pads: a fingertip across them is a resistance (100 kΩ firm and damp to 2 MΩ light and dry). */
   "touch-pads": { ohms?: number };
   /** Two spring clips that hold a resistor (or diode) above a small block, with a screw terminal at each end. */
@@ -293,7 +309,49 @@ export type PartParamsMap = {
     /** The random generator's state at reset (default 1, as on a real board). */
     seed?: number;
   };
+} & ChipParamsMap;
+
+/** Params of the Unit 4 kinds. */
+export type ChipParamsMap = {
+  /**
+   * A chip in a DIP package that straddles the board's centre channel (leads "1" to "8", "14" or "16", pin 1 by the
+   * notch). It is simulated as placed: turned round, its supply arrives backwards. `package: "soic"` is a surface mount
+   * lookalike whose legs are too close together for the holes: it will not seat.
+   */
+  chip: {
+    model: ChipModel;
+    package?: "dip" | "soic";
+    /** Taped over: a paper strip hides the printed part number and shows `label` instead ("?1"). */
+    hidden?: boolean;
+    label?: string;
+  };
+  /**
+   * A 10-pin, 0.56 inch 7-segment display (leads by segment name: a to g, dp, com, com2). Its rows sit 0.6 inch apart,
+   * in rows c and g. `carrier`: on a small board with a resistor in series with each segment (`segmentOhms`).
+   */
+  sevenseg: { common: "cathode" | "anode"; color?: LedColor; carrier?: boolean; segmentOhms?: number };
+  /** A 7805 regulator in a TO-220: legs in, gnd, out from the left with its print toward you; `heatsink` bolted on. */
+  regulator7805: { heatsink?: boolean };
+  /** A DIP socket (leads "1" to n) that a chip plugs into, with its own notch. Who sits in it is `held.chip`. */
+  "ic-socket": { pins: 8 | 14 | 16; held?: Held; /** The chip sits turned round (its pin 1 at the far end). */ turned?: boolean };
+  /**
+   * A DIP switch: 4 or 8 slide switches in one body (leads "1" to 2n). Switch k joins pin k to pin 2n + 1 - k while it
+   * is on (`s1` to `s8`). `tags` print a name under each switch.
+   */
+  "dip-switch": { positions: 4 | 8; tags?: string[] } & Bouncy & Partial<Record<DipKey, boolean>>;
+  /**
+   * A pen-style logic probe: its metal tip (`tip`) drops into the hole under it, and its red and black leads (`vcc`,
+   * `gnd`) take power from the circuit. HIGH, LOW and PULSE lamps read the node under the tip. It draws no current.
+   */
+  "logic-probe": { tag?: string };
+  /** AA cells in a holder with red and black leads: three (4.5 V) or four (6 V). `emf`, `internalOhms`, `mAh` override. */
+  "battery-pack": { cells: 3 | 4; emf?: number; internalOhms?: number; mAh?: number };
+  /** An adjustable bench supply: the knob (`position` 0 to 1) sets 0 to `max` volts (default 12) on its + and − posts. */
+  "bench-supply": { position: number; max?: number };
 };
+
+/** A DIP switch's switch states. */
+export type DipKey = "s1" | "s2" | "s3" | "s4" | "s5" | "s6" | "s7" | "s8";
 
 type PartOf<K extends BenchPartKind> = {
   /** Reference designator, unique on the bench: "R1", "D2", "B1". Letters, digits, "_" and "-" only. */
