@@ -48,11 +48,13 @@ beats:
 secret:
   task: two-hundred
   say: Curious? Try 200 V on the 9 V battery.
+  tool: meter
   done: Still works.
   note: { at: part:M1, text: "200 V: works, fewer digits" }
 
 fixit:
   say: Fix-it time. My AA shows just 1.6. More digits?
+  tool: meter
   tasks:
     - task: fix-aa
 
