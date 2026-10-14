@@ -19,6 +19,7 @@ import { socketAdvice } from "../../lab/instruments";
 import { continuityArcs, type ContinuityArc } from "../../lab/panels";
 import { terminalLabel } from "../../lab/panels-ui";
 import type { LabRuntime } from "../../lab/runtime";
+import { Icon } from "../../components/Icon";
 import { m } from "../../i18n";
 import { useSize, useViewTick } from "./Annotations";
 import "./tool-ink.css";
@@ -40,11 +41,16 @@ export function continuityFor(panels: readonly PanelConfig[] | undefined, tool: 
 /** The display's digits are about 16 mm tall: below this many px per mm they are too small to read on screen. */
 const READABLE_PX_PER_MM = 0.85;
 
-export function MeterInk({ runtime, controllerRef }: { runtime: LabRuntime; controllerRef: RefObject<BenchController | null> }) {
+/**
+ * `act`: the lesson waits for a task on the bench, so a blown mA fuse gets its Replace control at the mA socket (the
+ * only one while the meter is the beat's tool; a fuse blown on purpose stays blown through the beat that blew it).
+ */
+export function MeterInk({ runtime, controllerRef, act }: { runtime: LabRuntime; controllerRef: RefObject<BenchController | null>; act: boolean }) {
   useViewTick(controllerRef);
   const [ref, size] = useSize();
   const meter = useStore(runtime.store, (s) => s.bench.meter);
   const reading = useStore(runtime.store, (s) => (meter ? s.snapshot?.parts[meter.id] : undefined));
+  const spares = useStore(runtime.ui, (s) => s.spareFuses);
   const c = controllerRef.current;
   if (!meter) return null;
   const off = meter.mode === "off";
@@ -62,8 +68,22 @@ export function MeterInk({ runtime, controllerRef }: { runtime: LabRuntime; cont
   const advice = off ? null : socketAdvice(meter, (a, b) => runtime.session.view().volts(a, b));
   const ring = advice ? at(`socket:${advice.socket}`) : null;
   const r = Math.max(14, pxPerMm * 7);
+  const fuse = act && reading?.extra?.["fuse"] === "blown" ? at("socket:ma") : null;
   return (
     <div className="ti" ref={ref}>
+      {fuse?.visible && (
+        <button
+          type="button"
+          className="bl-replace"
+          style={{ left: Math.max(64, Math.min(size.w - 64, fuse.x)), top: fuse.y + 72 < size.h - 8 ? fuse.y + 40 : Math.max(8, fuse.y - 84) }}
+          data-replace
+          disabled={spares === 0}
+          onClick={() => runtime.replaceFuse()}
+        >
+          <Icon name="retry" size={16} />
+          {m.lab.meter.replaceFuse}
+        </button>
+      )}
       {size.w > 0 && ring?.visible && (
         <svg className="ti__svg" width={size.w} height={size.h} aria-hidden="true">
           <g className="ti-ring" data-socket-ring={advice!.socket}>
