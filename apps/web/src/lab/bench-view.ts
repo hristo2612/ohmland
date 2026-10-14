@@ -20,8 +20,12 @@ export interface BenchController {
   project(anchor: string): ScreenPoint | null;
   /** Calls back after camera, layout or bench changes, so overlays can follow. Returns an unsubscribe. */
   onViewChange(cb: () => void): () => void;
-  /** Frames these parts or anchors (smooth unless reduced motion). Empty: frame the whole work area. */
-  focus(targets: string[], opts?: { padding?: number; instant?: boolean }): void;
+  /**
+   * Frames these parts or anchors (smooth unless reduced motion). Empty: frame the whole work area. `inset`: CSS px of
+   * the bench a docked panel covers at each edge; the framing (and the selection bar) keeps clear of it until the next
+   * focus.
+   */
+  focus(targets: string[], opts?: { padding?: number; instant?: boolean; inset?: { top?: number; right?: number; bottom?: number; left?: number } }): void;
   /** Emphasises parts or anchors for a while; null clears it. */
   spotlight(targets: string[] | null): void;
 }

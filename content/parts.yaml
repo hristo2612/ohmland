@@ -139,7 +139,8 @@ parts:
     facts:
       - "Power rating 5 W. The value and rating are printed on the body instead of stripes."
       - "Runs well above 100 °C near its full rating, and that's normal for this type."
-      - "Used in Unit 1 as a 15 Ω load across a 9 V battery (about 4.5 W)."
+      - "Used in Unit 1 as a 15 Ω load across a 9 V battery (about 4.2 W, as the battery sags)."
+      - "Temperature is how hot it is (°C), heat is energy (joules), power is how fast that energy flows (watts)."
       - "Symbol: the resistor symbol, with the wattage written beside it."
       - "Safety: it gets hot enough to burn. Let it cool, and keep it clear of anything that can melt."
 

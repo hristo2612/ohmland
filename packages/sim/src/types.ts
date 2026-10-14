@@ -117,7 +117,52 @@ export type PartSpec =
       maxmA?: number; // per segment, default 25
     })
   // 7805 linear regulator (TO-220: in, gnd, out). heatsink: bolted to a heat sink (default false, free air).
-  | (Base & { kind: "regulator7805"; pins: { in: NodeId; gnd: NodeId; out: NodeId }; heatsink?: boolean });
+  | (Base & { kind: "regulator7805"; pins: { in: NodeId; gnd: NodeId; out: NodeId }; heatsink?: boolean })
+  // An Uno-style microcontroller board running a bench C program (@ohmland/code) on simulated time. Pins by header
+  // name (MCU_PINS lists them); unconnected pins may be left out. See README "Microcontroller board".
+  | (Base & {
+      kind: "mcuboard";
+      pins: Pins<McuPin>;
+      /** The uploaded program, as bench C source. Nothing uploaded: the board sits idle with every pin an input. */
+      program?: string;
+      /** Upload count: a new number (or a different program) resets the board and starts the program again. */
+      upload?: number;
+      /** Where the board gets power: "usb" (default), "jack" (a battery in the barrel jack) or "off". */
+      power?: McuPower;
+      /** The battery in the barrel jack, volts (default 9). */
+      jackVolts?: number;
+      /** millis() at reset in ms (default 0): a lab can start the clock just before it wraps. */
+      clockStart?: number;
+      /** The random generator's state at reset, as after randomSeed(seed) (default 1, as on the real board). */
+      seed?: number;
+    });
+
+/** Header pins of the microcontroller board: digital 0 to 13, analog A0 to A5, 5V, GND and VIN. */
+export type McuPin =
+  | "d0"
+  | "d1"
+  | "d2"
+  | "d3"
+  | "d4"
+  | "d5"
+  | "d6"
+  | "d7"
+  | "d8"
+  | "d9"
+  | "d10"
+  | "d11"
+  | "d12"
+  | "d13"
+  | "a0"
+  | "a1"
+  | "a2"
+  | "a3"
+  | "a4"
+  | "a5"
+  | "5v"
+  | "gnd"
+  | "vin";
+export type McuPower = "usb" | "jack" | "off";
 
 /**
  * Contact bounce for switches and pushbuttons: true chatters for 1 to 5 ms on every make and break (seeded by
@@ -154,6 +199,31 @@ export type Netlist = {
   // Mixed into every per-part spread (tolerances, fuse ratings, relay thresholds, transistor gain), so a lab can
   // give each learner a different but repeatable bag of parts. Without it, spreads depend on part ids only.
   seed?: string;
+  // Nodes to watch for level crossings at every solver step (see WatchSpec); their edges arrive in Snapshot.edges.
+  watch?: WatchSpec[];
+};
+
+/**
+ * Edge watch: a node the simulator checks against a threshold after every solver step, so edges between two
+ * snapshots (contact bounce, a counter's ripple, a nanosecond glitch) are counted and timed exactly. The threshold
+ * is `level` volts; without it, `fraction` (default 0.5) of the voltage at node `of` (a chip's supply pin), or of the
+ * highest node voltage in the circuit when `of` is absent too. A Schmitt band of `hysteresis` volts (default 2% of
+ * the threshold, at least 5 mV) keeps a slow, noisy crossing from counting twice.
+ */
+export type WatchSpec = { id: string; node: NodeId; level?: number; of?: NodeId; fraction?: number; hysteresis?: number };
+
+/** The crossings of one watched node since the previous snapshot. */
+export type EdgeLog = {
+  rises: number;
+  falls: number;
+  // Where the node is now: above the threshold (true) or below it.
+  high: boolean;
+  // Every crossing as [simulated seconds, 1 rising or 0 falling], oldest first, timed by interpolating between the
+  // two solver points around it. At most EDGE_LOG_MAX per snapshot; `dropped` counts the rest (an oscillation).
+  log: [number, 0 | 1][];
+  dropped?: number;
+  // The threshold at the latest step, in volts.
+  level: number;
 };
 
 export type Health = "ok" | "hot" | "smoking" | "dead";
@@ -181,7 +251,8 @@ export type SimEventType =
   | "smoke"
   | "meter-fuse"
   | "spark" // opening contacts arced (an inductive kick above about 300 V across the gap)
-  | "warning"; // no damage yet, for example the meter's 10 A input running hot
+  | "warning" // no damage yet, for example the meter's 10 A input running hot
+  | "serial"; // a microcontroller board printed lines (data.text: everything sent, data.lines: how many lines)
 
 export type SimEvent = { t: number; partId: string; type: SimEventType; message: string; data?: Record<string, number | string> };
 
@@ -191,6 +262,7 @@ export type Snapshot = {
   parts: Record<string, PartState>;
   events: SimEvent[]; // since the previous snapshot
   lag?: number; // 0..1, how far the sim is behind real time
+  edges?: Record<string, EdgeLog>; // watched nodes (Netlist.watch) by watch id: crossings since the previous snapshot
 };
 
 // "replaceFuse" (multimeter): fit a new internal mA fuse. "replace" (any part): swap in a fresh part with the same
@@ -207,6 +279,9 @@ export type InputKey =
   | "replaceFuse"
   | "replace"
   | "bounce" // switches and pushbuttons: Bounce (true, false or the longest chatter in ms)
-  | "proximity"; // timer555, logic: how close a hand is to the chip, 0..1 (floating inputs pick up more hum)
+  | "proximity" // timer555, logic, mcuboard: how close a hand is to the chip, 0..1 (floating inputs pick up more hum)
+  | "power" // mcuboard: "usb", "jack" or "off"
+  | "reset" // mcuboard: true presses the reset button (the program starts again from setup)
+  | "millis"; // mcuboard: sets the board's clock so millis() reads this many ms now (the day-49 jump)
 
 export type InputValue = number | string | boolean;

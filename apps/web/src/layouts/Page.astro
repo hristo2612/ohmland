@@ -1,44 +1,52 @@
 ---
 /**
- * The shell for regular pages: header with the main navigation (a bottom bar on phones), the level chip, theme and
- * account; the page; the footer; and the toast region.
+ * The shell for regular pages: a header with the wordmark, the two places (Learn, Isle) and your notebook (level, XP
+ * and the one menu for the rest); the page; one quiet footer line; on phones a bottom bar; and the toast region.
  */
 import Base from "./Base.astro";
 import Logo from "../components/Logo.astro";
 import HeaderTools from "../components/HeaderTools";
+import BottomNav from "../components/BottomNav";
 import ToastRegion from "../components/ToastRegion";
-import { Icon } from "../components/Icon";
 import { NAV, type NavId } from "../components/nav";
 import { getCourse } from "../content/load";
 import { m } from "../i18n";
 import "../styles/layout.css";
 
-type Props = { title?: string; description?: string; active?: NavId | undefined; bodyClass?: string };
-const { title, description, active, bodyClass } = Astro.props;
+type Props = {
+  title?: string;
+  description?: string;
+  active?: NavId | undefined;
+  bodyClass?: string;
+  /** No rule under the header (the landing's poster owns the page). */
+  bare?: boolean;
+  /** Leave out the footer (full-window pages such as the bench). */
+  footer?: boolean;
+};
+const { title, description, active, bodyClass, bare = false, footer = true } = Astro.props;
 const { outline } = getCourse();
-const mainNav = NAV.filter((n) => n.id !== "account");
 ---
 
 <Base title={title} description={description} bodyClass={["has-bottom-nav", bodyClass].filter(Boolean).join(" ")}>
   <a class="skip-link" href="#main">{m.common.skipToContent}</a>
-  <header class="site-header">
+  <div class="leaf">
+  <header class:list={["site-header", { "site-header--bare": bare }]}>
     <div class="site-header__inner container">
       <Logo />
       <nav class="site-nav" aria-label={m.nav.label}>
         <ul>
           {
-            mainNav.map((n) => (
+            NAV.map((n) => (
               <li>
                 <a href={n.href} class="site-nav__link" aria-current={active === n.id ? "page" : undefined}>
-                  <Icon name={n.icon} size={18} />
-                  <span>{n.label}</span>
+                  {n.label}
                 </a>
               </li>
             ))
           }
         </ul>
       </nav>
-      <HeaderTools client:idle outline={outline} accountActive={active === "account"} />
+      <HeaderTools client:idle outline={outline} active={active} />
     </div>
   </header>
 
@@ -46,36 +54,24 @@ const mainNav = NAV.filter((n) => n.id !== "account");
     <slot />
   </main>
 
-  <footer class="site-footer">
-    <div class="container site-footer__inner">
-      <div class="site-footer__brand">
-        <Logo />
-        <p class="small muted">{m.footer.line}</p>
-      </div>
-      <ul class="site-footer__links small">
-        <li><a href="/about">{m.footer.about}</a></li>
-        <li><span class="muted">{m.footer.licenses}</span></li>
-        <li><span class="muted">{m.footer.madeWith}</span></li>
-      </ul>
-    </div>
-  </footer>
+  {
+    footer && (
+      <footer class="site-footer">
+        <div class="container site-footer__inner">
+          <p>{m.footer.line}</p>
+          <ul class="site-footer__links">
+            <li>
+              <a href="/about">{m.footer.about}</a>
+            </li>
+            <li>{m.footer.licenses}</li>
+          </ul>
+        </div>
+      </footer>
+    )
+  }
+  </div>
 
-  <nav class="bottom-nav" aria-label={m.nav.label}>
-    <ul>
-      {
-        mainNav.map((n) => (
-          <li>
-            <a href={n.href} class="bottom-nav__link" aria-current={active === n.id ? "page" : undefined}>
-              <span class="bottom-nav__icon">
-                <Icon name={n.icon} size={22} />
-              </span>
-              <span class="bottom-nav__label">{n.short}</span>
-            </a>
-          </li>
-        ))
-      }
-    </ul>
-  </nav>
+  <BottomNav client:idle outline={outline} active={active} />
 
   <ToastRegion client:idle />
 </Base>

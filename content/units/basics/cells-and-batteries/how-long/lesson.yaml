@@ -1,0 +1,49 @@
+# Split from battery-field-guide (docs/curriculum/conversion-guide.md, B3 18b). A bench lesson (docs/LESSONS.md).
+# One idea: a battery's hours are roughly its capacity divided by the flow. Lab: content/labs/how-long.ts.
+format: bench
+id: how-long
+version: 1
+title: How long will it last?
+summary: Divide a battery's capacity by a lamp's flow to estimate its hours, then prove it with a time-lapse.
+minutes: 5
+lab: how-long
+unlocks:
+  parts: []
+  isle: cell-jar
+
+start:
+  title: How long will it last?
+  say: My night lamp runs on one battery. For how long?
+  go: Let's find out
+
+beats:
+  - say: This battery holds 500 mAh. That's its capacity. Tap it.
+    objective: Do the sum
+    meet: B1
+    note: { at: B1, text: "500 mAh" }
+
+  - say: The lamp sips 16 mA. Divide. How many hours?
+    do: run-time
+    note: { at: B1, text: "500 ÷ 16: about 31 hours" }
+    rule: "Hours: about mAh ÷ mA."
+
+  - say: Prove it. Time-lapse up. When it fades, slide back.
+    objective: Prove it
+    do: time-lapse
+    tool: controls
+    done: Steady for about 31 hours, then it faded.
+    note: { at: CK1, text: "fades after about 31 hours" }
+
+  - say: Twice the flow. How long then?
+    pick: { options: [Twice as long, Half as long, Just as long], answer: Half as long }
+    wrong:
+      Twice as long: "More flow drains it faster, not slower."
+      Just as long: "Same tank, faster drain. Less time."
+
+fixit:
+  say: Fix-it time. This lamp lasts about 10 hours. Make it 30.
+  tasks:
+    - task: fix-ten
+
+end:
+  say: Divide, and you can see the future. Roughly.

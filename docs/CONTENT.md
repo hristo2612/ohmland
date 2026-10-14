@@ -38,7 +38,8 @@ the resistor") are free for anyone to teach. Expression is not.
 
 ## The mascot
 
-A small voxel robot with an LED face. It gives hints, reacts to burned-out parts with sympathy rather than blame,
+A small robot with a visor and two amber eyes, drawn in ink in the app (a voxel model on the island). Its lines are
+written in red pencil in the margin. It gives hints, reacts to burned-out parts with sympathy rather than blame,
 and never lectures. Its lines are short (under 20 words).
 
 ## UI text

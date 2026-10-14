@@ -1,142 +1,54 @@
-# Blueprint: docs/curriculum/unit-1.md, L13.
+# Blueprint: docs/curriculum/unit-1.md, L13, the kept half after the split (docs/curriculum/conversion-guide.md, B3 13).
+# A bench lesson (docs/LESSONS.md). One idea: a power rating is the heat a part can shed, so pick one with room to
+# spare. P = V × I moved to count-the-watts. Lab: content/labs/watts-and-heat.ts.
+format: bench
 id: watts-and-heat
-version: 1
-title: Watts and warm resistors
-summary: Calculate power with P = V × I, overheat a resistor on purpose, and choose a rating that survives.
-minutes: 12
+version: 2
+title: Smoke and ratings
+summary: Put 4 W into three 15 Ω resistors of different sizes, see which survive, and pick a rating with room to spare.
+minutes: 7
+lab: watts-and-heat
 unlocks:
   parts: [resistor-power]
   isle: heatsink
-steps:
-  - type: hook
-    body: |
-      Every part that carries current turns some energy into heat. In your LED circuits that heat was far too small
-      to notice. Connect a small resistor straight across a battery, though, and things change fast. Today you'll
-      measure how much power a part is handling, watch one overheat, and learn to pick parts that keep their cool.
-    visual: { kind: part, part: resistor-power }
-    predict:
-      prompt: You clip a small 15 Ω resistor straight across the 9 V battery. What happens to it?
-      options:
-        - It stays cool
-        - It gets slightly warm
-        - It gets hot enough to smoke
-    mascot: Everything that carries current gets a little warm. Let's push that.
 
-  - type: lab
-    lab: watts-and-heat
+start:
+  title: Smoke and ratings
+  say: Three 15 Ω resistors, three sizes. Which survives 4 W?
+  go: Let's cook
 
-  - type: explain
-    cards:
-      - title: "Power: how fast energy moves"
-        body: |
-          Power is the rate at which energy is delivered or turned into something else, such as light or heat. It's
-          measured in watts (W), and one watt means one joule of energy every second. A small indicator LED uses about
-          0.04 W. A phone charger might deliver 20 W. A kettle uses around 2,000 W, which is 2 kW.
-      - title: P = V × I
-        body: |
-          Electrical power is voltage times current: **P = V × I**. Your 1 kΩ resistor had 9.4 V across it and 9.4 mA
-          through it: 9.4 × 0.0094 ≈ 0.088 W, or 88 mW. Combine it with Ohm's law and you get two shortcuts:
-          P = I² × R and P = V² ÷ R. Use whichever fits the two values you know.
-        # widget (planned): power-bar. Tap any part on the bench to see V, I and P, with P drawn as a bar against its
-        # rating.
-      - title: Power ratings
-        body: |
-          Every resistor has a power rating: the most power it can turn into heat without damage. Small everyday
-          resistors are usually 1/4 W. Bigger bodies spread heat over more surface, so they're rated higher: 1 W, 5 W
-          and beyond. A good habit is to choose a rating at least double the power you expect, so the part runs cooler
-          and lasts longer.
-      - title: Temperature, heat, power
-        body: |
-          These three get mixed up all the time. **Temperature** is how hot something is, in degrees. **Heat** is
-          energy flowing from hotter things to cooler ones, in joules. **Power** is how fast energy flows, in watts. A
-          tiny part can get very hot from very little power, because there is so little of it to warm up.
+beats:
+  - say: Little one first. Clip in the 15 Ω, 1/4 W.
+    objective: Cook one
+    guess: { options: [Stays cool, Gets warm, Smokes], answer: Smokes }
+    do: cook-one
+    note: { at: R2, text: "17 times its rating: cooked" }
 
-  - type: quiz
-    items:
-      - id: skin-power
-        type: numeric
-        prompt: 9 V across 45 kΩ of damp skin. How much power is that?
-        answer: 1.8
-        unit: mW
-        tolerance: 2
-        hint: Find the current first, then multiply by the voltage.
-        explain: |
-          I = 9 ÷ 45,000 = 0.2 mA, so P = 9 × 0.0002 = 0.0018 W = 1.8 mW. Far too little to warm anything. What you'd
-          feel is nerves reacting to the current, not heat.
+  - say: Now the big white one. Give it ten seconds.
+    objective: Keep one alive
+    do: survive-ten
+    done: Warm, and still going strong.
+    note: { at: R5, text: "rated 5 W: it copes" }
+    rule: A rating is the heat it can shed.
 
-      - id: at-the-limit
-        type: choice
-        prompt: 5 V across a 100 Ω resistor. Is a 1/4 W resistor a good choice?
-        options:
-          - text: No, it would run right at its limit
-            correct: true
-            why: I = 50 mA and P = 5 × 0.05 = 0.25 W, exactly the rating, with no margin.
-          - text: Yes, there's plenty of margin
-            why: 0.25 W is the full rating, so there is no margin at all.
-          - text: No, it needs a 5 W resistor
-            why: A 1/2 W part already gives double margin. 5 W is overkill.
-        explain: Calculate the power, then pick a rating about twice as big.
+  - say: A part will make 0.6 W. Which rating?
+    objective: Pick with room
+    pick: { options: [1/4 W, 1 W, 2 W], answer: 2 W }
+    wrong:
+      1/4 W: "Under half the heat it must shed. Smoke."
+      1 W: "It survives, but runs hot. Leave more room."
+    rule: Pick a rating twice the power.
 
-      - id: which-hotter
-        type: choice
-        prompt: "Same 9 V battery. Which gets hotter across it: a 1 kΩ resistor or a 15 Ω resistor?"
-        options:
-          - text: The 15 Ω resistor
-            correct: true
-            why: With the same voltage, P = V² ÷ R, so less resistance means more current and more power.
-          - text: The 1 kΩ resistor, because more resistance makes more heat
-            why: That's only true when the current is the same. Here the voltage is fixed.
-          - text: They get equally hot
-            why: Their currents differ by a factor of about 67.
-        explain: Across a fixed voltage, the smaller resistor draws more current and makes more heat.
+secret:
+  task: one-watt-too
+  say: Curious? Try the 1 W one. Patience.
+  done: Smoke, slower. 4 W is still too much.
+  note: { at: R4, text: "1 W: smokes at 4 W" }
 
-      - id: joules
-        type: choice
-        prompt: Which of these is measured in joules?
-        options:
-          - text: Heat
-            correct: true
-            why: Heat is energy, and energy is measured in joules.
-          - text: Temperature
-            why: Temperature is measured in degrees.
-          - text: Power
-            why: Power is energy per second, measured in watts.
-        explain: Joules for energy, watts for joules per second, degrees for temperature.
+fixit:
+  say: Fix-it time. This 47 Ω resistor keeps smoking.
+  tasks:
+    - task: rate-it
 
-      - id: w-to-mw
-        type: numeric
-        prompt: Write 0.0035 W in milliwatts.
-        answer: 3.5
-        unit: mW
-        tolerance: 0
-        hint: Move the decimal point three places right.
-        explain: "Multiply by 1,000: 0.0035 W is 3.5 mW."
-
-      - id: pick-rating
-        type: choice
-        prompt: A resistor will turn 0.6 W into heat. Which power rating do you choose?
-        options:
-          - text: 2 W
-            correct: true
-            why: At least double the expected power gives a cool, long-lived part.
-          - text: 1 W
-            why: It would survive, but run hot with little margin.
-          - text: 1/4 W
-            why: Less than half the power it must handle. It would cook.
-        explain: Work out the power, then pick a rating at least twice as high.
-
-  - type: wrap
-    rules:
-      - P = V × I. Also P = I² × R and P = V² ÷ R.
-      - Pick a power rating at least double the power you expect.
-      - Everyday small resistors are rated 1/4 W.
-      - Across the same battery, a smaller resistance makes more heat.
-    realWorld:
-      parts:
-        - A 9 V battery
-        - A 1 kΩ resistor
-        - A 15 Ω, 1/4 W resistor
-        - Clip leads
-      safety:
-        - A 15 Ω resistor across a 9 V battery gets hot enough to burn within seconds. Connect it only briefly and don't touch it until it cools.
-        - Do this only with a small alkaline battery, never with lithium packs or car batteries.
+end:
+  say: Right size, no smoke. You read ratings now.

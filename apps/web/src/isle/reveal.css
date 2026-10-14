@@ -1,4 +1,4 @@
-/* The finale's island reveal: the island fills the screen, the caption and Continue sit in a card at the bottom. */
+/* The finale's island reveal: the island fills the screen; the caption and Continue sit on a slip at the bottom. */
 
 .reveal {
   position: fixed;
@@ -11,60 +11,65 @@
   padding: 0;
   border: 0;
   overflow: hidden;
-  background: linear-gradient(to bottom, var(--isle-sky-top), var(--isle-sky-bottom));
+  /* grid paper: the island stands on it (paper "clear") */
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(to bottom, var(--grid) var(--border-1), transparent var(--border-1)),
+    linear-gradient(to right, var(--grid) var(--border-1), transparent var(--border-1));
+  background-size: var(--cell) var(--cell);
   color: var(--ink);
 }
-.reveal[open] { animation: fade-in var(--dur-2) var(--ease-out); }
-.reveal::backdrop { background: var(--bg); }
+:root[data-motion="full"] .reveal[open] { animation: fade-in var(--dur-fade) var(--ease-out); }
+.reveal::backdrop { background: var(--paper); }
 
-.reveal__stage { position: absolute; inset: 0; opacity: 0; transition: opacity var(--dur-2) var(--ease-out); }
+.reveal__stage { position: absolute; inset: 0; opacity: 0; transition: opacity var(--dur-write) var(--ease-out); }
 .reveal[data-status="ready"] .reveal__stage { opacity: 1; }
 
 .reveal__spinner {
   position: absolute;
   left: 50%;
   top: 40%;
-  width: 28px;
-  height: 28px;
-  margin: -14px 0 0 -14px;
-  border: var(--border-thick) solid var(--line-strong);
-  border-top-color: var(--primary);
-  border-radius: var(--radius-full);
-  animation: reveal-spin var(--dur-slow) linear infinite;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border: var(--border-2) solid var(--rule-soft);
+  border-top-color: var(--ink);
+  border-radius: var(--radius-round);
 }
+:root[data-motion="full"] .reveal__spinner { animation: reveal-spin var(--dur-draw) linear infinite; }
 @keyframes reveal-spin { to { transform: rotate(360deg); } }
 
 .reveal__panel {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--space-8) + env(safe-area-inset-bottom));
+  bottom: calc(var(--s-8) + env(safe-area-inset-bottom));
   display: grid;
-  gap: var(--space-2);
+  gap: var(--s-2);
   width: min(520px, calc(100% - 2 * var(--gutter)));
-  padding: var(--space-6);
-  border: var(--border) solid var(--line);
-  border-radius: var(--radius-xl);
-  background: var(--surface);
-  box-shadow: var(--shadow-2);
+  padding: var(--s-6);
+  border: var(--border-label) solid var(--rule);
+  border-radius: var(--radius-1);
+  background: var(--paper-slip);
+  box-shadow: var(--slip-shadow);
   transform: translateX(-50%);
-  animation: reveal-rise var(--dur-2) var(--ease-out) var(--delay-1) both;
 }
-@keyframes reveal-rise { from { opacity: 0; translate: 0 16px; } to { opacity: 1; translate: 0 0; } }
-.reveal__title { font-size: var(--text-heading); line-height: var(--leading-heading); }
+:root[data-motion="full"] .reveal__panel { animation: reveal-rise var(--dur-write) var(--ease-out) var(--delay-1) both; }
+@keyframes reveal-rise { from { opacity: 0; translate: 0 12px; } to { opacity: 1; translate: 0 0; } }
+.reveal__title { font-size: var(--text-xl); line-height: var(--lh-xl); }
 .reveal__title:focus { outline: none; }
-.reveal__lines { display: grid; gap: var(--space-1); min-height: calc(var(--leading-body) * 1em); color: var(--ink-2); }
+.reveal__lines { display: grid; gap: var(--s-1); min-height: var(--lh-md); color: var(--ink-2); }
 
 .reveal__actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: var(--space-3);
+  margin-top: var(--s-3);
   visibility: hidden;
   opacity: 0;
-  transition: opacity var(--dur-2) var(--ease-out), visibility 0s linear var(--dur-2);
+  transition: opacity var(--dur-write) var(--ease-out), visibility 0s linear var(--dur-write);
 }
-.reveal__actions[data-ready] { visibility: visible; opacity: 1; transition: opacity var(--dur-2) var(--ease-out), visibility 0s; }
+.reveal__actions[data-ready] { visibility: visible; opacity: 1; transition: opacity var(--dur-write) var(--ease-out), visibility 0s; }
 
-@media (max-width: 640px) {
-  .reveal__panel { bottom: calc(var(--space-4) + env(safe-area-inset-bottom)); padding: var(--space-5); }
+@media (max-width: 720px) {
+  .reveal__panel { bottom: calc(var(--s-4) + env(safe-area-inset-bottom)); padding: var(--s-6) var(--s-4) var(--s-4); }
   .reveal__actions .btn { flex: 1; }
 }

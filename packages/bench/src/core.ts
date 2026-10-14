@@ -32,7 +32,27 @@ export {
 } from "./parts";
 export { seatsOf, heldOf, holderOf, seatNear, SEAT_REACH } from "./seats";
 export { trayLeft, trayUsed } from "./tray";
-export { partPose, anchorPosition, benchBounds, fitCamera, isOnBoard, METER, DIAL_MODES, type PartPose } from "./layout";
+export { partPose, anchorPosition, benchBounds, fitCamera, isOnBoard, rejectedParts, METER, DIAL_MODES, type PartPose } from "./layout";
+// Unit 4: chips and friends.
+export {
+  CHIP_MODELS,
+  CHIP_PINOUTS,
+  CHIP_PRINT,
+  SEVENSEG_LEGS,
+  SEGMENTS,
+  chipLeg,
+  chipDetail,
+  chipPinName,
+  chipPinCount,
+  dipFootprint,
+  dipSwitchPins,
+  socketPinFor,
+  supplyVolts,
+  packDefaults,
+  type Segment,
+} from "./chips";
+export { resolveLeg, canonicalAnchor, perches } from "./parts";
+export { logicProbeReading, useProbeState, PULSE_HOLD, type ProbeLevel, type ProbeReading } from "./probe";
 export { resistorBands, formatOhms, formatFarads } from "./colorCode";
 export {
   DOT_SPACING,
@@ -96,4 +116,8 @@ export type {
   SampleMaterial,
   SymbolKind,
   SchematicSymbol,
+  ChipKind,
+  ChipModel,
+  ChipParamsMap,
+  DipKey,
 } from "./types";
