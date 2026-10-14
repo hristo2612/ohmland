@@ -408,7 +408,8 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     const phone = w < 640;
     const one = spotted.length === 1 && framed.length === 1 ? b.parts.find((p) => `part:${p.id}` === spotted[0]) : undefined;
     const close = phone && !!one && PRINTED_KINDS.has(one.kind) && one.kind !== "tag";
-    const padding = close ? 8 : Math.round(free * (phone ? 0.12 : 0.3));
+    // Several parts in play are their own context: a modest margin keeps them close.
+    const padding = close ? 8 : Math.round(free * (framed.length > 1 ? 0.06 : phone ? 0.12 : 0.3));
     c.focus(framed, framed.length ? { padding, inset } : { inset });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spotKey, frameKey, runtime, benchReady, dockKey]);

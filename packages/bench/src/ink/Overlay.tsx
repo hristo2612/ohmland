@@ -16,6 +16,7 @@ import { INK, boxCorners, frameTransform, n3 } from "./frame";
 import { InkIcon, type InkIconName } from "./icons";
 import type { InkApi } from "./interaction";
 import type { InkLabels } from "./labels";
+import { partShownName } from "../labels";
 import { PartDrawing } from "./kinds";
 import { buildModel, type PartInk } from "./model";
 import { WIRE_TOKEN } from "./styles";
@@ -148,6 +149,7 @@ export function InkOverlay({ store, labels, tray, readOnly, compact, api, size, 
   const canUndo = useStore(store, (s) => s.past.length > 0);
   const canRedo = useStore(store, (s) => s.future.length > 0);
   const locked = useStore(store, (s) => s.locked);
+  const names = useStore(store, (s) => s.names);
   const s = store.getState();
   const sel = ui.selection;
   const selPart = sel?.type === "part" ? bench.parts.find((p) => p.id === sel.id) : undefined;
@@ -260,7 +262,7 @@ export function InkOverlay({ store, labels, tray, readOnly, compact, api, size, 
   };
 
   const selName = selPart
-    ? [selPart.id, partDetail(selPart) ?? labels.partName[selPart.kind]].filter(Boolean).join(" · ")
+    ? `${selPart.id} · ${partShownName(selPart, partDetail(selPart), names, labels.partName[selPart.kind])}`
     : selWire
       ? `${selWire.id} · ${labels.colors[selWire.color]}`
       : selLead
