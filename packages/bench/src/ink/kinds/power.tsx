@@ -73,7 +73,7 @@ function NineVoltFront({ pi, id, labels, snap, hp }: { pi: DrawProps<"battery">[
         {"−"}
       </Upright>
       {pi.part.params.worn && (
-        <Upright x={0} z={39.5} rot={-6} fontSize={6} textAnchor="middle" dominantBaseline="central" className="hand t-red">
+        <Upright x={0} z={39.5} rot={-6} fontSize={6} textAnchor="middle" dominantBaseline="central" className="ohi-hand t-red">
           {labels.print.used}
         </Upright>
       )}

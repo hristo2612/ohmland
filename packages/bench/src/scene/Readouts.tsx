@@ -9,6 +9,7 @@ import { useLabels } from "../labels";
 import { partPose } from "../layout";
 import { useBench, type BenchStoreState, type InspectSpec } from "../store";
 import type { ScreenPoint } from "../view/controller";
+import { STRESS_MARK, stressPoint } from "../view/targets";
 import { FONT, makeCanvas } from "../three/canvas";
 import type { BenchState, PlacedPart, Vec3 } from "../types";
 
@@ -58,21 +59,21 @@ type Projector = { project(p: Vec3): ScreenPoint | null; onViewChange(cb: () => 
  * The stress bars, as small paper tags in the page above their parts (the ink view's look): green, then orange from
  * half the maximum, red from nine tenths, grey when the part is dead. Ticks mark half and nine tenths.
  */
-export function StressTags({ controller }: { controller: Projector }) {
+export function StressTags({ controller, spot, compact }: { controller: Projector; spot: readonly string[] | null; compact: boolean }) {
   const bench = useBench((s) => s.bench);
   const inspect = useBench((s) => s.inspect);
   const ids = inspect.flatMap((spec) => (spec.show === "stress" ? covered(bench, spec).map((p) => p.id) : []));
   if (!ids.length) return null;
   return (
-    <div className="ohb-readouts" aria-hidden="true">
+    <div className="ohb-readouts" data-compact={compact || undefined} aria-hidden="true">
       {[...new Set(ids)].map((id) => (
-        <StressTag key={id} id={id} controller={controller} />
+        <StressTag key={id} id={id} controller={controller} spotted={!!spot?.includes(`part:${id}/${STRESS_MARK}`)} />
       ))}
     </div>
   );
 }
 
-const StressTag = memo(function StressTag({ id, controller }: { id: string; controller: Projector }) {
+const StressTag = memo(function StressTag({ id, controller, spotted }: { id: string; controller: Projector; spotted: boolean }) {
   const level = useBench((s) => Math.round(Math.min(1, stressOf(s, id)) * 40) / 40);
   const dead = useBench((s) => s.snapshot?.parts[id]?.health === "dead");
   const bench = useBench((s) => s.bench);
@@ -81,17 +82,18 @@ const StressTag = memo(function StressTag({ id, controller }: { id: string; cont
     const place = () => {
       const el = ref.current;
       const p = bench.parts.find((x) => x.id === id);
-      const sp = p ? controller.project(readoutAt(bench, p)) : null;
+      // At the bar's own mark (part:D1/stress), the same desk point as in ink, centred on it.
+      const sp = p ? controller.project(stressPoint(bench, p)) : null;
       if (!el) return;
       el.style.visibility = sp && sp.visible ? "" : "hidden";
-      if (sp) el.style.transform = `translate(${sp.x}px, ${sp.y}px) translate(-50%, calc(-100% - 6px))`;
+      if (sp) el.style.transform = `translate(${sp.x}px, ${sp.y}px) translate(-50%, -50%)`;
     };
     place();
     return controller.onViewChange(place);
   }, [controller, bench, id]);
   const tone = dead ? "dead" : level >= 0.9 ? "high" : level >= 0.5 ? "mid" : "low";
   return (
-    <div ref={ref} className="ohb-stress" data-tone={tone} style={{ visibility: "hidden" }}>
+    <div ref={ref} className="ohb-stress" data-tone={tone} data-spot={spotted || undefined} style={{ visibility: "hidden" }}>
       <i style={{ width: `${(dead ? 1 : level) * 100}%` }} />
       <b style={{ left: "50%" }} />
       <b style={{ left: "90%" }} />

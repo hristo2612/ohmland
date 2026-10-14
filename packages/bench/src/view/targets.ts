@@ -48,8 +48,26 @@ export function meterSpot(bench: BenchState, sub: string): Vec3 | null {
   return null;
 }
 
+/** The mark of an LED's stress bar (`part:D1/stress`): notes, taps and the spotlight point at the bar itself. */
+export const STRESS_MARK = "stress";
+
+/**
+ * Where an LED's stress bar sits, the same desk point in both views: a little behind the middle of its leads (up the
+ * screen from the front) and, in 3D, above its dome. Not turned with the part, so the bar stays above it on screen.
+ */
+export function stressPoint(bench: BenchState, part: BenchState["parts"][number]): Vec3 {
+  const pose = partPose(bench, part);
+  // Standing in the board, the middle of its legs; lying on the desk, its body.
+  const legs = pose.mount === "board" ? Object.values(pose.legs) : [];
+  const n = Math.max(1, legs.length);
+  const c = legs.length ? legs.reduce<Vec3>((s, p) => [s[0] + p[0] / n, s[1] + p[1] / n, s[2] + p[2] / n], [0, 0, 0]) : pose.origin;
+  // Far enough back to clear the drawing in ink (drawn larger than life on the desk) and the dome in 3D.
+  return [c[0], c[1] + 14, c[2] - (legs.length ? 7 : 11)];
+}
+
 /** A part's lead or named mark (`part:R1/a`, `part:SD1/R1`) in world coordinates, or null. */
 export function partSpot(bench: BenchState, part: BenchState["parts"][number], sub: string): Vec3 | null {
+  if (sub === STRESS_MARK && part.kind === "led") return stressPoint(bench, part);
   const pose = partPose(bench, part);
   const leg = pose.legs[sub];
   if (leg) return leg;

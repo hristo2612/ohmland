@@ -8,6 +8,7 @@ import type { Anchor, Vec2 } from "../../types";
 import { rectOfPoints, type Rect } from "../camera";
 import { INK, boxCorners, frameTransform, n3 } from "../frame";
 import { METER, anchorInk, partBounds, targetRect, type InkModel, type PartInk } from "../model";
+import { STRESS_MARK } from "../../view/targets";
 
 function Brackets({ x0, z0, x1, z1, className }: { x0: number; z0: number; x1: number; z1: number; className: string }) {
   const L = Math.min(x1 - x0, z1 - z0) * 0.28 + 1.2;
@@ -30,13 +31,22 @@ function PartBrackets({ pi, className }: { pi: PartInk; className: string }) {
   );
 }
 
-/** A pencil ring round a desk rectangle: a rounded band, as the 3D view rings its targets. */
+/**
+ * The largest corner radius that keeps a ring `pad` outside its rectangle's corners (the arc's middle stays clear
+ * while radius * (1 - 1 / sqrt 2) is under the pad).
+ */
+const ringCorner = (pad: number) => pad * 3.2;
+
+/**
+ * A pencil ring round a desk rectangle, as the 3D view rings its targets: a rounded band round a small part, and a
+ * rounded rectangle round a big one (a chart, a box), whose corners would otherwise cut through its print.
+ */
 function Ring({ r, className, pad = 2.6 }: { r: Rect; className: string; pad?: number }) {
   const w = Math.max(4.8, r[2] - r[0] + pad * 2);
   const h = Math.max(4.8, r[3] - r[1] + pad * 2);
   const cx = (r[0] + r[2]) / 2;
   const cz = (r[1] + r[3]) / 2;
-  const rad = Math.min(w, h) / 2;
+  const rad = Math.min(Math.min(w, h) / 2, ringCorner(pad));
   return <rect x={n3(cx - w / 2)} y={n3(cz - h / 2)} width={n3(w)} height={n3(h)} rx={n3(rad)} className={className} />;
 }
 
@@ -89,6 +99,8 @@ export const Marks = memo(function Marks({ model, ui, hintParts, hintAnchors, sp
   }
   if (spot) {
     for (const t of spot) {
+      // A stress bar is a tag over the drawing: it rings itself (Readouts).
+      if (t.endsWith(`/${STRESS_MARK}`)) continue;
       const r = targetRect(model, t);
       if (r) out.push(<Ring key={`s:${t}`} r={r} className="spot" pad={t.includes(":") && !t.startsWith("part:") ? 1.2 : 2.4} />);
     }
