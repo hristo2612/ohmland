@@ -68,12 +68,12 @@ function warmBench(labId: string): void {
 type Phase = "guess" | "act" | "done";
 
 /**
- * The parts in play for a moment: the beat's own `spot`, or the part a meet, tap or pick is about (the whole part, so
- * the spotlight never gives away which leg is right). Null frames the whole bench.
+ * The parts in play for a moment: the beat's or the secret's own `spot`, or the part a meet, tap or pick is about (the
+ * whole part, so the spotlight never gives away which leg is right). Null frames the whole bench.
  */
 function spotOf(mo: Moment): string[] | null {
   const b = mo.beat;
-  if (b?.spot) return b.spot;
+  if (mo.spot) return mo.spot;
   if (mo.part) return [mo.part];
   // The part a leg (D1.anode) or a mark (part:M1/dial) belongs to.
   const partOf = (a: string) => a.replace(/^(pin|part):/, "").split(/[./]/)[0]!;

@@ -108,6 +108,7 @@ describe("bench lessons", () => {
           for (const a of [b.tap?.answer ?? [], b.tap?.among ?? []].flat()) anchors.add(a);
         }
         if (lesson.secret?.note && lesson.secret.note.at !== "tap") anchors.add(lesson.secret.note.at);
+        for (const s of lesson.secret?.spot ?? []) anchors.add(s);
         // A mark (part:M1/dial) must be one its part really has.
         const on = (b: BenchState, a: string) => (/^part:[^/]+\//.test(a) ? targetPoint(b, a) !== null : resolveAnchor(b, a) !== null);
         for (const a of anchors) expect(all.some((b) => on(b, a)), `"${a}" on the bench`).toBe(true);
