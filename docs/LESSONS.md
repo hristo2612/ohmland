@@ -60,6 +60,7 @@ secret:                       # the bonus, offered after the beats (and found an
   task: no-resistor           # a bonus task in the lab
   say: Curious? Leave the resistor out. It's free here.
   done: Pop. That LED gave its life for science.
+  spot: [R1, D1]              # the parts in play, as on a beat (optional)
   note: { at: D1, text: about 1 A for a blink }
   rule: Every LED needs a resistor.
 
@@ -100,7 +101,8 @@ Optional, on any beat:
 - `objective`: starts an objective (a few words). The robot's eyes fill in equal steps as each objective (and the
   fix-it round) finishes, and the current objective's name shows as a quiet kicker. Objectives are never listed.
 - `spot: [parts]`: the parts in play. The bench frames and spotlights them. Meet, tap and pick beats spot their part by
-  themselves; leave `spot` out when the result shows somewhere else (a switch that lights a lamp).
+  themselves; leave `spot` out when the result shows somewhere else (a switch that lights a lamp). The secret takes a
+  `spot` too (`secret: { spot: [R1, D1], ... }`).
 - `guess` (only with `do`): an ungraded prediction just before the action. The notebook keeps it in blue ink.
 - `done`, `note`, `rule`: the discovery. A beat with any of them ends on a Next button so the learner can read it; a
   beat without one moves on by itself after a beat of the robot's success line. A beat with nothing to do draws its
