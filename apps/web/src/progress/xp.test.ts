@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CourseOutline } from "../content/outline";
 import { achievementXp, evaluateAchievements } from "./achievements";
-import { lessonStates, totalXp } from "./derive";
+import { lessonStates, resumeTarget, totalXp } from "./derive";
 import { levelForXp, levelProgress, levelTitle, xpForLevel } from "./levels";
 import { emptyLearner } from "./state";
 import type { LearnerState } from "./types";
@@ -151,5 +151,32 @@ describe("course map states", () => {
     expect(lessonStates(s, outline)).toEqual({ a: "done", b: "current", c: "locked" });
     const skipped = done(emptyLearner(), "b", 1, 1);
     expect(lessonStates(skipped, outline)).toEqual({ a: "current", b: "done", c: "open" });
+  });
+
+  it("never makes Start here current for a learner already past it", () => {
+    const course: CourseOutline = {
+      units: [
+        { id: "start-here", number: 1, title: "Start here", modules: ["sh"] },
+        { id: "basics", number: 2, title: "Basics", modules: ["b"] },
+      ],
+      modules: [
+        { id: "sh", unit: "start-here", title: "SH", landmark: { id: "l1", name: "L1" }, lessons: ["s1", "s2"] },
+        { id: "b", unit: "basics", title: "B", landmark: { id: "l2", name: "L2" }, lessons: ["b1", "b2"] },
+      ],
+      lessons: {
+        s1: { ...lesson("s1", "sh"), unit: "start-here" },
+        s2: { ...lesson("s2", "sh"), unit: "start-here" },
+        b1: { ...lesson("b1", "b"), unit: "basics" },
+        b2: { ...lesson("b2", "b"), unit: "basics" },
+      },
+      order: ["s1", "s2", "b1", "b2"],
+    };
+    // A new learner starts at the start; one who finished a Start here lesson stays in Start here.
+    expect(lessonStates(emptyLearner(), course)).toEqual({ s1: "current", s2: "locked", b1: "locked", b2: "locked" });
+    expect(lessonStates(done(emptyLearner(), "s1", 1, 1), course)).toEqual({ s1: "done", s2: "current", b1: "locked", b2: "locked" });
+    // A learner already in Basics: Start here's undone lessons are open, the next Basics lesson is current.
+    const inBasics = done(done(emptyLearner(), "s1", 1, 1), "b1", 1, 1);
+    expect(lessonStates(inBasics, course)).toEqual({ s1: "done", s2: "open", b1: "done", b2: "current" });
+    expect(resumeTarget(inBasics, course)).toBe("b2");
   });
 });
