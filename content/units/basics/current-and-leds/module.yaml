@@ -8,6 +8,5 @@ landmark:
   # caption: A lighthouse with one red LED at the top, wired with the right resistor, so it shines for years.
   # mascot: Sensible current, steady light. That's how lighthouses last.
 lessons:
-  - first-glow
   - led-burnout
   - measure-the-flow

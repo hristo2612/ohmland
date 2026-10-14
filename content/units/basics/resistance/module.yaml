@@ -8,6 +8,7 @@ landmark:
   # caption: A long hall striped in every colour of the code. You can read every value on its walls.
   # mascot: Brown, black, red. That's a thousand ohms of hall.
 lessons:
+  - tiny-and-huge-numbers
   - what-resists
   - draw-a-resistor
   - reading-the-stripes

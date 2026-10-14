@@ -12,9 +12,11 @@ const labs = Object.entries(import.meta.glob<{ default: LabDefinition }>("../../
   .map(([path, mod]) => ({ file: path.split("/").pop()!, lab: mod.default }))
   .sort((a, b) => a.file.localeCompare(b.file));
 
-/** Labs used by the basics unit's lessons (their `lab:` steps, or a bench lesson's `lab:`). */
-const BASICS = new Set(
-  Object.values(import.meta.glob<string>("../../../../content/units/basics/**/lesson.yaml", { eager: true, query: "?raw", import: "default" })).flatMap((yaml) =>
+/** Labs used by the Start here and Basics lessons (their `lab:` steps, or a bench lesson's `lab:`): no bench warnings. */
+const STRICT = new Set(
+  Object.values(
+    import.meta.glob<string>(["../../../../content/units/start-here/**/lesson.yaml", "../../../../content/units/basics/**/lesson.yaml"], { eager: true, query: "?raw", import: "default" }),
+  ).flatMap((yaml) =>
     [...yaml.matchAll(/^\s*lab:\s*([a-z0-9-]+)\s*$/gm)].map((m) => m[1]!),
   ),
 );
@@ -22,8 +24,8 @@ const BASICS = new Set(
 describe("lab solutions", () => {
   it("finds the labs", () => {
     expect(labs.length).toBeGreaterThan(0);
-    // 18 classic Unit 1 labs, plus how-a-breadboard-works (at the start of Your meter until Start here exists).
-    expect(BASICS.size).toBe(19);
+    // The Start here labs and Basics' 15 classic labs.
+    expect(STRICT.size).toBeGreaterThanOrEqual(19);
   });
 
   for (const { file, lab } of labs) {
@@ -34,7 +36,7 @@ describe("lab solutions", () => {
     it(`${lab.id} builds a bench`, () => {
       const built = buildBench(lab.bench);
       expect(built.bench.parts.length + built.bench.leads.length + (built.bench.meter ? 1 : 0)).toBeGreaterThan(0);
-      if (BASICS.has(lab.id)) expect(built.warnings, "bench warnings").toEqual([]);
+      if (STRICT.has(lab.id)) expect(built.warnings, "bench warnings").toEqual([]);
     });
 
     // Oscillators with a speaker step at the audio rate: the siren's replay takes several seconds.

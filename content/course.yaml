@@ -2,6 +2,7 @@
 # Units in `upcoming` are planned and show as "coming soon" on the course map until their folder exists.
 title: Ohmland
 units:
+  - start-here
   - basics
   - switching
 upcoming:
