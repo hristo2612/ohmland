@@ -10,7 +10,7 @@ import { BenchStoreContext, createBenchStore } from "../store";
 import type { BenchAction } from "../types";
 import type { BenchController, ScreenPoint } from "../view/controller";
 import type { BenchRendererProps } from "../view/types";
-import { fitRect, growRect, rectOfPoints, type Pad, type Rect } from "./camera";
+import { NO_PAD, fitRect, growRect, rectOfPoints, type Pad, type Rect } from "./camera";
 import { BoardBase, BoardHoles, BoardXray } from "./draw/Board";
 import { GlowLayer, LeadView, PartView, SmokeLayer, WireView } from "./draw/layers";
 import { Marks } from "./draw/Marks";
@@ -143,6 +143,14 @@ export function BenchInk(props: BenchInkProps) {
   }, [compact, showTray]);
   const padRef = useRef(pad);
   padRef.current = pad;
+  /** The part of the view a docked panel covers (focus's `inset`): framing keeps clear of it. */
+  const insetRef = useRef<Pad>(NO_PAD);
+  /** The room to keep clear at each edge: the view's own chrome plus the docked panel. */
+  const padNow = useCallback((): Pad => {
+    const p = padRef.current;
+    const i = insetRef.current;
+    return { top: p.top + i.top, right: p.right + i.right, bottom: p.bottom + i.bottom, left: p.left + i.left };
+  }, []);
 
   /** The rectangle to frame: the lab's frame, else everything on a big screen, the work area on a phone. */
   const homeRect = useCallback((): Rect => {
@@ -156,20 +164,21 @@ export function BenchInk(props: BenchInkProps) {
       // Generous paper round the work.
       const r = homeRect();
       const m = Math.max(4, Math.max(r[2] - r[0], r[3] - r[1]) * 0.06);
-      const cam = fitRect(growRect(r, m), view.vp, padRef.current, 14);
+      const pad = padNow();
+      const cam = fitRect(growRect(r, m), view.vp, pad, 14);
       // On a phone a whole breadboard is too small to touch: frame the busy part of it at a usable scale instead
       // (the learner pans to the rest).
       const MIN_TOUCH = 3.6;
       const busy = compact && cam.s < MIN_TOUCH && !store.getState().frame ? busyRect(modelRef.current) : null;
       if (busy) {
-        const c = fitRect(busy, view.vp, padRef.current, 14);
-        view.fit(busy, padRef.current, { instant, max: 14 });
+        const c = fitRect(busy, view.vp, pad, 14);
+        view.fit(busy, pad, { instant, max: 14 });
         if (c.s < MIN_TOUCH) view.set({ ...view.cam, s: MIN_TOUCH }, false);
         return;
       }
-      view.fit(growRect(r, m), padRef.current, { instant, max: 14 });
+      view.fit(growRect(r, m), pad, { instant, max: 14 });
     },
-    [view, homeRect, compact, store],
+    [view, homeRect, compact, store, padNow],
   );
   /** What the view frames: home, or what focus() asked for. A resize frames it again (unless the learner moved). */
   const framing = useRef<{ targets: string[]; padding?: number } | null>(null);
@@ -189,10 +198,10 @@ export function BenchInk(props: BenchInkProps) {
       const hw = Math.max(MIN, r[2] - r[0]) / 2;
       const hh = Math.max(MIN, r[3] - r[1]) / 2;
       const p = f.padding ?? 48;
-      const base = padRef.current;
+      const base = padNow();
       view.fit(growRect([cx - hw, cz - hh, cx + hw, cz + hh], 3), { top: base.top + p * 0.5, right: base.right + p, bottom: base.bottom + p * 0.5, left: base.left + p }, { instant, max: 18 });
     },
-    [view, fitHomeNow],
+    [view, fitHomeNow, padNow],
   );
   const fitHome = useCallback(
     (instant = false) => {
@@ -300,7 +309,7 @@ export function BenchInk(props: BenchInkProps) {
       if (r) {
         const [x0, y0] = view.toScreen(r[0], r[1]);
         const [x1, y1] = view.toScreen(r[2], r[3]);
-        const p = padRef.current;
+        const p = padNow();
         if (x0 < p.left || y0 < p.top || x1 > view.vp.w - p.right || y1 > view.vp.h - p.bottom) {
           const cam = fitRect(growRect(r, 6), view.vp, p, view.cam.s);
           view.moved = true;
@@ -331,6 +340,8 @@ export function BenchInk(props: BenchInkProps) {
       onViewChange: (cb) => view.onChange(cb),
       focus: (targets, opts) => {
         framing.current = targets.length ? { targets: [...targets], ...(opts?.padding !== undefined ? { padding: opts.padding } : {}) } : null;
+        const i = opts?.inset ?? {};
+        insetRef.current = { top: i.top ?? 0, right: i.right ?? 0, bottom: i.bottom ?? 0, left: i.left ?? 0 };
         // Before the view has a size this waits; the first sizing frames it.
         applyFraming(!!opts?.instant);
       },
