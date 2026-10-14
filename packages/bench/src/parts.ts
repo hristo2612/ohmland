@@ -1114,6 +1114,12 @@ export function partSpots(part: Pick<PlacedPart, "kind" | "params">): Record<str
   return d.spots ? (d.spots as (p: unknown) => Record<string, Vec3>)(part.params) : {};
 }
 
+/**
+ * Props that carry print the learner reads (a colour chart, a value tag, a card's ruler, a drawing, a bin's label, a
+ * clock face): a beat about one of them frames it close, and the 3D view keeps it upright on a tall screen.
+ */
+export const PRINTED_KINDS: ReadonlySet<string> = new Set(["chart", "tag", "card", "schematic", "bin", "clock"]);
+
 /** Named points on this part for `part:<id>/<name>` targets (local mm). */
 export function partMarks(part: Pick<PlacedPart, "kind" | "params">): Record<string, Vec3> {
   const d = partDef(part.kind) as PartDef;
