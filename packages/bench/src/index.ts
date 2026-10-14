@@ -20,7 +20,7 @@ export { emptyBench, defaultMeter } from "./ops";
 
 export { holeAnchor, pinAnchor, wireAnchor, leadAnchor, probeAnchor, socketAnchor, parseAnchor, type ParsedAnchor } from "./anchors";
 export { PITCH, boardGeometry, parseHole, holeWorld, nearestHole, type BoardGeometry, type HoleInfo, type StripInfo } from "./board";
-export { PART_KINDS, partDef, partLegs, defaultParams, footprintOf, isThrowSwitch, mysteryOrder, physicalLeg, wiredAs, terminalNumber, shuffleFor, skinOhms, pencilOhms, type PartDef, type FootprintLeg, type SeatDef, type SettingDef, type Hotspot } from "./parts";
+export { PART_KINDS, PRINTED_KINDS, partDef, partLegs, defaultParams, footprintOf, isThrowSwitch, mysteryOrder, physicalLeg, wiredAs, terminalNumber, shuffleFor, skinOhms, pencilOhms, type PartDef, type FootprintLeg, type SeatDef, type SettingDef, type Hotspot } from "./parts";
 export { partPose, anchorPosition, clipTargets, rejectedParts, METER, DIAL_MODES, type PartPose, type ClipTarget } from "./layout";
 export { CHIP_MODELS, CHIP_PINOUTS, CHIP_PRINT, SEVENSEG_LEGS, SEGMENTS, chipLeg, chipDetail, chipPinName, chipPinCount, dipSwitchPins, socketPinFor, supplyVolts, packDefaults, type Segment } from "./chips";
 export { resolveLeg, canonicalAnchor, perches } from "./parts";

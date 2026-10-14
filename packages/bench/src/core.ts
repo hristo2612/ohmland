@@ -10,6 +10,7 @@ export {
   PART_KINDS,
   partDef,
   partLegs,
+  PRINTED_KINDS,
   defaultParams,
   footprintOf,
   isFlying,
