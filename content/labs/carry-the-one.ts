@@ -36,7 +36,9 @@ export default defineLab({
       { id: "U3", kind: "chip", at: "e46", params: { model: "555" }, locked: true, label: "Clock U3 (555)" },
       { id: "R5", kind: "resistor", at: "top+:47-h47", params: { ohms: 10_000 }, locked: true, label: "10 kΩ resistor R5" },
       { id: "R6", kind: "resistor", at: "g47-g51", params: { ohms: 68_000 }, locked: true, label: "68 kΩ resistor R6" },
-      { id: "C1", kind: "electrolytic-cap", at: "b47-rail-:47", params: { farads: 1e-6, volts: 16 }, locked: true, label: "1 µF capacitor C1" },
+      { id: "C1", kind: "electrolytic-cap", at: "b47-rail-:47", params: { farads: 1e-6, volts: 16 }, label: "1 µF capacitor C1" },
+      // The secret's faster capacitor waits on the shelf.
+      { id: "C5", kind: "electrolytic-cap", at: "shelf", params: { farads: 0.1e-6, volts: 50 }, label: "0.1 µF capacitor C5" },
     ],
     wires: [
       wire("W1", "top+:61", "rail+:61", "red"),
@@ -52,7 +54,7 @@ export default defineLab({
       ...tens.wires,
       ...ones.wires,
     ],
-    tray: [{ id: "C5", kind: "electrolytic-cap", params: { farads: 0.1e-6, volts: 50 }, count: 1, label: "0.1 µF capacitor" }],
+    tray: [],
     instruments: [],
     watch: ["U3.3"],
   },
@@ -128,10 +130,10 @@ export default defineLab({
     { do: "wait", seconds: 11 },
     { do: "check", task: "roll-99" },
     // The secret: ten times faster.
-    { do: "place", part: "C5", kind: "electrolytic-cap", at: "on:C1", params: { farads: 0.1e-6, volts: 50 } },
+    { do: "move", part: "C5", at: "on:C1" },
     { do: "wait", seconds: 1.6 },
     // Back to 1 µF before the check: the fix-it bench starts from the bench here.
-    { do: "place", part: "C1", kind: "electrolytic-cap", at: "on:C5", params: { farads: 1e-6, volts: 16 } },
+    { do: "move", part: "C1", at: "on:C5" },
     { do: "check", task: "divide-by-ten" },
     ...RACING,
     { do: "wait", seconds: 1 },

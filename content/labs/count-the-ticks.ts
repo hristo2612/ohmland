@@ -28,7 +28,7 @@ export default defineLab({
       { id: "U2", kind: "chip", at: "e5", params: { model: "555" }, locked: true, label: "Blinker U2 (555)" },
       { id: "R5", kind: "resistor", at: "top+:6-h6", params: { ohms: 10_000 }, locked: true, label: "10 kΩ resistor R5" },
       { id: "R6", kind: "resistor", at: "g6-g10", params: { ohms: 68_000 }, locked: true, label: "68 kΩ resistor R6" },
-      { id: "C1", kind: "electrolytic-cap", at: "b6-rail-:6", params: { farads: 10e-6, volts: 16 }, locked: true, label: "10 µF capacitor C1" },
+      { id: "C1", kind: "electrolytic-cap", at: "b6-rail-:6", params: { farads: 10e-6, volts: 16 }, label: "10 µF capacitor C1" },
       { id: "R3", kind: "resistor", at: "c7-c11", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor R3" },
       { id: "D1", kind: "led", at: "d11", params: { color: "red" }, locked: true, label: "Blinker lamp D1" },
       // The TAP button and its pull-down.
@@ -38,6 +38,8 @@ export default defineLab({
       { id: "S2", kind: "pushbutton", at: "e21", params: { cap: "red" }, locked: true, label: "RESET button S2" },
       { id: "R1", kind: "resistor", at: "i28-top-:29", params: { ohms: 10_000 }, locked: true, label: "10 kΩ pull-down R1" },
       ...counter.parts,
+      // The secret's faster capacitor waits on the shelf.
+      { id: "C5", kind: "electrolytic-cap", at: "shelf", params: { farads: 0.1e-6, volts: 50 }, label: "0.1 µF capacitor C5" },
     ],
     wires: [
       wire("W1", "top+:61", "rail+:61", "red"),
@@ -57,7 +59,7 @@ export default defineLab({
       wire("W2", "c17", "b27", "yellow"),
       ...counter.wires,
     ],
-    tray: [{ id: "C5", kind: "electrolytic-cap", params: { farads: 0.1e-6, volts: 50 }, count: 1, label: "0.1 µF capacitor" }],
+    tray: [],
     instruments: [],
     watch: ["U2.3"],
   },
@@ -165,10 +167,10 @@ export default defineLab({
     { do: "set", part: "S2", key: "pressed", value: false },
     { do: "check", task: "reset-zero" },
     // The secret: a hundred times faster.
-    { do: "place", part: "C5", kind: "electrolytic-cap", at: "on:C1", params: { farads: 0.1e-6, volts: 50 } },
+    { do: "move", part: "C5", at: "on:C1" },
     { do: "wait", seconds: 1.5 },
     // Back to 10 µF before the check: the fix-it bench starts from the bench here.
-    { do: "place", part: "C1", kind: "electrolytic-cap", at: "on:C5", params: { farads: 10e-6, volts: 16 } },
+    { do: "move", part: "C1", at: "on:C5" },
     { do: "check", task: "blur" },
     ...STUCK,
     { do: "wait", seconds: 1 },
