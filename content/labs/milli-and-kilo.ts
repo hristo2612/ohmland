@@ -7,8 +7,12 @@ import { defineLab, type SolutionStep } from "@ohmland/lab";
 
 const WHEELS = ["4,700 Ω", "0.02 A", "9,000 mV"];
 
-/** The padlock's three wheels, answered (the lesson's three picks): the lid can be lifted. */
-const WHEELS_SET: SolutionStep[] = [{ do: "param", part: "CAB", params: { lock: { wheels: WHEELS, set: [true, true, true] } } }];
+/**
+ * The padlock's three wheels, answered (the lesson's three picks): the lid can be lifted. A param step's type takes
+ * plain values; the cabinet's `lock` is an object, which the bench's settings apply as it is.
+ */
+const LOCK_SET = { lock: { wheels: WHEELS, set: [true, true, true] } } as unknown as Record<string, string>;
+const WHEELS_SET: SolutionStep[] = [{ do: "param", part: "CAB", params: LOCK_SET }];
 
 /** The fix-it bench: a parts tray labelled 4,700 Ω with the wrong tag (470 Ω) filed in it. */
 const WRONG_TAG: SolutionStep[] = [
