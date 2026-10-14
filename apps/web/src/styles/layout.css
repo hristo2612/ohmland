@@ -186,7 +186,7 @@ main:focus { outline: none; }
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
 }
-.site-footer__links { display: flex; flex-wrap: wrap; gap: var(--s-6); list-style: none; }
+.site-footer__links { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s-6); list-style: none; }
 /* the link's box, not just its words, is the target */
 .site-footer a { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--ink-2); text-underline-offset: 4px; }
 .site-footer a:hover { color: var(--ink); }
