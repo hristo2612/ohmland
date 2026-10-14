@@ -30,6 +30,11 @@ export default defineLab({
 
 Helpers shared by several labs go in `content/labs/lib/` (never in `content/labs/` itself: every `.ts` there is a lab).
 
+`settle: 5` (opt-in) runs the circuit for that many simulated seconds, unseen and unjudged, before the learner sees
+it: at the start, and after a reset, a fix-it setup or a "Show me" rewind (each loads fresh parts). A 555 wakes with its
+latch in a random state, so a one-shot may glow once at power-up; settling lets that glow end, and every learner starts
+from a calm bench. The headless solution replay settles the same way. Labs without it show the bench at once.
+
 ## The bench
 
 ```ts
