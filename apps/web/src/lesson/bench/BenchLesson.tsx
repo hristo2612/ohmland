@@ -75,7 +75,8 @@ function spotOf(mo: Moment): string[] | null {
   const b = mo.beat;
   if (b?.spot) return b.spot;
   if (mo.part) return [mo.part];
-  const partOf = (a: string) => a.replace(/^(pin|part):/, "").split(".")[0]!;
+  // The part a leg (D1.anode) or a mark (part:M1/dial) belongs to.
+  const partOf = (a: string) => a.replace(/^(pin|part):/, "").split(/[./]/)[0]!;
   if (b?.tap?.answer !== undefined) {
     const all = [...(Array.isArray(b.tap.answer) ? b.tap.answer : [b.tap.answer]), ...(b.tap.among ?? [])];
     return [...new Set(all.filter((a) => !/^(hole:|[a-j]\d|rail|top)/.test(a)).map(partOf))];

@@ -298,7 +298,17 @@ const onDemand = words(WORDS.onDemand);
  * Something on the bench, in the lab's shorthand: a part ("D1"), a part's lead ("D1.anode"), a hole ("e12",
  * "rail+:3"), a clip lead end ("TL1.a"), or a raw bench anchor ("pin:D1.anode", "part:D1").
  */
-const anchor = z.string().trim().regex(/^[A-Za-z0-9_+:.-]+$/, "must name a part, a lead or a hole (D1, D1.anode, e12, rail+:3)");
+/**
+ * Something on the bench a lesson points at: a part, a lead, a hole (D1, D1.anode, e12, rail+:3), or a named mark on a
+ * part (part:M1/dial, part:M1/display, part:SD1/R1, part:CAB/wheel1).
+ */
+const anchor = z
+  .string()
+  .trim()
+  .regex(
+    /^([A-Za-z0-9_+:.-]+|part:[A-Za-z][A-Za-z0-9_-]*\/[A-Za-z0-9_-]+)$/,
+    "must name a part, a lead, a hole or a mark (D1, D1.anode, e12, rail+:3, part:M1/dial)",
+  );
 
 /** The lab part ids and task ids in a lab file. */
 const labId = z.string().trim().regex(/^[A-Za-z][A-Za-z0-9_-]*$/, "must be a lab part or task id");
