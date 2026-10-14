@@ -249,8 +249,7 @@ export function Overlay({
         out.push(
           <button key={`act:${a.id}`} type="button" className="ohb-btn ohb-chip" onClick={() => {
             if (fresh()) return;
-            const p = ops.actionParams(s.bench, selPart.id, a.id);
-            if (p) s.setParams(selPart.id, p as never);
+            s.apply((b) => ops.runAction(b, selPart.id, a.id));
             close();
           }}>
             {labels.actions[`${selPart.kind}.${a.id}`] ?? a.id}

@@ -2,6 +2,7 @@
 // Units: millimetres on the desk plane. x grows to the right, z grows toward the viewer, y is up.
 
 import type { InputKey, LedColor, MeterMode, NodeId, Netlist } from "@ohmland/sim";
+import type { SolderParamsMap } from "./solder/params";
 
 export type { InputKey, LedColor, MeterMode, NodeId, Netlist };
 
@@ -59,7 +60,24 @@ export type BenchPartKind =
   | "bin"
   | "chart"
   | "clock"
-  | "showcase";
+  | "showcase"
+  // Unit 3 (making it permanent): the solder station and its tools, perfboard, wire and power from the wall.
+  | SolderKind;
+
+/** Unit 3 kinds: soldering, perfboard, hookup wire and heat-shrink, wall adapters. See src/solder/README section. */
+export type SolderKind =
+  | "solder-station"
+  | "solder-spool"
+  | "solder-braid"
+  | "perfboard"
+  | "plan-card"
+  | "heat-sink-clip"
+  | "hookup-wire"
+  | "wire-stripper"
+  | "heat-shrink"
+  | "heat-gun"
+  | "barrel-jack"
+  | "wall-adapter";
 
 export type WaterKind = "distilled" | "tap" | "salty";
 
@@ -183,7 +201,7 @@ export type PartParamsMap = {
   clock: { from?: number };
   /** A glass display case with a phone battery pack and a car battery: look, don't touch. */
   showcase: Record<string, never>;
-};
+} & SolderParamsMap;
 
 type PartOf<K extends BenchPartKind> = {
   /** Reference designator, unique on the bench: "R1", "D2", "B1". Letters, digits, "_" and "-" only. */

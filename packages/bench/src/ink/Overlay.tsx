@@ -210,8 +210,7 @@ export function InkOverlay({ store, labels, tray, readOnly, compact, api, size, 
         out.push(
           <button key={`act:${a.id}`} type="button" className="ohi-btn ohi-chip" onClick={() => {
             if (fresh()) return;
-            const p = ops.actionParams(s.bench, selPart.id, a.id);
-            if (p) s.setParams(selPart.id, p as never);
+            s.apply((b) => ops.runAction(b, selPart.id, a.id));
             close();
           }}>
             {labels.actions[`${selPart.kind}.${a.id}`] ?? a.id}
