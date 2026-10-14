@@ -1,8 +1,9 @@
 /**
- * The finale's island reveal: a full-screen dialog over the lesson. It shows the island as it stood before the lesson,
- * springs in what the lesson brought (a piece, and a landmark when a module is done), and captions it in the isle's
- * words. One Continue button appears after a moment (at once under reduced motion); Escape closes too. The native
- * modal dialog keeps focus inside and makes the lesson behind it inert.
+ * The finale's island reveal: a full-screen dialog over the lesson. It shows the island as it stood before the lesson;
+ * the camera glides to where the new thing goes, rings it in red pencil, and drops it in (a piece, and a landmark when
+ * a module is done). Only then does the caption slip in, in the isle's words, with one Continue button. Under reduced
+ * motion it cuts straight to the ringed thing and its caption. Escape closes too. The native modal dialog keeps focus
+ * inside and makes the lesson behind it inert.
  *
  * Loaded on demand by the lesson's IsleHooks (../lesson/isle-hooks.ts), never with a lesson page.
  */
@@ -19,8 +20,10 @@ import "./reveal.css";
 
 type Runtime = Awaited<ReturnType<typeof loadIsle>>;
 
-/** When Continue appears, unless motion is reduced. */
-const CONTINUE_DELAY_MS = 1400;
+/** The caption and Continue wait for the new thing to land, but never longer than this once it starts (a slow device). */
+const CAPTION_LATEST_MS = 4000;
+/** And never longer than this after the dialog opens, even if the island is slow to draw. */
+const CONTINUE_LATEST_MS = 12000;
 /** A beat on the island as it was, before the new piece springs in. */
 const BEAT_MS = 350;
 /** Open sky kept between the island and the caption card, in CSS pixels. */
@@ -95,7 +98,7 @@ function RevealDialog({ rt, plan, from, to, big, muted, outline, onShow, onDone 
   const [reduced] = useState(prefersReducedMotion);
   const [status, setStatus] = useState<"loading" | "ready">("loading");
   const [caption, setCaption] = useState<RevealInfo | null>(null);
-  const [canGo, setCanGo] = useState(reduced);
+  const [canGo, setCanGo] = useState(false);
 
   const close = useCallback(() => {
     view.current?.dispose();
@@ -110,14 +113,13 @@ function RevealDialog({ rt, plan, from, to, big, muted, outline, onShow, onDone 
     if (!d || !el) return;
     d.showModal();
     onShow();
-    heading.current?.focus();
     const onCancel = (e: Event) => {
       e.preventDefault();
       close();
     };
     d.addEventListener("cancel", onCancel);
     let cancelled = false;
-    const timer = reduced ? 0 : window.setTimeout(() => setCanGo(true), CONTINUE_DELAY_MS);
+    const timers = [window.setTimeout(() => setCanGo(true), CONTINUE_LATEST_MS)];
     // The caption card covers the bottom of the stage: the island frames the new piece above it.
     const inset = () => {
       const card = panel.current?.getBoundingClientRect();
@@ -136,10 +138,12 @@ function RevealDialog({ rt, plan, from, to, big, muted, outline, onShow, onDone 
         setStatus("ready");
         if (!reduced) await new Promise((r) => setTimeout(r, BEAT_MS));
         if (cancelled) return;
+        timers.push(window.setTimeout(() => setCanGo(true), CAPTION_LATEST_MS));
         const got = await v.reveal(from, to);
         if (cancelled) return;
         result.current = { title: got.title, big: got.big };
         setCaption(got);
+        setCanGo(true);
       } catch {
         // no 3D here (or the island failed to draw): skip straight to the finale
         if (!cancelled) close();
@@ -147,7 +151,7 @@ function RevealDialog({ rt, plan, from, to, big, muted, outline, onShow, onDone 
     })();
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
+      for (const id of timers) window.clearTimeout(id);
       ro.disconnect();
       d.removeEventListener("cancel", onCancel);
     };
@@ -172,7 +176,8 @@ function RevealDialog({ rt, plan, from, to, big, muted, outline, onShow, onDone 
     >
       <div className="reveal__stage" ref={stage} />
       {status === "loading" && <span className="reveal__spinner" aria-hidden="true" />}
-      <div className="reveal__panel" ref={panel}>
+      {/* the caption waits (laid out, so the island frames above it) until the new thing has landed */}
+      <div className="reveal__panel" ref={panel} data-ready={canGo || undefined}>
         <p className="kicker">{big ? m.reveal.module : m.reveal.lesson}</p>
         <h2 id="reveal-title" className="reveal__title" ref={heading} tabIndex={-1}>
           {caption?.title ?? m.reveal.growing}
@@ -181,7 +186,7 @@ function RevealDialog({ rt, plan, from, to, big, muted, outline, onShow, onDone 
           {caption?.lines.map((line, i) => <p key={i}>{line}</p>)}
         </div>
         {/* hidden (so neither focusable nor read) until it is time to move on */}
-        <div className="reveal__actions" data-ready={canGo || undefined}>
+        <div className="reveal__actions">
           <Button ref={next} variant="primary" size="large" iconEnd="arrow-right" onClick={close} data-reveal-continue>
             {m.reveal.continue}
           </Button>

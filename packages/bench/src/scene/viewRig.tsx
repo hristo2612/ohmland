@@ -574,9 +574,10 @@ type Ring = { key: string; box: THREE.Box3; y: number };
 
 /**
  * Owns the spotlight's look: which objects are on the spotlight layer (re-checked every frame while it shows, so
- * models that re-mount stay lifted), the veil amount (eased) and the rings.
+ * models that re-mount stay lifted), the veil amount (eased) and the rings. `quietPins`: the spotlit chips' pin numbers
+ * stay hidden (PinNumbers reads `hushed`).
  */
-export function SpotlightRig({ store, targets, spot, palette }: { store: BenchStore; targets: string[] | null; spot: Spotlight; palette: PaperPalette }) {
+export function SpotlightRig({ store, targets, quietPins = false, spot, palette }: { store: BenchStore; targets: string[] | null; quietPins?: boolean; spot: Spotlight; palette: PaperPalette }) {
   const get = useThree((s) => s.get);
   const invalidate = useThree((s) => s.invalidate);
   const lifted = useRef(new Set<THREE.Object3D>());
@@ -591,7 +592,7 @@ export function SpotlightRig({ store, targets, spot, palette }: { store: BenchSt
   const want = targets ? 0.66 : 0;
   useEffect(() => {
     invalidate();
-  }, [targets, invalidate]);
+  }, [targets, quietPins, invalidate]);
 
   useFrame((_, dt) => {
     const scene = get().scene;
@@ -644,10 +645,15 @@ export function SpotlightRig({ store, targets, spot, palette }: { store: BenchSt
       root.traverse((o) => {
         if (((o as THREE.Mesh).isMesh || (o as THREE.Sprite).isSprite) && o.layers.isEnabled(0)) {
           o.layers.enable(SPOT_LAYER);
+          if (o.name === "pinno") o.userData.hushed = quietPins;
           now.add(o);
         }
       });
-    for (const o of lifted.current) if (!now.has(o)) o.layers.disable(SPOT_LAYER);
+    for (const o of lifted.current)
+      if (!now.has(o)) {
+        o.layers.disable(SPOT_LAYER);
+        if (o.name === "pinno") o.userData.hushed = false;
+      }
     lifted.current = now;
     // Ease the veil in and out.
     const a = spot.state.amount;
