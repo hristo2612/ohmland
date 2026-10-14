@@ -236,7 +236,7 @@ export function Bench(props: BenchProps) {
               />
               <Warmup held={held} offscreen={quality === "high"} dark={palette.dark} onWarm={release} />
             </Canvas>
-            <StressTags controller={controller} />
+            <StressTags controller={controller} spot={spotTargets} compact={compact} />
             <TagSlips store={store} spot={spotTargets} compact={compact} projector={controller} />
             <Overlay tray={tray} readOnly={readOnly} compact={compact} api={api} size={size} controller={controller} />
             <SolderOverlay store={store} view={solderView} compact={compact} readOnly={readOnly} tray={showTray} />

@@ -254,6 +254,7 @@ export const en = {
       flag: "flag",
       unit: "unit button",
       patch: "rubbed patch",
+      stress: "stress bar",
     } as Record<string, string>,
     markWheel: (n: number) => `wheel ${n}`,
     markSymbol: (part: string) => `${part} symbol`,

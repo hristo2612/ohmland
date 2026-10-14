@@ -532,7 +532,7 @@ export function BenchInk(props: BenchInkProps) {
             <div ref={tagRef} className="ohi-tag" aria-hidden="true">
               {hoverAnchor ? hoverAnchor.slice(5) : ""}
             </div>
-            <Readouts store={store} model={model} view={view} labels={labels} />
+            <Readouts store={store} model={model} view={view} labels={labels} spot={spot} compact={compact} />
             <TagSlips store={store} spot={spot} compact={compact} projector={slipProjector} />
             <InkOverlay
               store={store}

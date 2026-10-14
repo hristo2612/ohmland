@@ -17,7 +17,7 @@ import { isEffect } from "../effects/effects";
 import { SPOT_LAYER, type Spotlight } from "../three/post";
 import type { PaperPalette } from "../three/paper";
 import type { FocusOptions, Inset, ScreenPoint } from "../view/controller";
-import { meterSpot, parseTarget, targetPoint } from "../view/targets";
+import { STRESS_MARK, meterSpot, parseTarget, targetPoint } from "../view/targets";
 import { frameWithParts } from "../view/framing";
 import { heldOf, holderOf } from "../seats";
 
@@ -772,6 +772,8 @@ export function SpotlightRig({ store, targets, spot, palette }: { store: BenchSt
             const o = scene.getObjectByName(`part:${id}`);
             if (o) r.push(o);
           }
+          // A stress bar is a tag over the view: it rings itself (Readouts).
+          if (parsed.sub === STRESS_MARK) continue;
           const isMeter = !!bench.meter && parsed.id === bench.meter.id;
           if (isMeter && parsed.sub) {
             const p = meterSpot(bench, parsed.sub);

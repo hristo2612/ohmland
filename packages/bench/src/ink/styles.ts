@@ -512,7 +512,9 @@ export const INK_CSS = `
 .ohi-sel .ohi-row{flex-wrap:wrap;justify-content:center}
 .ohi-readouts{position:absolute;inset:0;pointer-events:none}
 .ohi-readout{position:absolute;transform:translate(-50%,calc(-100% - 8px));background:var(--k-slip);border:1px solid var(--k-rule-soft);box-shadow:2px 2px 0 var(--k-shadow);font-size:13px;line-height:18px;padding:1px 7px;white-space:nowrap;color:var(--k-ink)}
-.ohi-stress{width:52px;height:10px;padding:0}
+.ohi-stress{width:120px;height:14px;padding:0;transform:translate(-50%,-50%)}
+.ohi-readouts[data-compact] .ohi-stress{width:64px;height:10px}
+.ohi-stress[data-spot]{outline:2px solid var(--k-red);outline-offset:5px;border-radius:2px}
 .ohi-stress i{position:absolute;left:0;top:0;bottom:0;background:var(--k-b-green)}
 .ohi-stress[data-tone="mid"] i{background:var(--k-b-orange)}
 .ohi-stress[data-tone="high"] i{background:var(--k-b-red)}

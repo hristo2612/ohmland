@@ -70,8 +70,8 @@ Implementation notes (both views):
 - Targets besides anchors: `part:<id>` (the meter is `part:M1`), `part:M1/display`, `part:M1/dial`,
   `part:M1/<socket>`, `lead:<id>` and `wire:<id>` for a whole lead or wire, `part:R1/a` for a part's lead and
   `part:<id>/<mark>` for a named spot on a part (`PartDef.marks`: a drawing's symbol `part:SD1/R1`, a box's `lid`,
-  `knob` and `tag`, a padlock's `wheel1`, a gate's `flag` and `unit`, a tag's `text`). Both views place marks at the
-  same desk point. `parseTarget` and `targetPoint` (a
+  `knob` and `tag`, a padlock's `wheel1`, a gate's `flag` and `unit`, a tag's `text`), and an LED's stress bar,
+  `part:D1/stress` (`stressPoint`, where both views draw the bar). Both views place marks at the same desk point. `parseTarget` and `targetPoint` (a
   renderer-free world point) live in `src/view/targets.ts`.
 - `project()` returns null for a target that does not exist; `visible` is false off screen or behind the camera.
 - `onViewChange` fires at most once per drawn frame, for camera, size and bench changes (overlays follow drags).

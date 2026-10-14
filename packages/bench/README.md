@@ -206,8 +206,9 @@ select (labels in `BenchLabels.settings`, by `kind.key`); `PartDef.actions` are 
 a layer (up to four) and may extend it.
 
 **Room lights and readouts.** The store's `ambient` (1 to 0.1) dims the lights and background and lifts LED halos;
-`inspect: [{ show: "stress" | "heat", parts: [...] }]` floats a stress bar (LED current as a share of `maxmA`) or a
-temperature tag with a touch-feel word over every matching part.
+`inspect: [{ show: "stress" | "heat", parts: [...] }]` floats a stress bar (LED current as a share of `maxmA`, 120 px
+wide, 64 px on phones, at the LED's `part:D1/stress` mark in both views; spotlit, it rings itself) or a temperature
+tag with a touch-feel word over every matching part.
 
 `connectivity(bench)` gives the metal-contact groups without building a netlist (used by the x-ray view).
 
