@@ -11,8 +11,8 @@ export const WEBGL_ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshad
 export const SEED_MODULE = {
   unit: "start-here",
   lessons: [
-    { id: "meet-the-meter", version: 2, firstTry: 2, items: 3, tasks: ["plug-in", "set-dial", "read-battery", "swap-probes", "open-the-box", "fix-it"] },
-    { id: "milli-and-kilo", version: 1, firstTry: 5, items: 5, tasks: ["tap-the-a", "tap-the-k", "open-padlock", "fix-it"] },
+    { id: "meet-the-meter", version: 3, firstTry: 2, items: 3, tasks: ["plug-in", "set-dial", "read-battery", "swap-probes", "open-the-box", "fix-it"] },
+    { id: "milli-and-kilo", version: 2, firstTry: 2, items: 2, tasks: ["tap-the-a", "tap-the-k", "wheel-one", "wheel-two", "wheel-three", "open-padlock", "fix-it"] },
     { id: "how-a-breadboard-works", version: 2, firstTry: 3, items: 4, tasks: ["xray-on", "fix-led", "rail-slide", "fix-it"] },
     { id: "parts-drawer", version: 1, firstTry: 2, items: 2, tasks: ["file-battery", "test-switch", "led-both-ways", "test-resistor", "file-all", "fix-it"] },
     { id: "first-glow", version: 3, firstTry: 2, items: 2, tasks: ["mend-blueprint", "build-loop", "move-it", "flip-led"] },

@@ -80,7 +80,7 @@ export default defineLab({
         lab.shared["ic"] = lab.meter?.si ?? 0;
         return true;
       },
-      hints: ["Drag the green wire off the board.", "Red probe on the + rail, black probe on row 25."],
+      hints: ["Drag the green wire off the board.", "Red probe on the + rail, black probe on strip 25."],
       highlight: ["wire:W4.b", "hole:a25"],
       nudges: [
         { when: (lab) => aroundLink(lab, "c25"), say: "Pull the link first, so the flow goes through the meter." },
@@ -98,7 +98,7 @@ export default defineLab({
         lab.shared["ib"] = lab.meter?.si ?? 0;
         return true;
       },
-      hints: ["Pull the yellow wire. Red on the rail, black on row 16."],
+      hints: ["Pull the yellow wire. Red on the rail, black on strip 16."],
       highlight: ["wire:W3.b", "hole:a16"],
       nudges: [{ when: (lab) => aroundLink(lab, "c16"), say: "Pull the yellow link first, so the flow uses the meter." }],
       success: "About 18 µA into the base.",
@@ -129,7 +129,7 @@ export default defineLab({
         const ratio = typeof was === "number" && was > 0 ? ic / was : ic / 0.0036;
         return baseOhms(lab) === 220_000 && ratio >= 1.7 && ratio <= 2.4;
       },
-      hints: ["Pull R3 out. Bend the 220 kΩ from row 16 to row 21."],
+      hints: ["Pull R3 out. Bend the 220 kΩ from strip 16 to strip 21."],
       highlight: ["hole:b16", "hole:b21"],
       success: "About twice the base flow, about twice the collector flow.",
     },

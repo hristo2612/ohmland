@@ -56,7 +56,7 @@ export default defineLab({
   tasks: [
     {
       id: "electrolytic-right-way",
-      prompt: "Push the 16 V can in: long leg in row 20, stripe in row 21.",
+      prompt: "Push the 16 V can in: long leg in strip 20, stripe in strip 21.",
       goal: (lab) => {
         const m = lab.memory as { at?: number; peak?: number };
         if (!socketA(lab, "CB", "forward")) {
@@ -68,14 +68,14 @@ export default defineLab({
         m.peak = Math.max(m.peak ?? 0, current(lab));
         return m.peak > 0.5e-3 && current(lab) < 20e-6 && lab.t - m.at <= 10;
       },
-      hints: ["The socket is rows 20 and 21.", "Long leg in row 20, stripe in row 21."],
+      hints: ["The socket is strips 20 and 21.", "Long leg in strip 20, stripe in strip 21."],
       highlight: ["CB", "hole:d20", "hole:d21"],
-      nudges: [{ when: (lab) => socketA(lab, "CB") && !socketA(lab, "CB", "forward"), say: "Stripe toward row 21, please. That's minus." }],
+      nudges: [{ when: (lab) => socketA(lab, "CB") && !socketA(lab, "CB", "forward"), say: "Stripe toward strip 21, please. That's minus." }],
       success: "A gulp, then almost nothing.",
     },
     {
       id: "electrolytic-backwards",
-      prompt: "Turn it round: stripe in row 20.",
+      prompt: "Turn it round: stripe in strip 20.",
       goal: (lab) => socketA(lab, "CB") && !socketA(lab, "CB", "forward") && lab.event("reversed", "CB") && lab.heldFor(5, socketA(lab, "CB") && current(lab) > 100e-6),
       hints: ["Just watch the meter. Does it settle this time?", "Give it five seconds."],
       highlight: ["CB"],
@@ -99,7 +99,7 @@ export default defineLab({
         if (socketA(lab, "CC")) lab.memory["low"] = true;
         return lab.memory["low"] === true && lab.heldFor(2, !socketA(lab, "CC") && socketA(lab, "CB", "forward"));
       },
-      hints: ["Read the can. What voltage does it say?", "Swap in the 16 V can, stripe toward row 21."],
+      hints: ["Read the can. What voltage does it say?", "Swap in the 16 V can, stripe toward strip 21."],
       highlight: ["CC", "CB"],
       success: "Fixed.",
     },
@@ -107,7 +107,7 @@ export default defineLab({
       id: "blast-box",
       prompt: "Optional, loud: the 6.3 V can backwards in the blast corner, then slide S1.",
       goal: (lab) => lab.died("CC") && lab.events.some((e) => e.type === "died" && e.partId === "CC" && e.data?.["cause"] === "reverse"),
-      hints: ["There's no resistor in the blast corner. That's the point.", "Backwards: stripe in row 32, long leg in row 33."],
+      hints: ["There's no resistor in the blast corner. That's the point.", "Backwards: stripe in strip 32, long leg in strip 33."],
       highlight: ["S1", "hole:d32", "hole:d33"],
       success: "Heated, bulged, vented.",
       bonus: true,

@@ -1,11 +1,12 @@
 # Blueprint: docs/curriculum/unit-1.md, L6. A bench lesson (docs/LESSONS.md), split per
 # docs/curriculum/conversion-guide.md, B3: this is the kept half (the code); measuring and tolerance are in the-liar.
 # One idea: two digit stripes, then the number of zeros. Lab: content/labs/reading-the-stripes.ts.
+# One resistor at a time, framed big (the camera glides from station to station); the colour code is a slip in the dock.
 format: bench
 id: reading-the-stripes
-version: 2
+version: 3
 title: Reading the stripes
-summary: Crack the resistor colour code with a chart, then label a bag of resistors by their stripes alone.
+summary: Crack the resistor colour code with a chart, then label resistors by their stripes alone.
 minutes: 6
 lab: reading-the-stripes
 unlocks:
@@ -19,35 +20,53 @@ start:
   go: Crack it
 
 beats:
-  - say: Yellow, violet, brown. Use the chart. How many ohms?
+  - say: Read this one. Use the chart.
     objective: Crack one
-    spot: [CH1]
+    spot: [R3]
+    tool: chart
     do: decode-yellow
     done: 470 Ω. Code cracked!
-    note: { at: CH1, text: "4, 7, then one zero" }
+    note: { at: R3, text: "4, 7, then one zero" }
     rule: Gold on the right. Digits, then zeros.
 
-  - say: Now label all five. Stripes only.
-    objective: Sort the bag
-    do: sort-the-bag
-    done: Five for five.
+  # Framed close on the stripes themselves, so each one is big enough to tap.
+  - say: Tap the stripe you read first.
+    spot: ["part:R3/band1", "part:R3/band4"]
+    tap: { answer: "part:R3/band1", among: ["part:R3/band1", "part:R3/band4"] }
+    wrong: { "part:R3/band4": "That's gold. Start at the other end." }
 
-  - say: Quick one. Which end do you read from?
-    pick: { options: [the gold end, the other end], answer: the other end }
-    wrong: { the gold end: "Gold goes on the right. Start from the left." }
+  - say: Now tap the stripe that counts zeros.
+    spot: ["part:R3/band1", "part:R3/band2", "part:R3/band3"]
+    tap: { answer: "part:R3/band3", among: ["part:R3/band1", "part:R3/band2", "part:R3/band3"] }
+    wrong:
+      "part:R3/band1": "A digit. The zeros come third."
+      "part:R3/band2": "A digit. The zeros come third."
 
-  - say: And what does the third stripe count?
-    pick: { options: [a third digit, the zeros], answer: the zeros }
-    wrong: { a third digit: "Only two digits here. Look at brown." }
+  - say: Next one. Drop its label just under it.
+    objective: Label the bag
+    spot: [R2, L1, L2, L4]
+    tool: chart
+    do: label-one
+    done: 150 Ω. One zero.
+
+  - say: And this one.
+    spot: [R5, L5, L6, L7]
+    tool: chart
+    do: label-two
+    done: Two for two.
 
 secret:
   task: tiny-gold
   say: Curious? This one has gold in third place.
+  spot: [R6]
+  tool: chart
   done: 4.7 Ω. Gold there divides by ten.
   note: { at: R6, text: "gold third: divide by ten" }
 
 fixit:
   say: Fix-it time. Two labels lie about their stripes.
+  spot: [R1, R4, L8, L9]
+  tool: chart
   tasks:
     - task: fix-labels
 

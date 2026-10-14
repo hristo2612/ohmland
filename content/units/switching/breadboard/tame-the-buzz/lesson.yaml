@@ -29,7 +29,7 @@ beats:
       C1.pos: "That's the long leg, plus. Find the stripe."
     note: { at: C1.neg, text: "stripe: minus, the short leg" }
 
-  - say: Long leg in row 11, stripe in row 13. Power on.
+  - say: Long leg in strip 11, stripe in strip 13. Power on.
     objective: Tame the buzz
     guess: { options: [Faster, Slower, Silent], answer: Slower }
     do: tame-it

@@ -109,7 +109,7 @@ export default defineLab({
         if (lab.connected("C1.pos", "P1.b")) lab.memory["end"] = true;
         return lab.memory["end"] === true && viaWiper(lab);
       },
-      hints: ["Follow the blue jumper to the trimmer. Which leg?", "The wiper is the middle leg, row 6."],
+      hints: ["Follow the blue jumper to the trimmer. Which leg?", "The wiper is the middle leg, strip 6."],
       highlight: ["wire:W9.a", "pin:P1.wiper"],
       success: "The knob works again.",
     },

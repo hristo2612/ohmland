@@ -137,6 +137,8 @@ export default defineLab({
     { do: "control", id: "hand", value: 0.9 },
     { do: "wait", seconds: 1.2 },
     { do: "check", task: "hand-hum" },
+    // "Show me" starts from the lab's sliders: the hand comes close again first.
+    { do: "control", id: "hand", value: 0.9 },
     { do: "move", part: "R4", at: "i13-top-:13" },
     { do: "wait", seconds: 2.4 },
     { do: "check", task: "pull-down" },

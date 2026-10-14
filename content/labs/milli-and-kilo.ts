@@ -1,18 +1,25 @@
 // Start here, case 9: "The prefix padlock" (docs/curriculum/start-here.md, SH9). A bench lesson (docs/LESSONS.md): its
 // tasks are the beats of content/units/start-here/tool-cases/milli-and-kilo/lesson.yaml, in the same order.
 // One idea: a prefix moves the decimal point three places. k is a thousand, m is a thousandth.
-// The lamp loop runs with a gate in number mode on the lead into the lamp (0.0075 A, about 7.5 mA) and a tag on its
-// resistor ("1 kΩ"). The parts cabinet is locked by a three-wheel padlock whose clues are three tags on the desk.
-import { defineLab, type SolutionStep } from "@ohmland/lab";
+// The lamp loop runs with a gate in number mode on the lead into the lamp (it reads 0.007552 A, or 7.55 mA) and a tag
+// on its resistor ("1 kΩ"). The parts cabinet is locked by a three-wheel padlock whose clues are three tags on the desk.
+import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 
+/** The padlock's answers, and the three faces each wheel turns through (a tap turns it to the next). */
 const WHEELS = ["4,700 Ω", "0.02 A", "9,000 mV"];
+const FACES = [
+  ["47 Ω", "470 Ω", "4,700 Ω"],
+  ["0.2 A", "0.02 A", "0.002 A"],
+  ["90 mV", "900 mV", "9,000 mV"],
+];
 
-/**
- * The padlock's three wheels, answered (the lesson's three picks): the lid can be lifted. A param step's type takes
- * plain values; the cabinet's `lock` is an object, which the bench's settings apply as it is.
- */
-const LOCK_SET = { lock: { wheels: WHEELS, set: [true, true, true] } } as unknown as Record<string, string>;
-const WHEELS_SET: SolutionStep[] = [{ do: "param", part: "CAB", params: LOCK_SET }];
+/** What wheel `i` (0, 1, 2) of the cabinet's padlock shows now (its `wheel1` ... param), or null before its first turn. */
+const wheel = (lab: LabView, i: number): string | null => {
+  const at = lab.prop("CAB")?.[`wheel${i + 1}`];
+  return typeof at === "number" ? (FACES[i]![at % 3] ?? null) : null;
+};
+/** The step that turns wheel `i` to its answer (a learner taps it round, a face at a time). */
+const turn = (i: number): SolutionStep[] => [{ do: "param", part: "CAB", params: { [`wheel${i + 1}`]: FACES[i]!.indexOf(WHEELS[i]!) } }];
 
 /** The fix-it bench: a parts tray labelled 4,700 Ω with the wrong tag (470 Ω) filed in it. */
 const WRONG_TAG: SolutionStep[] = [
@@ -27,7 +34,7 @@ export default defineLab({
     board: "none",
     frame: ["desk:-236,-96", "desk:150,172"],
     parts: [
-      // The lamp loop, lit from the start: about 7.5 mA through the 1 kΩ resistor and the red LED.
+      // The lamp loop, lit from the start: 7.55 mA through the 1 kΩ resistor and the red LED.
       { id: "B1", kind: "battery", at: "desk:-206,4", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 volt battery" },
       { id: "R1", kind: "resistor", at: "desk:-142,-48", params: { ohms: 1000, watts: 0.25 }, locked: true, label: "1 kilohm resistor" },
       { id: "D1", kind: "led", at: "desk:-92,22", rot: 180, params: { color: "red", maxmA: 50 }, locked: true, label: "Red LED" },
@@ -35,7 +42,7 @@ export default defineLab({
       // A gate on the lead into the lamp, showing the flow as a number.
       { id: "G1", kind: "gate", at: "lead:TL2", params: { mode: "number", unit: "A" }, locked: true, label: "Gate" },
       // The parts cabinet and its padlock's three clues.
-      { id: "CAB", kind: "box", at: "desk:62,-42", params: { style: "cabinet", lock: { wheels: WHEELS, set: [false, false, false] } }, locked: true, label: "Parts cabinet" },
+      { id: "CAB", kind: "box", at: "desk:62,-42", params: { style: "cabinet", lock: { wheels: WHEELS, set: [false, false, false], faces: FACES } }, locked: true, label: "Parts cabinet" },
       { id: "L1", kind: "tag", at: "desk:20,40", params: { text: "4.7 kΩ" }, label: "4.7 kilohm tag" },
       { id: "L2", kind: "tag", at: "desk:62,40", params: { text: "20 mA" }, label: "20 milliamp tag" },
       { id: "L3", kind: "tag", at: "desk:104,40", params: { text: "9 V" }, label: "9 volt tag" },
@@ -63,7 +70,7 @@ export default defineLab({
       goal: (lab) => lab.gateUnit("G1") === "mA",
       hints: ["The A sits at the right end of the gate's paper flag.", "Tap that A once."],
       highlight: ["G1"],
-      success: "7.5 mA.",
+      success: "7.55 mA.",
     },
     {
       id: "tap-the-k",
@@ -73,10 +80,18 @@ export default defineLab({
       highlight: ["L0"],
       success: "1,000 Ω.",
     },
+    ...[0, 1, 2].map((i) => ({
+      id: `wheel-${["one", "two", "three"][i]}`,
+      prompt: `Turn wheel ${i + 1} until it shows ${["4.7 kΩ", "20 mA", "9 V"][i]} without its prefix.`,
+      // The wheel itself is the check: the beat ends when it shows the right face.
+      goal: (lab: LabView) => wheel(lab, i) === WHEELS[i],
+      hints: [["k means times a thousand.", "Tap the wheel until it reads 4,700 Ω."], ["m means a thousandth. Three places left.", "Tap the wheel until it reads 0.02 A."], ["A volt is a thousand millivolts.", "Tap the wheel until it reads 9,000 mV."]][i]!,
+      highlight: [`part:CAB/wheel${i + 1}`],
+      success: "Click.",
+    })),
     {
       id: "open-padlock",
       prompt: "All three wheels are set. Lift the cabinet's lid.",
-      setup: WHEELS_SET,
       goal: (lab) => lab.lidOpen("CAB"),
       hints: ["Tap the cabinet's lid."],
       highlight: ["CAB"],
@@ -109,7 +124,12 @@ export default defineLab({
     { do: "check", task: "tap-the-a" },
     { do: "param", part: "L0", params: { alt: true } },
     { do: "check", task: "tap-the-k" },
-    ...WHEELS_SET,
+    ...turn(0),
+    { do: "check", task: "wheel-one" },
+    ...turn(1),
+    { do: "check", task: "wheel-two" },
+    ...turn(2),
+    { do: "check", task: "wheel-three" },
     { do: "param", part: "CAB", params: { lid: true } },
     { do: "check", task: "open-padlock" },
     // The secret: the 2.2 MΩ tag inside the cabinet.

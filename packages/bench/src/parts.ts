@@ -8,6 +8,7 @@ import {
   BIN,
   BOX,
   CABINET,
+  PADLOCK,
   DRAWER,
   GATE,
   OBJECT,
@@ -28,6 +29,7 @@ import {
   RESISTOR,
   RESISTOR_1W,
   RESISTOR_5W,
+  RESISTOR_BANDS,
   SAMPLE,
   SKIN,
   STATION,
@@ -163,9 +165,10 @@ export type PartDef<K extends BenchPartKind = BenchPartKind> = {
   spots?: (params: PartParamsMap[K]) => Record<string, Vec3>;
   /**
    * Named points on the model for `part:<id>/<name>` targets (project, focus, notes, tap checks): a schematic's symbols,
-   * a padlock's wheels, a gate's unit button. Local mm.
+   * a padlock's wheels, a gate's unit button, a resistor's bands. Local mm; `at` is how the part is mounted (a resistor
+   * on the board sits between its holes, or stands up when they are too close).
    */
-  marks?: (params: PartParamsMap[K]) => Record<string, Vec3>;
+  marks?: (params: PartParamsMap[K], at?: MarkMount) => Record<string, Vec3>;
   /** Simulator parts for this bench part. `node(leg)` gives the node a lead is on. */
   toSpecs: (part: PlacedPartOf<K>, node: (leg: string) => NodeId, ctx: NetContext) => PartSpec[];
   /** Metal contacts the part makes between anchors (a perfboard's solder joints, a splice), for connectivity. */
@@ -191,6 +194,31 @@ export function cupOhms(params: { water: WaterKind; ohms?: number; salt?: number
   const base = params.ohms ?? waterOhms(params.water);
   const salt = Math.max(0, Math.min(SALT_MAX, params.salt ?? 0));
   return 1 / (1 / base + salt / PINCH_OHMS);
+}
+
+type WheelKey = "wheel1" | "wheel2" | "wheel3" | "wheel4";
+
+/**
+ * What each wheel of a cabinet's padlock shows: with `faces`, the face it is turned to (null until first turned);
+ * without, its answer once `set` (null before).
+ */
+export function padlockFaces(pp: PartParamsMap["box"]): (string | null)[] {
+  const lock = pp.lock;
+  if (!lock) return [];
+  return lock.wheels.map((answer, i) => {
+    const faces = lock.faces?.[i];
+    if (!faces) return lock.set[i] ? answer : null;
+    const at = pp[`wheel${i + 1}` as WheelKey];
+    return at === undefined ? null : (faces[at % faces.length] ?? null);
+  });
+}
+
+/** Every wheel of the padlock shows its answer: the lid may be lifted. */
+export function padlockOpen(pp: PartParamsMap["box"]): boolean {
+  const lock = pp.lock;
+  if (!lock) return true;
+  const shown = padlockFaces(pp);
+  return lock.wheels.every((answer, i) => shown[i] === answer);
 }
 
 const line = (...legs: string[]): FootprintLeg[] => legs.map((leg, i) => ({ leg, dx: i, dz: 0 }));
@@ -279,6 +307,7 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
       { leg: "b", dx: 4, dz: 0 },
     ],
     defaults: { ohms: 470, bands: 4, watts: 0.25, tolerance: 5 },
+    marks: (pp, at) => resistorBandMarks(pp, at),
     deskLegs: (pp) => {
       const w = pp.watts ?? 0.25;
       if (w >= 2) return deskAxial(RESISTOR_5W.len, RESISTOR_5W.w, RESISTOR_5W.deskLead, "a", "b");
@@ -866,13 +895,23 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
       const D = cab ? CABINET.d : BOX.d;
       const H = cab ? CABINET.h : BOX.h;
       const strip = cab ? CABINET.strip : BOX.strip;
-      const locked = cab && !!pp.lock && pp.lock.set.some((x) => !x) && !pp.lid;
+      const locked = cab && !!pp.lock && !padlockOpen(pp) && !pp.lid;
       const lidD = D - strip;
       // Shut, the whole lid opens it; open, the lid standing up at the back shuts it (the parts inside stay reachable).
       const lid: Hotspot = pp.lid
         ? { pick: { type: "setting", key: "lid", value: false }, at: [0, H + lidD * 0.4, -D / 2 - lidD * 0.16], size: [W - 8, lidD * 0.8, lidD * 0.32], on: true }
         : { pick: { type: "setting", key: "lid", value: true }, at: [0, H, -strip / 2], size: [W - 8, 6, lidD - 6] };
       const out: Hotspot[] = locked ? [] : [lid];
+      // A padlock with faces: tap a wheel to turn it to its next face.
+      const faces = cab && !pp.lid ? pp.lock?.faces : undefined;
+      if (faces) {
+        const n = faces.length;
+        faces.forEach((f, i) => {
+          const at = pp[`wheel${i + 1}` as WheelKey];
+          const next = at === undefined ? 0 : (at + 1) % Math.max(1, f.length);
+          out.push({ pick: { type: "setting", key: `wheel${i + 1}`, value: next }, at: [(i - (n - 1) / 2) * PADLOCK.wheel, H + 3, D / 2 - strip / 2], size: [PADLOCK.wheel - 2, 6, 12] });
+        });
+      }
       if (pp.tag) out.push({ pick: { type: "setting", key: "tagAlt", value: !pp.tagAlt }, at: [W / 2 + 8, H * 0.5, D / 2 - 6], size: [22, 6, 14], on: !!pp.tagAlt });
       return out;
     },
@@ -884,7 +923,7 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
       const out: Record<string, Vec3> = { lid: [0, H, -strip / 2], front: [0, H, D / 2 - strip / 2] };
       if (pp.knob) out.knob = [0, H + 4, D / 2 - strip / 2];
       if (pp.tag) out.tag = [(cab ? CABINET.w : BOX.w) / 2 + 8, H * 0.5, D / 2 - 6];
-      if (pp.lock) pp.lock.wheels.forEach((_, i) => (out[`wheel${i + 1}`] = [(i - (pp.lock!.wheels.length - 1) / 2) * 16, H + 2, D / 2 - strip / 2]));
+      if (pp.lock) pp.lock.wheels.forEach((_, i) => (out[`wheel${i + 1}`] = [(i - (pp.lock!.wheels.length - 1) / 2) * PADLOCK.wheel, H + 2, D / 2 - strip / 2]));
       return out;
     },
     // Pure metal: the seats join the held parts' leads to the terminals and to each other (see `wiring`).
@@ -1154,9 +1193,38 @@ export const PRINTED_KINDS: ReadonlySet<string> = new Set(["chart", "tag", "card
 export const UPRIGHT_KINDS: ReadonlySet<string> = new Set([...PRINTED_KINDS, "chip", "sevenseg", "regulator7805", "dip-switch"]);
 
 /** Named points on this part for `part:<id>/<name>` targets (local mm). */
-export function partMarks(part: Pick<PlacedPart, "kind" | "params">): Record<string, Vec3> {
+export function partMarks(part: Pick<PlacedPart, "kind" | "params">, at?: MarkMount): Record<string, Vec3> {
   const d = partDef(part.kind) as PartDef;
-  return d.marks ? (d.marks as (p: unknown) => Record<string, Vec3>)(part.params) : {};
+  return d.marks ? (d.marks as (p: unknown, at?: MarkMount) => Record<string, Vec3>)(part.params, at) : {};
+}
+
+/** How a part is mounted, for marks that depend on it: on the desk, or on the board `span` holes apart. */
+export type MarkMount = { mount: "board" | "desk"; span?: number };
+
+/**
+ * A resistor's colour bands (`band1` toward lead a ... `band4` or `band5`), on top of the body as the 3D model draws
+ * them: a 1 W body is the 1/4 W one scaled up; a ceramic block has none. The ink view draws desk parts larger than
+ * life and places its bands itself (ink/kinds/axial.tsx, resistorBandX).
+ */
+function resistorBandMarks(pp: PartParamsMap["resistor"], at?: MarkMount): Record<string, Vec3> {
+  const w = pp.watts ?? 0.25;
+  const board = at?.mount === "board";
+  if (!board && w >= 2) return {};
+  const centres = RESISTOR_BANDS[pp.bands === 5 ? 5 : 4];
+  const out: Record<string, Vec3> = {};
+  if (board) {
+    const L = (at?.span ?? 4) * PITCH;
+    const half = RESISTOR.len / 2 + 0.32;
+    // Holes too close for the body: it stands on one lead, its bands up the side.
+    const upright = L < half * 2 + 1.6;
+    centres.forEach((c, i) => (out[`band${i + 1}`] = upright ? [RESISTOR.dia / 2, 0.9 + half + c, 0] : [L / 2 + c, RESISTOR.lift + RESISTOR.dia, 0]));
+    return out;
+  }
+  const big = w >= 0.75;
+  const k = big ? RESISTOR_1W.len / RESISTOR.len : 1;
+  const top = big ? RESISTOR_1W.dia : RESISTOR.dia;
+  centres.forEach((c, i) => (out[`band${i + 1}`] = [c * k, top, 0]));
+  return out;
 }
 
 /** A mystery part's permutation as numbers (terminal i is wired as leg perm[i]), or null when it is not one. */

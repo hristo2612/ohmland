@@ -308,8 +308,16 @@ export type PartParamsMap = {
     tag?: string;
     tagAlt?: boolean;
     style?: "box" | "cabinet";
-    /** The cabinet's padlock: one wheel per answer, each showing its answer once `set`. Gone once the lid is open. */
-    lock?: { wheels: string[]; set: boolean[] };
+    /**
+     * The cabinet's padlock: one wheel per answer, each showing its answer once `set`. With `faces` (one list per
+     * wheel), each wheel is turned by a tap to its next face (`wheel1`, `wheel2` ...: the face's index, unset shows
+     * "?") and counts as set while it shows its answer. Gone once the lid is open.
+     */
+    lock?: { wheels: string[]; set: boolean[]; faces?: string[][] };
+    wheel1?: number;
+    wheel2?: number;
+    wheel3?: number;
+    wheel4?: number;
   };
   /**
    * A schematic drawn in ink on a card: the symbols round one loop, the first on the left (a battery, plus at the top),
