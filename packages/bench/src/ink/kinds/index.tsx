@@ -7,6 +7,7 @@ import type { BenchPartKind, PlacedPart, Vec2 } from "../../types";
 import { INK, toWorld } from "../frame";
 import type { PartInk } from "../model";
 import { AXIAL } from "./axial";
+import { CHIPS, packInkExits, probeInkExits } from "./chips";
 import { HoleDot, Upright, localLegs, n3 } from "./common";
 import { CONTROLS } from "./controls";
 import { MCU } from "./mcu";
@@ -16,7 +17,7 @@ import { RADIAL } from "./radial";
 import { START } from "./start";
 import type { DrawProps, InkKind, InkRegistry } from "./types";
 
-export const INK_KINDS: InkRegistry = { ...AXIAL, ...RADIAL, ...CONTROLS, ...POWER, ...PROPS, ...START, ...MCU };
+export const INK_KINDS: InkRegistry = { ...AXIAL, ...RADIAL, ...CONTROLS, ...POWER, ...PROPS, ...START, ...MCU, ...CHIPS };
 
 function Fallback({ pi }: DrawProps) {
   const labels = useLabels();
@@ -62,10 +63,20 @@ export function FlyingLeads({ pi }: { pi: PartInk }) {
   const exits: Record<string, { at: Vec2; dir: Vec2; color: string }> =
     pi.part.kind === "battery"
       ? { pos: { at: [-1.6, -3.4], dir: [0, -1], color: "red" }, neg: { at: [1.6, -3.4], dir: [0, -1], color: "black" } }
-      : (() => {
-          const R = ((pi.part.params as { size?: number }).size ?? 40) / 2;
-          return { a: { at: [-2.6, R + 2.4], dir: [0, 1], color: "red" }, b: { at: [2.6, R + 2.4], dir: [0, 1], color: "black" } };
-        })();
+      : pi.part.kind === "logic-probe"
+        ? (() => {
+            const ex = probeInkExits(!!pi.ends?.["tip"]?.inHole);
+            return { vcc: { ...ex.vcc, color: "red" }, gnd: { ...ex.gnd, color: "black" } };
+          })()
+        : pi.part.kind === "battery-pack"
+          ? (() => {
+              const ex = packInkExits();
+              return { pos: { ...ex.pos, color: "red" }, neg: { ...ex.neg, color: "black" } };
+            })()
+          : (() => {
+              const R = ((pi.part.params as { size?: number }).size ?? 40) / 2;
+              return { a: { at: [-2.6, R + 2.4], dir: [0, 1], color: "red" }, b: { at: [2.6, R + 2.4], dir: [0, 1], color: "black" } };
+            })();
   const out: ReactNode[] = [];
   for (const [leg, e] of Object.entries(pi.ends)) {
     const ex = exits[leg];

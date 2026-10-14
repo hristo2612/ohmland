@@ -1,42 +1,31 @@
 import { useEffect, useState } from "react";
-import { onSignInChange, signedIn } from "../account/device";
 import type { CourseOutline } from "../content/outline";
 import { m } from "../i18n";
-import { useLearner } from "../progress/store";
+import { useDerived, useLearner, useLearnerReady } from "../progress/useLearner";
 import { Icon } from "./Icon";
-import { IconButton } from "./IconButton";
-import { LevelChip } from "./LevelChip";
-import { ThemeMenu } from "./ThemeMenu";
+import type { NavId } from "./nav";
+import { NotebookMenu } from "./NotebookMenu";
 
 const NOTICE_KEY = "ohmland:memory-notice";
 
-/**
- * The account button. Signed in, it carries a small dot for the sync status (saved, saving, offline), also spelled out
- * in its label. Read after hydration, so the server and the first render agree on the signed-out button.
- */
-function AccountLink({ active }: { active: boolean }) {
-  const [signed, setSigned] = useState(false);
-  const status = useLearner((s) => s.sync.status);
-  useEffect(() => {
-    setSigned(signedIn());
-    return onSignInChange(setSigned);
-  }, []);
+/** The level as a handwritten tally, for a phone's header (the bottom bar holds the menu there). */
+function XpTally({ outline }: { outline: CourseOutline }) {
+  const ready = useLearnerReady(outline);
+  const { level } = useDerived(outline);
+  if (!ready) return <span className="xp-tally" aria-hidden="true" />;
   return (
-    <span className="account-link">
-      <IconButton
-        label={signed ? m.nav.accountSignedIn(m.account.status[status] ?? "") : m.nav.account}
-        icon="user"
-        href="/account"
-        className="header-tools__account"
-        aria-current={active ? "page" : undefined}
-      />
-      {signed && <span className="account-link__dot" data-status={status} aria-hidden="true" />}
+    <span className="xp-tally" data-level={level.level}>
+      <span className="sr-only">{m.level.chipLabel(level.level, level.title, level.xp)}</span>
+      <span aria-hidden="true">{m.level.short(level.level)}</span>
+      <span className="xp-tally__pts" aria-hidden="true">
+        {m.common.xp(level.xp)}
+      </span>
     </span>
   );
 }
 
-/** Right side of the header: level chip, theme menu, account. Also shows the "not saving" notice when storage is blocked. */
-export default function HeaderTools({ outline, accountActive = false }: { outline: CourseOutline; accountActive?: boolean }) {
+/** Right side of the header: your notebook (level, XP and the menu). Also shows the "not saving" notice when storage is blocked. */
+export default function HeaderTools({ outline, active }: { outline: CourseOutline; active?: NavId | undefined }) {
   const persistence = useLearner((s) => s.persistence);
   const [dismissed, setDismissed] = useState(true);
   useEffect(() => {
@@ -57,9 +46,8 @@ export default function HeaderTools({ outline, accountActive = false }: { outlin
   return (
     <>
       <div className="header-tools">
-        <LevelChip outline={outline} />
-        <ThemeMenu />
-        <AccountLink active={accountActive} />
+        <NotebookMenu outline={outline} place="header" active={active} />
+        <XpTally outline={outline} />
       </div>
       {persistence === "memory" && !dismissed && (
         <div className="memory-notice notice notice--warn" role="status">

@@ -16,8 +16,9 @@ import { prefersReducedMotion } from "../three/anim";
 import { isEffect } from "../effects/effects";
 import { SPOT_LAYER, type Spotlight } from "../three/post";
 import type { PaperPalette } from "../three/paper";
-import type { FocusOptions, ScreenPoint } from "../view/controller";
+import type { FocusOptions, Inset, ScreenPoint } from "../view/controller";
 import { meterSpot, parseTarget, targetPoint } from "../view/targets";
+import { frameWithParts } from "../view/framing";
 
 export type ViewApi = {
   /** Element-relative CSS px of a target or a world point. */
@@ -142,6 +143,7 @@ export function ViewRig({
   store,
   apiRef,
   viewPad,
+  inset,
   setSpotTargets,
   initialCamera,
   onChange,
@@ -150,6 +152,8 @@ export function ViewRig({
   store: BenchStore;
   apiRef: React.MutableRefObject<ViewApi | null>;
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
+  /** The part of the view a docked panel covers (focus's `inset`): every framing keeps clear of it. */
+  inset: React.MutableRefObject<Required<Inset>>;
   setSpotTargets: (t: string[] | null) => void;
   initialCamera: boolean;
   /** Called once per drawn frame in which the camera, the canvas size or the bench changed. */
@@ -216,14 +220,32 @@ export function ViewRig({
     };
 
     /**
-     * The work area: the lab's own frame when it sets one, else the board, every part, the meter body and the leads
-     * that hold something.
+     * The work area: the lab's own frame when it sets one (with a part that pokes a little out of it taken in whole),
+     * else the board, every part, the meter body and the leads that hold something.
      */
     const workBoxes = (portrait: boolean): THREE.Box3[] => {
       const frame = store.getState().frame;
-      if (frame) return [new THREE.Box3(new THREE.Vector3(frame[0], 0, frame[1]), new THREE.Vector3(frame[2], 16, frame[3]))];
       const b = bench();
       const scene = get().scene;
+      if (frame) {
+        const fb = new THREE.Box3(new THREE.Vector3(frame[0], 0, frame[1]), new THREE.Vector3(frame[2], 16, frame[3]));
+        const boxes: THREE.Box3[] = [];
+        for (const p of b.parts) {
+          const obj = scene.getObjectByName(`part:${p.id}`);
+          const box = obj ? contentBox(obj) : null;
+          if (box && !box.isEmpty()) boxes.push(box);
+        }
+        const mb = meterBox(b);
+        if (mb) boxes.push(mb);
+        // The same rule as the ink view (frameWithParts), on the desk plane.
+        const [x0, z0, x1, z1] = frameWithParts(
+          frame,
+          boxes.map((x) => [x.min.x, x.min.z, x.max.x, x.max.z] as [number, number, number, number]),
+        );
+        // The grown frame on the desk, and the parts whole inside it (their height counts).
+        const inside = boxes.filter((x) => x.min.x >= x0 - 0.01 && x.max.x <= x1 + 0.01 && x.min.z >= z0 - 0.01 && x.max.z <= z1 + 0.01);
+        return [new THREE.Box3(new THREE.Vector3(x0, 0, z0), new THREE.Vector3(x1, 16, z1)), ...inside];
+      }
       const out: THREE.Box3[] = [];
       const bb = boardBox(b);
       if (bb) out.push(bb);
@@ -267,12 +289,13 @@ export function ViewRig({
       const w = Math.max(1, width);
       const h = Math.max(1, height);
       const pad = viewPad.current;
+      const i = inset.current;
       const px = (x: number) => (x / w) * 2;
       const py = (y: number) => (y / h) * 2;
-      const l = -1 + px(pad.left + padding);
-      const r = 1 - px(padding);
-      const b = -1 + py(pad.bottom + padding);
-      const t = 1 - py(padding);
+      const l = -1 + px(Math.max(pad.left, i.left) + padding);
+      const r = 1 - px(i.right + padding);
+      const b = -1 + py(Math.max(pad.bottom, i.bottom) + padding);
+      const t = 1 - py(i.top + padding);
       return { l: Math.min(l, r - 0.2), r, b: Math.min(b, t - 0.2), t, aspect: w / h };
     };
 
@@ -424,7 +447,7 @@ export function ViewRig({
     return () => {
       apiRef.current = null;
     };
-  }, [get, store, apiRef, viewPad, invalidate, setSpotTargets]);
+  }, [get, store, apiRef, viewPad, inset, invalidate, setSpotTargets]);
 
   // Tell overlays when the camera, the canvas size or the bench changed (once per drawn frame, before it is drawn).
   const last = useRef({ m: new THREE.Matrix4(), p: new THREE.Matrix4(), w: -1, h: -1, bench: null as BenchState | null });

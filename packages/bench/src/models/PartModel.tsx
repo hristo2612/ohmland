@@ -14,6 +14,7 @@ import { ButtonBlock, DpdtBlock, KnobBlock, RelayBlock, SlideBlock } from "./Blo
 import { TouchPadsModel } from "./Props";
 import { AaCutawayModel, BalloonModel, BoxModel, CombModel, DrawerModel, EverydayModel, GateModel, PaperBitsModel, PieceModel, ScarfModel, SchematicModel, TrayModel, WallModel } from "./StartProps";
 import { McuBoardModel } from "./McuBoard";
+import { ChipModel, DipSwitchModel, LogicProbeModel, PackModel, RegulatorModel, SevenSegModel, SocketModel, SupplyModel, packExits, probeExits } from "./Chips";
 import type { Mount } from "./common";
 
 export type PartModelProps<K extends BenchPartKind = BenchPartKind> = {
@@ -30,6 +31,10 @@ export type PartModelProps<K extends BenchPartKind = BenchPartKind> = {
   minutes?: number;
   /** The part's id (a gate reads its count from the bench store by it). */
   id?: string;
+  /** Lying on top of the board because it will not seat (a surface mount chip). */
+  perched?: boolean;
+  /** The logic probe's tip is in a hole (the pen leans back from it). */
+  probing?: boolean;
 };
 
 /** Renders any bench part in its local frame. See `Mount` for what the origin means. */
@@ -131,6 +136,22 @@ export function PartModel(props: PartModelProps) {
       return <WallModel />;
     case "mcu-board":
       return <McuBoardModel {...p} />;
+    case "chip":
+      return <ChipModel {...p} held={props.held} perched={props.perched} />;
+    case "sevenseg":
+      return <SevenSegModel {...p} />;
+    case "regulator7805":
+      return <RegulatorModel {...p} />;
+    case "ic-socket":
+      return <SocketModel {...p} />;
+    case "dip-switch":
+      return <DipSwitchModel {...p} />;
+    case "logic-probe":
+      return <LogicProbeModel {...p} probing={props.probing} />;
+    case "battery-pack":
+      return <PackModel {...p} />;
+    case "bench-supply":
+      return <SupplyModel {...p} />;
   }
 }
 
@@ -138,7 +159,17 @@ export function PartModel(props: PartModelProps) {
 export function flyingLeads(
   kind: BenchPartKind,
   params: Record<string, unknown>,
+  /** The logic probe's tip is in a hole (its leads leave the raised tail). */
+  probing = false,
 ): Record<string, { pos: Vec3; dir: Vec3; color: string; radius: number; length: number }> | null {
+  if (kind === "logic-probe") {
+    const ex = probeExits(probing);
+    return { vcc: { ...ex.vcc, color: "red", radius: 0.6, length: 220 }, gnd: { ...ex.gnd, color: "black", radius: 0.6, length: 220 } };
+  }
+  if (kind === "battery-pack") {
+    const ex = packExits((params.cells as number) ?? 3);
+    return { pos: { ...ex.pos, color: "red", radius: 0.6, length: 170 }, neg: { ...ex.neg, color: "black", radius: 0.6, length: 170 } };
+  }
   if (kind === "battery" && params.snap) {
     return {
       pos: { ...SNAP_EXITS.pos, color: "red", radius: 0.65, length: 160 },

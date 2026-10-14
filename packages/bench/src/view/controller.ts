@@ -3,7 +3,15 @@
 /** CSS px relative to the bench element. `visible` is false when the point is off screen or behind the camera. */
 export type ScreenPoint = { x: number; y: number; visible: boolean };
 
-export type FocusOptions = { padding?: number; instant?: boolean };
+/** CSS px of the view covered at each edge (a panel docked over the bench). */
+export type Inset = { top?: number; right?: number; bottom?: number; left?: number };
+
+/**
+ * `padding`: room round the targets (px). `instant`: no glide. `inset`: the part of the view a docked panel covers; the
+ * targets (or the home view) are framed in what is left, the selection bar keeps clear of it, and it holds (a resize,
+ * reset view) until the next focus.
+ */
+export type FocusOptions = { padding?: number; instant?: boolean; inset?: Inset };
 
 export interface BenchController {
   /** Where an anchor ("pin:R1.a", "part:D1", "hole:e12", "probe:red", "part:M1/display") is on screen right now. */
@@ -28,6 +36,8 @@ export type BenchControllerHub = BenchController & {
   attach(inner: BenchController | null): void;
   /** The renderer's own controller, with any view-specific extras. */
   inner(): BenchController | null;
+  /** Frame the last focus again, smoothly (the room round the bench changed: the tray came or went). */
+  refocus(): void;
 };
 
 export function createControllerHub(): BenchControllerHub {
@@ -72,5 +82,6 @@ export function createControllerHub(): BenchControllerHub {
       notify();
     },
     inner: () => inner,
+    refocus: () => inner?.focus(lastFocus?.targets ?? [], { ...lastFocus?.opts, instant: false }),
   };
 }

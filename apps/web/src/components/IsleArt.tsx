@@ -1,234 +1,219 @@
 /**
- * A static isometric sketch of the progress island: a floating circuit board with capacitor towers, an IC factory,
- * a resistor row, LED street lamps, copper trace roads and voxel clouds. It is a placeholder for the live island
- * (packages/isle), drawn as plain SVG so it costs no JavaScript. Fills are design tokens.
+ * The island as an ink sketch in the notebook: a floating chunk of circuit board drawn in isometric, graphite outlines,
+ * hatched shadow sides and copper traces. A unit's landmarks stand on it: drawn and labelled in pencil once built,
+ * dashed while they are still to come. It costs no JavaScript (plain SVG) and stands in for the live 3D island
+ * (packages/isle) on the course map, in the finale and wherever 3D is unavailable.
  */
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
+import "./isle-art.css";
 
-const U = 24; // pixels per tile edge
-const OX = 300; // screen origin
-const OY = 110;
+const U = 22; // pixels per tile edge
+const OX = 400; // screen origin
+const OY = 92;
+const W = 10; // board tiles
+const D = 8;
 
 type V3 = [number, number, number];
 const P = ([x, y, z]: V3): [number, number] => [OX + (x - y) * U, OY + ((x + y) * U) / 2 - z * U];
 const pts = (list: V3[]) => list.map((v) => P(v).map((n) => n.toFixed(1)).join(",")).join(" ");
-const fill = (token: string) => ({ fill: `var(${token})` });
 
-type Shade = { top: string; left: string; right: string };
-type Item = { depth: number; node: ReactNode };
-
-function box(key: string, x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, s: Shade, extra?: ReactNode): ReactNode {
+/** An isometric box: its top, its lit left face and its hatched right face. */
+function box(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, hatch: string, key?: string): ReactNode {
   return (
     <g key={key}>
-      <polygon points={pts([[x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0]])} style={fill(s.left)} />
-      <polygon points={pts([[x1, y0, z1], [x1, y1, z1], [x1, y1, z0], [x1, y0, z0]])} style={fill(s.right)} />
-      <polygon points={pts([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]])} style={fill(s.top)} />
-      {extra}
+      <polygon className="ia-face" points={pts([[x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0]])} />
+      <polygon className="ia-face ia-side" points={pts([[x1, y0, z1], [x1, y1, z1], [x1, y1, z0], [x1, y0, z0]])} />
+      <polygon className="ia-face ia-shade" points={pts([[x1, y0, z1], [x1, y1, z1], [x1, y1, z0], [x1, y0, z0]])} style={{ fill: hatch }} />
+      <polygon className="ia-face" points={pts([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]])} />
     </g>
   );
 }
 
-function cylinder(key: string, cx: number, cy: number, z0: number, r: number, h: number, side: string, sideHi: string, top: string, extra?: ReactNode): ReactNode {
-  const [bx, by] = P([cx, cy, z0]);
-  const [tx, ty] = P([cx, cy, z0 + h]);
-  const rx = Math.SQRT2 * r * U;
-  const ry = rx / 2;
+type Shape = "tower" | "hall" | "lighthouse" | "observatory" | "station" | "grove";
+const SHAPES: Shape[] = ["tower", "hall", "lighthouse", "observatory", "station", "grove"];
+
+/** Where each landmark stands (tile x, y), in module order. */
+const SLOTS: { x: number; y: number }[] = [
+  { x: 6.6, y: 0.9 },
+  { x: 1.2, y: 1.6 },
+  { x: 7.4, y: 4.2 },
+  { x: 3.7, y: 3.2 },
+  { x: 1.5, y: 5.3 },
+  { x: 4.6, y: 6.0 },
+];
+
+/** Draws one landmark at (x, y); returns the drawing and the point its label line ends at. */
+function landmark(shape: Shape, x: number, y: number, hatch: string, lit: boolean): { node: ReactNode; top: [number, number] } {
+  switch (shape) {
+    case "tower": {
+      const [ax, ay] = P([x + 0.5, y + 0.5, 3.1]);
+      const [wx, wy] = P([x + 0.5, y + 1, 2.2]);
+      return {
+        node: (
+          <>
+            {box(x, y, 0, x + 1, y + 1, 2.6, hatch)}
+            <circle className="ia-face" cx={wx - 11} cy={wy - 4} r={3.5} />
+            <path className="ia-line" d={`M${ax} ${ay + 11}V${ay - 6}`} />
+            <circle className="ia-dot" cx={ax} cy={ay - 8} r={2.6} />
+          </>
+        ),
+        top: [ax, ay - 12],
+      };
+    }
+    case "hall": {
+      const bands = [0.45, 0.85, 1.25].map((t) => {
+        const [x0, y0] = P([x + t, y, 0.9]);
+        const [x1, y1] = P([x + t, y + 1, 0.9]);
+        return <path key={t} className="ia-copper" d={`M${x0} ${y0}L${x1} ${y1}`} />;
+      });
+      return { node: <>{box(x, y, 0, x + 2.2, y + 1, 0.9, hatch)}{bands}</>, top: P([x + 1.1, y + 0.5, 1.1]) };
+    }
+    case "lighthouse": {
+      const [lx, ly] = P([x + 0.4, y + 0.4, 2.85]);
+      return {
+        node: (
+          <>
+            {box(x, y, 0, x + 0.8, y + 0.8, 2.4, hatch)}
+            {lit && <circle className="ia-glow" cx={lx} cy={ly} r={18} />}
+            {box(x + 0.1, y + 0.1, 2.4, x + 0.7, y + 0.7, 2.85, hatch)}
+            <circle className={lit ? "ia-lamp ia-lamp--lit" : "ia-lamp"} cx={lx} cy={ly - 1} r={4} />
+          </>
+        ),
+        top: [lx, ly - 10],
+      };
+    }
+    case "observatory": {
+      const [cx, cy] = P([x + 0.7, y + 0.7, 1]);
+      return {
+        node: (
+          <>
+            {box(x, y, 0, x + 1.4, y + 1.4, 1, hatch)}
+            <path className="ia-face" d={`M${cx - 15} ${cy}a15 15 0 0 1 30 0z`} />
+            <path className="ia-line" d={`M${cx + 2} ${cy - 10}l10 -10`} />
+          </>
+        ),
+        top: [cx, cy - 16],
+      };
+    }
+    case "station": {
+      const [sx, sy] = P([x + 1.25, y + 0.25, 2.1]);
+      return {
+        node: (
+          <>
+            {box(x, y, 0, x + 1.6, y + 1.2, 1.1, hatch)}
+            {box(x + 1.05, y + 0.05, 1.1, x + 1.45, y + 0.45, 2.1, hatch)}
+            <path className="ia-smoke" d={`M${sx} ${sy - 4}c-6 -6 6 -10 0 -18`} />
+          </>
+        ),
+        top: [sx, sy - 24],
+      };
+    }
+    case "grove": {
+      const trees = [
+        [x + 0.3, y + 0.3],
+        [x + 1.1, y + 0.2],
+        [x + 0.7, y + 0.9],
+      ].map(([tx, ty], i) => {
+        const [bx, by] = P([tx!, ty!, 0]);
+        return (
+          <g key={i}>
+            <path className="ia-line" d={`M${bx} ${by}v-16`} />
+            <circle className="ia-face" cx={bx} cy={by - 22} r={9} />
+            <circle className="ia-fruit" cx={bx + 3} cy={by - 24} r={2.2} />
+          </g>
+        );
+      });
+      return { node: <>{trees}</>, top: P([x + 0.7, y + 0.5, 1.6]) };
+    }
+  }
+}
+
+/** A blue handwritten note above a landmark, with a short pencil arrow down to it. */
+function IsleNote({ at, text }: { at: [number, number]; text: string }) {
+  const x = Math.max(300, Math.min(544, at[0]));
+  const y = Math.max(52, at[1] - 34);
   return (
-    <g key={key}>
-      <path d={`M${bx - rx} ${by} A${rx} ${ry} 0 0 0 ${bx + rx} ${by} L${tx + rx} ${ty} L${tx - rx} ${ty} Z`} style={fill(side)} />
-      <path d={`M${bx - rx} ${by} A${rx} ${ry} 0 0 0 ${bx - rx * 0.1} ${by + ry * 0.995} L${tx - rx * 0.1} ${ty + ry * 0.995} L${tx - rx} ${ty} Z`} style={fill(sideHi)} opacity={0.5} />
-      {extra}
-      <ellipse cx={tx} cy={ty} rx={rx} ry={ry} style={fill(top)} />
+    <g className="ia-you">
+      <text className="ia-you__text" x={x} y={y} textAnchor="middle">
+        {text}
+      </text>
+      <path className="ia-you__arrow" d={`M${x + 4} ${y + 7}Q${at[0] + 6} ${y + 14} ${at[0]} ${at[1] - 4}M${at[0] - 5} ${at[1] - 11}L${at[0]} ${at[1] - 4}L${at[0] + 6} ${at[1] - 10}`} />
     </g>
   );
 }
 
-const MASK: Shade = { top: "--pcb", left: "--pcb-lo", right: "--pcb-lo" };
-const FR4: Shade = { top: "--pcb-edge", left: "--pcb-edge", right: "--pcb-edge-lo" };
-const CORE: Shade = { top: "--pcb-core", left: "--pcb-edge-lo", right: "--pcb-core" };
-const CHIP: Shade = { top: "--chip-hi", left: "--chip", right: "--chip-lo" };
-const CLOUD: Shade = { top: "--cloud", left: "--cloud", right: "--cloud-lo" };
-const RES: Shade = { top: "--resistor-body-hi", left: "--resistor-body", right: "--resistor-body-lo" };
-const PIN: Shade = { top: "--solder", left: "--solder", right: "--solder-lo" };
-const POLE: Shade = { top: "--solder", left: "--solder-lo", right: "--chip-hi" };
-const COPPER: Shade = { top: "--trace-hi", left: "--trace", right: "--trace" };
+export type IsleArtLandmark = { name: string; built: boolean; current?: boolean };
 
-function tracePath(key: string, path: [number, number][], width = 4.5): ReactNode {
-  const d = path.map(([x, y], i) => `${i ? "L" : "M"}${P([x, y, 0]).join(" ")}`).join(" ");
-  return <path key={key} d={d} fill="none" style={{ stroke: "var(--trace)" }} strokeWidth={width} strokeLinejoin="round" strokeLinecap="round" />;
-}
+/**
+ * `landmarks` (up to six, in module order) stand on the island, built or still pencilled in. `note`, when given, is
+ * written in blue beside the current one (what you are building now).
+ */
+export function IsleArt({ label, className, landmarks, note }: { label?: string; className?: string; landmarks?: IsleArtLandmark[]; note?: string }) {
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const hatch = `url(#ia-hatch-${id})`;
+  const light = `url(#ia-light-${id})`;
+  const marks = landmarks ?? [];
+  const showLabels = marks.length > 0; // a unit's own island; otherwise a generic one
 
-function via(key: string, x: number, y: number): ReactNode {
-  const [cx, cy] = P([x, y, 0]);
-  return (
-    <g key={key}>
-      <ellipse cx={cx} cy={cy} rx={7} ry={3.5} style={fill("--trace-hi")} />
-      <ellipse cx={cx} cy={cy} rx={2.8} ry={1.4} style={fill("--pcb-lo")} />
-    </g>
-  );
-}
-
-function silk(key: string, x0: number, y0: number, x1: number, y1: number): ReactNode {
-  return <polygon key={key} points={pts([[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y1, 0]])} fill="none" style={{ stroke: "var(--silk)" }} strokeWidth={1.3} opacity={0.8} />;
-}
-
-function glow(key: string, x: number, y: number, z: number, r: number): ReactNode {
-  const [gx, gy] = P([x, y, z]);
-  return <circle key={key} cx={gx} cy={gy} r={r} fill="url(#isle-glow)" />;
-}
-
-function resistor(key: string, x: number, y: number, bands: string[]): Item {
-  const len = 1.2;
-  const out: ReactNode[] = [];
-  out.push(tracePath(`${key}-l`, [[x - 0.35, y + 0.15], [x + len + 0.35, y + 0.15]], 2.4));
-  out.push(box(`${key}-b`, x, y, 0.1, x + len, y + 0.32, 0.44, RES));
-  bands.forEach((b, i) => {
-    const bx = x + 0.2 + i * 0.24;
-    out.push(box(`${key}-band${i}`, bx, y - 0.01, 0.095, bx + 0.1, y + 0.33, 0.445, { top: b, left: b, right: b }));
+  const items: { depth: number; node: ReactNode }[] = [];
+  let noteAt: [number, number] | null = null;
+  marks.slice(0, SLOTS.length).forEach((lm, i) => {
+    // a landmark appears once it is built; the one you are building now is pencilled in
+    if (!lm.built && !lm.current) return;
+    const slot = SLOTS[i]!;
+    const { node, top } = landmark(SHAPES[i % SHAPES.length]!, slot.x, slot.y, hatch, lm.built);
+    items.push({ depth: slot.x + slot.y, node: <g key={`lm-${i}`} className={lm.built ? "ia-mark" : "ia-mark ia-plan"}>{node}</g> });
+    if (lm.current) noteAt = top;
   });
-  return { depth: x + y + 0.5, node: <g key={key}>{out}</g> };
-}
-
-function lamp(key: string, x: number, y: number, led: string, ledHi: string): Item {
-  const [gx, gy] = P([x, y, 1.72]);
-  return {
-    depth: x + y,
-    node: (
-      <g key={key}>
-        {box(`${key}-base`, x - 0.16, y - 0.16, 0, x + 0.16, y + 0.16, 0.12, PIN)}
-        {box(`${key}-pole`, x - 0.06, y - 0.06, 0.12, x + 0.06, y + 0.06, 1.45, POLE)}
-        {cylinder(`${key}-led`, x, y, 1.45, 0.2, 0.24, led, ledHi, ledHi)}
-        <circle cx={gx} cy={gy} r={4.5} style={fill(ledHi)} />
-      </g>
-    ),
-  };
-}
-
-function cloud(key: string, x: number, y: number, z: number, big = true): ReactNode {
-  return (
-    <g key={key} className="isle-art__cloud">
-      {box(`${key}-a`, x, y, z, x + 1.8, y + 1, z + 0.5, CLOUD)}
-      {big && box(`${key}-b`, x + 0.4, y + 0.1, z + 0.5, x + 1.3, y + 0.9, z + 0.95, CLOUD)}
-      {box(`${key}-c`, x + 1.5, y + 0.2, z, x + 2.4, y + 0.9, z + 0.35, CLOUD)}
-    </g>
-  );
-}
-
-function root(key: string, from: V3, dx: number, dy: number, color: string, width = 2.6): ReactNode {
-  const [x0, y0] = P(from);
-  return (
-    <g key={key}>
-      <path
-        d={`M${x0} ${y0} C${x0 + dx * 0.1} ${y0 + dy * 0.5}, ${x0 + dx * 0.9} ${y0 + dy * 0.45}, ${x0 + dx} ${y0 + dy}`}
-        fill="none"
-        style={{ stroke: `var(${color})` }}
-        strokeWidth={width}
-        strokeLinecap="round"
-      />
-      <rect x={x0 + dx - 2} y={y0 + dy - 1} width={4} height={7} rx={1.5} style={fill("--solder")} />
-    </g>
-  );
-}
-
-export function IsleArt({ label, className }: { label?: string; className?: string }) {
-  const W = 10;
-  const D = 8;
-  const back: ReactNode[] = [];
-  const items: Item[] = [];
-
-  // Clouds behind the island.
-  back.push(cloud("cl1", -3.2, 5.6, 2.2));
-
-  // Underside: stepped FR4 chunks, an inner copper layer, and dangling wire roots.
-  back.push(root("r1", [3.2, 7, -2.1], -10, 52, "--trace"));
-  back.push(root("r2", [5.2, 6.5, -3.2], 4, 50, "--wire-red"));
-  back.push(root("r3", [7.6, 4.2, -2.1], 14, 40, "--wire-black"));
-  back.push(root("r4", [8.8, 2.5, -1.2], 20, 34, "--trace"));
-  back.push(box("c4", 4.2, 3.6, -3.2, 6.6, 6.5, -2.1, CORE));
-  back.push(box("c3", 2.2, 2.2, -2.1, 7.6, 7, -1.2, CORE));
-  back.push(box("c2", 1, 0.8, -1.2, 8.8, 7.6, -0.5, FR4));
-  back.push(box("cu", 0.25, 0.2, -0.5, 9.75, 7.85, -0.42, COPPER));
-  back.push(box("c1", 0.25, 0.2, -0.42, 9.75, 7.85, -0.16, FR4));
-  // Board with the green solder mask on top.
-  back.push(box("board", 0, 0, -0.16, W, D, 0, MASK));
-
-  // Surface: copper trace roads, vias, silkscreen and the light pooling under the lamps.
-  back.push(tracePath("t1", [[0.6, 4.4], [5.2, 4.4], [5.2, 6.8], [9.4, 6.8]]));
-  back.push(tracePath("t2", [[4.6, 0.6], [4.6, 2.2], [6.2, 3.7], [9.4, 3.7]]));
-  back.push(tracePath("t3", [[1.2, 7.4], [1.2, 5.4], [3, 5.4]], 3.2));
-  back.push(tracePath("t4", [[7.6, 0.5], [7.6, 1.5], [9.4, 1.5]], 3.2));
-  back.push(via("v1", 9.4, 6.8), via("v2", 9.4, 3.7), via("v3", 0.6, 4.4), via("v4", 4.6, 0.6), via("v5", 1.2, 7.4), via("v6", 9.4, 1.5));
-  back.push(silk("s1", 0.9, 0.9, 4.3, 3.6), silk("s2", 0.9, 5.85, 4.9, 7.45), silk("s3", 5.6, 0.6, 8.9, 3.2));
-  back.push(glow("g1", 5.8, 4.9, 0, 46), glow("g2", 8, 6.2, 0, 40), glow("g3", 9.1, 4.4, 0, 36));
-  // A soft shadow where the mascot hovers.
-  const [sx, sy] = P([5.3, 2.5, 0]);
-  back.push(<ellipse key="shadow" cx={sx} cy={sy} rx={26} ry={11} style={fill("--chip")} opacity={0.12} />);
-
-  // IC factory: a chip with pins, a second storey, lit windows and a chimney.
-  const pins: ReactNode[] = [];
-  for (let i = 0; i < 5; i++) pins.push(box(`pa${i}`, 1.45 + i * 0.55, 3.15, 0, 1.65 + i * 0.55, 3.42, 0.16, PIN));
-  for (let i = 0; i < 4; i++) pins.push(box(`pb${i}`, 3.95, 1.4 + i * 0.5, 0, 4.22, 1.6 + i * 0.5, 0.16, PIN));
-  const windows: ReactNode[] = [0, 1, 2].map((i) => {
-    const x = 2.05 + i * 0.42;
-    return <polygon key={`w${i}`} points={pts([[x, 2.66, 1.02], [x + 0.22, 2.66, 1.02], [x + 0.22, 2.66, 0.78], [x, 2.66, 0.78]])} style={fill("--led-amber")} />;
-  });
-  const [dotx, doty] = P([1.65, 1.6, 0.56]);
-  items.push({
-    depth: 4,
-    node: (
-      <g key="factory">
-        {pins}
-        {box("chip", 1.3, 1.25, 0, 3.95, 3.15, 0.55, CHIP)}
-        <ellipse cx={dotx} cy={doty} rx={4} ry={2} style={fill("--silk")} opacity={0.8} />
-        {box("chip2", 1.9, 1.7, 0.55, 3.35, 2.65, 1.3, CHIP, windows)}
-        {box("chimney", 2.85, 1.85, 1.3, 3.2, 2.2, 1.95, { top: "--chip-hi", left: "--chip-lo", right: "--chip" })}
-      </g>
-    ),
-  });
-
-  // Resistor row.
-  items.push(resistor("res1", 1.4, 6.15, ["--band-yellow", "--band-violet", "--band-brown", "--band-gold"]));
-  items.push(resistor("res2", 1.4, 6.85, ["--band-brown", "--band-black", "--band-red", "--band-gold"]));
-  items.push(resistor("res3", 3.3, 6.15, ["--band-red", "--band-red", "--band-brown", "--band-gold"]));
-
-  // Capacitor towers with their polarity stripe and vent.
-  const capTower = (key: string, cx: number, cy: number, r: number, h: number): Item => {
-    const [x, y] = P([cx, cy, 0]);
-    const rx = Math.SQRT2 * r * U;
-    const [tx, ty] = P([cx, cy, h]);
-    const stripe = <rect x={x + rx * 0.35} y={y - h * U + rx * 0.2} width={rx * 0.3} height={h * U - rx * 0.1} style={fill("--silk")} opacity={0.7} />;
-    return {
-      depth: cx + cy,
-      node: (
-        <g key={key}>
-          {cylinder(key, cx, cy, 0, r, h, "--cap-blue", "--cap-blue-hi", "--solder", stripe)}
-          <path d={`M${tx - rx * 0.45} ${ty}h${rx * 0.9}M${tx} ${ty - rx * 0.22}v${rx * 0.44}`} style={{ stroke: "var(--solder-lo)" }} strokeWidth={1.4} />
-        </g>
-      ),
-    };
-  };
-  items.push(capTower("cap1", 6.7, 1.7, 0.66, 2));
-  items.push(capTower("cap2", 8.3, 2.6, 0.46, 1.3));
-
-  // LED street lamps along the trace road.
-  items.push(lamp("l1", 5.8, 4.9, "--led-amber", "--led-amber-hi"));
-  items.push(lamp("l2", 8, 6.2, "--led-red", "--led-red-hi"));
-  items.push(lamp("l3", 9.1, 4.4, "--led-amber", "--led-amber-hi"));
-
+  // A few small pieces, so the board is never bare.
+  const pieces: [number, number][] = showLabels ? [[4.9, 1.6], [8.6, 6.6], [2.9, 6.9]] : [[2, 2], [5.2, 1.5], [7.4, 4.6], [3.5, 5.6], [6, 6.2]];
+  pieces.forEach(([px, py], i) => items.push({ depth: px + py, node: box(px, py, 0, px + 0.5, py + 0.5, 0.35, hatch, `p-${i}`) }));
+  if (!showLabels) {
+    items.push({ depth: 2.6, node: <g key="t">{landmark("tower", 1.1, 1.2, hatch, false).node}</g> });
+    items.push({ depth: 9.4, node: <g key="h">{landmark("hall", 4.6, 3.6, hatch, false).node}</g> });
+  }
   items.sort((a, b) => a.depth - b.depth);
 
+  const trace = (path: [number, number][], key: string) => (
+    <path key={key} className="ia-trace" d={path.map(([x, y], i) => `${i ? "L" : "M"}${P([x, y, 0]).join(" ")}`).join(" ")} />
+  );
+  const [shx, shy] = P([8, 6, -6.4]);
+  // Depth of the torn underside below each front edge (fraction along the edge, tiles down), meeting at a tip.
+  const LEFT: [number, number][] = [[0, 0], [0.16, 0.7], [0.28, 0.55], [0.46, 1.3], [0.6, 1.15], [0.78, 2.1], [0.9, 1.9], [1, 3]];
+  const RIGHT: [number, number][] = [[0, 3], [0.14, 2], [0.3, 2.2], [0.5, 1.25], [0.66, 1.4], [0.84, 0.6], [1, 0]];
+  const underLeft = pts([...LEFT.map(([t, d]): V3 => [t * W, D, -0.4 - d]), [W, D, -0.4]]);
+  const underRight = pts([[W, D, -0.4], ...RIGHT.map(([t, d]): V3 => [W, D - t * D, -0.4 - d])]);
+
   return (
-    <svg className={className ? `isle-art ${className}` : "isle-art"} viewBox="70 10 480 420" {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true })}>
+    <svg
+      className={className ? `isle-art ${className}` : "isle-art"}
+      viewBox="196 30 452 360"
+      {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true, focusable: false })}
+    >
       <defs>
-        <radialGradient id="isle-glow">
-          <stop offset="0%" style={{ stopColor: "var(--glow)", stopOpacity: 0.6 }} />
-          <stop offset="100%" style={{ stopColor: "var(--glow)", stopOpacity: 0 }} />
-        </radialGradient>
+        <pattern id={`ia-hatch-${id}`} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <path d="M0 0V5" className="ia-hatch" />
+        </pattern>
+        <pattern id={`ia-light-${id}`} width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <path d="M0 0V7" className="ia-hatch ia-hatch--light" />
+        </pattern>
       </defs>
-      {back}
-      {items.map((i) => i.node)}
-      {cloud("cl2", 4.6, -2.4, 3.4, false)}
-      {cloud("cl3", 10.6, 7.2, -1.2)}
+      <ellipse className="ia-shadow" cx={shx} cy={shy} rx={70} ry={7} />
+      {/* The underside: torn board layers hanging under the front edges, lit on the left, in shadow on the right. */}
+      <polygon className="ia-under" points={underLeft} />
+      <polygon className="ia-under ia-under--hatch" style={{ fill: light }} points={underLeft} />
+      <polygon className="ia-under" points={underRight} />
+      <polygon className="ia-under ia-under--hatch" style={{ fill: hatch }} points={underRight} />
+      {box(0, 0, -0.4, W, D, 0, hatch)}
+      {trace([[0.6, 4.2], [3.4, 4.2], [3.4, 2.4], [6.2, 2.4]], "t1")}
+      {trace([[9.4, 3.2], [6.6, 3.2], [6.6, 7.4]], "t2")}
+      {trace([[1, 7.4], [1, 6.6], [3.2, 6.6]], "t3")}
+      {[[0.6, 4.2], [6.2, 2.4], [9.4, 3.2], [6.6, 7.4], [3.2, 6.6]].map(([x, y], i) => {
+        const [cx, cy] = P([x!, y!, 0]);
+        return <ellipse key={`v${i}`} className="ia-via" cx={cx} cy={cy} rx={4.5} ry={2.4} />;
+      })}
+      {items.map((it) => it.node)}
+      {note && noteAt && <IsleNote at={noteAt} text={note} />}
     </svg>
   );
 }

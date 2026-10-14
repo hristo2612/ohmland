@@ -152,7 +152,9 @@ export function useInteraction({
         const p = pickOf(h.object);
         if (!p) continue;
         // Prefer handles, but only among things close to the nearest hit (do not reach through a whole part).
-        const score = PRIORITY[p.type] * 100 - (h.distance - nearest);
+        // A probe's tip end gives way to a pencil card's drawing strip under it (the grip does not).
+        const rank = p.type === "probe" && p.tip ? 1.4 : PRIORITY[p.type];
+        const score = rank * 100 - (h.distance - nearest);
         if (h.distance - nearest > 40) break;
         seen.push(p);
         if (score > bestScore) {
@@ -1005,8 +1007,10 @@ export function handleBenchKey(e: KeyboardEvent, store: BenchStore, api: Interac
       if (sel?.type !== "part") return false;
       const part = s.bench.parts.find((p) => p.id === sel.id);
       if (!part) return false;
-      if (part.kind !== "trimmer" && s.locked.includes(part.id)) return true;
-      if (part.kind === "trimmer") {
+      // A knob (a trimmer, the bench supply's) turns with the arrows.
+      const knob = part.kind === "trimmer" || part.kind === "bench-supply";
+      if (!knob && s.locked.includes(part.id)) return true;
+      if (knob) {
         const position = Math.max(0, Math.min(1, Math.round((part.params.position + dx * 0.05 - dz * 0.05) * 100) / 100));
         s.setParams<"trimmer">(part.id, { position });
         return true;
