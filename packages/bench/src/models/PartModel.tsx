@@ -12,6 +12,7 @@ import { BinModel, CardModel, ChartModel, ClockModel, ElectrodeModel, FruitModel
 import { PushbuttonModel, SlideSwitchModel, ToggleSwitchModel } from "./Switches";
 import { ButtonBlock, DpdtBlock, KnobBlock, RelayBlock, SlideBlock } from "./Blocks";
 import { TouchPadsModel } from "./Props";
+import { McuBoardModel } from "./McuBoard";
 import type { Mount } from "./common";
 
 export type PartModelProps<K extends BenchPartKind = BenchPartKind> = {
@@ -99,6 +100,8 @@ export function PartModel(props: PartModelProps) {
       return <ClockModel minutes={props.minutes} />;
     case "showcase":
       return <ShowcaseModel quality={props.quality} />;
+    case "mcu-board":
+      return <McuBoardModel {...p} />;
   }
 }
 

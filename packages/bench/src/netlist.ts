@@ -232,10 +232,12 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
   const warnings = [...conn.warnings];
   const geom = bench.board ? boardGeometry(bench.board) : null;
 
-  // Reference node.
+  // Reference node: the first battery's minus, else a lemon cell's, else a microcontroller board's GND (it makes its
+  // own 5 V from USB).
   const groundPart = bench.parts.find((p) => p.kind === "battery") ?? bench.parts.find((p) => p.kind === "lemon");
-  const groundRoot = groundPart ? uf.find(pinAnchor(groundPart.id, "neg")) : null;
-  if (!groundPart) warnings.push("no-ground: no battery or cell on the bench");
+  const boardPart = groundPart ? undefined : bench.parts.find((p) => p.kind === "mcu-board");
+  const groundRoot = groundPart ? uf.find(pinAnchor(groundPart.id, "neg")) : boardPart ? uf.find(pinAnchor(boardPart.id, "gnd")) : null;
+  if (!groundPart && !boardPart) warnings.push("no-ground: no battery or cell on the bench");
 
   // Name each set after the most readable thing in it.
   const names = new Map<string, NodeId>();

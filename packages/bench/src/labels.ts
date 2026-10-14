@@ -112,6 +112,7 @@ export const DEFAULT_LABELS: BenchLabels = {
     chart: "Colour chart",
     clock: "Clock",
     showcase: "Display case",
+    "mcu-board": "Microcontroller board",
   },
   colors: {
     red: "Red",

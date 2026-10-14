@@ -86,6 +86,13 @@ export function PartIcon({ kind, color }: { kind: BenchPartKind | "lead" | "mete
       return box([<rect key="c" x="4" y="9" width="24" height="16" rx="3" fill="#e9e4da" />, <rect key="l" x="8" y="13" width="16" height="8" fill="#b9c7a6" />]);
     case "showcase":
       return box([<rect key="g" x="4" y="6" width="24" height="18" rx="1" fill="#eef6fb" />, <rect key="b" x="3" y="24" width="26" height="4" fill="#a97a48" />]);
+    case "mcu-board":
+      return box([
+        <rect key="b" x="3" y="7" width="26" height="19" rx="2" fill="#2b5d4f" />,
+        <path key="h1" d="M9 9.5h17M12 23.5h14" stroke="#1c1d20" strokeWidth="2.2" />,
+        <rect key="c" x="15" y="13" width="6" height="6" fill="#1c1d20" />,
+        <rect key="u" x="1" y="11" width="5" height="5" rx="1" fill="#d8d9d6" />,
+      ]);
     case "lead":
       return box([<path key="c" d="M4 26c6-10 10 2 16-8" stroke={c} strokeWidth="2.4" />, <path key="j" d="M20 18l7-8M22 21l7-6" />]);
     case "meter":

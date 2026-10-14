@@ -59,7 +59,9 @@ export type BenchPartKind =
   | "bin"
   | "chart"
   | "clock"
-  | "showcase";
+  | "showcase"
+  // Unit 5: an Uno-style microcontroller board (desk part with header sockets).
+  | "mcu-board";
 
 export type WaterKind = "distilled" | "tap" | "salty";
 
@@ -183,6 +185,22 @@ export type PartParamsMap = {
   clock: { from?: number };
   /** A glass display case with a phone battery pack and a car battery: look, don't touch. */
   showcase: Record<string, never>;
+  /**
+   * An Uno-style microcontroller board (our own layout): header sockets for pins 0 to 13 (0 and 1 are RX and TX),
+   * A0 to A5, 5V, two GND and VIN; a USB socket, a barrel jack, a reset button and the L and ON lamps.
+   */
+  "mcu-board": {
+    /** The uploaded program (bench C source). */
+    program?: string;
+    /** Upload count: bump it (with or without a new program) to reset the board and run the program again. */
+    upload?: number;
+    /** "usb" (default), "jack" (a 9 V battery in the barrel jack) or "off". */
+    power?: "usb" | "jack" | "off";
+    /** millis() at reset, ms (a lab can start the clock just before it wraps). */
+    clockStart?: number;
+    /** The random generator's state at reset (default 1, as on a real board). */
+    seed?: number;
+  };
 };
 
 type PartOf<K extends BenchPartKind> = {

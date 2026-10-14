@@ -128,7 +128,9 @@ const LivePartModel = memo(function LivePartModel(props: Omit<PartModelProps, "s
 export function visualKey(p: PartState | undefined): string {
   if (!p) return "";
   const arm = typeof p.extra?.["armature"] === "number" ? Math.round((p.extra["armature"] as number) * 20) : "";
-  return `${p.health}|${Math.round((p.glow ?? 0) * 50)}|${p.closed ? 1 : 0}|${p.display ?? ""}|${p.unit ?? ""}|${arm}`;
+  // A microcontroller board's own lamps (L and ON) live in its extra.
+  const lamps = typeof p.extra?.["ON"] === "number" ? `${Math.round((p.extra["L"] as number) * 50)}:${Math.round((p.extra["ON"] as number) * 50)}` : "";
+  return `${p.health}|${Math.round((p.glow ?? 0) * 50)}|${p.closed ? 1 : 0}|${p.display ?? ""}|${p.unit ?? ""}|${arm}|${lamps}`;
 }
 
 /** The visual keys of every part in a snapshot, joined: unchanged means the bench looks the same. */

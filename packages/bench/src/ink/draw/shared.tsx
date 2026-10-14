@@ -22,7 +22,9 @@ export function visualKey(p: PartState | undefined): string {
   const arm = typeof p.extra?.["armature"] === "number" ? Math.round((p.extra["armature"] as number) * 20) : "";
   const blown = p.extra?.["blown"] === true ? 1 : 0;
   const beep = p.extra?.["beep"] === true ? 1 : 0;
-  return `${p.health}|${Math.round((p.glow ?? 0) * 50)}|${p.closed ? 1 : 0}|${p.display ?? ""}|${p.unit ?? ""}|${arm}|${blown}|${beep}`;
+  // A microcontroller board's own lamps (L and ON) live in its extra.
+  const lamps = typeof p.extra?.["ON"] === "number" ? `${Math.round((p.extra["L"] as number) * 50)}:${Math.round((p.extra["ON"] as number) * 50)}` : "";
+  return `${p.health}|${Math.round((p.glow ?? 0) * 50)}|${p.closed ? 1 : 0}|${p.display ?? ""}|${p.unit ?? ""}|${arm}|${blown}|${beep}|${lamps}`;
 }
 
 /** A part's simulator state, re-rendering only when something visible changes (not 30 times a second). */

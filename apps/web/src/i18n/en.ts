@@ -762,6 +762,7 @@ export const en = {
       chart: "Colour chart",
       clock: "Clock",
       showcase: "Display case",
+      "mcu-board": "Microcontroller board",
     } as Record<string, string>,
     colors: { red: "Red", black: "Black", blue: "Blue", green: "Green", yellow: "Yellow", orange: "Orange", white: "White", purple: "Purple" },
     water: { distilled: "DISTILLED", tap: "TAP", salty: "SALT" },

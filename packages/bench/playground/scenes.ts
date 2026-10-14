@@ -178,6 +178,25 @@ export function glowBench(wired = true): BenchState {
   return b;
 }
 
+/**
+ * Unit 5's first bench (`?scene=mcu`): the microcontroller board on the desk, pin 7 clipped to a 470 Ω resistor and
+ * a red LED on a half breadboard, back to the board's GND. The board runs a blink on pin 7 (and lights L on 13).
+ */
+export function mcuBench(): BenchState {
+  const b = emptyBench({ kind: "bb400", pos: [46, 18] });
+  const program = "void setup() {\n  pinMode(13, OUTPUT);\n  pinMode(7, OUTPUT);\n}\nvoid loop() {\n  digitalWrite(13, HIGH);\n  digitalWrite(7, HIGH);\n}\n";
+  b.parts = [
+    { id: "U1", kind: "mcu-board", params: { program, upload: 1 }, pos: [-62, -6], rot: 0 },
+    { id: "R1", kind: "resistor", params: { ohms: 470 }, pos: [0, 0], rot: 0, holes: { a: "e10", b: "e14" } },
+    { id: "D1", kind: "led", params: { color: "red" }, pos: [0, 0], rot: 0, holes: { anode: "d14", cathode: "d15" } },
+  ];
+  b.leads = [
+    { id: "TL1", color: "yellow", a: { to: "pin:U1.d7", pos: [0, 0] }, b: { to: "hole:a10", pos: [0, 0] } },
+    { id: "TL2", color: "black", a: { to: "hole:a15", pos: [0, 0] }, b: { to: "pin:U1.gnd", pos: [0, 0] } },
+  ];
+  return b;
+}
+
 /** Desk modules (switches, a trimmer and relays on wooden blocks), a mystery relay, touch pads and bent capacitor legs. */
 export function modulesBench(): BenchState {
   const b = emptyBench({ kind: "bb400", pos: [80, 80] });
