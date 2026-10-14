@@ -1,12 +1,13 @@
 /**
  * Bench lessons against their labs: every beat's task exists, the lab's required tasks are exactly the lesson's do
  * and fix-it tasks in the same order (the runtime checks them one at a time), setups open their task's solution
- * steps, and every anchor a beat names exists on the bench. The content loader cannot see the TypeScript labs, so
+ * steps, and every anchor a beat names (and every terminal it traces from) exists on the bench. The content loader cannot see the TypeScript labs, so
  * this is where the two meet.
  */
 import { describe, expect, it } from "vitest";
-import type { BenchState } from "@ohmland/bench/core";
+import { partLegs, type BenchState } from "@ohmland/bench/core";
 import { loadCourse, type BenchLessonData } from "../../content/load";
+import { resolveAttach } from "../../lab/anchors";
 import { buildBench } from "../../lab/build";
 import { isOptional, type LabDefinition } from "../../lab/define";
 import { applyStep, solutionSegments } from "../../lab/steps";
@@ -77,6 +78,7 @@ describe("bench lessons", () => {
         if (built.stopwatch) have.add("stopwatch");
         if (built.tapper) have.add("tapper");
         if (built.controls.length) have.add("controls");
+        if (built.overlays?.offer?.length) have.add("views");
         const tools = [...lesson.beats.map((b) => b.tool), lesson.fixit?.tool, lesson.secret?.tool];
         for (const tool of tools) if (tool) expect(have.has(tool), `tool "${tool}"`).toBe(true);
       });
@@ -95,6 +97,23 @@ describe("bench lessons", () => {
         }
         if (lesson.secret?.note && lesson.secret.note.at !== "tap") anchors.add(lesson.secret.note.at);
         for (const a of anchors) expect(all.some((b) => resolveAnchor(b, a) !== null), `"${a}" on the bench`).toBe(true);
+      });
+
+      it("traces only from terminals on the bench", () => {
+        const all = benches(lab);
+        for (const b of lesson.beats) {
+          if (!b.trace) continue;
+          const from = b.trace;
+          // The tracer starts at a part's terminal or a lead's clip, as the lab's `trace` step does.
+          const found = all.some((bench) => {
+            const a = resolveAttach(bench, from);
+            if (!a?.startsWith("pin:")) return !!a?.startsWith("lead:");
+            const [id, leg] = a.slice(4).split(".");
+            const part = bench.parts.find((p) => p.id === id);
+            return !!part && partLegs(part).includes(leg!);
+          });
+          expect(found, `trace "${from}" on the bench`).toBe(true);
+        }
       });
     });
   }

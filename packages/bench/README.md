@@ -210,6 +210,50 @@ temperature tag with a touch-feel word over every matching part.
 
 `connectivity(bench)` gives the metal-contact groups without building a netlist (used by the x-ray view).
 
+### Start here props and overlays
+
+Built for the first unit (docs/curriculum/start-here.md, section 6), in both views (`models/StartProps.tsx`,
+`ink/kinds/start.tsx`):
+
+| Kind | Model | Leads | Simulator |
+|---|---|---|---|
+| `sample` (more materials) | A key, a coin, a crinkled foil strip, a pencil lead, a plastic spoon, a metal spoon, a rubber eraser in its sleeve, a glass marble, a craft stick, a piece of string, a coated paper clip (`clip`: bare cut ends `a` and `b`) | `a b` | `probe-resistance` by material (`materialOhms`): metals 0.01 to 0.03 Ω, pencil lead 5 Ω, plastic, rubber and glass 10 TΩ, dry wood and string 1 TΩ |
+| `gate` | A collar round a clip lead's cable (`on`, `at`) with a paper flag on a stem: the dots counted and a rate bar, or the current and a unit button | none | none: reads the lead's own current |
+| `box` | A cardboard box, a fixed front strip with two brass posts (`+`/`−` marks, or `marks: "plain"`), an optional knob (it turns the trimmer inside), a tag; the lid hinges up at the back. `style: "cabinet"`: the parts cabinet with a three-wheel padlock | `t1 t2` (none for the cabinet) | none: its seats join held leads to the terminals and to junctions (`wiring`) |
+| `bin` `style: "tray"` / `"drawer"` | A wooden sorting tray with a label; a parts drawer with a symbol card (`face`) that takes only its kind (`accepts`) | none | none |
+| `schematic`, `piece` | A drawing on a card, symbols round one loop carrying part ids, one torn out (`torn`); the torn piece, turned by `turn` | none | none |
+| `balloon`, `scarf`, `paper`, `comb`, `wall` | The static toy | none | none: `static.ts` |
+
+- **Insulated spots** (`PartDef.spots`): `pin:B1.wrap` (a battery's wrapper), `pin:S1.base` (a desk switch's block),
+  `pin:PC1.coat` (the clip's coating) are clip targets that join nothing. `partSpots(part)`, `partSpotsWorld`.
+- **Marks** (`PartDef.marks`): named points for `part:<id>/<mark>` targets in both views.
+- **Hidden parts**: `hiddenParts(bench)` are the parts in a shut box: neither view draws them, `clipTargets` skips
+  them, they still conduct. A 9 V battery in a box lies on its back (`SeatDef.place` returns `lie`; `PartPose.lie`).
+- **Batteries**: `charge` (starting state of charge, the simulator's `soc`), `xray` (an AA cut open, a cutaway in both
+  views), a `wrap` spot.
+- **Tags**: `alt` writes the value out without its prefix (`expandPrefix`, `tagText`).
+
+The overlays (docs/BENCH-VIEWS.md, "Overlays") live in the store: `overlay: { flow: "off" | "current" | "electrons",
+push, trace: { from, at } | null }` with `setOverlay(patch)` and `trace(anchor | null)`, and `gates` (dots each gate
+has counted, advanced from each snapshot). Their data is pure (`flow.ts`): `flowMap` (amps along every lead, jumper
+and part), `dotSpeed`, `dotRate`, `advanceGates`, `gateAmps`, `formatGate`, `pushMap`, `hatchSpacing`, `hillShare`,
+`traceLoop` (`{ steps, closed, gap, parts, leads }`), `boxNets`. Symbols are SVG path data in `symbols.ts`
+(`symbolInk`, `slotTurn`, `tornOutline`), drawn as they are in ink and stroked onto canvas textures in 3D. The static
+toy's rules are in `static.ts` (`rub`, `settle`, `stuckTo`, `lifting`, `apart`); `movePart` applies them as a part
+is dragged.
+
+![Start here: the lamp loop with flow dots and two gates (ink)](screenshots/start-lamp-ink.png)
+
+![Start here: the lamp loop with flow dots and two gates (3D)](screenshots/start-lamp-3d.png)
+
+![Sealed boxes, shut, with the push view (3D and ink)](screenshots/start-boxes-shut.png)
+
+![The same boxes open: what is inside, and the wires](screenshots/start-boxes.png)
+
+![The junk drawer's objects and sorting trays](screenshots/start-junk.png)
+
+![Drawers, the cabinet's padlock, tags and the torn drawing](screenshots/start-symbols.png)
+
 ### `@ohmland/bench/core`
 
 The pure half of the package, with no React Three Fiber and no three.js: `benchOps`, `benchToNetlist`,
@@ -380,7 +424,10 @@ pnpm --filter @ohmland/bench dev     # vite playground, http://localhost:5199
   board with an overloaded resistor; `?scene=empty`, `?scene=half` (400-point board); `?scene=props` every lab
   prop on one desk; `?scene=modules` the desk modules; `?scene=blocks` desk modules, single-pole and mystery relays
   (closed and peeked) and bendable capacitor legs on a half board; `?scene=glow` the first-glow loop (`glow0` before
-  it is wired).
+  it is wired). Start here: `?scene=lamp` (`wrap=1` clips TL1 to the wrapper, `gates=1` adds two gates, `off=1`),
+  `junk`, `boxes` (`open=1`), `tired`, `symbols`, `static`.
+- `sim=1` runs the real simulator in the page instead of the mock snapshot (`speed=600` for a time-lapse); overlays:
+  `flow=current|electrons`, `push=1`, `trace=pin:B1.neg`.
 - A toggle above the bench switches between the 3D and ink views on the same store, or shows both side by side
   (`view=ink` starts in ink, `view=split` side by side, `toggle=0` hides it). `theme=dark` shows the night page. The
   playground loads no three.js until the 3D view or a gallery is shown.

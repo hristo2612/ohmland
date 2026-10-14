@@ -56,6 +56,9 @@ class SegmentCtx implements Ctx {
   markEdge(): void {
     this.base.markEdge();
   }
+  drivingOhms(i: number, j: number): number {
+    return this.base.drivingOhms?.(i, j) ?? Infinity;
+  }
   addBreakpoint(t: number): void {
     this.base.addBreakpoint(t);
   }

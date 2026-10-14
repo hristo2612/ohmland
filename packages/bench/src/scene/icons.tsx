@@ -86,6 +86,24 @@ export function PartIcon({ kind, color }: { kind: BenchPartKind | "lead" | "mete
       return box([<rect key="c" x="4" y="9" width="24" height="16" rx="3" fill="#e9e4da" />, <rect key="l" x="8" y="13" width="16" height="8" fill="#b9c7a6" />]);
     case "showcase":
       return box([<rect key="g" x="4" y="6" width="24" height="18" rx="1" fill="#eef6fb" />, <rect key="b" x="3" y="24" width="26" height="4" fill="#a97a48" />]);
+    case "gate":
+      return box([<path key="w" d="M3 24c8-3 18-3 26 0" stroke="#c8453a" strokeWidth="2.2" />, <rect key="r" x="13" y="19" width="6" height="8" rx="2" fill="#f4efe6" />, <rect key="f" x="7" y="5" width="18" height="10" rx="1.5" fill="#fffdf6" />, <path key="s" d="M16 15v4M10 10h4" />]);
+    case "box":
+      return box([<rect key="b" x="4" y="11" width="24" height="16" rx="1.5" fill="#d9c09a" />, <path key="l" d="M4 11l3-5h18l3 5" fill="#e8d5b3" />, <circle key="t1" cx="10" cy="22" r="1.8" fill="#c9a14a" />, <circle key="t2" cx="22" cy="22" r="1.8" fill="#c9a14a" />]);
+    case "schematic":
+      return box([<rect key="c" x="3" y="6" width="26" height="20" rx="1" fill="#fbfaf6" />, <path key="l" d="M8 21V11h16v10h-6M14 21H8" />, <path key="t" d="M14 21l2 -2l2 2" />]);
+    case "piece":
+      return box([<path key="p" d="M8 8h16v16H8l2-4-2-4 2-4z" fill="#fbfaf6" />, <path key="d" d="M13 12l6 4-6 4z" fill="currentColor" />]);
+    case "balloon":
+      return box([<ellipse key="b" cx="16" cy="12" rx="8" ry="9.5" fill="#d9483b" />, <path key="s" d="M16 22c-2 3 2 5 0 8" />]);
+    case "scarf":
+      return box([<path key="s" d="M4 10h24v10H4z" fill="#b8574a" />, <path key="f" d="M8 20v6M12 20v6M20 20v6M24 20v6" />]);
+    case "paper":
+      return box([<path key="a" d="M8 20l4-3 3 4-4 2z" fill="#fff" />, <path key="b" d="M17 22l5-2 1 4-5 1z" fill="#fff" />, <path key="c" d="M13 13l4 1-1 4-4-1z" fill="#fff" />]);
+    case "comb":
+      return box([<rect key="c" x="4" y="10" width="24" height="5" rx="1" fill="#2f3136" />, <path key="t" d="M6 15v7M9 15v7M12 15v7M15 15v7M18 15v7M21 15v7M24 15v7" />]);
+    case "wall":
+      return box([<rect key="w" x="5" y="3" width="22" height="26" fill="#efe7d6" />, <path key="p" d="M5 10h22M5 17h22M5 24h22" stroke="#d8ccb2" />]);
     case "lead":
       return box([<path key="c" d="M4 26c6-10 10 2 16-8" stroke={c} strokeWidth="2.4" />, <path key="j" d="M20 18l7-8M22 21l7-6" />]);
     case "meter":

@@ -812,6 +812,13 @@ Already there today and used as is: `battery` sizes `aa` and `coin` and the `wor
 `hole-hunt` panel, the bench's x-ray toggle and hover nets, the continuity beep (`lab.meter.beep`), `lab.joins`,
 `lab.chain`, `lab.stats`, `lab.history`, the battery's state of charge in the simulator (`extra.soc`).
 
+Built since, on the bench, simulator and lab runtime side, in both views (how to use them: `docs/LABS.md`, "Start
+here props", "Overlays", the LabView table and "For the lesson player"): V1 flow dots, V2 gates, V3 the push view, V6
+the AA cutaway, V7 the loop tracer, P1 everyday objects, P2 insulated spots, P4 the static toy, P7 sealed boxes, B1 a
+battery's starting `charge`, B2 drawer faces, B3 the cabinet's padlock, B4 tag taps, and S1's card and torn piece (the
+symbol taps are controller targets: `part:SD1/R1`). Strips on a breadboard are not hatched by the push view (leads and
+jumpers are). The lesson player side (R1 to R11, P5, S3) is not part of that work.
+
 ### 6.1 Lesson player and lab runtime
 
 | Id | Need | Size | Used in |
