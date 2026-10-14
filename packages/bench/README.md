@@ -346,6 +346,8 @@ when ImageMagick (`magick`) is installed. `BENCH_PORT=5400 pnpm shots` uses anot
   multiplier, brown 1 %), drawn as raised rings with metallic gold and silver.
 - Performance: one instanced draw for all 830 hole pits and one for the x-ray strips, shared geometries and
   materials, render on demand, DPR capped at 2 (1.5 on low), shadows redrawn only when the bench changes. The demo
-  bench (a populated board, meter, probes and a lead) draws about 200 calls a frame on high (scene, ink, bloom) and
-  180 on low, and orbits at 60 fps with the CPU throttled 4x on an M-series Mac (about 460 fps uncapped).
+  bench (a populated board, the meter with its probes, a lead) draws about 200 calls a frame on high (scene, ink,
+  bloom, tone) and 180 on low. Orbiting it at 1440 x 900 @2x in headless Chromium on an M-series Mac holds 60 fps with
+  the CPU throttled 4x (uncapped: about 450 fps on high, 650 on low; p95 frame 3.4 ms on high). Dragging a part, which
+  redraws the contact shadows every frame, also holds 60 fps at 4x throttling (p95 frame 19 ms uncapped).
 - The bench never imports the simulator at runtime; it only uses its types.
