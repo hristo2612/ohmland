@@ -124,7 +124,8 @@ Optional, on any beat:
 - `tool`: the one instrument or panel the beat needs: `meter`, `scope`, `logger`, `stopwatch`, `tapper`, `controls`,
   `views` (the lab's overlay toggles, Flow, Electrons and Push, from `overlays.offer`), the microcontroller board's
   `code` (the code drawer), `serial` (the serial monitor) or `millis` (its clock, with the day-49 jump), or a lab
-  panel id. Without it, a lab panel tied to the beat's task (its `show`) appears. Never two at once. The
+  panel id. Without it, a lab panel tied to the beat's task (its `show`) appears. Never two at once. A tool stays
+  open into the next beat that names it too (through that beat's guess), and closes when the next beat does not. The
   fix-it round and the secret take a `tool` too (`fixit: { tool: meter, ... }`, `secret: { tool: meter, ... }`): the
   meter's range, for one, can only be changed on its panel.
 
