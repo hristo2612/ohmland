@@ -1,0 +1,79 @@
+# Blueprint: docs/curriculum/unit-4.md, CH18. A bench lesson (docs/LESSONS.md).
+# One idea: a gate is its table, and the chip decides the rule. New: the gate chip (74HC08; three periods: a note as
+# it answers, a tap among the chips, "Which gate made 0, 1, 1, 1?") and the words AND, OR and truth table.
+# The keys are slide switches (they stay put, so every row of the table can be tried without holding two buttons).
+# The fix-it moves the lamp onto another gate's output (CH17 already practised the missing pull-down).
+# Lab: content/labs/gatekeepers.ts.
+format: bench
+id: gatekeepers
+version: 1
+title: Both keys or either
+summary: Find an AND gate's answer for every key, fill its truth table, then swap in an OR chip and watch the rule change.
+minutes: 7
+lab: gatekeepers
+unlocks:
+  parts: [logic-gates]
+  isle: logic-chip
+
+start:
+  title: Both keys or either
+  say: My castle gate has two keys, A and B.
+  go: Try the keys
+
+beats:
+  - say: Turn key A on.
+    objective: Both keys
+    spot: [S1, D1]
+    do: key-a
+    done: Still shut.
+
+  - say: Now turn key B on too.
+    spot: [S2, D1]
+    do: and-both
+    note: { at: U1, text: "a gate: AND, both or nothing" }
+
+  - say: Try all four ways. The table fills itself.
+    tool: tt
+    spot: [S1, S2, D1]
+    do: and-table
+    note: { at: D1, text: "lit for 1 and 1 only" }
+    rule: A truth table lists every answer.
+
+  - say: Swap in the OR chip. Same holes, notch left.
+    objective: Swap the chip
+    spot: [U1, U2]
+    do: or-chip
+
+  - say: Fill the table again. Only A on first. Guess?
+    tool: tt
+    spot: [S1, S2, D1]
+    guess: { options: [It lights, It stays dark], answer: It lights }
+    do: or-table
+    note: { at: U2, text: "OR: either key, or both" }
+    rule: The chip decides the rule.
+
+  - say: Show me the AND chip.
+    tap: { answer: U1, among: [U1, U2, U3] }
+    hint: Its number ends in 08.
+
+  - say: Which gate made 0, 1, 1, 1?
+    pick: { options: [AND, OR], answer: OR }
+    wrong:
+      AND: AND lights only for 1 and 1. Three rows lit means OR.
+
+secret:
+  task: xor-chip
+  spot: [U3, U2]
+  say: "Secret: try the chip marked 86."
+  tool: tt
+  done: A third rule.
+  note: { at: U3, text: "XOR: one key, not both" }
+
+fixit:
+  say: My gate ignores both keys. Fix it.
+  tool: tt
+  tasks:
+    - task: fix-it
+
+end:
+  say: AND, OR, and a table for each. My castle gates think.

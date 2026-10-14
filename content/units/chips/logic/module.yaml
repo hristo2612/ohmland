@@ -1,0 +1,14 @@
+id: logic
+title: Logic
+summary: Highs and lows, gates and their tables, a chord lock and a memory.
+# Reveal caption: Every gate in the castle answers only yes or no.
+landmark:
+  id: logic-castle
+  name: The Logic Castle
+lessons:
+  - five-volts-exactly
+  - gatekeepers
+  - flip-the-answer
+  - chord-lock
+  - two-gates-remember
+  - chatter

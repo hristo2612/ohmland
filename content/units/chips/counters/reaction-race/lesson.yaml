@@ -1,0 +1,77 @@
+# Blueprint: docs/curriculum/unit-4.md, CH16 (wave 2). A bench lesson (docs/LESSONS.md).
+# One idea: block the clock to stop the count. New: the word "inhibit" (three periods: a note as it freezes, a tap on
+# the pin, "What does inhibit high do?"); "clock" gets its third period in that pick.
+# Without the plug-in digit modules three digits will not fit beside three 555s, so this race counts tenths of a
+# second on one digit (a 10 Hz clock), and the reading check is a fixed example rather than the learner's own time
+# (no templated prompts yet). The keys card holds START, STOP and RESET. Lab: content/labs/reaction-race.ts.
+format: bench
+id: reaction-race
+version: 1
+title: Reaction race
+summary: Race the robot's green lamp, and stop a counter by blocking its clock instead of resetting it.
+minutes: 9
+lab: reaction-race
+unlocks:
+  parts: []
+  isle: meter-kiosk
+
+start:
+  title: Reaction race
+  say: Race me! START, wait for green, then hit STOP.
+  go: Race
+
+beats:
+  - say: Press START. When the green lamp lights, hit STOP!
+    objective: No brakes
+    tool: keys
+    spot: [D1, D2, DS1]
+    do: no-brakes
+    note: { at: DS1, text: "STOP pressed, still counting" }
+
+  - say: Move the white wire from minus to the latch's pin 3.
+    objective: The gate
+    spot: [W9, U2]
+    do: inhibit-wire
+    note: { at: U4.2, text: "inhibit high: the clock is ignored" }
+
+  - say: RESET, START, STOP on green. Guess first.
+    tool: keys
+    spot: [D1, D2, DS1]
+    guess: { options: [It freezes, It keeps running], answer: It freezes }
+    do: frozen
+    note: { at: DS1, text: "most people: 2 or 3 tenths" }
+    rule: Block the clock to stop the count.
+
+  - say: Each step is a tenth of a second. A 3 means?
+    objective: Read it
+    pick: { options: [3 ms, 0.3 s, 3 s], answer: 0.3 s }
+    wrong:
+      3 ms: Three steps of a tenth each. Far more than 3 ms.
+      3 s: Then the digit would have rolled round three times.
+
+  - say: Show me the inhibit pin.
+    tap: { answer: U4.2, among: [U4.1, U4.2, U4.15] }
+    hint: Follow the white wire to the counter.
+
+  - say: What does inhibit high do?
+    pick: { options: [Ignores the clock, Resets to 0, Lights the dot], answer: Ignores the clock }
+    wrong:
+      Resets to 0: Reset is pin 15. Inhibit keeps the digit as it is.
+      Lights the dot: The dot stays dark. The count just stops.
+
+secret:
+  task: quick-hands
+  spot: [S2, DS1]
+  say: "Secret: stop the digit on 1. Quick hands!"
+  tool: keys
+  done: Quick hands! Under two tenths.
+  note: { at: DS1, text: "under 0.2 s: quick hands" }
+
+fixit:
+  say: My race never starts counting. Fix it.
+  tool: keys
+  tasks:
+    - task: fix-it
+
+end:
+  say: Fastest fingers on the island! My billboard is done.
