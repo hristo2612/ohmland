@@ -577,6 +577,8 @@
 }
 .bl-stamp--checked small { font-size: var(--bl-text-xs); letter-spacing: 0.04em; }
 .bl-notebook .bl-page { box-shadow: none; }
+/* The bench view switch in the notebook sheet: phones only (wide screens keep it in the bar). */
+.bl-notebook__view { display: none; align-items: center; justify-content: space-between; gap: var(--bl-s-3); margin-bottom: var(--bl-s-4); }
 
 /* ---- The sign-off -------------------------------------------------------------------------------------------------- */
 .bl--finale { overflow: auto; height: auto; min-height: 100dvh; grid-template-rows: var(--bl-bar-h) auto; }
@@ -612,7 +614,10 @@
   .bl-nb-btn { min-width: var(--bl-tap); padding: 0 var(--bl-s-2); gap: var(--bl-s-1); }
   .bl-bar__tools { gap: var(--bl-s-2); }
   .bl-bar__title { font-size: var(--bl-text-sm); }
-  .bl-views__opt { min-width: 40px; padding: 0 var(--bl-s-2); }
+  /* The view switch is a setting: on a phone it moves into the notebook sheet and the title takes the bar. */
+  .bl-views--bar { display: none; }
+  .bl-notebook__view { display: flex; }
+  .bl-views__opt { min-height: var(--bl-tap); }
   .bl-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
   .bl-bench { order: 0; }
   .bl-margin {

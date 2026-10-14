@@ -926,6 +926,24 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   // The current objective's name, as a quiet kicker: one thing at a time, never the whole list.
   const objective = moment.kind === "beat" ? moments.slice(0, index + 1).reverse().find((mo) => mo.beat?.objective)?.beat?.objective : undefined;
   const stepsDone = Math.min(moments.length, index + 1);
+  /** The 3D / Ink switch: in the bar on wide screens, in the notebook sheet on phones (CSS shows one of the two). */
+  const viewSwitch = (where: string) => (
+    <div className={`bl-views ${where}`} role="radiogroup" aria-label={m.lessonBench.view}>
+      {(["3d", "ink"] as const).map((v) => (
+        <button
+          key={v}
+          type="button"
+          role="radio"
+          aria-checked={view === v}
+          className="bl-views__opt"
+          title={v === "ink" && !INK_RENDERER ? m.lessonBench.viewInkStandIn : undefined}
+          onClick={() => chooseView(v)}
+        >
+          {v === "3d" ? m.lessonBench.view3d : m.lessonBench.viewInk}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div
@@ -941,21 +959,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
         <IconButton label={m.lesson.close} icon="close" href={mapHref} />
         <p className="bl-bar__title">{lesson.title}</p>
         <div className="bl-bar__tools">
-          <div className="bl-views" role="radiogroup" aria-label={m.lessonBench.view}>
-            {(["3d", "ink"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                role="radio"
-                aria-checked={view === v}
-                className="bl-views__opt"
-                title={v === "ink" && !INK_RENDERER ? m.lessonBench.viewInkStandIn : undefined}
-                onClick={() => chooseView(v)}
-              >
-                {v === "3d" ? m.lessonBench.view3d : m.lessonBench.viewInk}
-              </button>
-            ))}
-          </div>
+          {/* A setting, not a lesson action: on a phone it lives in the notebook sheet, and the title takes the bar. */}
+          {viewSwitch("bl-views--bar")}
           <button type="button" className="bl-nb-btn" aria-haspopup="dialog" aria-label={m.lessonBench.notebookOpen(rules.length)} onClick={() => setNotebook(true)} data-notebook-button>
             <Icon name="book" size={20} />
             <span className="bl-nb-btn__text">{m.lessonBench.notebook}</span>
@@ -1095,6 +1100,10 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       </main>
 
       <Dialog open={notebook} onClose={() => setNotebook(false)} title={m.lessonBench.notebook} variant="sheet" className="bl-notebook">
+        <div className="bl-notebook__view">
+          <span className="bl-kicker">{m.lessonBench.view}</span>
+          {viewSwitch("bl-views--sheet")}
+        </div>
         <NotebookPage lesson={lesson} moments={moments} answers={answers} reached={index + (phase === "done" ? 1 : 0)} rules={rules} fried={friedHere} fixed={fixedCount} />
       </Dialog>
 
