@@ -52,6 +52,8 @@ export type BuiltBench = {
   labels: Record<string, string>;
   /** Simulator inputs to send once the circuit is loaded (control sliders, legacy `light`, `pressed`). */
   inputs: SimInput[];
+  /** Parts the tidy layout pass leaves where the lab put them (`stay: true`). */
+  fixed?: string[];
   /** Spare meter fuses, or null for unlimited. */
   spareFuses: number | null;
   /** The desk rectangle the camera frames, [x0, z0, x1, z1] in mm, or null for the whole bench. */
@@ -366,6 +368,7 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
   const boardKind = config.board === "half" ? "bb400" : config.board === "none" ? null : "bb830";
   let bench = emptyBench(boardKind ? { kind: boardKind, ...(config.splitRails && boardKind === "bb830" ? { splitRails: true } : {}) } : null);
   const locked: string[] = [];
+  const fixed: string[] = [];
   const labels: Record<string, string> = {};
   const inputs: SimInput[] = [];
   const aliases: Record<string, Record<string, string>> = {};
@@ -412,6 +415,7 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
     }
     if (p.label) labels[p.id] = p.label;
     if (p.locked) locked.push(p.id);
+    if (p.stay) fixed.push(p.id);
     if (b.n.pins) aliases[p.id] = b.n.pins;
     if (b.n.inputs) inputs.push(...b.n.inputs);
     pending.push({ id: p.id, n: b.n, at: p.at, holes: p.holes, rot: p.rot ?? 0 });
@@ -552,7 +556,7 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
 
   const frame = frameOf(bench, config.frame, warnings);
   const overlays = { flow: config.overlays?.flow ?? "off", push: !!config.overlays?.push, offer: config.overlays?.offer ?? [] } as const;
-  return { bench, locked, tray, meter, scope, logger, stopwatch, tapper, controls: config.controls ?? [], nodes: config.nodes ?? {}, labels, inputs, spareFuses, inspect, warnings, frame, overlays };
+  return { bench, locked, fixed, tray, meter, scope, logger, stopwatch, tapper, controls: config.controls ?? [], nodes: config.nodes ?? {}, labels, inputs, spareFuses, inspect, warnings, frame, overlays };
 }
 
 /** The rectangle spanned by holes and desk spots, with a little margin. */

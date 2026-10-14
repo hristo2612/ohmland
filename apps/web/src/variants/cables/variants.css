@@ -1,0 +1,199 @@
+/* /variants/cables: a grid of live benches, rows by bench, columns by cable style. */
+
+.cv {
+  padding: var(--space-4) var(--space-4) var(--space-6);
+}
+.cv-loading {
+  padding: var(--space-6) var(--space-4);
+  color: var(--ink-2);
+}
+.cv-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.cv-title {
+  font-size: var(--text-xl);
+  line-height: var(--lh-xl);
+  margin: 0;
+}
+.cv-lead {
+  margin: var(--space-1) 0 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+.cv-toggle {
+  display: inline-flex;
+  border: var(--border-1) solid var(--rule);
+}
+.cv-toggle a {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  text-decoration: none;
+}
+.cv-toggle a + a {
+  border-left: var(--border-1) solid var(--rule);
+}
+.cv-toggle a[aria-current] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.cv-rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+.cv-rows a {
+  color: var(--ink);
+}
+.cv-rows a[aria-current] {
+  color: var(--blue);
+  font-weight: 600;
+}
+.cv-cols,
+.cv-cells {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.cv-cols {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--paper);
+  padding: var(--space-2) 0;
+  border-bottom: var(--border-1) solid var(--rule-soft);
+  margin-bottom: var(--space-3);
+}
+.cv-cols > span:first-child {
+  display: none;
+}
+.cv-col {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+.cv-col small {
+  color: var(--ink-2);
+}
+.cv-row {
+  margin-bottom: var(--space-5);
+}
+.cv-row-title {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  margin: 0 0 var(--space-2);
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+.cv-row-title small {
+  font-weight: 400;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+.cv-cell {
+  display: flex;
+  flex-direction: column;
+  border: var(--border-1) solid var(--rule-soft);
+  background: var(--paper-slip);
+  color: var(--ink);
+  text-decoration: none;
+}
+.cv-cell:hover,
+.cv-cell:focus-visible {
+  border-color: var(--blue);
+}
+.cv-cell-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  border-bottom: var(--border-1) solid var(--rule-soft);
+}
+.cv-cell-head b {
+  display: none;
+  font-weight: 600;
+}
+.cv-score {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.cv-bench {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  /* A picture of a live bench: the whole cell opens it full size. */
+  pointer-events: none;
+}
+.cv-mini {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+.cv-mini > * {
+  position: absolute;
+  inset: 0;
+}
+.cv-single {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+.cv-single-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-1) solid var(--rule-soft);
+  font-size: var(--text-sm);
+}
+.cv-single-head small {
+  color: var(--ink-3);
+}
+.cv-single-bench {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.cv-single-bench > * {
+  position: absolute;
+  inset: 0;
+}
+
+/* Phones: each bench as a two by two grid, the style named in each cell. */
+@media (max-width: 760px) {
+  .cv {
+    padding: var(--space-3) var(--space-3) var(--space-5);
+  }
+  .cv-cols {
+    display: none;
+  }
+  .cv-cells {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+  .cv-cell-head {
+    flex-direction: column;
+    gap: 0;
+  }
+  .cv-cell-head b {
+    display: block;
+  }
+  .cv-single-head {
+    font-size: var(--text-xs);
+  }
+}

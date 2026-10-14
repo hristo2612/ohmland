@@ -18,8 +18,8 @@ import literataLatinStrong from "@fontsource/literata/files/literata-latin-600-n
 import { HEAD_SCRIPT } from "../progress/prefs";
 import { m, lang } from "../i18n";
 
-type Props = { title?: string; description?: string; bodyClass?: string };
-const { title, description = m.meta.description, bodyClass } = Astro.props;
+type Props = { title?: string; description?: string; bodyClass?: string; /** Keep the page out of search engines (hidden pages). */ noindex?: boolean };
+const { title, description = m.meta.description, bodyClass, noindex = false } = Astro.props;
 const fullTitle = title ? `${title} · ${m.meta.titleSuffix}` : `${m.meta.siteName}: ${m.meta.tagline}`;
 ---
 
@@ -30,6 +30,7 @@ const fullTitle = title ? `${title} · ${m.meta.titleSuffix}` : `${m.meta.siteNa
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preload" href={literataLatin} as="font" type="font/woff2" crossorigin />

@@ -1414,6 +1414,31 @@ export const en = {
   dev: {
     label: "Dev only",
   },
+
+  /** Hidden comparison pages (/variants/...): not linked from the site. */
+  cableVariants: {
+    title: "Cable variants",
+    lead: "The same benches, four ways to lay the cables. Lower clutter reads more clearly.",
+    styles: { classic: "Current", drape: "A. Gentle drape", taped: "B. Taped down", tidy: "C. Tidy layout" } as Record<string, string>,
+    notes: {
+      classic: "Today's look: loose curves, lots of slack.",
+      drape: "Smooth curves round the parts; plus red, minus black.",
+      taped: "Straight runs and rounded corners on a grid.",
+      tidy: "Parts nudged into a clockwise loop; short arcs.",
+    } as Record<string, string>,
+    view: "View",
+    ink: "Ink",
+    threeD: "3D",
+    bench: "Bench",
+    start: "start",
+    open: "Open live",
+    back: "All benches",
+    loading: "Laying out the benches",
+    score: (n: number) => `clutter ${n}`,
+    detail: (c: { crossings: number; overParts: number; overClips: number; overlaps: number; outside: number }) =>
+      `${c.crossings} crossings, ${c.overParts} over parts, ${c.overClips} over clips, ${c.overlaps} overlaps, ${c.outside} out of frame`,
+    only3d: "3D draws one bench at a time. Pick a bench:",
+  },
 };
 
 export type Messages = typeof en;

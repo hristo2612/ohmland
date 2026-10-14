@@ -55,6 +55,11 @@ type PartCommon = {
   rot?: number;
   /** Locked parts cannot be moved, rotated or removed (switches still flip, buttons still press). */
   locked?: boolean;
+  /**
+   * Keep this part exactly where `at` puts it when the bench is tidied (the tidy layout pass, cable style "tidy"):
+   * a layout the lesson's words point at. Furniture (a drawing card, a box, a chart) always stays.
+   */
+  stay?: boolean;
   /** Friendly name for panels and the Hall of Fried Parts ("Red LED"). Defaults to one made from the kind. */
   label?: string;
 };

@@ -21,6 +21,7 @@ import { WIRE_HEX, mat } from "../three/materials";
 import { makeCanvas } from "../three/canvas";
 import { prefersReducedMotion, useAnimating } from "../three/anim";
 import { leadCable } from "./views";
+import type { CableStyle } from "../cables/style";
 import { usePaperPalette } from "./palette";
 
 /** Overlays sit just above what they ride, and never count as part of a model's size or shadow. */
@@ -47,7 +48,7 @@ function pointAt(l: Line, d: number, out: THREE.Vector3): THREE.Vector3 {
 }
 
 /** Every conductor the dots and hatching ride, as drawn in 3D: clip leads (clip to clip), jumpers (hole to hole). */
-function rideLines(bench: BenchState, floor: FloorFn): Map<string, { line: Line; cable: Line }> {
+function rideLines(bench: BenchState, floor: FloorFn, style: CableStyle): Map<string, { line: Line; cable: Line }> {
   const out = new Map<string, { line: Line; cable: Line }>();
   if (bench.board) {
     for (const w of bench.wires) {
@@ -61,7 +62,7 @@ function rideLines(bench: BenchState, floor: FloorFn): Map<string, { line: Line;
   }
   for (const l of bench.leads) {
     if (!l.a.to && !l.b.to) continue;
-    const c = leadCable(bench, l, floor);
+    const c = leadCable(bench, l, floor, style);
     // Ride a little above the cable's centre, so the dots sit on it.
     const lift = (p: THREE.Vector3) => p.clone().setY(p.y + 0.7);
     const cable = c.cable.map(lift);
@@ -100,7 +101,8 @@ function ridersOf(bench: BenchState, lines: Map<string, { line: Line }>, s: Snap
 }
 
 const FlowDots3D = memo(function FlowDots3D({ bench, store, floor, electrons }: { bench: BenchState; store: BenchStore; floor: FloorFn; electrons: boolean }) {
-  const lines = useMemo(() => rideLines(bench, floor), [bench, floor]);
+  const style = useStore(store, (s) => s.cableStyle);
+  const lines = useMemo(() => rideLines(bench, floor, style), [bench, floor, style]);
   const riders = useRef<Rider[]>([]);
   const travel = useRef(new Map<string, number>());
   useLayoutEffect(() => {
@@ -222,7 +224,8 @@ const Push3D = memo(function Push3D({ bench, store, floor }: { bench: BenchState
     return JSON.stringify([Object.entries(p.leads).map(([k, v]) => [k, Math.round(((v[0] + v[1]) / 2) * 10)]), Object.entries(p.wires).map(([k, v]) => [k, Math.round(v * 10)]), Object.entries(p.hills).map(([k, v]) => [k, Math.round(v * 20)])]);
   });
   const p = useMemo(() => pushMap(bench, store.getState().snapshot), [bench, store, key]);
-  const lines = useMemo(() => rideLines(bench, floor), [bench, floor]);
+  const style = useStore(store, (s) => s.cableStyle);
+  const lines = useMemo(() => rideLines(bench, floor, style), [bench, floor, style]);
   const pal = usePaperPalette();
   // Hatch strokes across each cable, spaced by its push.
   const ticks = useMemo(() => {
@@ -297,7 +300,7 @@ const Tracer3D = memo(function Tracer3D({ bench, store, floor, from, at }: { ben
       if (s.kind === "lead") {
         const l = bench.leads.find((x) => x.id === s.id);
         if (!l) continue;
-        const c = leadCable(bench, l, floor);
+        const c = leadCable(bench, l, floor, store.getState().cableStyle);
         const pts = [c.a.tip, ...c.cable, c.b.tip].map((p) => p.clone().setY(p.y + 0.8));
         for (const p of s.from === "a" ? pts : pts.reverse()) add(p);
       } else {

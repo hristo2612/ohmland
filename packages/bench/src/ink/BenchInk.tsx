@@ -164,6 +164,9 @@ export function BenchInk(props: BenchInkProps) {
   useLayoutEffect(() => {
     if (props.frame !== undefined) store.setState({ frame: frameKey ? (frameKey.split(",").map(Number) as [number, number, number, number]) : null });
   }, [store, frameKey, props.frame]);
+  useLayoutEffect(() => {
+    if (props.cableStyle) store.setState({ cableStyle: props.cableStyle });
+  }, [store, props.cableStyle]);
   useEffect(() => {
     // A drag changes the bench while its transaction is open and commits by closing it, so compare against the last
     // bench reported rather than the previous state.
@@ -178,7 +181,8 @@ export function BenchInk(props: BenchInkProps) {
   const bench = useStore(store, (s) => s.bench);
   const ui = useStore(store, (s) => s.ui);
   const ambient = useStore(store, (s) => s.ambient);
-  const model = useMemo(() => buildModel(bench), [bench]);
+  const cableStyle = useStore(store, (s) => s.cableStyle);
+  const model = useMemo(() => buildModel(bench, cableStyle), [bench, cableStyle]);
   const modelRef = useRef<InkModel>(model);
   modelRef.current = model;
 
