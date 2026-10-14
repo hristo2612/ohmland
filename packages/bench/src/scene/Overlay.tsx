@@ -8,6 +8,7 @@ import { DIAL_MODES } from "../layout";
 import * as ops from "../ops";
 import { isThrowSwitch, partDef } from "../parts";
 import { useBench, useBenchStore } from "../store";
+import { trayLeft } from "../tray";
 import type { LeadColor, MeterMode, PlacedPart, TrayItem, WireColor } from "../types";
 import { LED_HEX, WIRE_HEX } from "../three/materials";
 import { PartIcon, ToolIcon } from "./icons";
@@ -165,14 +166,8 @@ export function Overlay({
   const selPart = sel?.type === "part" ? bench.parts.find((p) => p.id === sel.id) : undefined;
   const selWire = sel?.type === "wire" ? bench.wires.find((w) => w.id === sel.id) : undefined;
   const selLead = sel?.type === "lead" ? bench.leads.find((l) => l.id === sel.id) : undefined;
-  const placed = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const p of bench.parts) m.set(p.kind, (m.get(p.kind) ?? 0) + 1);
-    m.set("lead", bench.leads.length);
-    return m;
-  }, [bench]);
   // The tray steps aside once everything in it has been placed.
-  const left = (item: TrayItem) => (item.count === undefined ? undefined : Math.max(0, item.count - (placed.get(item.kind) ?? 0)));
+  const left = (item: TrayItem) => trayLeft(item, bench);
   const showTray = !readOnly && tray.length > 0 && tray.some((item) => left(item) !== 0);
   const wideTray = tray.length > NARROW_TRAY && !compact;
   // "Reset view" shows only once the learner has moved the camera away from the framing of the work area.

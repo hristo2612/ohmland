@@ -31,6 +31,7 @@ export {
   type NetContext,
 } from "./parts";
 export { seatsOf, heldOf, holderOf, seatNear, SEAT_REACH } from "./seats";
+export { trayLeft, trayUsed } from "./tray";
 export { partPose, anchorPosition, benchBounds, fitCamera, isOnBoard, METER, DIAL_MODES, type PartPose } from "./layout";
 export { resistorBands, formatOhms, formatFarads } from "./colorCode";
 // The store needs React and zustand but not three.js, so a host can own it before the 3D view loads.
