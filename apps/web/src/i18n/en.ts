@@ -43,11 +43,6 @@ export const en = {
     home: "Ohmland home",
     learn: "Learn",
     isle: "Isle",
-    bench: "Bench",
-    parts: "Parts",
-    achievements: "Achievements",
-    account: "Account",
-    about: "About",
     notebook: "Notebook",
     signedIn: (status: string) => `Signed in. ${status}.`,
     menu: {
@@ -72,7 +67,6 @@ export const en = {
     long: (n: number) => `Level ${n}`,
     chipLabel: (n: number, title: string, xp: number) => `Your notebook: level ${n}, ${title}, ${xp.toLocaleString("en")} XP`,
     toNext: (n: number) => `${n.toLocaleString("en")} XP to the next level`,
-    total: (n: number) => `${n.toLocaleString("en")} XP in total`,
   },
 
   levels: {
@@ -98,13 +92,6 @@ export const en = {
       "Master Maker",
       "Ohmland Legend",
     ] as readonly string[],
-  },
-
-  stats: {
-    lessons: "Lessons done",
-    parts: "Parts",
-    achievements: "Achievements",
-    fried: "Parts fried",
   },
 
   persistence: {
@@ -912,7 +899,6 @@ export const en = {
     title: "Parts bin",
     lead: "Lessons fill it. Tap a part to see what it does.",
     unlocked: (n: number, total: number) => `${n} of ${total} parts in your bin`,
-    locked: "Not yet yours",
     lockedPart: "Not yet yours",
     unlocksIn: (title: string) => `Unlocks in ${title}`,
     unlocksLater: "Unlocks in a later lesson",

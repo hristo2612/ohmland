@@ -45,11 +45,13 @@
 /* Not yet yours: a dashed pencil outline, not coloured in. */
 .part-icon--locked .part-icon__art * { fill: none !important; stroke: var(--ink-3) !important; stroke-dasharray: 3 3; opacity: 1 !important; }
 .part-icon--locked .part-icon__art text { fill: var(--ink-3) !important; stroke: none !important; }
+.part-icon--locked .pi-wire-edge { stroke-width: 1.5px; }
+.part-icon--locked .pi-wire { display: none; }
 /* Burned out: the colour goes, a scorch and a crack stay. */
 .part-icon--burned .pi-led, .part-icon--burned .pi-red, .part-icon--burned .pi-cap { fill: var(--sk-led-dead); }
 .part-icon--burned .pi-body, .part-icon--burned .pi-lemon, .part-icon--burned .pi-batt-label { fill: var(--sk-shade); }
 .part-icon--burned .pi-shine { opacity: 0.25; }
-.pi-char { fill: var(--sk-char); opacity: 0.55; }
+.pi-char { fill: var(--sk-char); opacity: 0.4; }
 .pi-smoke { fill: none; stroke: var(--sk-smoke); stroke-width: 1.75px; stroke-linecap: round; }
 
 /* Parts bin: a page of pasted slips ------------------------------------------------------------------------------ */
@@ -84,7 +86,7 @@
 .part-slip__name { font-size: var(--text-md); line-height: var(--lh-md); font-weight: var(--weight-strong); }
 .part-slip__meta { display: flex; align-items: flex-start; gap: var(--s-1); color: var(--ink-2); font-size: var(--text-xs); line-height: var(--lh-xs); }
 .part-slip__meta svg { flex: none; margin-top: 3px; }
-.part-slip--locked { background: transparent; border: var(--border-1) dashed var(--ink-3); box-shadow: none; }
+.part-slip--locked { background: transparent; border: var(--border-1) dashed var(--rule-soft); box-shadow: none; }
 .part-slip--locked:hover { box-shadow: none; transform: none; background: var(--paper-slip); }
 .part-slip--locked .part-slip__name { color: var(--ink-2); font-weight: var(--weight-body); }
 .part-slip--locked .part-slip__meta { color: var(--ink-3); }

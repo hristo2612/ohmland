@@ -35,9 +35,10 @@ export function Stamp({ icon, ring, state = "earned", size = 96, tilt = 0, press
       <circle className="stamp__ring-in" cx="48" cy="48" r={text ? 31 : 37} strokeWidth="1.5" />
       {text && (
         <>
-          <path id={id} d="M48 48m-37.5 0a37.5 37.5 0 1 1 75 0a37.5 37.5 0 1 1-75 0" fill="none" />
+          {/* the ring starts at the bottom, so words centred on it sit across the top */}
+          <path id={id} d="M48 85.5a37.5 37.5 0 1 1 0-75a37.5 37.5 0 1 1 0 75" fill="none" />
           <text className="stamp__text" fontSize="9.5" dy="3.2">
-            <textPath href={`#${id}`} startOffset="25%" textAnchor="middle">
+            <textPath href={`#${id}`} startOffset="50%" textAnchor="middle">
               {text}
             </textPath>
           </text>
