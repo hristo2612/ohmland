@@ -303,8 +303,12 @@ export class LabRuntime {
     this.sim = null;
   }
 
+  /** How many actions the learner has taken on the bench (a lesson holds a fix-it's nudges until the first). */
+  actions = 0;
+
   /** The <Bench onAction> handler: simulator inputs from switches, buttons and the dial. */
   readonly onAction = (a: BenchAction): void => {
+    this.actions++;
     // The board refusing a part (a surface-mount chip on holes), however the bench names that action.
     const any = a as { type: string; partId?: unknown };
     if (/refus|reject/.test(any.type) && typeof any.partId === "string") {

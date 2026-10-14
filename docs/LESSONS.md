@@ -137,6 +137,9 @@ for a moment:
 nudges: [{ when: (lab) => backwards(lab), say: "Dark? Turn the LED around. Long leg to plus." }],
 ```
 
+After a `setup` puts a broken bench down (a fix-it), its task's nudges wait for the learner's first move on the bench:
+the broken bench matches them from the start, and a nudge before the learner has tried would give the fix away.
+
 ## Fix-it benches and parts that come into play
 
 A lab task's `setup` is a list of solution steps the lesson applies when the task's beat begins, on top of the bench

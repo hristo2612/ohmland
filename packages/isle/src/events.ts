@@ -20,7 +20,8 @@ export function seedFrom(firstLessonId: string, firstAtIso: string): number {
  * What a made-up history visits, unit by unit: the pieces each cycles through and the landmarks its modules build,
  * close to what its lessons really place. Frozen on purpose: the landing hero's posters and the plan's golden
  * fingerprint are made-up isles, so a new unit is appended here (never inserted) and a landmark that later moves to
- * another unit in the catalog (meter-tower, now in Start here) keeps its made-up place.
+ * another unit in the catalog (meter-tower, now in Start here) keeps its made-up place. Units 3 to 5 follow their
+ * blueprints (docs/curriculum/unit-3.md to unit-5.md): their lessons' pieces in order, and every landmark they build.
  */
 const MADE_UP: { unit: string; pieces: string[]; landmarks: string[] }[] = [
   {
@@ -33,9 +34,21 @@ const MADE_UP: { unit: string; pieces: string[]; landmarks: string[] }[] = [
     pieces: ["switch", "pushbutton", "relay", "breadboard-patch", "jumper-arch", "capacitor", "ceramic-cap", "transistor", "phototransistor", "speaker", "diode", "led-lamp", "resistor", "tuft"],
     landmarks: [...LANDMARKS_BY_UNIT.switching],
   },
-  { unit: "permanent", pieces: ["wire-spool", "header-fence", "heatsink", "resistor", "led-lamp", "diode", "capacitor", "moss", "jumper-arch"], landmarks: [...LANDMARKS_BY_UNIT.permanent] },
-  { unit: "chips", pieces: ["header-fence", "capacitor", "ceramic-cap", "led-lamp", "resistor", "pushbutton", "transistor", "heatsink", "tuft"], landmarks: [...LANDMARKS_BY_UNIT.chips] },
-  { unit: "beyond", pieces: ["wire-spool", "speaker", "capacitor", "transistor", "led-lamp", "heatsink", "phototransistor", "header-fence", "lemon-tree"], landmarks: [...LANDMARKS_BY_UNIT.beyond] },
+  {
+    unit: "permanent",
+    pieces: ["iron-stand", "solder-spool", "jumper-arch", "meter-kiosk", "heatsink", "wire-spool", "battery", "fuse", "regulator", "header-fence", "led-lamp", "test-lead-arch", "moss"],
+    landmarks: [...LANDMARKS_BY_UNIT.permanent],
+  },
+  {
+    unit: "chips",
+    pieces: ["chip-block", "capacitor", "resistor", "header-fence", "pot", "battery", "transistor", "speaker", "reed-gate", "seven-seg", "jumper-arch", "regulator", "logic-chip", "relay", "pushbutton", "led-lamp", "dice-block", "tuft"],
+    landmarks: [...LANDMARKS_BY_UNIT.chips],
+  },
+  {
+    unit: "beyond",
+    pieces: ["wire-spool", "coil-bolt", "magnet", "led-lamp", "diode", "speaker", "relay", "capacitor", "antenna", "mcu-board", "header-fence", "pushbutton", "pot", "dice-block", "lemon-tree"],
+    landmarks: [...LANDMARKS_BY_UNIT.beyond],
+  },
   {
     unit: "start-here",
     pieces: ["led-lamp", "test-lead-arch", "capacitor", "wire-spool", "battery", "pot", "cell-jar", "meter-kiosk", "header-fence", "breadboard-patch", "resistor", "jumper-arch"],

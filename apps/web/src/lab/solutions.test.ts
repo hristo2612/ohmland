@@ -47,6 +47,9 @@ describe("lab solutions", () => {
       expect(r.problems, "steps that did not apply").toEqual([]);
       expect(r.failedChecks, "checkpoints not done in time").toEqual([]);
       expect(r.missing, "required tasks never done").toEqual([]);
+      // An achievement trigger that the lab's own solution never fires may be one no learner can fire either.
+      const triggers = [...Object.keys(lab.triggers ?? {}), ...lab.tasks.flatMap((t) => (t.trigger ? [t.trigger] : []))];
+      expect(r.triggers, "achievement triggers the solution never fires").toEqual(expect.arrayContaining(triggers));
     });
   }
 });

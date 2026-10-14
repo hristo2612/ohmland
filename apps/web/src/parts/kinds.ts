@@ -18,5 +18,7 @@ export const PART_ICONS = [
   "phototransistor",
   "diode",
   "speaker",
+  "chip",
+  "seven-segment",
 ] as const;
 export type PartIconKind = (typeof PART_ICONS)[number];

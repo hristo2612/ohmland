@@ -30,6 +30,21 @@ export const ISLE_PIECES = [
   "moss",
   "tuft",
   "lemon-tree",
+  // Making it permanent
+  "iron-stand",
+  "solder-spool",
+  "regulator",
+  // Chips
+  "chip-block",
+  "reed-gate",
+  "seven-seg",
+  "logic-chip",
+  "dice-block",
+  // Beyond
+  "coil-bolt",
+  "magnet",
+  "antenna",
+  "mcu-board",
 ] as const;
 
 const PIECE_SET = new Set<string>(ISLE_PIECES);

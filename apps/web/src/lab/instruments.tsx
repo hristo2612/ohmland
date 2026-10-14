@@ -44,7 +44,12 @@ export function MeterPanel({ runtime, compact = false }: { runtime: LabRuntime; 
   const black = meter.probes.black.socket;
   const name = (s: MeterSocket | null) => (s ? m.lab.meter.socketNames[s] ?? s : m.lab.meter.unplugged);
   const current = meter.mode === "dca-ma" || meter.mode === "dca-10a";
-  const warn = !current && (red === "ma" || red === "a10") ? m.lab.meter.wrongSocket : current && red !== (meter.mode === "dca-10a" ? "a10" : "ma") ? m.lab.meter.needCurrentSocket : null;
+  // Current needs the red lead in a current socket, but not with the probes across a voltage (a battery's
+  // terminals): moved there, the meter would short it and blow its fuse. Then the dial is what to change.
+  const needSocket = current && red !== (meter.mode === "dca-10a" ? "a10" : "ma");
+  const tips = [meter.probes.red.tip.to, meter.probes.black.tip.to];
+  const across = needSocket && !!tips[0] && !!tips[1] && Math.abs(runtime.session.view().volts(tips[0]!, tips[1]!) ?? 0) > 0.3;
+  const warn = !current && (red === "ma" || red === "a10") ? m.lab.meter.wrongSocket : across ? m.lab.meter.acrossVoltage : needSocket ? m.lab.meter.needCurrentSocket : null;
   const probesFree = !meter.probes.red.tip.to && !meter.probes.black.tip.to;
   const over = /OL/.test(display);
 
