@@ -38,6 +38,17 @@ describe("the isle plan", () => {
     expect(plan.islands.map((i) => i.unit)).toEqual(["basics", "switching", "permanent", "chips", "beyond"]);
   });
 
+  it("gives Start here its own island, with the spark gap, the pump house and the meter tower", () => {
+    const lesson = (id: string): IsleEvent => ({ type: "lesson", unit: "start-here", piece: "led-lamp", title: "", id });
+    const module = (landmark: string): IsleEvent => ({ type: "module", unit: "start-here", landmark, title: "", id: landmark });
+    const events = [lesson("a"), module("spark-gap"), lesson("b"), module("pump-house"), lesson("c"), module("meter-tower")];
+    const plan = makeIsle(5, [...events, { type: "lesson", unit: "basics", piece: "resistor", title: "", id: "d" }]);
+    expect(plan.islands.map((i) => i.unit)).toEqual(["start-here", "basics"]);
+    const marks = plan.items.filter((i) => i.landmark && i.island === 0).map((i) => i.kind);
+    expect(marks).toEqual(["spark-gap", "pump-house", "meter-tower"]);
+    expect(marks.every(isLandmark)).toBe(true);
+  });
+
   it("deals the fallback deck without the same piece twice in a row", () => {
     const events: IsleEvent[] = Array.from({ length: 200 }, (_, i) => ({ type: "lesson", unit: "basics", piece: "", title: "", id: `l${i}` }));
     const placed = makeIsle(3, events).items.filter((i) => i.story[0]!.type === "lesson");
