@@ -36,9 +36,9 @@ export function preloadable<P extends object, M extends { default: ComponentType
 export const LabStepChunk = preloadable<LabStepProps, typeof import("./LabStep")>(() => import("./LabStep"));
 export const BenchViewChunk = preloadable<BenchViewProps, typeof import("./BenchView")>(() => import("./BenchView"));
 
-/** Runs `fn` when the browser is idle (soon, where idle callbacks are missing). */
-export function whenIdle(fn: () => void): void {
-  if (typeof requestIdleCallback === "function") requestIdleCallback(fn, { timeout: 2000 });
+/** Runs `fn` when the browser is idle, or after `timeout` ms at the latest (soon, where idle callbacks are missing). */
+export function whenIdle(fn: () => void, timeout = 2000): void {
+  if (typeof requestIdleCallback === "function") requestIdleCallback(fn, { timeout });
   else setTimeout(fn, 200);
 }
 
