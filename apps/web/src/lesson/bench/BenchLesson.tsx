@@ -743,12 +743,14 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref, tri
     if (moment.task) return api?.task(moment.task)?.hints ?? [];
     return moment.beat?.hint ? [moment.beat.hint] : [];
   };
+  /** A hint adds to the robot's line, under it: the instruction the learner asked about stays in view. */
   const onHint = () => {
     const list = hintLines();
     if (!list.length) return;
     const n = Math.min(list.length, hints + 1);
     setHints(n);
-    say(list[n - 1]!, "thinking");
+    setLine((l) => ({ text: l?.text ?? moment.say, mood: "thinking", key: l?.key ?? 0 }));
+    announce(list[n - 1]!);
   };
   const hintHighlight = moment.task && hints > 0 ? api?.task(moment.task)?.highlight : undefined;
 
@@ -859,6 +861,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref, tri
   const guessPicked = typeof answers[answerKeys.guess(moment.key)] === "number" ? guess?.options[answers[answerKeys.guess(moment.key)] as number] : undefined;
   const verdict = started && phase === "done" ? verdictOf(moment, answers) : null;
   const hintsLeft = hintLines().length > hints;
+  /** The latest hint asked for, shown under the line while the learner works on the beat. */
+  const hintShown = started && phase === "act" && hints > 0 ? hintLines()[hints - 1] : undefined;
   const canShow = !!moment.task && hints >= hintLines().length && hintLines().length > 0 && !!api?.runtime.canShow(moment.task);
 
   let action: ReactNode = null;
@@ -1099,10 +1103,16 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref, tri
               )}
               {shownLine}
             </p>
-            {/* What to look for while acting, quieter than the line (it stays when a hint or a nudge takes the line). */}
+            {/* What to look for while acting, quieter than the line (it stays when a nudge takes the line). Try-out copies only. */}
             {started && phase === "act" && moment.beat?.watch && (
               <p className="bl-watch" key={`w-${moment.key}`}>
                 {moment.beat.watch}
+              </p>
+            )}
+            {hintShown && (
+              <p className="bl-hint" key={`h-${moment.key}-${hints}`} data-hint={hints}>
+                <Icon name="hint" size={18} />
+                <span>{hintShown}</span>
               </p>
             )}
             {/* The rule is the beat's headline: stamped right under the line that found it. */}

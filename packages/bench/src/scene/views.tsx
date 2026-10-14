@@ -1,6 +1,6 @@
 // Scene views of bench state: placed parts, jumper wires, test leads and the meter with its probes.
 
-import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import * as THREE from "three";
 import type { PartState } from "@ohmland/sim";
 import { boardGeometry, boardOrigin, holeWorld } from "../board";
@@ -24,6 +24,12 @@ import { usePaperPalette } from "./palette";
 import { BarrelPlug, PerfboardModel } from "../models/Solder";
 import { extraLookKey, useProbeState } from "../probe";
 import { SUPPLY } from "../chips";
+import type { CableStyle } from "../cables/style";
+import { clipHeadings, routeCables, type ClipSite, type RouteCable, type RouteObstacle } from "../cables/route";
+import { resample } from "../cables/geom";
+import { hiddenParts } from "../seats";
+import type { PartPose } from "../layout";
+import type { Vec2 } from "../types";
 
 /** Red pencil: the teacher's hints. */
 export const ACCENT = "#B23A1C";
@@ -178,6 +184,7 @@ function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality,
     if (!model.current) return;
     const b = localBox(model.current);
     setBox((prev) => (prev && prev.equals(b) ? prev : b));
+    if (!pose.lie && !b.isEmpty()) learnFootprint(footprintKey(part, pose), b);
   }, [part.kind, paramsKey, pose.mount, pose.span]);
   const rotY = (pose.rot * Math.PI) / 180;
   // A part laid on its back in its seat (a 9 V battery in a sealed box) turns a quarter about x, then about y.
@@ -416,11 +423,216 @@ const isLoose = (lead: TestLead) => !lead.a.to && !lead.b.to;
  * A clip lead's shape as the 3D view draws it: each clip's pose and the cable between their tails. The flow dots,
  * gates, push hatching and the tracer ride these points.
  */
-export function leadCable(bench: BenchState, lead: TestLead, floor: FloorFn): { a: ClipPose; b: ClipPose; cable: THREE.Vector3[] } {
+export function leadCable(bench: BenchState, lead: TestLead, floor: FloorFn, style: CableStyle = "classic"): LeadShape {
+  if (style !== "classic") {
+    const styled = styledLeads(bench, style, floor).get(lead.id);
+    if (styled) return styled;
+  }
   const a = leadEndPose(bench, lead, "a");
   const b = leadEndPose(bench, lead, "b");
   const cable = ropePoints(a.tail, a.tailDir, b.tail, b.tailDir, leadLength(a.tail.distanceTo(b.tail), isLoose(lead)), LEAD_CABLE_R, floor, 2, 0.28);
   return { a, b, cable };
+}
+
+export type LeadShape = { a: ClipPose; b: ClipPose; cable: THREE.Vector3[] };
+
+// ---------------------------------------------------------------------------------------------------------------
+// Cable styles in 3D (src/cables/style.ts): the clip headings and desk routes the ink view uses, worked out for the 3D
+// clips and the part models' own outlines, then lifted off the desk: each cable leaves its clip, falls to whatever
+// is under it and lies there. Worked out once per bench change, never per frame.
+
+/** Part models' outlines on the desk (local [x0, z0, x1, z1]), learned as they render, by look. */
+const footprints = new Map<string, [number, number, number, number]>();
+let footprintVersion = 0;
+const footprintSubs = new Set<() => void>();
+const footprintKey = (part: PlacedPart, pose: PartPose) => `${part.kind}|${JSON.stringify(part.params)}|${pose.mount}|${pose.span ?? ""}`;
+
+function learnFootprint(key: string, b: THREE.Box3) {
+  const r: [number, number, number, number] = [b.min.x, b.min.z, b.max.x, b.max.z].map((v) => Math.round(v * 10) / 10) as [number, number, number, number];
+  const had = footprints.get(key);
+  if (had && had.every((v, i) => v === r[i])) return;
+  footprints.set(key, r);
+  footprintVersion++;
+  // Tell the cables after this render: a part measured for the first time may now stand in a cable's way.
+  queueMicrotask(() => footprintSubs.forEach((f) => f()));
+}
+
+/** Changes when a part model's outline is learned (cables then route round it). */
+export function useFootprintVersion(): number {
+  return useSyncExternalStore(
+    (cb) => {
+      footprintSubs.add(cb);
+      return () => footprintSubs.delete(cb);
+    },
+    () => footprintVersion,
+  );
+}
+
+/** Part bodies cables go round: each model's learned outline where it stands, and the meter. */
+function obstacles3D(bench: BenchState): RouteObstacle[] {
+  const out: RouteObstacle[] = [];
+  const hidden = hiddenParts(bench);
+  for (const p of bench.parts) {
+    if (hidden.has(p.id) || p.kind === "gate") continue;
+    const pose = partPose(bench, p);
+    if (pose.heldBy || pose.under || pose.lie) continue;
+    const f = footprints.get(footprintKey(p, pose));
+    if (!f) continue;
+    const corners: Vec2[] = [
+      [f[0], f[1]],
+      [f[2], f[1]],
+      [f[2], f[3]],
+      [f[0], f[3]],
+    ];
+    out.push({ id: p.id, poly: corners.map(([x, z]) => {
+      const [rx, rz] = rotateXZ(x, z, pose.rot);
+      return [pose.origin[0] + rx, pose.origin[2] + rz] as Vec2;
+    }) });
+  }
+  if (bench.meter) {
+    const m = bench.meter;
+    const corners: Vec2[] = [
+      [-METER.width / 2, -METER.length / 2],
+      [METER.width / 2, -METER.length / 2],
+      [METER.width / 2, METER.length / 2],
+      [-METER.width / 2, METER.length / 2],
+    ];
+    out.push({ id: m.id, poly: corners.map(([x, z]) => {
+      const [rx, rz] = rotateXZ(x, z, m.rot);
+      return [m.pos[0] + rx, m.pos[1] + rz] as Vec2;
+    }) });
+  }
+  return out;
+}
+
+/** Straight out of a part at a pin, for a clip there to clear the part; null for a hole. */
+function pinOut(bench: BenchState, anchor: string): Vec2 | null {
+  const desk = deskLeadHeading(bench, anchor);
+  if (desk) return desk;
+  const a = parseAnchor(anchor);
+  if (a?.type !== "pin") return null;
+  const part = bench.parts.find((p) => p.id === a.part);
+  if (!part) return null;
+  const legs = Object.values(partPose(bench, part).legs);
+  const pin = anchorPosition(bench, anchor);
+  if (!pin || legs.length < 2) return null;
+  const cx = legs.reduce((s, l) => s + l[0], 0) / legs.length;
+  const cz = legs.reduce((s, l) => s + l[2], 0) / legs.length;
+  const l = Math.hypot(pin[0] - cx, pin[2] - cz);
+  return l < 0.8 ? null : [(pin[0] - cx) / l, (pin[2] - cz) / l];
+}
+
+/** How quickly a cable bends down to the desk out of its clip (radius of the bend, mm), per style. */
+const DROP: Record<Exclude<CableStyle, "classic">, number> = { drape: 34, taped: 14, tidy: 30 };
+/** How steeply a clip on something rises from its jaws (radians), per style: taped clips lie nearly flat. */
+const CLIP_PITCH: Record<Exclude<CableStyle, "classic">, number> = { drape: 0.24, taped: 0.1, tidy: 0.22 };
+
+/**
+ * A desk route lifted into 3D: from tail `a` (leaving along `da`) to tail `b`, each end falling in a gentle bend to
+ * whatever lies under it (desk, board, meter) and lying there in between.
+ */
+function liftRoute(route: Vec2[], a: THREE.Vector3, da: THREE.Vector3, b: THREE.Vector3, db: THREE.Vector3, floor: FloorFn, radius: number, bend: number, maxSlope = 2): THREE.Vector3[] {
+  const pts = resample(route, 2.5);
+  const n = pts.length - 1;
+  const run: number[] = [0];
+  for (let i = 1; i <= n; i++) run.push(run[i - 1]! + Math.hypot(pts[i]![0] - pts[i - 1]![0], pts[i]![1] - pts[i - 1]![1]));
+  const S = run[n]!;
+  const slope = (d: THREE.Vector3) => Math.min(maxSlope, d.y / Math.max(0.05, Math.hypot(d.x, d.z)));
+  const sa = slope(da);
+  const sb = slope(db);
+  const fl = pts.map(([x, z]) => floor(x, z) + radius);
+  const y = pts.map((_, i) => {
+    const s = run[i]!;
+    const ya = a.y + sa * s - (s * s) / (2 * bend);
+    const yb = b.y + sb * (S - s) - ((S - s) * (S - s)) / (2 * bend);
+    return Math.max(fl[i]!, Math.min(ya, yb));
+  });
+  y[0] = a.y;
+  y[n] = b.y;
+  for (let pass = 0; pass < 6; pass++) for (let i = 1; i < n; i++) y[i] = Math.max(fl[i]!, (y[i - 1]! + 2 * y[i]! + y[i + 1]!) / 4);
+  const out = pts.map(([x, z], i) => new THREE.Vector3(x, y[i]!, z));
+  out[0] = a.clone();
+  out[n] = b.clone();
+  return out;
+}
+
+const styledCache = new WeakMap<BenchState, Map<string, Map<string, LeadShape>>>();
+
+/** Every clip lead's shape in a cable style (cached per bench, style and learned outlines). */
+export function styledLeads(bench: BenchState, style: Exclude<CableStyle, "classic">, floor: FloorFn): Map<string, LeadShape> {
+  const key = `${style}|${footprintVersion}`;
+  let byKey = styledCache.get(bench);
+  if (!byKey) styledCache.set(bench, (byKey = new Map()));
+  const hit = byKey.get(key);
+  if (hit) return hit;
+  const at = (l: TestLead, end: "a" | "b"): { at: THREE.Vector3; to: string | null } => {
+    const e = l[end];
+    const p = e.to ? anchorPosition(bench, e.to) : null;
+    return p ? { at: v3(p), to: e.to } : { at: new THREE.Vector3(e.pos[0], CLIP_LYING_Y, e.pos[1]), to: null };
+  };
+  const spots = new Map(bench.leads.map((l) => [l.id, { a: at(l, "a"), b: at(l, "b") }]));
+  const sites: ClipSite[] = [];
+  for (const l of bench.leads) {
+    const s = spots.get(l.id)!;
+    for (const end of ["a", "b"] as const) {
+      const me = s[end];
+      const other = end === "a" ? s.b : s.a;
+      if (!me.to || me.to.startsWith("probe:")) continue;
+      sites.push({ key: `${l.id}.${end}`, at: [me.at.x, me.at.z], toward: [other.at.x, other.at.z], out: pinOut(bench, me.to) });
+    }
+  }
+  const headings = clipHeadings(style, sites);
+  const pitch = CLIP_PITCH[style];
+  const poses = new Map<string, { a: ClipPose; b: ClipPose }>();
+  for (const l of bench.leads) {
+    const s = spots.get(l.id)!;
+    const pose = (end: "a" | "b"): ClipPose => {
+      const h = headings.get(`${l.id}.${end}`);
+      if (!h) return leadEndPose(bench, l, end);
+      const tailDir = new THREE.Vector3(h[0] * Math.cos(pitch), Math.sin(pitch), h[1] * Math.cos(pitch)).normalize();
+      return clipPose(s[end].at.clone().addScaledVector(tailDir, -JAW_BITE), tailDir, false);
+    };
+    poses.set(l.id, { a: pose("a"), b: pose("b") });
+  }
+  const flat = (v: THREE.Vector3): Vec2 => {
+    const k = Math.hypot(v.x, v.z) || 1;
+    return [v.x / k, v.z / k];
+  };
+  const cables: RouteCable[] = bench.leads.map((l) => {
+    const { a, b } = poses.get(l.id)!;
+    const end = (p: ClipPose, attached: boolean) => ({ tip: [p.tip.x, p.tip.z] as Vec2, dir: flat(p.tailDir), tail: [p.tail.x, p.tail.z] as Vec2, attached });
+    return { id: l.id, a: end(a, !!l.a.to), b: end(b, !!l.b.to) };
+  });
+  const routes = routeCables(style, cables, obstacles3D(bench), { center: workCenter(bench) });
+  const out = new Map<string, LeadShape>();
+  for (const l of bench.leads) {
+    const { a, b } = poses.get(l.id)!;
+    const route = routes.get(l.id);
+    if (!route) continue;
+    out.set(l.id, { a, b, cable: liftRoute(route, a.tail, a.tailDir, b.tail, b.tailDir, floor, LEAD_CABLE_R, DROP[style]) });
+  }
+  byKey.set(key, out);
+  return out;
+}
+
+/** A meter probe's cord in a cable style: from the top of the probe, down to the desk, along its route to the plug. */
+function styledCord(bench: BenchState, style: Exclude<CableStyle, "classic">, floor: FloorFn, back: THREE.Vector3, axis: THREE.Vector3, tip: THREE.Vector3, plugTop: THREE.Vector3, plugDir: THREE.Vector3, plugAt: THREE.Vector3): THREE.Vector3[] {
+  const flat = (v: THREE.Vector3, or: Vec2): Vec2 => {
+    const k = Math.hypot(v.x, v.z);
+    return k < 0.2 ? or : [v.x / k, v.z / k];
+  };
+  const toward: Vec2 = flat(new THREE.Vector3(plugTop.x - back.x, 0, plugTop.z - back.z), [1, 0]);
+  const back2: Vec2 = [-toward[0], -toward[1]];
+  const cable: RouteCable = {
+    id: "cord",
+    a: { tip: [tip.x, tip.z], dir: flat(axis, toward), tail: [back.x, back.z], attached: true },
+    b: { tip: [plugAt.x, plugAt.z], dir: flat(plugDir, back2), tail: [plugTop.x, plugTop.z], attached: true },
+    free: true,
+  };
+  // The cord lies over the meter it plugs into.
+  const obs = obstacles3D(bench).filter((o) => o.id !== bench.meter?.id);
+  const route = routeCables(style, [cable], obs, { center: workCenter(bench) }).get("cord")!;
+  return liftRoute(route, back, axis, plugTop, plugDir, floor, PROBE_CABLE_R, 14, 0.5);
 }
 
 /** A point `t` of the way along a polyline (by length), and the heading there. */
@@ -493,7 +705,10 @@ export function LeadView({
   selectedPart?: string | null;
   hintedParts?: Set<string>;
 }) {
-  const shape = useMemo(() => leadCable(bench, lead, floor), [bench, lead, floor]);
+  const style = useBench((s) => s.cableStyle);
+  const outlines = useFootprintVersion();
+  // Outlines learned since only matter to the styles that route round parts.
+  const shape = useMemo(() => leadCable(bench, lead, floor, style), [bench, lead, floor, style, style === "classic" ? 0 : outlines]);
   const pa = shape.a;
   const pb = shape.b;
   const pal = usePaperPalette();
@@ -590,6 +805,8 @@ export function MeterView({
   };
   const modes = ["off", "dcv", "acv", "ohm", "continuity", "diode", "dca-10a", "dca-ma"] as const;
   const pal = usePaperPalette();
+  const style = useBench((s) => s.cableStyle);
+  useFootprintVersion();
   return (
     <group name={`part:${meter.id}`}>
       <group position={[meter.pos[0], 0, meter.pos[1]]} rotation={[0, rotY, 0]}>
@@ -639,7 +856,19 @@ export function MeterView({
               <Proxy pick={{ type: "probe", color, tip: true }} size={[12, PROBE_GRIP - 9, 12]} position={[0, (PROBE_GRIP + 9) / 2, 0]} />
               <Proxy pick={{ type: "probe", color }} size={[12, PROBE_LEN - 1 - PROBE_GRIP, 12]} position={[0, (PROBE_LEN - 1 + PROBE_GRIP) / 2, 0]} />
             </group>
-            <Cable from={back} fromDir={axis} to={plugTop} toDir={plugDir} length={back.distanceTo(plugTop) * 1.12 + 70} radius={PROBE_CABLE_R} color={color} floor={floor} bend={0.42} stiff={1} />
+            <Cable
+              from={back}
+              fromDir={axis}
+              to={plugTop}
+              toDir={plugDir}
+              length={back.distanceTo(plugTop) * 1.12 + 70}
+              radius={PROBE_CABLE_R}
+              color={color}
+              floor={floor}
+              bend={0.42}
+              stiff={1}
+              {...(style !== "classic" ? { points: styledCord(bench, style, floor, back, axis, tip, plugTop, plugDir, plugPos) } : {})}
+            />
           </group>
         );
       })}

@@ -12,8 +12,10 @@ import type { BenchStore } from "../../store";
 import type { Vec2 } from "../../types";
 import { anchorInk, leadPolyline, partBounds, type InkModel } from "../model";
 import { n3 } from "../frame";
+import { stillMotion } from "../../motion";
+import { InkFlowStripes, InkTraceRun } from "./FlowStripes";
 
-const reducedMotion = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+const reducedMotion = stillMotion;
 
 const pathOf = (pts: Vec2[]) => pts.map((p, i) => `${i ? "L" : "M"}${n3(p[0])} ${n3(p[1])}`).join("");
 
@@ -312,11 +314,18 @@ export function InkPush({ model, store, defs }: { model: InkModel; store: BenchS
 /** Flow dots and the tracer, drawn over the leads. */
 export function InkOverlays({ model, store }: { model: InkModel; store: BenchStore }) {
   const flow = useStore(store, (s) => s.overlay.flow);
+  const style = useStore(store, (s) => s.overlay.flowStyle);
   const trace = useStore(store, (s) => s.overlay.trace);
   return (
     <g>
-      {flow !== "off" && <FlowDots model={model} store={store} electrons={flow === "electrons"} />}
-      {trace && <Tracer model={model} store={store} from={trace.from} at={trace.at} />}
+      {flow !== "off" &&
+        (style === "dots" ? <FlowDots model={model} store={store} electrons={flow === "electrons"} /> : <InkFlowStripes model={model} store={store} electrons={flow === "electrons"} style={style} />)}
+      {trace &&
+        (style === "dots" ? (
+          <Tracer model={model} store={store} from={trace.from} at={trace.at} />
+        ) : (
+          <InkTraceRun key={`${trace.from}@${trace.at}`} model={model} store={store} from={trace.from} at={trace.at} style={style} />
+        ))}
     </g>
   );
 }

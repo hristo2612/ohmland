@@ -28,10 +28,10 @@ export default defineLab({
     board: "none",
     frame: ["desk:-140,-70", "desk:170,66"],
     parts: [
-      { id: "B1", kind: "battery", at: "desk:-118,6", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:-128,36", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "R1", kind: "resistor", at: "desk:-52,-44", params: { ohms: 470 }, locked: true, label: "470 Ω resistor" },
-      { id: "D1", kind: "led", at: "desk:14,-50", rot: 180, params: { color: "red" }, locked: true, label: "Red LED (the lamp)" },
-      { id: "SA", kind: "toggle-switch", at: "desk:-36,32", params: { base: true, throws: 1, to: "a", tag: "A" }, locked: true, label: "Switch A" },
+      { id: "D1", kind: "led", at: "desk:24,-30", rot: -90, params: { color: "red" }, locked: true, label: "Red LED (the lamp)" },
+      { id: "SA", kind: "toggle-switch", at: "desk:-26,32", params: { base: true, throws: 1, to: "a", tag: "A" }, locked: true, label: "Switch A" },
       { id: "SB", kind: "toggle-switch", at: "desk:58,32", params: { base: true, throws: 1, to: "a", tag: "B" }, locked: true, label: "Switch B" },
     ],
     leads: [

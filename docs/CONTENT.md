@@ -29,6 +29,16 @@ the resistor") are free for anyone to teach. Expression is not.
 ## Voice
 
 - Friendly, curious, plain. Short sentences, one idea each. Talk to the learner as "you".
+- Write for a 12-year-old who has never touched electronics. Every instruction is a whole sentence: the verb, the thing
+  and where it is ("Drag the red clip onto the battery's plus (+) snap"), never a state that reads like an order
+  ("Probes on the skin.").
+- Bench lessons mix two voices (docs/LESSONS.md, "Writing beats"). Why first opens each new idea: a short sentence of
+  purpose, then the step ("Let's measure dry skin. ..."), on a lesson's first beat, an objective's first beat, a new
+  part, the secret and the fix-it. Every other beat is one clear sentence. A result may carry a short "because".
+- Name a new word the moment it appears, with a short phrase right after it ("the probes, the meter's two pointed
+  tips", "Ω, ohms"). `content/glossary.yaml` lists the words a test checks. Use the screen's own labels as the screen
+  spells them (WET, Beep, Ω, Range).
+- No "it", "that" or "this" pointing back at something from an earlier step: name it again.
 - Celebrate experimenting and breaking things in the simulator: it is free and safe here.
 - No em dashes anywhere (use a colon, comma, parentheses or a new sentence). `pnpm lint:copy` enforces it.
 - No emoji in UI or content. Exclamation marks only in celebrations, and sparingly.
@@ -40,7 +50,7 @@ the resistor") are free for anyone to teach. Expression is not.
 
 A small robot with a visor and two amber eyes, drawn in ink in the app (a voxel model on the island). Its lines are
 written in red pencil in the margin. It gives hints, reacts to burned-out parts with sympathy rather than blame,
-and never lectures. Its lines are short (under 20 words).
+and never lectures. Its lines are short and complete: 22 words at most, usually 12 to 20.
 
 ## UI text
 

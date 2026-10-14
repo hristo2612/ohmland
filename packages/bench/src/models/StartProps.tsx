@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { Billboard } from "@react-three/drei";
 import { useStore } from "zustand";
 import { AA, BOX, CABINET, DRAWER, GATE, OBJECT, PADLOCK, SCHEM, STATIC, TRAY } from "../dims";
-import { dotRate, formatGate, gateAmps, tagText } from "../flow";
+import { formatGate, gateAmps, tagText, unitRate } from "../flow";
 import { lifting, stuckTo } from "../static";
 import { useLabels } from "../labels";
 import { CLIP_PATH, padlockFaces, schematicSlot } from "../parts";
@@ -66,6 +66,8 @@ function GateFlag({ id, params }: { id: string; params: PartParamsMap["gate"] })
   const store = useContext(BenchStoreContext);
   const ticks = useStore(store ?? NULL_STORE, (s: Partial<BenchStoreState>) => Math.floor(s.gates?.[id] ?? 0));
   const amps = useStore(store ?? NULL_STORE, (s: Partial<BenchStoreState>) => (s.bench ? Math.round(Math.abs(gateAmps(s.bench, s.snapshot ?? null, id)) * 1e6) / 1e6 : 0));
+  // The rate bar counts the units the flow is drawn in (dots, stripes, dashes, bands, arrowheads).
+  const style = useStore(store ?? NULL_STORE, (s: Partial<BenchStoreState>) => s.overlay?.flowStyle ?? "dots");
   const { canvas: c, texture } = useMemo(() => {
     const canvas = makeCanvas(416, 208);
     const t = new THREE.CanvasTexture(canvas);
@@ -124,14 +126,14 @@ function GateFlag({ id, params }: { id: string; params: PartParamsMap["gate"] })
       ctx.fill();
       ctx.lineWidth = 7;
       ctx.stroke();
-      const rate = Math.min(1, dotRate(amps) / 4);
+      const rate = Math.min(1, unitRate(amps, style) / 4);
       ctx.fillStyle = "#EEE8DC";
       ctx.fillRect(34, h - 50, w - 68, 20);
       ctx.fillStyle = "#57524A";
       ctx.fillRect(34, h - 50, (w - 68) * rate, 20);
     }
     texture.needsUpdate = true;
-  }, [c, texture, ticks, amps, number, unit]);
+  }, [c, texture, ticks, amps, number, unit, style]);
   return (
     <Billboard position={[0, GATE.lift, 0]}>
       <mesh material={material} renderOrder={30}>

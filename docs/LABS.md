@@ -170,8 +170,15 @@ probe tip can touch a clip (even one lying loose) or the other probe's tip. On a
 every shuffle.
 
 **Leads** are crocodile test leads, `"B1.pos -> S1.com"` or `{ id, from, to, color }`; either end may be `null`
-(lying on the desk). Each has 0.15 Ω of resistance in the simulator, and each meter probe lead 0.1 Ω (touching the
-tips together reads about 0.2 Ω). **Wires** are breadboard jumpers.
+(lying on the desk). `lie: "desk:x,z"` puts a loose clip where it reads well, near the part it will go to, rather than
+in the default spot in front of the board (with both clips loose, clip a lies there and clip b 50 mm to its right).
+Each has 0.15 Ω of resistance in the simulator, and each meter probe lead 0.1 Ω (touching the tips together reads
+about 0.2 Ω). **Wires** are breadboard jumpers.
+
+Lay a bench out so its leads read at a glance: the loop in order round the bench (the battery at the left, then
+clockwise), parts far enough apart for their clips, block terminals (which sit along a block's front edge) facing
+where their leads go, and no lead crossing a part it is not clipped to. `/variants/cables` scores a bench's clutter
+(crossings, leads over parts and clips, parts on top of each other) in each cable style.
 
 **Locked** parts cannot be moved, rotated or deleted; switches still flip and buttons still press.
 

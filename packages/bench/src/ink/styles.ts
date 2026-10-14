@@ -22,6 +22,9 @@ const LIGHT = `
   --k-focus: var(--focus, #1F3C9A);
   --k-btn-bg: var(--btn-bg, #24221E);
   --k-btn-fg: var(--btn-fg, #F6F2E9);
+  /* The flow: a light electric tint inside the cables, with a dark rim so it reads on a yellow or white lead. */
+  --k-flow: var(--flow, #E2F6FF);
+  --k-flow-rim: color-mix(in srgb, var(--k-flow) 12%, #0B1622);
 
   --k-board: var(--sk-board, #FBF8F1);
   --k-hole: var(--sk-hole, #B4AC9C);
@@ -183,6 +186,8 @@ const DARK = `
   --k-focus: var(--focus, #9AB3F4);
   --k-btn-bg: var(--btn-bg, #ECE6DA);
   --k-btn-fg: var(--btn-fg, #1B1A18);
+  --k-flow: var(--flow, #E2F6FF);
+  --k-flow-rim: color-mix(in srgb, var(--k-flow) 12%, #0B1622);
 
   --k-board: var(--sk-board, #2A2926);
   --k-hole: var(--sk-hole, #5C5850);
@@ -423,6 +428,19 @@ export const INK_CSS = `
 .ohi-root .push-hill-hatch{fill:none;stroke:var(--k-red);stroke-width:.32;opacity:.8}
 .ohi-root .trace{fill:none;stroke:var(--k-red);stroke-linecap:round;stroke-linejoin:round;opacity:.9}
 .ohi-root .trace-mark{fill:none;stroke:var(--k-red);stroke-width:2.2px;vector-effect:non-scaling-stroke;stroke-linecap:round}
+/* The striped flow styles (light units with a dark rim, inside the cable) and the tracer's run (red units with a light
+   rim, so they read on a red lead), ending in a red disc with a light cross at a gap, or a red ring where it closed. */
+.ohi-root .fl-fill{fill:var(--k-flow);stroke:var(--k-flow-rim);stroke-width:max(.06px,calc(var(--px,.1) * .9px));stroke-linejoin:round}
+.ohi-root .fl-core{fill:none;stroke:var(--k-flow);stroke-linecap:butt}
+.ohi-root .fl-rim{fill:none;stroke:var(--k-flow-rim);stroke-linecap:butt}
+.ohi-root .fl-glow{fill:none;stroke:var(--k-flow);stroke-linecap:round}
+.ohi-root .fl-lane{fill:none;stroke:var(--k-flow);stroke-linecap:round;stroke-linejoin:round}
+.ohi-root .fl-run{fill:var(--k-red);stroke:var(--k-flow);stroke-width:max(.08px,calc(var(--px,.1) * 1.2px));stroke-linejoin:round}
+.ohi-root .fl-head{fill:var(--k-flow);stroke:var(--k-red);stroke-width:max(.1px,calc(var(--px,.1) * 1.6px));stroke-linejoin:round}
+.ohi-root .fl-stop{fill:var(--k-red);stroke:var(--k-flow);stroke-width:max(.12px,calc(var(--px,.1) * 1.4px))}
+.ohi-root .fl-stop-x{fill:none;stroke:var(--k-flow);stroke-linecap:round}
+.ohi-root .fl-home{fill:none;stroke:var(--k-red)}
+.ohi-root .fl-home-halo{fill:none;stroke:var(--k-flow)}
 
 /* Breadboard x-ray: the metal clips under the plastic. */
 .ohi-root .strip{fill:var(--k-strip-wash);stroke:var(--k-strip);stroke-width:var(--lw-thin,1px);vector-effect:non-scaling-stroke}

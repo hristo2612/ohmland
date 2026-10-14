@@ -1,0 +1,28 @@
+---
+/**
+ * A hidden page (linked from nowhere, not indexed): the same four benches with each way of drawing the flow inside
+ * the wires, side by side and live. For choosing how current is shown (docs/BENCH-VIEWS.md, "Overlays").
+ */
+import Page from "../../layouts/Page.astro";
+import FlowVariants from "../../variants/FlowVariants";
+import { m } from "../../i18n";
+
+const t = m.flowVariants;
+---
+
+<Page title={t.title} noindex footer={false}>
+  <header class="fv-page-head">
+    <p class="kicker">{m.variants.kicker}</p>
+    <h1>{t.title}</h1>
+    <p class="lead">{t.lead}</p>
+    <p class="muted">{t.note}</p>
+  </header>
+  <FlowVariants client:only="react" />
+</Page>
+
+<style>
+  .fv-page-head { max-width: var(--text-col); padding: var(--s-6) var(--gutter) var(--s-2); }
+  .fv-page-head h1 { margin: 0; }
+  .fv-page-head .lead { margin: var(--s-2) 0 0; }
+  .fv-page-head .muted { margin: var(--s-1) 0 0; }
+</style>

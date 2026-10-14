@@ -18,6 +18,9 @@ import { inkKind } from "./kinds";
 import { resistorBandX } from "./kinds/axial";
 import { STRESS_MARK, parseTarget, stressPoint } from "../view/targets";
 import { perfMount } from "../solder/perfboard";
+import type { CableStyle } from "../cables/style";
+import { clipHeadings, routeCables, type ClipSite, type RouteCable, type RouteObstacle } from "../cables/route";
+import { svgPath } from "../cables/geom";
 
 export { INK, boxCorners, frameTransform, toLocal, toWorld, type Box, type Frame } from "./frame";
 
@@ -110,7 +113,15 @@ export type ClipEnd = {
   attached: boolean;
 };
 
-export type LeadInk = { lead: TestLead; a: ClipEnd; b: ClipEnd; path: string };
+export type LeadInk = {
+  lead: TestLead;
+  a: ClipEnd;
+  b: ClipEnd;
+  /** SVG path data of the cable, from clip a's tail to clip b's. */
+  path: string;
+  /** The same cable as points (flow dots, gates, the tracer and hit tests ride it). */
+  cable: Vec2[];
+};
 
 export type ProbeInk = {
   color: ProbeColor;
@@ -123,6 +134,8 @@ export type ProbeInk = {
   attached: boolean;
   plug: { at: Vec2; inSocket: boolean; dir: Vec2; top: Vec2 };
   cable: string;
+  /** The cable as points, from the probe's back to the plug. */
+  cablePts: Vec2[];
 };
 
 export type MeterInk = { meter: MeterState; f: Frame; probes: Record<ProbeColor, ProbeInk> };
@@ -321,25 +334,50 @@ function bezier(c: [Vec2, Vec2, Vec2, Vec2], t: number): Vec2 {
   return [w[0]! * c[0][0] + w[1]! * c[1][0] + w[2]! * c[2][0] + w[3]! * c[3][0], w[0]! * c[0][1] + w[1]! * c[1][1] + w[2]! * c[2][1] + w[3]! * c[3][1]];
 }
 
-/** A point `t` of the way along a clip lead's cable (between the two clips), and the cable's heading there. */
-export function leadPoint(li: LeadInk, t: number): { at: Vec2; dir: Vec2 } {
-  const c = cableCurve(li.a.tail, li.a.dir, li.b.tail, li.b.dir);
-  const at = bezier(c, t);
-  const ahead = bezier(c, Math.min(1, t + 0.02));
-  const behind = bezier(c, Math.max(0, t - 0.02));
-  return { at, dir: norm(ahead[0] - behind[0], ahead[1] - behind[1]) };
-}
-
-/** The whole lead as a polyline from clip a's jaws to clip b's, along the cable (for dots, hatching, the tracer). */
-export function leadPolyline(li: LeadInk, n = 32): Vec2[] {
-  const c = cableCurve(li.a.tail, li.a.dir, li.b.tail, li.b.dir);
-  const out: Vec2[] = [li.a.tip];
+/** Points along a cubic, `n` even steps of its parameter. */
+export function cubicPoints(c: [Vec2, Vec2, Vec2, Vec2], n = 32): Vec2[] {
+  const out: Vec2[] = [];
   for (let i = 0; i <= n; i++) out.push(bezier(c, i / n));
-  out.push(li.b.tip);
   return out;
 }
 
-function leadsInk(bench: BenchState, parts: Map<string, PartInk>, probes: Map<string, { at: Vec2; dir: Vec2 }>): Map<string, LeadInk> {
+/** A point `t` of the way along a polyline by its points (the parameter of the curve it samples), and the heading. */
+function byIndex(pts: readonly Vec2[], t: number): { at: Vec2; dir: Vec2 } {
+  const n = pts.length - 1;
+  if (n < 1) return { at: pts[0] ?? [0, 0], dir: [1, 0] };
+  const x = Math.max(0, Math.min(1, t)) * n;
+  const i = Math.min(n - 1, Math.floor(x));
+  const k = x - i;
+  const a = pts[i]!;
+  const b = pts[i + 1]!;
+  const at: Vec2 = [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+  const ahead = byIndexAt(pts, Math.min(1, t + 0.02));
+  const behind = byIndexAt(pts, Math.max(0, t - 0.02));
+  return { at, dir: norm(ahead[0] - behind[0], ahead[1] - behind[1]) };
+}
+
+function byIndexAt(pts: readonly Vec2[], t: number): Vec2 {
+  const n = pts.length - 1;
+  const x = t * n;
+  const i = Math.min(n - 1, Math.floor(x));
+  const k = x - i;
+  const a = pts[i]!;
+  const b = pts[i + 1]!;
+  return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+}
+
+/** A point `t` of the way along a clip lead's cable (between the two clips), and the cable's heading there. */
+export function leadPoint(li: LeadInk, t: number): { at: Vec2; dir: Vec2 } {
+  return byIndex(li.cable, t);
+}
+
+/** The whole lead as a polyline from clip a's jaws to clip b's, along the cable (for dots, hatching, the tracer). */
+export function leadPolyline(li: LeadInk, _n = 32): Vec2[] {
+  return [li.a.tip, ...li.cable, li.b.tip];
+}
+
+function leadsInk(bench: BenchState, parts: Map<string, PartInk>, probes: Map<string, { at: Vec2; dir: Vec2 }>, style: CableStyle = "classic", meter: MeterInk | null = null): Map<string, LeadInk> {
+  if (style !== "classic") return styledLeads(bench, parts, probes, style, meter);
   // How many clips bite each anchor, so several on one lead fan out instead of stacking.
   const count = new Map<string, number>();
   const slot = new Map<string, number>();
@@ -384,7 +422,93 @@ function leadsInk(bench: BenchState, parts: Map<string, PartInk>, probes: Map<st
     };
     const a = endOf(A, B, "a");
     const b = endOf(B, A, "b");
-    out.set(l.id, { lead: l, a, b, path: cablePath(a.tail, a.dir, b.tail, b.dir) });
+    out.set(l.id, { lead: l, a, b, path: cablePath(a.tail, a.dir, b.tail, b.dir), cable: cubicPoints(cableCurve(a.tail, a.dir, b.tail, b.dir)) });
+  }
+  return out;
+}
+
+/** Straight out of a part at one of its pins, for a clip there to clear the part (null for a hole). */
+function outOf(parts: Map<string, PartInk>, anchor: Anchor): Vec2 | null {
+  const desk = deskLeadHeading(parts, anchor);
+  if (desk) return desk;
+  const a = parseAnchor(anchor);
+  if (a?.type !== "pin") return null;
+  const pi = parts.get(a.part);
+  const pin = pi?.legs[a.leg];
+  if (!pi || !pin || pi.ends?.[a.leg]?.inHole) return null;
+  const [cx, cz] = toWorld(pi.f, (pi.box[0] + pi.box[2]) / 2, (pi.box[1] + pi.box[3]) / 2);
+  return Math.hypot(pin[0] - cx, pin[1] - cz) < 1 ? null : norm(pin[0] - cx, pin[1] - cz);
+}
+
+/** Part outlines cables go round in the ink drawing (what is drawn: teaching scale on the desk). */
+function inkObstacles(parts: Map<string, PartInk>, meter: MeterInk | null): RouteObstacle[] {
+  const out: RouteObstacle[] = [];
+  for (const pi of parts.values()) {
+    if (pi.pose.under || pi.part.kind === "gate" || pi.pose.heldBy) continue;
+    out.push({ id: pi.part.id, poly: boxCorners(pi.f, pi.box) });
+  }
+  if (meter) out.push({ id: meter.meter.id, poly: boxCorners(meter.f, [-METER.width / 2, -METER.length / 2, METER.width / 2, METER.length / 2]) });
+  return out;
+}
+
+/** Clip leads (and the meter's probe cords) for the drape, taped and tidy styles: headings, then routes. */
+function styledLeads(bench: BenchState, parts: Map<string, PartInk>, probes: Map<string, { at: Vec2; dir: Vec2 }>, style: Exclude<CableStyle, "classic">, meter: MeterInk | null): Map<string, LeadInk> {
+  const where = (l: TestLead, end: "a" | "b"): { at: Vec2; to: Anchor | null } => {
+    const e = l[end];
+    if (e.to) {
+      const pr = e.to.startsWith("probe:") ? probes.get(e.to) : null;
+      if (pr) return { at: pr.at, to: e.to };
+      const p = anchorPosition(bench, e.to);
+      if (p) return { at: [p[0], p[2]], to: e.to };
+    }
+    return { at: e.pos, to: null };
+  };
+  const spots = new Map(bench.leads.map((l) => [l.id, { a: where(l, "a"), b: where(l, "b") }]));
+  const sites: ClipSite[] = [];
+  for (const l of bench.leads) {
+    const s = spots.get(l.id)!;
+    for (const end of ["a", "b"] as const) {
+      const me = s[end];
+      const other = end === "a" ? s.b : s.a;
+      if (!me.to || me.to.startsWith("probe:")) continue;
+      sites.push({ key: `${l.id}.${end}`, at: me.at, toward: other.at, out: outOf(parts, me.to) });
+    }
+  }
+  const headings = clipHeadings(style, sites);
+  const ends = new Map<string, { a: ClipEnd; b: ClipEnd }>();
+  for (const l of bench.leads) {
+    const s = spots.get(l.id)!;
+    const endOf = (me: { at: Vec2; to: Anchor | null }, other: { at: Vec2 }, end: "a" | "b"): ClipEnd => {
+      let dir: Vec2;
+      if (me.to) {
+        const probe = me.to.startsWith("probe:") ? probes.get(me.to)?.dir : null;
+        dir = probe ? rot2(probe, end === "a" ? 0.6 : -0.6) : (headings.get(`${l.id}.${end}`) ?? [1, 0]);
+      } else dir = Math.hypot(other.at[0] - me.at[0], other.at[1] - me.at[1]) < 2 ? [1, 0] : norm(other.at[0] - me.at[0], other.at[1] - me.at[1]);
+      const tip: Vec2 = me.to ? [me.at[0] - dir[0] * 1.2, me.at[1] - dir[1] * 1.2] : me.at;
+      const tail: Vec2 = [tip[0] + dir[0] * INK.clipLen, tip[1] + dir[1] * INK.clipLen];
+      return { tip, dir, tail, attached: !!me.to };
+    };
+    ends.set(l.id, { a: endOf(s.a, s.b, "a"), b: endOf(s.b, s.a, "b") });
+  }
+  const cables: RouteCable[] = [...ends].map(([id, e]) => ({ id, a: e.a, b: e.b }));
+  if (meter) {
+    for (const c of ["red", "black"] as const) {
+      const pr = meter.probes[c];
+      cables.push({ id: `probe:${c}`, a: { tip: pr.tip, dir: pr.dir, tail: pr.back, attached: pr.attached }, b: { tip: pr.plug.at, dir: pr.plug.dir, tail: pr.plug.top, attached: pr.plug.inSocket }, pass: [meter.meter.id], free: true });
+    }
+  }
+  const routes = routeCables(style, cables, inkObstacles(parts, meter), { center: workCenter(bench) });
+  if (meter) {
+    for (const c of ["red", "black"] as const) {
+      const r = routes.get(`probe:${c}`);
+      if (r) Object.assign(meter.probes[c], { cable: svgPath(r), cablePts: r });
+    }
+  }
+  const out = new Map<string, LeadInk>();
+  for (const l of bench.leads) {
+    const e = ends.get(l.id)!;
+    const cable = routes.get(l.id) ?? cubicPoints(cableCurve(e.a.tail, e.a.dir, e.b.tail, e.b.dir));
+    out.set(l.id, { lead: l, a: e.a, b: e.b, path: svgPath(cable), cable });
   }
   return out;
 }
@@ -424,7 +548,7 @@ function meterInk(bench: BenchState): MeterInk | null {
       const pd: Vec2 = Math.hypot(back[0] - pr.plugPos[0], back[1] - pr.plugPos[1]) < 2 ? [1, 0] : norm(back[0] - pr.plugPos[0], back[1] - pr.plugPos[1]);
       plug = { at: pr.plugPos, inSocket: false, dir: pd, top: [pr.plugPos[0] + pd[0] * INK.plugLen, pr.plugPos[1] + pd[1] * INK.plugLen] };
     }
-    probes[color] = { color, tip, dir, back, len, attached: !!pr.tip.to, plug, cable: cablePath(back, dir, plug.top, plug.dir, 0.12) };
+    probes[color] = { color, tip, dir, back, len, attached: !!pr.tip.to, plug, cable: cablePath(back, dir, plug.top, plug.dir, 0.12), cablePts: cubicPoints(cableCurve(back, dir, plug.top, plug.dir, 0.12)) };
   }
   return { meter: m, f, probes };
 }
@@ -432,7 +556,7 @@ function meterInk(bench: BenchState): MeterInk | null {
 // ---------------------------------------------------------------------------------------------------------------
 // The model.
 
-export function buildModel(bench: BenchState): InkModel {
+export function buildModel(bench: BenchState, cableStyle: CableStyle = "classic"): InkModel {
   const holders = holderMap(bench);
   // Parts shut inside a box are out of sight and out of reach: not drawn, not picked.
   const hidden = hiddenParts(bench);
@@ -448,7 +572,7 @@ export function buildModel(bench: BenchState): InkModel {
   const meter = meterInk(bench);
   const probes = new Map<string, { at: Vec2; dir: Vec2 }>();
   if (meter) for (const c of ["red", "black"] as const) probes.set(`probe:${c}`, { at: meter.probes[c].tip, dir: meter.probes[c].dir });
-  const leads = leadsInk(bench, parts, probes);
+  const leads = leadsInk(bench, parts, probes, cableStyle, meter);
   // A gate rides its lead's cable as drawn here: its frame is that point, upright on the page.
   for (const [id, pi] of parts) {
     if (pi.part.kind !== "gate" || !pi.part.params.on) continue;

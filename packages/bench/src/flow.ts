@@ -43,6 +43,44 @@ export function dotRate(amps: number): number {
   return dotSpeed(amps) / DOT_SPACING;
 }
 
+/**
+ * How the flow is drawn inside the cables (docs/BENCH-VIEWS.md, "Overlays"). Every style rides at `dotSpeed`, plus to
+ * minus (electrons: the other way, slower), and a gate counts its units as they pass:
+ * - "dots": paper dots ringed in ink, one unit per dot;
+ * - "barber": diagonal stripes wrapped round the cable, one unit per stripe;
+ * - "dashes": bright short dashes gliding along the cable's core, one unit per dash;
+ * - "pulses": soft bands round the cable, closer together the more current, one unit per band;
+ * - "chevrons": small arrowheads inside the cable, one unit per arrowhead.
+ */
+export type FlowStyle = "dots" | "barber" | "dashes" | "pulses" | "chevrons";
+
+export const FLOW_STYLES: readonly FlowStyle[] = ["dots", "barber", "dashes", "pulses", "chevrons"];
+
+/** Pulses: the gap between two bands at 1 mA (mm), and the tightest and loosest they get. */
+const PULSE_AT_1MA = 15;
+const PULSE_MIN = 5;
+const PULSE_MAX = 20;
+
+/**
+ * Space between two units of a flow style along a conductor (mm): fixed for most styles, closer together with more
+ * current for pulses (and for every striped style under reduced motion, where nothing moves and spacing tells the
+ * amount). About 17 mm at 0.7 mA, 9.6 mm at the lamp's 7.5 mA, 7.5 mm at 16 mA.
+ */
+export function unitSpacing(style: FlowStyle, amps: number, still = false): number {
+  if (style === "dots") return DOT_SPACING;
+  if (style === "pulses" || still) {
+    const a = Math.max(DOT_MIN_AMPS, Math.abs(amps));
+    return Math.max(PULSE_MIN, Math.min(PULSE_MAX, PULSE_AT_1MA / Math.pow(a / 1e-3, 0.25)));
+  }
+  return style === "dashes" ? 8 : 6;
+}
+
+/** Units per second of a flow style passing a point of a conductor carrying `amps` (what a gate counts). */
+export function unitRate(amps: number, style: FlowStyle = "dots"): number {
+  const v = dotSpeed(amps);
+  return v ? v / unitSpacing(style, amps) : 0;
+}
+
 /** One stretch of the flow inside a part: from one lead's clip point to another's, and the current along it. */
 export type PartFlow = { id: string; from: string; to: string; a: Vec3; b: Vec3; amps: number };
 
@@ -172,11 +210,11 @@ export function gateAmps(bench: BenchState, snapshot: Snapshot | null, gateId: s
 export type GateCounts = Record<string, number>;
 
 /**
- * Counts the dots that passed every gate during `dt` seconds of simulated time, at the current the snapshot reports.
- * A gate off a lead (or on one carrying nothing) counts nothing; counts are kept to whole dots plus the fraction of
- * the next one, so two gates on one series loop always agree.
+ * Counts the units (dots, stripes, dashes, bands or arrowheads: `style`) that passed every gate during `dt` seconds of
+ * simulated time, at the current the snapshot reports. A gate off a lead (or on one carrying nothing) counts nothing;
+ * counts are kept to whole units plus the fraction of the next one, so two gates on one series loop always agree.
  */
-export function advanceGates(prev: GateCounts, bench: BenchState, snapshot: Snapshot | null, dt: number): GateCounts {
+export function advanceGates(prev: GateCounts, bench: BenchState, snapshot: Snapshot | null, dt: number, style: FlowStyle = "dots"): GateCounts {
   // A gate clipped on, moved or taken off starts every gate's count again, so gates clipped at different moments
   // count side by side from the same zero (the same flow, the same number).
   const sig = clipSignature(bench);
@@ -185,7 +223,7 @@ export function advanceGates(prev: GateCounts, bench: BenchState, snapshot: Snap
   for (const p of bench.parts) {
     if (p.kind !== "gate") continue;
     const before = restart ? 0 : (prev[p.id] ?? 0);
-    out[p.id] = dt > 0 && dt < 5 ? before + dotRate(gateAmps(bench, snapshot, p.id)) * dt : before;
+    out[p.id] = dt > 0 && dt < 5 ? before + unitRate(gateAmps(bench, snapshot, p.id), style) * dt : before;
   }
   return out;
 }
