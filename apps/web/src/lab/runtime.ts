@@ -357,6 +357,8 @@ export class LabRuntime {
 
   private tick(s: Parameters<LabSession["ingest"]>[0]): void {
     this.store.setState({ snapshot: s });
+    // The solder overlay runs the station on the simulator's clock; goals read it through lab.solder.
+    this.session.station = this.store.getState().station;
     const u = this.session.ingest(s);
     for (const inp of u.inputs) this.sim?.setInput(inp.id, inp.key, inp.value);
     if (this.hooks.relay) {

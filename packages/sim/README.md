@@ -102,6 +102,7 @@ Kinds added for the later units (Units 3 to 5):
 | `logic` | by datasheet name (`LOGIC_PINOUTS[model]` lists them in pin-number order) | `model` | `74HC00`, `74HC02`, `74HC04`, `74HC08`, `74HC14`, `74HC27`, `74HC32`, `74HC74`, `74HC86`, `74HC393`, `4026B`. Pins may be left out (an unconnected input floats). |
 | `sevenseg` | `a` to `g`, `dp`, `com`, `com2` (`SEVENSEG_PINS` gives the 10-pin order) | `common` (`"cathode"` or `"anode"`), `color` = red, `maxmA` = 25 | Eight LEDs on one common pin; `com2` is joined to `com` inside. |
 | `regulator7805` | `in`, `gnd`, `out` (TO-220 order) | `heatsink` = false | 5 V linear regulator. |
+| `supply` | `pos`, `neg` | `emf`, `ohms`, `regulated`, `amps` = 1, `filterFarads`, `rippleHz` = 2 x `MAINS_HZ`, `ac`, `hz` = `MAINS_HZ` | A wall adapter's output. See "Supply". |
 | `mcuboard` | `d0` to `d13`, `a0` to `a5`, `5v`, `gnd`, `vin` (`MCU_PINS`) | `program` (bench C source), `upload` = 0, `power` = `"usb"`, `jackVolts` = 9, `clockStart` = 0 (ms), `seed` = 1 | An Uno-style microcontroller board running a program. See "Microcontroller board". |
 
 Pin names for the logic chips: quad 2-input gates (`00 02 08 32 86`) `a1 b1 y1` to `a4 b4 y4`; hex inverters
@@ -124,6 +125,7 @@ minus second pin. Per kind:
 | Kind | `i`, `v` | Also |
 |---|---|---|
 | battery, cell | `i` pos to neg through the part, so **negative while discharging**; `v` terminal voltage | `extra.out` (current delivered from +), `extra.emf` (open-circuit voltage now), `extra.soc`, `extra.internalOhms` |
+| supply | as a battery: negative while delivering | `extra.mode` (`regulated`, `unregulated`, `ac`), `out` (current delivered from +), `emf`, `limiting` (regulated, at its current limit), `ripple` (unregulated: peak to peak volts now), `hz` (ripple or mains frequency) |
 | resistor | a to b | `extra.actualOhms` (and `ohms`, the same value), `nominalOhms`, `tolerance`, `watts` (rating) |
 | led | anode to cathode | `glow` 0..1, `extra.damage` 0..1, `extra.color`, `extra.stress` (current as a share of `maxmA`) |
 | diode | anode to cathode | `extra.model`, `damage` |
@@ -186,6 +188,7 @@ use `data` to write their own.
 | mcuboard | `power` | `"usb"`, `"jack"` or `"off"` (carried across rebuilds like other live inputs) |
 | mcuboard | `reset` | `true`: the reset button; the program starts again from `setup()` and the clock from 0 |
 | mcuboard | `millis` | a number: sets the clock so `millis()` reads that many ms now (`4294967296 - 9000`: nine seconds before day 49's wrap) |
+| led, diode, npn | `bodyC` | °C of the part's body from outside heat (a soldering iron on a lead); the junction adds its own heating |
 | any | `replace` | `true`: swaps in a fresh part with the same id (clears damage, heat, wear, blown state, charge history) |
 
 ## Edge watch (`Netlist.watch`, `Snapshot.edges`)
@@ -325,6 +328,13 @@ green 2.2 V, blue 3.1 V, white 3.1 V. Red sits near 1.75 V at 1 mA, 1.85 V at 5 
   (`data.risk: "none"`). Straight across a battery it is amps: "it could be damaged" (`data.risk: "damage"`).
 - Damage starts above 2.5 x `maxmA` (50 mA): rate `((I / 50 mA)^2 - 1) / 3` per second, so about 1 s at 100 mA and a
   few milliseconds at the 1 A a 9 V battery pushes straight through it. Dead LEDs are open circuits.
+- Outside heat (input `bodyC`, from the station engine in packages/bench when an iron sits on a lead): the die runs
+  at the body temperature plus its own heating (300 °C/W, about 10 °C at 16 mA), reported as `temp` (and
+  `extra.bodyC`). Light falls as the die warms (`ledHeatDim`: full up to 36 °C, a third gone near 91 °C) and comes
+  back as it cools. Above 105 °C the die is damaged at `((T - 105) / 32)^2` per second (`ledHeatRate`: a second at
+  137 °C), health `hot`, then `damaged` and `died` with `cause: "overheat"`. Calibrated with the lead heat network
+  so that an iron at 330 °C on a 3 mm LED's leg 12 mm from the body takes a third of its glow in about 14 s and kills
+  it at about 28 s (packages/bench `test/solder-thermal.test.ts`).
 
 ### Diodes (`model` = 1N4148 or 1N4001)
 
@@ -547,6 +557,28 @@ in shutdown (`died`, `overheat`; real parts last longer, but a lab should show w
 costs). Above 35 V in (`overvoltage`) or connected backwards (`reverse`) it is destroyed. Output oscillation without
 its capacitors is not modelled.
 
+### Supply (`supply`): a wall adapter's output
+
+The mains side is never modelled; the bench decides which pin reaches the jack's centre (a centre-minus adapter
+swaps `pos` and `neg`). Three kinds:
+
+- **Regulated DC** (`regulated: true`): `emf` behind `ohms` (default 0.05 Ω) up to its limit, 1.15 x `amps`. Past
+  it the output sags, and the limit folds back with the output voltage toward a quarter of itself, so a short draws
+  about 0.29 A from a 1 A adapter and nothing cooks. Limiting for half a second raises `warning`
+  (`current-limit`). A 9 V 1 A adapter reads 9.0 V at 20 mA.
+- **Unregulated DC** (default): `emf` behind `ohms` (default 1 Ω), sagging with load. With `filterFarads`, a ripple
+  rides on it at `rippleHz` (default 100 Hz, twice `MAINS_HZ`): the filter capacitor alone feeds the load between
+  the crests of the rectified mains, so the output falls by about I / (rippleHz x C), then the next crest tops it up
+  in a fifth of the period. The size follows the load current averaged over a couple of periods. A "9 V" adapter of
+  `emf` 13, 8 Ω and 400 µF reads about 12.8 V with 0.5 V of lumps at 20 mA, and 12 V with about 3 V at 125 mA
+  (troughs near 10.4 V); a 7805 behind it holds 5 V with well under 10 mV of ripple.
+- **AC** (`ac: true`): a sine of `emf` volts RMS at `hz` (default `MAINS_HZ`) behind `ohms` (default 0.5 Ω): 9 V AC
+  swings to ±12.7 V; a DC meter reads about 0, an AC meter about 9 V.
+
+Waveforms need fine steps: a part may declare `maxStep` (here 1/40 of the ripple or mains period) and the engine
+takes the smallest; time-lapse scales it as usual. A supply also counts as a source when the engine picks a reference
+node without `gnd`.
+
 ### Microcontroller board (`mcuboard`)
 
 An Uno-style board: a 5 V chip with 20 I/O pins (D0 to D13, A0 to A5 = 14 to 19 in a program), running a bench C
@@ -623,6 +655,12 @@ For the later units, also additive: kinds `inductor`, `timer555`, `logic` (model
 `digitOf`, `MAINS_HZ`; new `cause` values (`overload`, `oscillating`, `undervoltage`, `thermal-shutdown`) and
 `data.segment`, `data.pin`. One default changed: electrolytics under 100 µF leak less (see "Capacitor"); parts from
 100 µF up are unchanged, and every Unit 1 and 2 lab replay still passes.
+
+For Unit 3 (making it permanent), also additive: kind `supply` (see "Supply"); input key `bodyC` on `led`, `diode`
+and `npn` (outside heat into the body; carried across rebuilds, cleared by `replace`); `extra.bodyC`; `cause:
+"overheat"` on an LED's `damaged` and `died`, and `current-limit` on a supply's `warning`; `Device.maxStep`; exports
+`ledHeatDim`, `ledHeatRate` and `LED_HOT_C`. A fix: the meter's AC volts mode read 0 (the RMS sum was cleared before
+it was read).
 
 For Unit 5's board, also additive: kind `mcuboard` (types `McuPin`, `McuPower`), event type `serial`, input keys
 `power`, `reset` and `millis` (`power` joins the live inputs carried across rebuilds), exports `MCU_PINS`, `MCU`,
@@ -714,6 +752,11 @@ phantom power through an input, floating inputs, touch and hum, mid-rail supply 
 flip-flop, the 393 ripple and mod-6 reset, bounce miscounting against a NOR latch, 4026B counters into displays with
 carry, the 4000B supply range, abuse, the oscillation guard and Schmitt thresholds), `display.test.ts`,
 `regulator.test.ts`, `inductor.test.ts`, `bounce.test.ts`, and the counter chain in `perf.test.ts`.
+
+For Unit 3: `supply.test.ts` (the regulated adapter at 20 mA, its sag and fold-back, 9 V AC on DC and AC meters,
+the unregulated adapter's ripple at 20 and 125 mA and its 100 Hz rate, a 7805 behind it, a centre-minus adapter
+reversing an electrolytic while the LED stays dark) and `heat.test.ts` (an LED's glow sagging and recovering with
+outside heat, damage and death of overheating, the input across rebuilds, transistor and diode cooked).
 
 `mcu.test.ts` (the microcontroller board): blink drives an LED through 470 Ω at 5.5 to 7 mA with a 2.000 s period,
 L follows pin 13 without loading it, a button reads LOW through the pull-up and lights L, a free input floats and

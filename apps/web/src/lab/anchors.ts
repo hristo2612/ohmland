@@ -1,5 +1,5 @@
 /**
- * Lab shorthand for bench places: holes ("e12", "rail+:12"), attach points ("R1.a", "W1.b"), spots ("desk:left").
+ * Lab shorthand for bench places: holes ("e12", "rail+:12", a perfboard's "PB1:C7"), attach points ("R1.a", "W1.b"), spots ("desk:left").
  * Pure: shared by the bench builder, solution replays and the LabView.
  */
 import { boardGeometry, parseHole, physicalLeg, type BenchState, type BoardSpec, type HoleId, type Vec2 } from "@ohmland/bench/core";
@@ -8,8 +8,10 @@ const RAIL_ALIAS: Record<string, string> = { "rail+": "bp", "rail-": "bn", "top+
 
 /** A hole id from lab shorthand, or null. Rail columns with no hole (the gaps) snap to the nearest rail hole. */
 export function resolveHole(board: BoardSpec | null, s: string): HoleId | null {
-  if (!board) return null;
   const raw = s.startsWith("hole:") ? s.slice(5) : s;
+  // A perfboard hole ("PB1:C7") is the board's part id and a pad.
+  if (/^[A-Za-z][\w-]*:[A-Z]\d+$/.test(raw)) return raw;
+  if (!board) return null;
   const m = /^(rail\+|rail-|top\+|top-):(\d+)$/.exec(raw);
   const id = m ? `${RAIL_ALIAS[m[1]!]}${m[2]}` : raw;
   const geom = boardGeometry(board);

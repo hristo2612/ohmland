@@ -8,6 +8,7 @@ import { MultimeterDevice } from "./meter";
 import { LogicDevice, Timer555Device } from "./chips";
 import { SevenSegDevice } from "./display";
 import { RegulatorDevice } from "./regulator";
+import { SupplyDevice } from "./supply";
 import { McuBoardDevice } from "./mcu";
 
 /**
@@ -62,6 +63,8 @@ export function createDevice(spec: PartSpec, seed?: string): Device | null {
       return new SevenSegDevice(spec);
     case "regulator7805":
       return new RegulatorDevice(spec, seed);
+    case "supply":
+      return new SupplyDevice(spec);
     case "mcuboard":
       return new McuBoardDevice(spec);
     default:

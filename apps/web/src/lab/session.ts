@@ -3,7 +3,7 @@
  * snapshot, keeps the event log, the recent history and the notebook, checks task goals in order (optional tasks all
  * the time), spots fried parts and fires achievement triggers. The lab step and the headless replay both drive one.
  */
-import { advanceGates, benchToNetlist, type BenchNetlist, type BenchState, type GateCounts } from "@ohmland/bench/core";
+import { advanceGates, benchToNetlist, type BenchNetlist, type BenchState, type GateCounts, type StationState } from "@ohmland/bench/core";
 import type { SimEvent, Snapshot, WatchSpec } from "@ohmland/sim";
 import type { BuiltBench, SimInput } from "./build";
 import {
@@ -88,6 +88,8 @@ export class LabSession {
   events: SimEvent[] = [];
   history: Snapshot[] = [];
   snapshot: Snapshot | null = null;
+  /** The solder station's live state (the bench store's `station`, set by the runtime). */
+  station: StationState | null = null;
   bench: BenchState;
   /** The netlist the simulator runs (clip leads have resistance). */
   net: BenchNetlist;
@@ -341,6 +343,7 @@ export class LabSession {
       tapping: this.tapper?.on ? this.tapper.part : null,
       onTrigger: (name) => this.pendingTriggers.push(name),
       doneAt: this.doneAt,
+      station: this.station,
       views: this.views,
       gates: this.gates,
       panelViews: this.panelViews,

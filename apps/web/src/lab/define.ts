@@ -11,9 +11,11 @@
  */
 import type { BenchPartKind, BenchState, LeadColor, MeterSocket, PartParamsMap, PlacedPart, WireColor } from "@ohmland/bench/core";
 import type { InputKey, InputValue, MeterMode, NodeId, PartKind, PartState, SimEvent, SimEventType, Snapshot } from "@ohmland/sim";
+import type { SolderLab } from "./solder";
 import type { ChipSeat, Level } from "./chips";
 import type { Burst, Duty, Spell, Tally } from "./signals";
 
+export type { SolderLab, SolderBoard, SolderJoint } from "./solder";
 export type { BenchPartKind, BenchState, InputKey, InputValue, LeadColor, MeterMode, MeterSocket, NodeId, PartKind, PartState, PlacedPart, SimEvent, SimEventType, Snapshot, WireColor };
 export type { Burst, ChipSeat, Duty, Level, Spell, Tally };
 export { createLabView } from "./view";
@@ -721,6 +723,8 @@ export type LabView = {
   task(id: string): TaskStatus;
   /** Fire an achievement trigger (once per visit). */
   trigger(name: string): void;
+  /** Soldering, perfboard, wire and wall adapters (Unit 3): the iron, joints, tugs, clips, strips, tubes, boards, plans. */
+  readonly solder: SolderLab;
 
   /** A chip's pin by number or name (`lab.pin("U1", 6)`, `lab.pin("U1", "threshold")`): its node, volts and level. */
   pin(chip: string, pin: number | string): ChipPin | null;
