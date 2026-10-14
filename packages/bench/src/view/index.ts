@@ -6,3 +6,4 @@ export { createControllerHub, type BenchController, type BenchControllerHub, typ
 export { parseTarget, targetPoint, meterSpot, METER_SPOTS, type ParsedTarget } from "./targets";
 export type { BenchRendererProps } from "./types";
 export { DrawingSlip } from "./DrawingSlip";
+export { COMPACT_WIDTH, trayCoverOf } from "./tray-cover";

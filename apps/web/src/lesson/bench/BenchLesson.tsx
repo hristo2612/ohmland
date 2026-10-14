@@ -24,6 +24,7 @@ import { useLearnerReady } from "../../progress/useLearner";
 import { XP } from "../../progress/xp";
 import { gradeNumeric } from "../../quiz/si";
 import { getIsleHooks, revealWithin, type IsleRevealResult } from "../isle-hooks";
+import type { LabLines } from "../../content/variants";
 import type { PlayerProps } from "../types";
 import { BenchFinale } from "./BenchFinale";
 import {
@@ -163,7 +164,14 @@ type Line = { text: string; mood: RobotMood; key: number };
 const INTERACTIVE = "input, textarea, select, button, a[href], [role=radio], [role=button], [role=application], [contenteditable=true], summary";
 let marksSeq = 1;
 
-export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: PlayerProps & { lesson: BenchLessonData }) {
+/**
+ * `trial`: a try-out copy (the hidden /variants pages): nothing is restored, saved or earned, and signing off goes back
+ * to `mapHref`. `coach`: an ink ghost draws the first move of each beat's task on the bench (CoachMark.tsx).
+ * `labLines`: the lesson's own words for its lab's tasks (hints, nudges, success lines).
+ */
+export type BenchLessonProps = PlayerProps & { lesson: BenchLessonData; trial?: boolean; coach?: boolean; labLines?: LabLines | undefined };
+
+export function BenchLesson({ lesson, outline, parts, module, next, mapHref, trial = false, coach = false, labLines }: BenchLessonProps) {
   const ready = useLearnerReady(outline);
   const muted = useLearner((s) => s.learner.settings.muted);
   const friedAll = useLearner((s) => s.learner.fried);
@@ -236,7 +244,9 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const addMark = useCallback((mk: Omit<Mark, "id"> & { id?: string }) => {
     setMarks((ms) => [...ms.filter((x) => x.id !== mk.id), { ...mk, id: mk.id ?? `m${marksSeq++}` }]);
   }, []);
-  const floatXp = (n: number) => setXpFloat({ n, key: Date.now() });
+  const floatXp = (n: number) => {
+    if (!trial) setXpFloat({ n, key: Date.now() });
+  };
   useEffect(() => {
     if (!xpFloat) return;
     const t = window.setTimeout(() => setXpFloat(null), 1400);
@@ -344,7 +354,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       }
       // A beat with nothing to do runs its tracer as it begins (and a finished one shows it again on resume).
       if (mo.trace && (mo.action === "next" || done)) runTrace(mo.trace);
-      if ((mo.kind === "fix" || mo.kind === "end") && !prefetchedIsle.current && !useLearner.getState().learner.lessons[lesson.id]) {
+      if ((mo.kind === "fix" || mo.kind === "end") && !trial && !prefetchedIsle.current && !useLearner.getState().learner.lessons[lesson.id]) {
         prefetchedIsle.current = true;
         hooks.prefetch();
       }
@@ -352,6 +362,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       // A beat with nothing to do shows its discovery as it begins: the note is drawn, the rule stamped. The learner
       // reads it and taps Next.
       const lines = [mo.say];
+      // A guess comes first: what to watch for is said once it is made.
+      if (mo.beat?.watch && !mo.beat.guess) lines.push(mo.beat.watch);
       if (mo.action === "next" && mo.kind === "beat") {
         if (mo.note && mo.note.at !== "tap") {
           const text = noteText(mo.note.text, undefined);
@@ -365,7 +377,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       }
       announce(lines.join(" "));
     },
-    [moments, lesson.lab, lesson.id, addMark, announce, hooks, runTrace],
+    [moments, lesson.lab, lesson.id, trial, addMark, announce, hooks, runTrace],
   );
 
   const focusLine = () => requestAnimationFrame(() => lineRef.current?.focus({ preventScroll: true }));
@@ -421,7 +433,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   // ---- Restore and save ----------------------------------------------------------------------------------------------
   useEffect(() => {
     if (!ready || restored) return;
-    const saved = useLearner.getState().learner.inProgress[lesson.id];
+    const saved = trial ? undefined : useLearner.getState().learner.inProgress[lesson.id];
     if (saved && saved.version === lesson.version && saved.step > 0 && saved.step <= moments.length) {
       const a = saved.answers;
       const at = saved.step - 1;
@@ -451,7 +463,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       window.setTimeout(() => announce(`${m.lesson.resumed} ${moments[at]!.say}`), 0);
     }
     setRestored(true);
-  }, [ready, restored, lesson.id, lesson.version, lesson.lab, moments, enter, announce]);
+  }, [ready, restored, trial, lesson.id, lesson.version, lesson.lab, moments, enter, announce]);
 
   // Achievements earned on the way wait for the finale's tally: nothing toasts over the bench mid-discovery.
   useEffect(() => {
@@ -461,10 +473,10 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   }, []);
 
   useEffect(() => {
-    if (!restored || completion) return;
+    if (!restored || completion || trial) return;
     if (!started && Object.keys(answers).length === 0) return;
     useLearner.getState().saveProgress(lesson.id, { step: started ? index + 1 : 0, answers, version: lesson.version });
-  }, [restored, completion, started, index, answers, lesson.id, lesson.version]);
+  }, [restored, completion, trial, started, index, answers, lesson.id, lesson.version]);
 
   // The stage is up: apply a setup that waited for it, and let go of skipped tasks.
   useEffect(() => {
@@ -724,6 +736,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const onGuess = (i: number | null) => {
     if (i !== null) setAnswer(answerKeys.guess(moment.key), i);
     setPhase("act");
+    if (moment.beat?.watch) announce(moment.beat.watch);
   };
 
   const hintLines = (): string[] => {
@@ -761,6 +774,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   // ---- Finish ----------------------------------------------------------------------------------------------------------
   const finish = async () => {
     if (finishing) return;
+    if (trial) return window.location.assign(mapHref);
     if (!muted) hooks.prime();
     setFinishing(true);
     await useLearner.getState().init(outline);
@@ -790,6 +804,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
 
   // ---- What the bench shows ----------------------------------------------------------------------------------------
   const gate = started && phase === "act" && moment.task && !tasks.includes(moment.task) ? moment.task : null;
+  // The coach mark draws a beat's own task only: never a fix-it (the learner finds the fault), the secret or a check.
+  const coachTask = coach && moment.kind === "beat" ? gate : null;
   const tap = moment.beat?.tap;
   const check: StageCheck =
     !started || phase !== "act"
@@ -879,7 +895,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   } else if (moment.action === "finish") {
     action = (
       <button type="button" className="btn btn--primary btn--large bl-go" data-primary onClick={finish} aria-busy={finishing || undefined} disabled={finishing}>
-        {finishing ? m.lessonBench.finishing : m.lessonBench.finish}
+        {finishing ? m.lessonBench.finishing : trial ? m.variants.finish : m.lessonBench.finish}
         <Icon name="check" size={20} />
       </button>
     );
@@ -1083,6 +1099,12 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               )}
               {shownLine}
             </p>
+            {/* What to look for while acting, quieter than the line (it stays when a hint or a nudge takes the line). */}
+            {started && phase === "act" && moment.beat?.watch && (
+              <p className="bl-watch" key={`w-${moment.key}`}>
+                {moment.beat.watch}
+              </p>
+            )}
             {/* The rule is the beat's headline: stamped right under the line that found it. */}
             {stamp && (
               <p className="bl-stamped" key={stamp} ref={stampRef}>
@@ -1143,6 +1165,9 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               popup={popup}
               tool={tool}
               code={started ? { key: moment.key, ...moment.code } : null}
+              coach={coachTask}
+              trial={trial}
+              labLines={labLines}
               keyboardOpen={keyboard}
               onApi={(a) => {
                 setApi(a);

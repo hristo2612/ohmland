@@ -6,9 +6,9 @@
  * The player (BenchLesson.tsx) owns the flow. It tells the stage which task may complete right now (`gate`; the
  * secret bonus is always armed), and the stage reports tasks, fried parts, nudges and taps back.
  */
-import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { useStore } from "zustand";
-import { PRINTED_KINDS, boardGeometry, isOnBoard, trayLeft, type BenchState } from "@ohmland/bench/core";
+import { PRINTED_KINDS, boardGeometry, isOnBoard, trayCoverOf, trayLeft, type BenchState } from "@ohmland/bench/core";
 import { DrawingSlip } from "@ohmland/bench/view";
 import { isOptional, type LabDefinition, type LabTask, type SolutionStep } from "../../lab/define";
 import { m } from "../../i18n";
@@ -33,7 +33,10 @@ import { Annotations, useSize, useViewTick } from "./Annotations";
 import { holeName, type PinName } from "./flow";
 import { allHoles, choiceScale, namedParts, resolveAnchor, wholeTargets, type Mark } from "./marks";
 import { ResistorSlider } from "./ResistorSlider";
+import { CoachMark } from "./CoachMark";
+import { coachAnchors, firstMove } from "./coach";
 import type { Popup } from "../../content/schema";
+import type { LabLines } from "../../content/variants";
 import type { CodeBeat } from "../../lab/code/CodeDrawer";
 import "../../lab/lab.css";
 
@@ -109,6 +112,12 @@ export type StageProps = {
   tool: string | null;
   /** Unit 5: the beat's code drawer palette and starting program (with `tool: code`). */
   code?: CodeBeat | null;
+  /** The task whose first move the coach mark draws on the bench (a `do` beat's), or null. */
+  coach?: string | null;
+  /** A try-out copy: nothing goes to the learner's record (no fried parts, achievements or lab events). */
+  trial?: boolean;
+  /** The lesson's own words for the lab's tasks, in place of the lab's (a try-out voice). */
+  labLines?: LabLines | undefined;
   keyboardOpen: boolean;
   onApi(api: StageApi | null): void;
   onBenchReady(): void;
@@ -155,9 +164,24 @@ export default function Stage(props: StageProps) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.labId]);
+  const worded = useMemo(() => lab && withLines(lab, props.labLines), [lab, props.labLines]);
   if (failed) return <p className="bl-bench-note">{m.lessonBench.failed}</p>;
-  if (!lab) return <StageSkeleton />;
-  return <StageRunner {...props} lab={lab} />;
+  if (!worded) return <StageSkeleton />;
+  return <StageRunner {...props} lab={worded} />;
+}
+
+/** The lab with a lesson's own words for its tasks: hints, nudges (in the lab's order) and success lines. */
+function withLines(lab: LabDefinition, lines: LabLines | undefined): LabDefinition {
+  if (!lines) return lab;
+  return {
+    ...lab,
+    tasks: lab.tasks.map((t) => {
+      const w = lines[t.id];
+      if (!w) return t;
+      const nudges = t.nudges?.map((n, i) => ({ ...n, say: w.nudges?.[i] ?? n.say }));
+      return { ...t, ...(w.hints ? { hints: w.hints } : {}), ...(w.success ? { success: w.success } : {}), ...(nudges ? { nudges } : {}) };
+    }),
+  };
 }
 
 export function StageSkeleton() {
@@ -205,14 +229,16 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     () =>
       new LabRuntime(gated, built, props.done, {
         onTaskDone: (t) => {
-          useLearner.getState().labEvent({ type: "task", lessonId, taskId: t.id });
+          if (!props.trial) useLearner.getState().labEvent({ type: "task", lessonId, taskId: t.id });
           cb.current.onTaskDone(t.id);
         },
         onFried: (card) => {
-          useLearner.getState().recordFried(card.kind, card.shownLabel, lessonId, { silent: true });
+          if (!props.trial) useLearner.getState().recordFried(card.kind, card.shownLabel, lessonId, { silent: true });
           cb.current.onFried(card);
         },
-        onTrigger: (name) => useLearner.getState().labEvent({ type: "trigger", name, lessonId }),
+        onTrigger: (name) => {
+          if (!props.trial) useLearner.getState().labEvent({ type: "trigger", name, lessonId });
+        },
         onTick: () => tickNudges(),
         labelFor: (rec, bench) => friedLabel(rec, bench),
         sound: (kind) => audio.cue(kind),
@@ -407,21 +433,30 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   const tool = props.tool ?? defaultTool(lab, props.gate);
   // The docked tool's size: when it comes, goes or changes size the bench is framed again.
   const [dockKey, setDockKey] = useState("");
+  // The parts tray, when it shows: the docked tool sits above its strip (a phone) or beside its column, never on it.
+  const [stageW, setStageW] = useState(0);
+  const cover = trayShown && !readOnly ? trayCoverOf(props.view, built.tray.length, stageW) : { left: 0, bottom: 0 };
+  const trayKey = `${cover.left},${cover.bottom}`;
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage || !benchReady) return;
-    const measure = () => setDockKey(insetKey(dockInset(stage)));
+    const measure = () => {
+      setStageW(stage.clientWidth);
+      setDockKey(insetKey(dockInset(stage)));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(stage);
     const dock = stage.querySelector(":scope > .bl-tool");
     if (dock) ro.observe(dock);
     return () => ro.disconnect();
-  }, [tool, benchReady]);
+  }, [tool, benchReady, trayKey]);
   /** Where the hands last worked on a phone: a beat that names no parts picks up there. */
   const lastHands = useRef<string[] | null>(null);
   /** On a phone, the drawing being built from, docked as a slip above the bench while the board is framed close. */
   const [drawing, setDrawing] = useState<string | null>(null);
+  // With the coach mark, a phone frames the beat's first move (where the ghost draws) rather than the task's highlight.
+  const coachAt = useMemo(() => (props.coach ? coachAnchors(firstMove(runtime.lab, props.coach, runtime.store.getState().bench)) : []), [props.coach, runtime]);
   useEffect(() => {
     const c = controllerRef.current;
     const stage = stageRef.current;
@@ -448,7 +483,8 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
       const named = namedParts(props.line ?? "", b, built.labels).map((id) => `part:${id}`);
       const beat = props.hands === "beat";
       // A fix-it's hint highlight is its answer, and its line names the symptom: they never steer the view.
-      if (phone && beat) framed = [...framed, ...wholeTargets(b, lab.tasks.find((t) => t.id === props.gate)?.highlight)];
+      // With the coach mark, the beat's first move (where the ghost draws) rather than the task's highlight.
+      if (phone && beat) framed = [...framed, ...wholeTargets(b, coachAt.length ? coachAt : lab.tasks.find((t) => t.id === props.gate)?.highlight)];
       if ((phone && beat) || framed.length) framed = [...framed, ...named];
       // Probing: the probes' tips are what the hands move, so they stay in view with what they will touch.
       if (framed.length && tool === "meter" && b.meter) framed = [...framed, "probe:red", "probe:black"];
@@ -487,10 +523,19 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     stage.dataset.framed = framed.join(" ");
     stage.dataset.named = namedParts(props.line ?? "", b, built.labels).join(" ");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spotKey, frameKey, runtime, benchReady, dockKey, quietPins, props.hands, props.gate, props.line, tool]);
+  }, [spotKey, frameKey, runtime, benchReady, dockKey, quietPins, props.hands, props.gate, props.line, tool, coachAt]);
 
   return (
-    <div ref={stageRef} className="bl-stage" data-bench-ready={benchReady || undefined} data-lab-ready data-lab={lab.id} onPointerDownCapture={() => audio.unlock()} onKeyDownCapture={() => audio.unlock()}>
+    <div
+      ref={stageRef}
+      className="bl-stage"
+      style={{ "--bl-tray-left": `${cover.left}px`, "--bl-tray-bottom": `${cover.bottom}px` } as CSSProperties}
+      data-bench-ready={benchReady || undefined}
+      data-lab-ready
+      data-lab={lab.id}
+      onPointerDownCapture={() => audio.unlock()}
+      onKeyDownCapture={() => audio.unlock()}
+    >
       <Boundary onError={() => cb.current.onBenchFailed()}>
         <Suspense fallback={<StageSkeleton />}>
           <Surface
@@ -519,6 +564,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
             </div>
           )}
           <Annotations controllerRef={controllerRef} bench={bench} marks={props.marks} />
+          {props.coach && !readOnly && <CoachMark controllerRef={controllerRef} runtime={runtime} bench={bench} task={props.coach} />}
           {/* The meter's fuse has its own Replace on the docked meter. */}
           <ReplaceLayer controllerRef={controllerRef} bench={bench} items={props.replace.filter((r) => !(r.card.kind === "meter-fuse" && tool === "meter"))} onReplace={(c) => cb.current.onReplace(c)} />
           <TapLayer controllerRef={controllerRef} bench={bench} check={props.check} labelOf={api.labelOf} onTap={(a) => cb.current.onTap(a)} />

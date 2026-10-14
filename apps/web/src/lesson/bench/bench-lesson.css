@@ -47,6 +47,7 @@
   --bl-dur-press: var(--dur-press, var(--dur-fast));
   --bl-dur-ui: var(--dur-ui, var(--dur-fast));
   --bl-dur-write: var(--dur-write, var(--dur-1));
+  --bl-dur-fade: var(--dur-fade);
   --bl-dur-draw: var(--dur-draw, var(--dur-3));
   --bl-dur-loop: var(--dur-hover-loop);
   --bl-ease-out: var(--ease-out);
@@ -166,6 +167,16 @@ html:has(.bl:not(.bl--finale)) { overflow: hidden; }
   line-height: 1.3;
   outline: none;
   animation: bl-write calc(var(--bl-dur-write) * 1.25) var(--bl-ease-out) backwards;
+}
+/* What to look for, under the robot's line: the robot's hand, but graphite and smaller, so the line still leads. */
+.bl-watch {
+  margin: 0;
+  color: var(--bl-ink-2);
+  font-family: var(--bl-hand);
+  font-size: var(--bl-text-lg);
+  line-height: 1.3;
+  animation: bl-write calc(var(--bl-dur-write) * 1.25) var(--bl-ease-out) backwards;
+  animation-delay: var(--bl-dur-write);
 }
 .bl-kicker {
   margin: 0;
@@ -387,6 +398,40 @@ html:has(.bl:not(.bl--finale)) { overflow: hidden; }
 .ann--faded .ann__path, .ann--faded .ann__text { opacity: 0; }
 .ann--faded .ann__dot { opacity: 0.85; }
 
+/* The coach mark: a beat's first move in a ghost of ink, drawn once, held, then gone (CoachMark.tsx). Under reduced
+   motion it shows whole and leaves without fading. */
+.bl-coach-host { position: absolute; inset: 0; }
+.bl-coach {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  color: var(--bl-ink);
+  animation: bl-coach-out var(--bl-dur-fade) var(--bl-ease-out) forwards;
+  animation-delay: calc(var(--bl-dur-draw) * 3);
+}
+.bl-coach mask { mask-type: alpha; }
+.bl-coach__reveal, .bl-coach__line, .bl-coach__halo, .bl-coach__head, .bl-coach__start, .bl-coach__ring circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* A paper ribbon under the ink, so the ghost reads on a dark meter face as well as on the desk. */
+.bl-coach__reveal { stroke-width: 18; stroke-dasharray: 1; animation: bl-draw var(--bl-dur-draw) var(--bl-ease-out) backwards; }
+.bl-coach .bl-coach__halo { stroke: var(--bl-paper); stroke-width: 11; stroke-dasharray: none; opacity: 0.92; }
+.bl-coach__line { stroke-width: 4; stroke-dasharray: 0.1 9; }
+.bl-coach__start { stroke-width: 2.5; fill: var(--bl-paper); }
+.bl-coach__head { stroke-width: 3.5; animation: bl-coach-in var(--bl-dur-ui) var(--bl-ease-out) backwards; animation-delay: var(--bl-dur-draw); }
+.bl-coach__head--halo { stroke: var(--bl-paper); stroke-width: 10; opacity: 0.92; }
+.bl-coach__ring circle { stroke-width: 3.5; stroke-dasharray: 0.1 8; }
+.bl-coach__ring .bl-coach__pulse {
+  stroke-dasharray: none;
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bl-coach-pulse var(--bl-dur-draw) var(--bl-ease-out) 3 backwards;
+}
+
 .bl-target {
   position: absolute;
   width: var(--bl-tap);
@@ -489,11 +534,12 @@ html:has(.bl:not(.bl--finale)) { overflow: hidden; }
   animation: bl-pop var(--bl-dur-write) var(--bl-ease-press) backwards;
 }
 
-/* One instrument at a time, on the bench's lower edge. A tall one scrolls inside, never the page. */
+/* One instrument at a time, on the bench's lower edge (above the parts tray's strip when it shows). A tall one scrolls
+   inside, never the page. */
 .bl-tool {
   position: absolute;
   right: var(--bl-s-3);
-  bottom: var(--bl-s-3);
+  bottom: calc(var(--bl-s-3) + var(--bl-tray-bottom, 0px));
   width: min(360px, calc(100% - 24px));
   max-height: 55%;
   overflow: auto;
@@ -680,6 +726,7 @@ html:has(.bl:not(.bl--finale)) { overflow: hidden; }
   .bl-margin__foot { margin-top: 0; }
   .bl-steps { margin: 0; }
   .bl-line { font-size: var(--bl-text-lg); }
+  .bl-watch { font-size: var(--bl-text-md); line-height: 1.25; }
   .bl-xp { top: -14px; right: auto; left: 0; font-size: var(--bl-text-md); }
   .bl-stamped { padding: var(--bl-s-2); }
   /* The margin's rule stamp only: the CHECKED and LEVEL UP stamps keep their own size. */
@@ -688,7 +735,7 @@ html:has(.bl:not(.bl--finale)) { overflow: hidden; }
   .ann__text { font-size: 18px; }
   /* The meter as a slim strip (the reading, the dial, the range), so the bench stays in view above it. Warnings and
      the fuse card still show; the explaining lines give way to the robot. */
-  .bl-tool { left: var(--bl-s-2); right: var(--bl-s-2); bottom: var(--bl-s-2); width: auto; padding: var(--bl-s-1); }
+  .bl-tool { left: calc(var(--bl-s-2) + var(--bl-tray-left, 0px)); right: var(--bl-s-2); bottom: calc(var(--bl-s-2) + var(--bl-tray-bottom, 0px)); width: auto; padding: var(--bl-s-1); }
   .bl-tool .meter-panel { gap: var(--bl-s-1); padding: var(--bl-s-2); }
   .bl-tool .meter-panel .instrument__head,
   .bl-tool .meter-panel__explain,
@@ -755,6 +802,9 @@ html:has(.bl:not(.bl--finale)) { overflow: hidden; }
 @keyframes bl-float { 0% { opacity: 0; transform: translateY(6px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-22px); } }
 @keyframes bl-bob { 50% { transform: translateY(-2px); } }
 @keyframes bl-scan { to { transform: translateX(100%); } }
+@keyframes bl-coach-in { from { opacity: 0; } }
+@keyframes bl-coach-out { to { opacity: 0; } }
+@keyframes bl-coach-pulse { from { opacity: 1; transform: scale(0.7); } to { opacity: 0; transform: scale(1.5); } }
 
 :root[data-motion="reduce"] .bl *,
 :root[data-motion="reduce"] .bl *::after {
