@@ -61,6 +61,7 @@ beats:
 
 secret:
   task: blur
+  spot: [C1, C5]
   say: "Secret: swap my blinker's 10 µF for the 0.1 µF."
   done: A blur of ticks. Every bar glows.
   note: { at: DS1, text: "too fast to read: an 8" }

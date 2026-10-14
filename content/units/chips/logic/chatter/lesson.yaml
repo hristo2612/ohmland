@@ -51,6 +51,7 @@ beats:
 
 secret:
   task: let-go
+  spot: [S1]
   say: "Secret: replay a let-go in slow motion."
   tool: td
   done: Letting go chatters too.

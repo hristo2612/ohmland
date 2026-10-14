@@ -55,6 +55,7 @@ beats:
 
 secret:
   task: divide-by-ten
+  spot: [C1, C5]
   say: "Secret: swap the clock's 1 µF for the 0.1 µF."
   done: The ones blur. The tens took their place.
   note: { at: DS2, text: "tens now tick like ones did" }

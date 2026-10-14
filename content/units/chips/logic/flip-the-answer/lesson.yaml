@@ -63,6 +63,7 @@ beats:
 
 secret:
   task: not-gate
+  spot: [U3]
   say: "Secret: seat chip 04 in the empty spot. Probe pin 2."
   done: A gate with one input.
   note: { at: U3, text: "NOT: one in, flipped out" }

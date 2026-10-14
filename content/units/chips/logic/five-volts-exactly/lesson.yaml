@@ -59,6 +59,7 @@ beats:
 
 secret:
   task: fry-a-gate
+  spot: [U9]
   say: "Secret: move my spare chip's plus wire to 9 V."
   done: Pop. That chip wanted 5 V, not 9.
   note: { at: U9, text: "9 V: too much for 74HC" }

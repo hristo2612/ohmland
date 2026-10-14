@@ -61,6 +61,7 @@ beats:
 
 secret:
   task: re-key
+  spot: [R4, WD]
   say: "Secret: flip D back. Which chord opens it now?"
   tool: keys
   done: A, B and D. A brand new chord.

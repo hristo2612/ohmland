@@ -59,6 +59,7 @@ beats:
 
 secret:
   task: hello
+  spot: [DIP1, DS1]
   say: "Secret: spell HELLO, one letter at a time."
   done: Hello to you too.
   note: { at: DS1, text: "bars spell letters too" }

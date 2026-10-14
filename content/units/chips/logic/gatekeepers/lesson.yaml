@@ -63,6 +63,7 @@ beats:
 
 secret:
   task: xor-chip
+  spot: [U3, U2]
   say: "Secret: try the chip marked 86."
   tool: tt
   done: A third rule.

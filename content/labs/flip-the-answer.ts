@@ -28,7 +28,7 @@ function rows(lab: LabView, id: string, high: string[]): boolean {
 const tipOn = (lab: LabView, node: string) => lab.connected("LP1.tip", node);
 
 /** The fix-it bench: the probe's tip on ?1's pin 3, its red and black leads off the rails. */
-const UNPLUGGED: SolutionStep[] = [{ do: "move", part: "LP1", at: "a22" }];
+const UNPLUGGED: SolutionStep[] = [{ do: "move", part: "LP1", holes: { tip: "a22", vcc: null, gnd: null } }];
 
 export default defineLab({
   id: "flip-the-answer",
@@ -180,13 +180,13 @@ export default defineLab({
     },
   ],
   solution: [
-    { do: "move", part: "LP1", at: "top+:53-top+:57-top-:58" },
+    { do: "move", part: "LP1", holes: { tip: "top+:53" } },
     { do: "check", task: "probe-high" },
-    { do: "move", part: "LP1", at: "top-:53-top+:57-top-:58" },
+    { do: "move", part: "LP1", holes: { tip: "top-:53" } },
     { do: "check", task: "probe-low" },
-    { do: "move", part: "LP1", at: "a56-top+:57-top-:58" },
+    { do: "move", part: "LP1", holes: { tip: "a56" } },
     { do: "check", task: "probe-float" },
-    { do: "move", part: "LP1", at: "a22-top+:57-top-:58" },
+    { do: "move", part: "LP1", holes: { tip: "a22" } },
     { do: "wait", seconds: 0.4 },
     { do: "flip", part: "S1", to: "b" },
     { do: "wait", seconds: 0.4 },
@@ -198,7 +198,7 @@ export default defineLab({
     { do: "view", name: "xray:U1", on: true },
     { do: "check", task: "look-inside" },
     { do: "view", name: "xray:U1", on: false },
-    { do: "move", part: "LP1", at: "a32-top+:57-top-:58" },
+    { do: "move", part: "LP1", holes: { tip: "a32" } },
     { do: "wait", seconds: 0.4 },
     { do: "flip", part: "S2", to: "a" },
     { do: "wait", seconds: 0.4 },
@@ -211,7 +211,7 @@ export default defineLab({
     { do: "check", task: "nor-table" },
     // The secret: an inverter in the spot.
     { do: "move", part: "U3", at: "e44" },
-    { do: "move", part: "LP1", at: "a45-top+:57-top-:58" },
+    { do: "move", part: "LP1", holes: { tip: "a45" } },
     { do: "wait", seconds: 0.4 },
     { do: "flip", part: "S1", to: "b" },
     { do: "wait", seconds: 0.4 },
@@ -220,9 +220,10 @@ export default defineLab({
     { do: "check", task: "not-gate" },
     ...UNPLUGGED,
     { do: "wait", seconds: 0.6 },
-    { do: "move", part: "LP1", at: "top+:53-top+:57-top-:58" },
+    { do: "move", part: "LP1", holes: { vcc: "top+:57", gnd: "top-:58" } },
+    { do: "move", part: "LP1", holes: { tip: "top+:53" } },
     { do: "wait", seconds: 0.4 },
-    { do: "move", part: "LP1", at: "top-:53-top+:57-top-:58" },
+    { do: "move", part: "LP1", holes: { tip: "top-:53" } },
     { do: "wait", seconds: 0.4 },
     { do: "check", task: "fix-it" },
   ],

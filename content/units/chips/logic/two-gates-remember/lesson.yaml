@@ -50,6 +50,7 @@ beats:
 
 secret:
   task: both-set
+  spot: [U1]
   say: "Secret: jumper pin 2 and pin 6 to plus at once."
   done: Both dark. No memory there.
   note: { at: U1, text: "both pushed: no memory left" }
