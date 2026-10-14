@@ -1,6 +1,6 @@
 id: resistance
 title: Resistance
-summary: What resists current, how to measure it on everyday things, and how resistors announce their values.
+summary: Pick a meter range, measure skin and water, draw a resistor, and read what a resistor tells you.
 landmark:
   id: resistor-hall
   name: Resistor Hall
@@ -10,5 +10,6 @@ landmark:
 lessons:
   - tiny-and-huge-numbers
   - what-resists
+  - salt-and-water
   - draw-a-resistor
   - reading-the-stripes
