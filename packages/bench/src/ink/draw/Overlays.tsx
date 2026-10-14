@@ -166,7 +166,8 @@ const Push = memo(function Push({ model, store, defs }: { model: InkModel; store
         const pi = model.parts.get(id);
         if (!pi || volts < 0.15) return null;
         const r = partBounds(pi);
-        const box = pi.part.kind === "box";
+        // A shut box carries its hill on its lid; an open one, like a battery, stands it beside itself.
+        const box = pi.part.kind === "box" && !pi.part.params.lid;
         const share = hillShare(volts);
         // A box carries its hill on its lid; a battery has it standing beside it.
         const w = box ? 46 : 24;

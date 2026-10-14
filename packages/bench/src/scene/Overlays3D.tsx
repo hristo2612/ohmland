@@ -10,6 +10,7 @@ import { useFrame } from "@react-three/fiber";
 import { useStore } from "zustand";
 import type { Snapshot } from "@ohmland/sim";
 import { DOT_MIN_AMPS, DOT_SPACING, ELECTRON_SLOWDOWN, boxNets, dotSpeed, flowMap, hatchSpacing, hillShare, pushMap, traceLoop } from "../flow";
+import { BOX } from "../dims";
 import { partPose } from "../layout";
 import type { BenchStore } from "../store";
 import type { BenchState, Vec3 } from "../types";
@@ -255,7 +256,7 @@ const Push3D = memo(function Push3D({ bench, store, floor }: { bench: BenchState
         if (!part) return null;
         const pose = partPose(bench, part);
         // Beside a battery, standing at its right; over a box's lid.
-        const at = part.kind === "box" ? new THREE.Vector3(pose.origin[0], 72, pose.origin[2] - 6) : new THREE.Vector3(pose.origin[0] + 30, 16, pose.origin[2]);
+        const at = part.kind === "box" ? new THREE.Vector3(pose.origin[0], BOX.h + 15, pose.origin[2] - 8) : new THREE.Vector3(pose.origin[0] + 30, 16, pose.origin[2]);
         return <Hill key={id} at={at} share={hillShare(volts)} />;
       })}
     </group>

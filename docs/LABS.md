@@ -78,7 +78,32 @@ shows the inside.
 | `card` | A pencil card: a line from the 0 mark, `length` (cm), `layers`, `wide` | `p0` to `p20`, every 0.5 cm |
 | `tag`, `bin`, `chart`, `clock`, `showcase` | A value label (`text`), a reject bin, the colour code, a clock showing simulated time, a display case | none |
 
-Holders (`holder`, `station`, `fruit`, `bin`) have **seats**: a part dropped on one goes in (the one already there
+**Start here props** (docs/curriculum/start-here.md, section 6; models in `packages/bench/README.md`):
+
+| Kind | What it is | Leads |
+|---|---|---|
+| `sample` | More `material`s, the junk drawer's everyday objects: `key`, `coin`, `foil` (0.01 Ω), `pencil` (a pencil lead, 5 Ω), `spoon` (plastic), `metal-spoon`, `eraser`, `marble` (glass), `wood` (a dry stick, 1 TΩ), `string`, `clip` (a coated paper clip: `a` and `b` are its bare cut ends, `coat:PC1` its coating) | `a b` |
+| `gate` | A counting gate: clips round a clip lead (`at: "lead:TL3"`, or dropped on one) and ticks once per flow dot that passes, with a rate bar; `mode: "number"` shows the current, its unit (`"A"`, `"mA"`) a button | none |
+| `box` | A sealed box: parts sit inside (`at: "in:BOXA.s1"`, seats `s1` to `s4`) under a lid, only two brass terminals (or a knob) show. `wiring` joins what is inside: `{ "s1.pos": "t1", "s1.neg": "t2" }`, junctions `j1` to `j4` join parts to each other (`{ "s1.wiper": "j1", "s2.a": "j1" }`). `marks: "plain"` hides which terminal is plus; `knob: true` shows a knob that turns the trimmer inside; `tag: "10 kΩ"` ties a value tag to it; `label: "A"`. Tapping the lid opens it (`lid: true`); while it is shut, nothing inside can be seen, picked or clipped. A 9 V battery inside lies on its back | `t1 t2` |
+| `box` with `style: "cabinet"` | The parts cabinet: no terminals, eight seats, a three-wheel padlock `lock: { wheels: ["4,700 Ω", "0.02 A", "9,000 mV"], set: [false, false, false] }` (each wheel shows its answer once set; the lid stays shut while one is unset) | none |
+| `bin` with `style: "tray"` | A big sorting tray with a `label` on its front (the junk drawer's "lets flow through", "stops flow") | none |
+| `bin` with `style: "drawer"` | A parts drawer with a symbol `face` (`battery`, `switch`, `resistor`, `led`) instead of a word; it takes only its own kind of part (`accepts` overrides: a wrong part stays out on the desk) | none |
+| `schematic` | A drawing on a card: `symbols` round one loop (the first on the left, a battery with plus at the top, the rest clockwise), each `{ kind, part?, text? }`; `torn: 2` tears that symbol off, leaving a gap a `piece` fits into | none |
+| `piece` | A torn piece of a drawing with one `symbol`; tapping it turns it a quarter (`turn`); dropped on the gap it sits in it | none |
+| `balloon`, `scarf`, `paper`, `comb`, `wall` | The static toy (wave 2, see below) | none |
+
+Batteries take `charge` (0 to 1, the state of charge a battery starts at: a tired battery for a time-lapse) and, for an
+AA cell, `xray: true` (cut open along its length: the can, manganese dioxide, the separator, the zinc paste and the
+brass pin; tapping the cell toggles it). A `tag` tapped toggles `alt`: its value written out without the prefix ("10
+kΩ" becomes "10,000 Ω", "20 mA" becomes "0.02 A", "2.2 MΩ" becomes "2,200,000 Ω", "9 V" stays).
+
+**The static toy** is its own small model, not the circuit simulator (`packages/bench/src/static.ts`): moving a balloon,
+a comb or a plastic spoon back and forth over the scarf rubs charge onto it (minus marks on it, as many plus marks on
+the scarf, eight at most); a metal spoon keeps none (it drains through your hand). A charged thing within about 4 cm
+of the paper bits lifts them; a charged balloon dropped against the wall's face sticks there, an uncharged one falls
+back to the desk; two charged balloons will not come closer than about 4.5 cm.
+
+Holders (`holder`, `station`, `fruit`, `bin`, `box`, `schematic`) have **seats**: a part dropped on one goes in (the one already there
 pops out), and a seated part's leads touch the holder's contacts. Props have **settings** (moisture, the test load,
 the pencil line) on their selection bar, and some have clickable spots on the model (the skin's moisture tabs, the
 tester's load switch); dragging along a pencil card draws or shades its line. Dropping a part right onto one of its
@@ -94,6 +119,7 @@ own kind swaps the two, clips and probe tips included (a fresh LED for a dead on
 | `"rails"` | A battery with snap leads in the near rails at the left end of the board |
 | `"desk:left"`, `"desk:x,z"` | A spot on the desk in millimetres from the middle (x to the right, z toward you) |
 | `"in:H1"`, `"in:FC1.left"` | In a holder: its first free seat that fits, or that seat |
+| `"lead:TL3"`, `"lead:TL3@0.3"` | A gate clipped round clip lead TL3 (halfway, or that far along from clip a) |
 | `"on:B1"` | Solutions only: take B1's place, swapping the two (clips and probe tips follow) |
 | nothing, `"shelf"` | Laid out in a row in front of the board (the shelf is the back row) |
 
@@ -109,7 +135,9 @@ rails between columns 31 and 33.
 **Attach points** for leads, probes and solution steps: a part lead `"R1.a"` (lead names: resistor `a b`, LED and
 diode `anode cathode`, battery and lemon `pos neg`, switches `a com b`, pushbutton `a1 a2 b1 b2`, trimmer
 `a wiper b`, npn `e b c`, relay `coil1 coil2 com1 nc1 no1 com2 nc2 no2`, dpdt-switch `a1 com1 b1 a2 com2 b2`, props
-as in the table above), a hole `"e12"` or `"rail+:3"`, a jumper end `"W1.b"`, a clip `"TL1.a"`, a probe `"red"`. A
+as in the table above), a hole `"e12"` or `"rail+:3"`, a jumper end `"W1.b"`, a clip `"TL1.a"`, a probe `"red"`. Three
+**insulated spots** take a clip and join nothing: `"wrap:B1"` (a battery's plastic wrapper, beside its + snap),
+`"base:S1"` (a desk switch's wooden block) and `"coat:PC1"` (a coated paper clip's coating); the tracer stops there. A
 probe tip can touch a clip (even one lying loose) or the other probe's tip. On a mystery part `"K1.coil1"` is terminal
 1 whatever it does inside; solutions say `"wired:K1.coil1"` for the terminal wired as the coil, so they work for
 every shuffle.
@@ -154,6 +182,13 @@ shows one only from that task on. Goals read `lab.panel(id)` (`cells`, `size`, `
 | `{ kind: "symbol", id, answer: { slots, linked } }` | Build a symbol from two slots and an optional link |
 
 **Nodes** name nodes for goals and scope traces: `nodes: { c: "C1.pos" }` makes `lab.volts("c")` work.
+
+**Overlays** draw over the bench in both views (docs/BENCH-VIEWS.md): `overlays: { flow: "current", push: true,
+offer: ["flow", "electrons", "push"] }` sets what is on at the start and which toggles the lab's panel offers.
+`flow` rides dots along every lead, jumper and part at a speed from its current (plus to minus), or with `"electrons"`
+the other way and far slower; `push` hatches every lead by its voltage above the battery's minus and stands a hill by
+each battery and on each sealed box. The loop tracer has no switch: a lesson starts it from a terminal
+(`runtime.trace("pin:B1.neg")`, or `{ do: "trace", from: "B1.neg" }`).
 
 The first drafts of the Unit 1 and 2 labs used simulator kinds and `props` (`kind: "switch"`, `kind: "wire"` with
 `at: "B1.pos|S1.a"`, `kind: "multimeter"`). Those still load (see `LegacyPart` in `define.ts`), but write new labs
@@ -218,6 +253,14 @@ with the forms above and move old ones over when you finish their goals.
 | `lab.relayClicks(id, seconds?)`, `lab.relayClicked(id)`, `lab.relayPeriods(id)` | Relay contact moves; seconds between pull-ins |
 | `lab.panel(id)`, `lab.runs()`, `lab.loggerStart()`, `lab.tapping(id)` | Panels and instruments (see above) |
 | `lab.logged(tag)`, `lab.readings(tag?)`, `lab.readingsLog` | Stable meter readings in the notebook (see below) |
+| `lab.gate(id)`, `lab.gateUnit(id)`, `lab.gateTicks(id)` | The current through the lead a gate is on (amps, 0 off a lead); its number mode's unit; the dots it has counted. History source `gate:G1` (`lab.stats("gate:G1")`) |
+| `lab.lidOpen(id)` | A sealed box's (or the cabinet's) lid is open |
+| `lab.view(name)` | A view is on: `"push"`, `"flow"`, `"electrons"`, `"xray"` (the board's), `"xray:XA"` (that AA cut open), `"trace"` |
+| `lab.trace(from)` | The loop tracer from a terminal, worked out on the bench as it is: `{ closed, gap, parts, leads }` (`gap` is what the last clip bites, a loose clip, or an open switch's lead) |
+| `lab.tagShown(id)` | What a tag shows now ("10 kΩ" or, tapped, "10,000 Ω"); a sealed box's tag too |
+| `lab.drawing(id)` | A schematic card: `{ complete, pieces: [{ id, seated, turn, right }] }`, complete once the torn piece sits in its gap the right way round |
+| `lab.charge(id)` | A battery's state of charge, 0..1 |
+| `lab.static(id)`, `lab.stuck(id)`, `lab.lifted(paperId)`, `lab.apart(a, b)` | The static toy: charge in marks (negative is minus marks); a balloon stuck to a wall; what lifts the paper bits; two balloons' distance in mm |
 | `lab.note(id)`, `lab.control(id)`, `lab.task(id)` | Typed numbers, slider values, other tasks' status |
 | `lab.memory`, `lab.shared` | Scratch space kept between checks of the same task; shared by every task of the lab |
 | `lab.trigger(name)` | Fire an achievement trigger from a goal |
@@ -260,10 +303,26 @@ An empty solution is reported as skipped.
 | `{ do: "control", id, value }`, `{ do: "note", id, value }` | Sliders, notebook entries |
 | `{ do: "panel", id, value }`, `{ do: "tapper", on }` | Submit a panel answer (a pin map names the legs as wired inside, e.g. `{ coil1: "coil" }`); work the auto-tapper |
 | `{ do: "replace", part }`, `{ do: "replaceFuse" }`, `{ do: "wait", seconds }` | |
+| `{ do: "view", name, on }`, `{ do: "trace", from }` | Switch an overlay (`"flow"`, `"electrons"`, `"push"`, `"xray"`); run the tracer from a terminal (null clears it) |
+| `{ do: "rub", part, on, strokes? }` | The static toy: rub a balloon (comb, spoon) back and forth on the scarf. A `move` to a desk spot moves it as a drag would (over the scarf it rubs, at the wall it sticks or falls) |
+
+Start here props change through `param` as their taps do: `{ lid: true }` opens a box, `{ alt: true }` taps a tag open
+(`{ tagAlt: true }` on a box's tag), `{ turn: 90 }` turns a torn piece, `{ xray: true }` cuts an AA open, `{ mode:
+"number", unit: "mA" }` sets a gate; a gate is clipped on with `{ do: "move", part: "G1", at: "lead:TL3" }`.
 | `{ do: "check", task }` | By here, this task is done. Also splits the solution for "Show me" |
 
 Each step lets 0.25 s of simulated time pass. Put a `check` after the steps of each task: "Show me" rewinds to the
 bench at the previous check and plays the steps up to this one.
+
+## For the lesson player
+
+The lab runtime (`apps/web/src/lab/runtime.ts`) drives the bench's teaching overlays for a lesson: `runtime.setView(
+"push" | "flow" | "electrons" | "xray", on)`, `runtime.trace(anchor | null)` (the tracer inks the path from that
+terminal, part by part, in both views, and stops at a gap with a red mark). `runtime.ui` carries `views` (what is on)
+for toggles. Taps on a part's named spots use the controller's targets: `part:SD1/R1` (a drawing's symbol for R1),
+`part:BOXA/lid`, `part:KB/knob`, `part:KB/tag`, `part:CAB/wheel2`, `part:G1/unit`, `part:L1/text`, besides leads
+(`part:R1/a`) and anchors. The pure helpers (`traceLoop`, `flowMap`, `pushMap`, `gateAmps`, `expandPrefix`,
+`tagText`, `symbolInk`, `slotTurn`) come from `@ohmland/bench/core` for notebook sketches and checks.
 
 ## Trying a lab
 

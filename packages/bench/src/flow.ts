@@ -276,8 +276,11 @@ export function pushMap(bench: BenchState, snapshot: Snapshot | null): PushMap {
     out.leads[l.id] = [a ?? b ?? 0, b ?? a ?? 0];
   }
   const hidden = hiddenParts(bench);
+  // A battery in a sealed box shows its push as the box's hill, open or shut.
+  const boxed = new Set<string>();
+  for (const b of bench.parts) if (b.kind === "box") for (const id of Object.values(heldOf(b))) if (id) boxed.add(id);
   for (const p of bench.parts) {
-    if (hidden.has(p.id)) continue;
+    if (hidden.has(p.id) || boxed.has(p.id)) continue;
     if (p.kind === "battery" || p.kind === "lemon") {
       const v = snapshot.parts[p.id]?.v;
       if (typeof v === "number") out.hills[p.id] = Math.abs(v);
