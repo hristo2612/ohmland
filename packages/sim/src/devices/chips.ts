@@ -14,6 +14,7 @@ import type { Health, InputKey, InputValue, PartSpec, PartState } from "../types
 import {
   AMBIENT,
   Device,
+  addA,
   Thermal,
   baseState,
   clamp,
@@ -52,8 +53,8 @@ export class Pickup {
   private readonly p1: number;
   private readonly p2: number;
   private readonly ph: number;
-  /** Last value stamped (volts above the chip's ground pin). */
-  v = 0;
+  /** Last fraction of the supply stamped (see frac). */
+  f = 0.5;
   constructor(key: string) {
     const r = seededRandom(key);
     this.f0 = 0.15 + 0.5 * r();
@@ -64,11 +65,34 @@ export class Pickup {
     this.p2 = TAU * r();
     this.ph = TAU * r();
   }
-  /** Voltage (above the chip's ground) at time t for a supply of vs and a hand at proximity p (0..1). */
-  at(t: number, vs: number, p: number): number {
+  /**
+   * Where the picked-up voltage sits at time t, as a fraction of the chip's supply, for a hand at proximity p
+   * (0..1). It stays a little inside the rails: a real floating input cannot go further, its protection diodes
+   * would catch it.
+   */
+  frac(t: number, p: number): number {
     const drift = 0.5 * Math.sin(TAU * this.f0 * t + this.p0) + 0.3 * Math.sin(TAU * this.f1 * t + this.p1) + 0.15 * Math.sin(TAU * this.f2 * t + this.p2);
     const hum = (0.06 + 1.2 * p) * Math.sin(TAU * MAINS_HZ * t + this.ph);
-    return Math.max(0, vs) * (0.5 + 0.85 * drift + hum);
+    return 0.5 + 0.47 * Math.tanh(1.9 * (0.85 * drift + hum));
+  }
+  /**
+   * Stamps the pickup on a pin: conductance g to a voltage f x (vcc - gnd) above the ground pin (a source that
+   * follows the supply within the solve, so a starved supply cannot run away from it). The current returns
+   * through the ground pin.
+   */
+  stamp(A: Float64Array, n: number, pin: number, vcc: number, gnd: number, g: number): void {
+    const f = this.f;
+    addA(A, n, pin, pin, g);
+    addA(A, n, pin, vcc, -g * f);
+    addA(A, n, pin, gnd, -g * (1 - f));
+    addA(A, n, gnd, pin, -g);
+    addA(A, n, gnd, vcc, g * f);
+    addA(A, n, gnd, gnd, g * (1 - f));
+  }
+  /** Current into the pin from the pickup for a solution. */
+  amps(x: Float64Array, pin: number, vcc: number, gnd: number, g: number): number {
+    const vg = volt(x, gnd);
+    return g * (volt(x, pin) - vg - this.f * (volt(x, vcc) - vg));
   }
 }
 
@@ -335,9 +359,9 @@ export class Timer555Device extends ChipBase {
     this.pinIdx = [this.gnd, this.trig, this.out, this.reset, this.ctrl, this.thresh, this.dis, this.vcc];
     this.lower = b.internal(`${this.id}#lower`);
     b.group([this.vcc, this.ctrl, this.lower, this.gnd]);
-    b.group([this.trig, this.gnd]);
-    b.group([this.thresh, this.gnd]);
-    b.group([this.reset, this.gnd]);
+    b.group([this.trig, this.vcc, this.gnd]);
+    b.group([this.thresh, this.vcc, this.gnd]);
+    b.group([this.reset, this.vcc, this.gnd]);
     b.group([this.out, this.vcc, this.gnd]);
     b.group([this.dis, this.gnd]);
   }
@@ -346,23 +370,9 @@ export class Timer555Device extends ChipBase {
     stampG(A, n, this.vcc, this.ctrl, g);
     stampG(A, n, this.ctrl, this.lower, g);
     stampG(A, n, this.lower, this.gnd, g);
-    const gp = pickupG(this.proximity);
-    stampG(A, n, this.trig, this.gnd, gp);
-    stampG(A, n, this.thresh, this.gnd, gp);
-    stampG(A, n, this.reset, this.gnd, gp);
     if (this.dead) return;
     stampG(A, n, this.vcc, this.gnd, this.P.gq);
     if (!this.cmos) stampG(A, n, this.out, this.gnd, 1 / HI_BLEED);
-  }
-  override stampRhs(b: Float64Array, ctx: Ctx): void {
-    const t = ctx.t + ctx.h;
-    const gp = pickupG(this.proximity);
-    const pins = [this.trig, this.thresh, this.reset];
-    for (let k = 0; k < 3; k++) {
-      const pk = this.pk[k]!;
-      pk.v = pk.at(t, this.vs, this.proximity);
-      stampI(b, this.gnd, pins[k]!, gp * pk.v);
-    }
   }
   /** Output stage strength for the supply: CMOS gets stronger with more gate drive. */
   private cmosK(): number {
@@ -431,6 +441,15 @@ export class Timer555Device extends ChipBase {
     return vnew;
   }
   override stampNonlinear(A: Float64Array, b: Float64Array, n: number, x: Float64Array, ctx: Ctx): void {
+    // Floating-input pickup on the comparator inputs (it varies with time, so it is restamped every solve).
+    const gp = pickupG(this.proximity);
+    const t = ctx.t + ctx.h;
+    const pins = [this.trig, this.thresh, this.reset];
+    for (let k = 0; k < 3; k++) {
+      const pk = this.pk[k]!;
+      pk.f = pk.frac(t, this.proximity);
+      pk.stamp(A, n, pins[k]!, this.vcc, this.gnd, gp);
+    }
     if (this.dead) return;
     const vg = volt(x, this.gnd);
     const vc = volt(x, this.vcc);
@@ -497,9 +516,9 @@ export class Timer555Device extends ChipBase {
     const g = 1 / this.P.rDiv;
     const [hi, lo, dis, sub] = this.stage(x);
     const gp = pickupG(this.proximity);
-    const iTrig = gp * (volt(x, this.trig) - vg - this.pk[0]!.v);
-    const iThr = gp * (volt(x, this.thresh) - vg - this.pk[1]!.v);
-    const iRst = gp * (volt(x, this.reset) - vg - this.pk[2]!.v);
+    const iTrig = this.pk[0]!.amps(x, this.trig, this.vcc, this.gnd, gp);
+    const iThr = this.pk[1]!.amps(x, this.thresh, this.vcc, this.gnd, gp);
+    const iRst = this.pk[2]!.amps(x, this.reset, this.vcc, this.gnd, gp);
     const iq = this.dead ? 0 : this.P.gq * (vc - vg);
     const iTop = (vc - vt) * g;
     const iMid = (vt - vl) * g;
@@ -1010,8 +1029,6 @@ export class LogicDevice extends ChipBase implements OutputDriver {
   st: number[];
   rOut: number;
   tpdNow: number;
-  /** Extra supply current from inputs parked mid-rail (applied over the next step). */
-  shootAmps = 0;
   private now = 0;
   private ctx: Ctx | null = null;
   private vccPos = 0;
@@ -1075,8 +1092,6 @@ export class LogicDevice extends ChipBase implements OutputDriver {
     return 1 / this.rOut;
   }
   override stampLinear(A: Float64Array, n: number): void {
-    const gp = pickupG(this.proximity);
-    for (const c of this.ins) stampG(A, n, c.idx, this.gnd, gp);
     if (this.dead) return;
     const G = this.G;
     for (const c of this.outs) {
@@ -1087,24 +1102,32 @@ export class LogicDevice extends ChipBase implements OutputDriver {
       else if (c.value === 0) stampG(A, n, c.idx, this.gnd, G);
     }
   }
-  override stampRhs(b: Float64Array, ctx: Ctx): void {
-    const t = ctx.t + ctx.h;
+  override stampNonlinear(A: Float64Array, b: Float64Array, n: number, x: Float64Array, ctx: Ctx): void {
+    // Floating-input pickup (it varies with time, so it is restamped every solve).
     const gp = pickupG(this.proximity);
+    const t = ctx.t + ctx.h;
     for (const c of this.ins) {
-      c.pk.v = c.pk.at(t, this.vs, this.proximity);
-      stampI(b, this.gnd, c.idx, gp * c.pk.v);
+      c.pk.f = c.pk.frac(t, this.proximity);
+      c.pk.stamp(A, n, c.idx, this.vcc, this.gnd, gp);
     }
-    if (this.shootAmps > 0) stampI(b, this.vcc, this.gnd, this.shootAmps);
-  }
-  override stampNonlinear(A: Float64Array, b: Float64Array, n: number, x: Float64Array): void {
     if (this.dead) return;
     const vc = volt(x, this.vcc);
     const vg = volt(x, this.gnd);
+    // Inputs parked mid-rail, counted from this iterate (see shootIG).
+    let parked = 0;
+    const fs = Math.max(0.1, vc - vg);
+    for (const c of this.ins) {
+      const u = (volt(x, c.idx) - vg) / fs - 0.5;
+      if (u > -0.3 && u < 0.3) parked += Math.exp(-(u * u) / 0.0144);
+    }
+    this.parked = parked;
     const dr = vg - vc;
     if (dr > CL_ON) {
       clampIG(dr, 1, o);
       stampBranch(A, b, n, this.gnd, this.vcc, o.i, o.g, dr);
     }
+    this.shootIG(vc - vg, o);
+    if (o.g > 0) stampBranch(A, b, n, this.vcc, this.gnd, o.i, o.g, vc - vg);
     for (const c of this.ins) this.stampClamps(A, b, n, x, c.idx, vc, vg);
     for (const c of this.outs) this.stampClamps(A, b, n, x, c.idx, vc, vg);
   }
@@ -1146,7 +1169,7 @@ export class LogicDevice extends ChipBase implements OutputDriver {
       iGnd += dn;
     };
     for (const c of this.ins) {
-      const ip = gp * (volt(x, c.idx) - vg - c.pk.v);
+      const ip = c.pk.amps(x, c.idx, this.vcc, this.gnd, gp);
       out[c.pos]! += ip;
       iGnd -= ip;
       clamps(c.idx, c.pos);
@@ -1165,8 +1188,10 @@ export class LogicDevice extends ChipBase implements OutputDriver {
     }
     if (!this.dead) {
       const sub = clampI(vg - vc, 1);
-      iVcc += this.shootAmps - sub;
-      iGnd += sub - this.shootAmps;
+      this.shootIG(vc - vg, o);
+      const shoot = o.i;
+      iVcc += shoot - sub;
+      iGnd += sub - shoot;
     }
     out[this.vccPos]! += iVcc;
     out[this.gndPos]! += iGnd;
@@ -1320,16 +1345,24 @@ export class LogicDevice extends ChipBase implements OutputDriver {
       this.releaseGuard(x, vs, ctx);
     }
 
-    // Inputs parked between the bands draw extra supply current (both input transistors conduct).
-    let shoot = 0;
-    if (this.powered) {
-      const k = fam.shoot * (vs / 5) * (vs / 5);
-      for (const c of this.ins) {
-        const u = (volt(x, c.idx) - vg) / Math.max(0.1, vs) - 0.5;
-        if (u > -0.3 && u < 0.3) shoot += k * Math.exp(-(u * u) / 0.0144);
-      }
+  }
+  /** Inputs parked mid-rail (a weighted count, from the latest Newton iterate). */
+  private parked = 0;
+  /**
+   * Shoot-through supply current for a supply of vs: fam.shoot per parked input at 5 V, growing with the square
+   * of the supply above about 1 V (both input transistors need gate drive), none below. Smooth in vs, so a starved
+   * supply (a chip powered through an input's protection diode) settles where it can give what is drawn.
+   */
+  private shootIG(vs: number, out: { i: number; g: number }): void {
+    const d = vs - 1;
+    if (this.parked <= 0 || d <= 0) {
+      out.i = 0;
+      out.g = 0;
+      return;
     }
-    this.shootAmps = shoot;
+    const k = (this.fam.shoot * this.parked) / 16;
+    out.i = k * d * d;
+    out.g = 2 * k * d;
   }
   /** The oscillation guard lets go of an output once its inputs have been firm for a while. */
   private releaseGuard(x: Float64Array, vs: number, ctx: Ctx): void {

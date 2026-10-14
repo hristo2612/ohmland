@@ -29,6 +29,11 @@ const H_SETTLE = 1e-9;
 const H_EDGE_RESTART = 5e-5;
 /** Threshold crossings are located to within this time. */
 const EVENT_TOL = 2e-8;
+/** Watchdog: this many accepted steps in a row under H_TINY force coarse steps of H_FORCED for FORCE_SPAN. */
+const H_TINY = 1e-8;
+const TINY_RUN = 500;
+const H_FORCED = 2e-7;
+const FORCE_SPAN = 1e-5;
 /** Below this step a Newton failure is treated as a fold (a regenerative snap) and solved as a jump at once. */
 const H_REDUCE_MIN = 6e-6;
 const MAX_ITER = 6;
@@ -143,7 +148,9 @@ export class Engine implements Ctx {
   /** Optional hook called after every accepted step (audio sampling, meters). */
   onAccept: ((e: Engine) => void) | null = null;
 
-  stats = { steps: 0, iterations: 0, factorizations: 0, rejected: 0, failed: 0, rescued: 0, remembered: 0, located: 0 };
+  stats = { steps: 0, iterations: 0, factorizations: 0, rejected: 0, failed: 0, rescued: 0, remembered: 0, located: 0, forced: 0 };
+  private tinySteps = 0;
+  private forceUntil = -1;
 
   // -------------------------------------------------------------------------------------------------------------
   // Ctx implementation
@@ -475,6 +482,9 @@ export class Engine implements Ctx {
     const room = limit - this.t;
     if (room <= 0) return;
     if (!(h > 0)) h = H_BREAK;
+    // Watchdog: while forced, take steps of at least a fraction of a microsecond and never rescue (see below).
+    const forced = this.t < this.forceUntil;
+    if (forced) h = Math.max(h, H_FORCED);
     if (h >= room) h = room;
     else if (room < 2 * h) h = room / 2;
 
@@ -503,7 +513,7 @@ export class Engine implements Ctx {
           method = "be";
           this.prepare(h, method);
         }
-        ok = this.rescue();
+        ok = !forced && this.rescue();
         if (ok) {
           this.stats.rescued++;
           this.needBreak = true;
@@ -529,7 +539,7 @@ export class Engine implements Ctx {
         this.hSmooth = h;
       } else if (ok && !jumped && !isBreak && this.reactives.length === 0) this.hSmooth = h;
       // Event location: on a smooth stretch, land just past the first threshold crossing instead of jumping over it.
-      if (ok && !jumped && !isBreak && this.eventDevs.length > 0 && locates < 16) {
+      if (ok && !jumped && !isBreak && !forced && this.eventDevs.length > 0 && locates < 16) {
         let f = Infinity;
         for (const d of this.eventDevs) {
           const fd = d.crossing(this.x, this.xIter);
@@ -560,6 +570,15 @@ export class Engine implements Ctx {
         const hr = Math.min(H_EDGE_RESTART, this.hmax * this.stepScale, Math.max(H_BREAK, this.hSmooth));
         this.hRestart = hr;
         this.hNext = hr;
+      }
+      // Watchdog: a long run of tiny steps (a circuit the solver keeps snapping back and forth on) would stall
+      // simulated time and freeze the bench. Then skip ahead for a moment with coarse steps instead.
+      if (h < H_TINY && !soft) this.tinySteps++;
+      else this.tinySteps = 0;
+      if (this.tinySteps > TINY_RUN) {
+        this.tinySteps = 0;
+        this.forceUntil = this.t + FORCE_SPAN;
+        this.stats.forced++;
       }
       return;
     }
