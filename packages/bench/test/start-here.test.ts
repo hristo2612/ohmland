@@ -108,6 +108,10 @@ describe("everyday objects", () => {
     };
     b = movePart(b, "K1", [-48, -4]);
     expect(holderOf(b, "K1")?.holder.id).toBe("YES");
+    // Dropped anywhere on the tray, even on a filed object, a part takes the nearest free seat.
+    b = { ...b, parts: [...b.parts, part("CN1", "sample", { material: "coin" }, [0, 140])] };
+    b = movePart(b, "CN1", [-44, 20]);
+    expect([holderOf(b, "K1")?.holder.id, holderOf(b, "CN1")?.holder.id]).toEqual(["YES", "YES"]);
     b = movePart(b, "D1", [180, -4]);
     expect(holderOf(b, "D1")).toBeNull();
     b = movePart(b, "R1", [180, -4]);

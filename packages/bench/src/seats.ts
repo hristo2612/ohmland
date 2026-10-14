@@ -1,6 +1,7 @@
 // Holders and their seats: which part sits in which holder, where it sits, and finding a free seat near a point.
 // Pure: shared by ops (seating on drop), layout (poses) and the netlist (contacts).
 
+import { BIN, DRAWER, TRAY } from "./dims";
 import { partDef, rotateXZ, type SeatDef } from "./parts";
 import type { BenchState, Held, PlacedPart, Vec2, Vec3 } from "./types";
 
@@ -41,8 +42,30 @@ export function seatPose(holder: PlacedPart, seat: SeatDef, held: PlacedPart): {
   return out;
 }
 
+/** A bin, sorting tray or parts drawer under a desk point: a big drop target (its footprint, in mm). */
+function binUnder(h: PlacedPart, to: Vec2): boolean {
+  if (h.kind !== "bin") return false;
+  const [w, d] = h.params.style === "tray" ? [TRAY.w, TRAY.d] : h.params.style === "drawer" ? [DRAWER.w, DRAWER.d] : [BIN.w, BIN.d];
+  const [lx, lz] = rotateXZ(to[0] - h.pos[0], to[1] - h.pos[1], -h.rot);
+  return Math.abs(lx) <= w / 2 && Math.abs(lz) <= d / 2;
+}
+
 /** The nearest seat that accepts `part` within `reach` mm of a desk point (a full seat only when nothing else is free). */
 export function seatNear(bench: BenchState, part: PlacedPart, to: Vec2, reach = SEAT_REACH): { holder: PlacedPart; seat: SeatDef } | null {
+  // Dropped anywhere on a bin, a tray or a drawer: its nearest free seat (sorting never knocks out what is filed).
+  for (const h of bench.parts) {
+    if (h.id === part.id || !binUnder(h, to)) continue;
+    const seats = seatsOf(h).filter((s) => s.accepts.includes(part.kind));
+    if (!seats.length) continue;
+    const held = heldOf(h);
+    const dist = (s: SeatDef) => {
+      const o = seatPose(h, s, part).origin;
+      return Math.hypot(o[0] - to[0], o[2] - to[1]);
+    };
+    const free = seats.filter((s) => !held[s.name] || held[s.name] === part.id);
+    const pool = free.length ? free : seats;
+    return { holder: h, seat: pool.reduce((a, b) => (dist(b) < dist(a) ? b : a)) };
+  }
   let best: { holder: PlacedPart; seat: SeatDef; d: number } | null = null;
   for (const h of bench.parts) {
     if (h.id === part.id) continue;
