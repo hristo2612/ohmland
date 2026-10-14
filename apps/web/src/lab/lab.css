@@ -445,3 +445,17 @@
   .dial__pos { font-size: var(--text-small); min-height: 40px; }
   .lcd { min-height: 60px; }
 }
+
+/* The scope's reference lines (dashed, in the second trace's colour) and the duty readout. */
+.scope-panel__swatch--ref { height: 0; border-top: 2px dashed var(--scope-b); background: none; }
+.scope-panel__duty { margin: 0; color: var(--ink); }
+
+/* The hand: an ink hand drawn moving toward the chip, over the real slider. */
+.hand-control__art { display: block; width: 100%; max-width: 280px; height: auto; }
+.hand-control__chip { fill: var(--chip); stroke: var(--ink); stroke-width: 1.5; }
+.hand-control__notch { fill: var(--surface); stroke: var(--ink); stroke-width: 1.2; }
+.hand-control__leg { stroke: var(--lead); stroke-width: 3; stroke-linecap: round; }
+.hand-control__hand path { fill: var(--surface); stroke: var(--ink); stroke-width: 1.8; stroke-linejoin: round; }
+.hand-control__hand { transition: transform var(--dur-1) var(--ease-out); }
+.hand-control__hum { fill: none; stroke: var(--info); stroke-width: 1.6; stroke-linecap: round; }
+:root[data-motion="reduce"] .hand-control__hand { transition: none; }
