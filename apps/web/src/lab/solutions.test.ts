@@ -24,9 +24,9 @@ const STRICT = new Set(
 describe("lab solutions", () => {
   it("finds the labs", () => {
     expect(labs.length).toBeGreaterThan(0);
-    // The Start here labs (six so far), and Basics' 15 classic labs plus the split halves share-the-push, use-the-law,
-    // end-to-end, count-the-watts, big-current and how-long.
-    expect(STRICT.size).toBeGreaterThanOrEqual(27);
+    // The Start here labs (six so far), and Basics' 15 classic labs plus the split halves salt-and-water, the-liar,
+    // share-the-push, use-the-law, end-to-end, count-the-watts, big-current and how-long.
+    expect(STRICT.size).toBeGreaterThanOrEqual(29);
   });
 
   for (const { file, lab } of labs) {

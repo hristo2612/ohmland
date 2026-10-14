@@ -12,7 +12,7 @@ import type { BenchStore } from "../store";
 import type { Anchor, BenchAction, BenchState, MeterMode, Selection, TrayItem, Vec2 } from "../types";
 import { toLocal } from "./frame";
 import { holeNear, hitTest, snapTarget } from "./hit";
-import { actuatorFrame, type InkModel, type InkPick } from "./model";
+import { actuatorFrame, type InkModel, type InkPick, leadPoint } from "./model";
 import type { InkView } from "./view";
 
 export type InkApi = {
@@ -27,8 +27,11 @@ export type InkApi = {
 };
 
 type Drag =
-  /** `to`: where the part was last dragged (it goes into a holder's seat only when dropped there). */
-  | { kind: "part"; id: string; offset: Vec2; spawned?: boolean; to?: Vec2 }
+  /**
+   * `to`: where the part was last dragged (it goes into a holder's seat only when dropped there). `cable`: for a gate,
+   * the lead drawn under it there.
+   */
+  | { kind: "part"; id: string; offset: Vec2; spawned?: boolean; to?: Vec2; cable?: { lead: string; at: number } | null }
   | { kind: "leg"; id: string; leg: string; flying: boolean }
   | { kind: "wireEnd"; id: string; end: "a" | "b" }
   | { kind: "wireNew"; from: string }
@@ -223,6 +226,29 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
     }
   };
 
+  /**
+   * For a gate: the clip lead whose cable, as drawn here, passes nearest a desk point, and how far along it (the cable
+   * bows well off the line between its clips, so the straight-line test in ops picks the wrong lead mid-span).
+   */
+  const cableAt = (id: string, x: number, z: number, touch: boolean): { lead: string; at: number } | null => {
+    if (store.getState().bench.parts.find((p) => p.id === id)?.kind !== "gate") return null;
+    const reach = (touch ? 30 : 20) / view.cam.s;
+    let best: { lead: string; at: number } | null = null;
+    let bestD = reach;
+    for (const li of ctx.model().leads.values()) {
+      for (let i = 2; i <= 38; i++) {
+        const t = i / 40;
+        const p = leadPoint(li, t).at;
+        const d = Math.hypot(p[0] - x, p[1] - z);
+        if (d < bestD) {
+          bestD = d;
+          best = { lead: li.lead.id, at: Math.round(Math.max(0.15, Math.min(0.85, t)) * 100) / 100 };
+        }
+      }
+    }
+    return best;
+  };
+
   const dragMove = (g: Gesture, cx: number, cy: number) => {
     const d = g.drag!;
     const s = store.getState();
@@ -234,11 +260,16 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
         d.last = [lx, ly];
         return;
       }
-      case "part":
-        // On its way it never sits in a holder: passing over a full bin must not push a part out of it.
-        d.to = [x - d.offset[0], z - d.offset[1]];
-        s.apply((b) => ops.movePart(b, d.id, d.to!, { seat: false }));
+      case "part": {
+        // On its way it never sits in a holder: passing over a full bin must not push a part out of it. A gate clips
+        // onto the cable drawn under it (else the straight-line test in ops decides).
+        const to: Vec2 = [x - d.offset[0], z - d.offset[1]];
+        d.to = to;
+        d.cable = cableAt(d.id, to[0], to[1], g.touch);
+        const cable = d.cable;
+        s.apply((b) => (cable ? ops.clipGate(b, d.id, to, cable) : ops.movePart(b, d.id, to, { seat: false })));
         break;
+      }
       case "leg":
         s.apply((b) => (d.flying ? ops.moveFlyingLeg(b, d.id, d.leg, [x, z]) : ops.moveSpanLeg(b, d.id, d.leg, [x, z])));
         break;
@@ -326,6 +357,10 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
       if (target && !s.locked.includes(target.id)) {
         const from = s.txBase?.parts.find((p) => p.id === d.id)?.pos ?? ([target.pos[0], target.pos[1] + 34] as Vec2);
         s.apply((b) => ops.dropOnto(b, d.id, target.id, from));
+      } else if (d.cable && d.to) {
+        // A gate dropped on a cable as drawn: on that lead.
+        const [to, cable] = [d.to, d.cable];
+        s.apply((b) => ops.clipGate(b, d.id, to, cable));
       } else if (d.to) {
         // Dropped on a holder: into the nearest free seat.
         const to = d.to;

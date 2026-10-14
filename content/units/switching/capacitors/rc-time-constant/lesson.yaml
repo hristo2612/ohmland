@@ -1,143 +1,65 @@
+# Blueprint: docs/curriculum/unit-2.md, Lesson 11; conversion: docs/curriculum/conversion-guide.md, C2 lesson 11.
+# A bench lesson (docs/LESSONS.md). One idea: τ = R × C sets how fast a capacitor fills and empties.
+# Lab: content/labs/rc-time-constant.ts. Each τ is typed into the task's notebook box and judged against this
+# circuit's own parts; all four within 5% fire the tau-tamer trigger.
+format: bench
 id: rc-time-constant
-version: 1
+version: 2
 title: Counting in taus
-summary: Log a capacitor charging and discharging, discover the 63% mark, and predict timing with τ = R × C.
-minutes: 14
+summary: Log a capacitor filling and emptying, time its 63% mark, and predict timing with τ = R × C.
+minutes: 9
+lab: rc-time-constant
 unlocks:
   parts: [logger]
   isle: resistor
-steps:
-  - type: hook
-    body: |
-      Every capacitor you've charged so far started fast and finished slowly. Is there a pattern, or is each one
-      different?
 
-      Here's a surprise: every resistor and capacitor pair follows the same curve, only stretched or squashed in
-      time. Find one number for your circuit and you can predict the voltage at any moment. Engineers call that
-      number tau (τ). Let's measure it.
-    visual: { kind: part, part: logger }
-    predict:
-      prompt: A capacitor charges to half the battery voltage in 1 second. How long until it's fully charged?
-      options:
-        - 1 more second
-        - 2 seconds in total, exactly
-        - Much longer, because it keeps slowing down
-    mascot: "Tau: the only Greek letter with a stopwatch."
+start:
+  title: Counting in taus
+  say: Every capacitor fills the same way. Let's time one.
+  go: Time it
 
-  - type: lab
-    lab: rc-time-constant
-    intro: The data logger plots C1's voltage from the moment you slide S1. Drag its cursor to read times off the curve.
+beats:
+  - say: Slide S1 to charge. How long to fill? Guess.
+    objective: Find tau
+    tool: logger
+    guess: { options: [About 1 s, About 2 s, It keeps slowing], answer: It keeps slowing }
+    do: charge-it
+    done: Fast, then slower and slower.
 
-  - type: explain
-    cards:
-      - title: Fast, then slow
-        body: |
-          The current into a capacitor depends on the difference between the supply and the capacitor's voltage.
-          Empty, the difference is big and charge rushes in. Nearly full, the difference is small and charge
-          trickles.
+  - say: Drag the cursor to 5.69 V. Type its time.
+    tool: logger
+    do: find-tau
+    done: "About one second: 1 kΩ × 1,000 µF."
+    note: { at: C1, text: "one τ: 63% of the way" }
+    rule: τ = R × C, in seconds.
 
-          So the curve rises steeply, then flattens, and never quite touches the supply.
-      - title: Two tanks and a pipe
-        body: |
-          Picture a full tank joined to an empty one by a thin pipe. Water races across at first, then slows as the
-          levels get close.
+  - say: Slide S1 back. When does it fall to 3.31 V?
+    tool: logger
+    do: discharge-tau
+    note: { at: C1, text: same τ going down }
 
-          A thinner pipe (more resistance) or a wider tank to fill (more capacitance) both make it take longer.
-          Multiply the two and you get the time scale: **τ = R × C**.
-        mascot: Same curve, different stretch. Capacitors are very consistent.
-      - title: Ohms times farads is seconds
-        body: |
-          With R in ohms and C in farads, τ = R × C comes out in seconds. 1 kΩ × 1,000 µF = 1,000 × 0.001 = 1 s.
-          10 kΩ × 100 µF is 1 s too.
+  - say: Swap R1 for the 10 kΩ. Guess τ, then time it.
+    objective: Stretch it
+    tool: logger
+    guess: { options: [About 1 s, About 10 s, About 100 s], answer: About 10 s }
+    do: ten-times-slower
+    note: { at: R4, text: "10× the R, 10× the time" }
 
-          Each τ closes 63.2% of whatever gap remains. After 5τ the capacitor is above 99%: call it full.
-        mascot: Sixty-three percent. Every single tau.
-      - title: The table to remember
-        body: |
-          Charging from 0 V on a 9 V supply: 5.69 V after 1τ, then 7.78 V, 8.55 V, 8.84 V and 8.94 V after 5τ.
+  - say: Double R and halve C. Filling gets...
+    pick: { options: [Twice as slow, The same, Twice as fast], answer: The same }
+    wrong:
+      Twice as slow: "Halving C cancels it. R × C hasn't changed."
+      Twice as fast: "Doubling R cancels it. R × C hasn't changed."
 
-          Discharging from 9 V: 3.31 V, 1.22 V, 0.45 V, 0.16 V and 0.06 V. The same shape, upside down. Real parts
-          drift a little from these numbers because of tolerance and leakage.
+  - say: Quick sum. τ for 47 kΩ and 22 µF?
+    number: { answer: 1.034, unit: s, tolerance: 2 }
+    hint: "47,000 × 0.000022, in seconds."
 
-  - type: quiz
-    items:
-      - id: tau-47k-22u
-        type: numeric
-        prompt: What is τ for 47 kΩ and 22 µF?
-        answer: 1.034
-        unit: s
-        tolerance: 2
-        hint: 47,000 × 0.000022.
-        explain: "47,000 Ω × 0.000022 F = 1.034 s."
+fixit:
+  say: Fix-it time. This timer should take 2.2 s.
+  tool: logger
+  tasks:
+    - task: hit-the-target
 
-      - id: two-tau-12v
-        type: numeric
-        prompt: A capacitor charges from 0 V toward 12 V. What is its voltage after 2τ?
-        answer: 10.38
-        unit: V
-        tolerance: 2
-        hint: After 2τ it has covered about 86.5% of the gap.
-        explain: "12 V × (1 - 0.135) ≈ 10.4 V."
-
-      - id: effectively-full
-        type: numeric
-        prompt: How long until a capacitor is effectively full, with 100 kΩ and 10 µF?
-        answer: 5
-        unit: s
-        tolerance: 2
-        hint: Find τ first, then remember how many taus make full.
-        explain: "τ = 100,000 × 0.00001 = 1 s, and 5τ = 5 s."
-
-      - id: double-halve
-        type: choice
-        prompt: You double R and halve C. Charging becomes...
-        options:
-          - text: Twice as slow
-            why: Doubling R alone would do that, but halving C cancels it.
-          - text: The same speed
-            correct: true
-            why: R × C is unchanged.
-          - text: Four times as fast
-            why: The product didn't shrink.
-        explain: Timing depends only on the product R × C.
-
-      - id: curve-shape
-        type: choice
-        prompt: Which shape shows a capacitor charging through a resistor?
-        options:
-          - text: A straight rising line
-            why: That would need a constant current, not a resistor.
-          - text: Steep at first, then flattening toward the supply
-            correct: true
-            why: The current shrinks as the gap closes.
-          - text: Slow at first, then shooting up
-            why: That's the opposite shape.
-          - text: A sudden jump straight to full
-            why: Only with no resistor at all.
-        explain: RC charging always rises fast, then levels off.
-
-      - id: tau-not-full
-        type: choice
-        prompt: Is τ the time it takes to charge fully?
-        options:
-          - text: "Yes"
-            why: After one τ it's only at about 63%.
-          - text: No, it's the time to cover 63% of the gap
-            correct: true
-            why: Full takes about 5τ.
-        explain: τ is the time scale. Five of them make "full" for practical purposes.
-
-  - type: wrap
-    rules:
-      - τ = R × C (ohms times farads gives seconds).
-      - "After 1τ: 63% of the way. After 5τ: effectively full."
-      - Bigger R or bigger C means slower.
-      - Charging is fast, then slow, never a straight line.
-    realWorld:
-      parts:
-        - A 1,000 µF electrolytic capacitor rated 16 V
-        - 1 kΩ and 10 kΩ resistors
-        - An SPDT switch
-        - A multimeter, a stopwatch and a 9 V battery
-      safety:
-        - Nothing risky at these values. A fresh battery gives the cleanest data.
+end:
+  say: Same curve, different stretch. You count in taus now.

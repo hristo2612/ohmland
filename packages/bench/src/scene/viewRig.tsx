@@ -165,7 +165,9 @@ export function ViewRig({
   const invalidate = useThree((s) => s.invalidate);
   const home = useRef<{ position: THREE.Vector3; target: THREE.Vector3; top: boolean } | null>(null);
   const homed = useRef(initialCamera);
-  const cache = useRef<{ bench: BenchState | null; points: Map<string, Vec3 | null> }>({ bench: null, points: new Map() });
+  const cache = useRef<{ bench: BenchState | null; frame: number; points: Map<string, Vec3 | null> }>({ bench: null, frame: -1, points: new Map() });
+  /** Drawn frames so far, and how many more frames overlays hear about after a bench change. */
+  const frames = useRef({ n: 0, settle: 0 });
 
   useLayoutEffect(() => {
     const controls = () => get().controls as unknown as CameraControlsImpl | null;
@@ -373,12 +375,17 @@ export function ViewRig({
       return { x, y, visible };
     };
 
-    /** World point of a target, cached until the bench changes. Parts use the centre of their rendered model. */
+    /**
+     * World point of a target, cached within a drawn frame of one bench. Parts use the centre of their rendered model,
+     * which follows a bench change a frame or two late (a part moved from the desk into the board still has its desk
+     * pose until React has rendered it), so nothing is kept from one frame to the next.
+     */
     const worldPoint = (t: string): Vec3 | null => {
       const b = bench();
       const c = cache.current;
-      if (c.bench !== b) {
+      if (c.bench !== b || c.frame !== frames.current.n) {
         c.bench = b;
+        c.frame = frames.current.n;
         c.points.clear();
       }
       if (c.points.has(t)) return c.points.get(t)!;
@@ -455,7 +462,8 @@ export function ViewRig({
     };
   }, [get, store, apiRef, viewPad, inset, invalidate, setSpotTargets]);
 
-  // Tell overlays when the camera, the canvas size or the bench changed (once per drawn frame, before it is drawn).
+  // Tell overlays when the camera, the canvas size or the bench changed (once per drawn frame, before it is drawn), and
+  // for a few frames after a bench change, while the models catch up.
   const last = useRef({ m: new THREE.Matrix4(), p: new THREE.Matrix4(), w: -1, h: -1, bench: null as BenchState | null });
   useFrame(() => {
     const { camera, size } = get();
@@ -479,7 +487,13 @@ export function ViewRig({
       api.home(home.current.top, false);
       camera.updateMatrixWorld();
     }
-    if (!resized && bench === l.bench && l.m.equals(camera.matrixWorld) && l.p.equals(camera.projectionMatrix)) return;
+    const f = frames.current;
+    f.n++;
+    // The models catch up with a bench change over the next frame or two: overlays hear about those frames too.
+    if (bench !== l.bench) f.settle = 3;
+    const settling = f.settle > 0;
+    if (settling) f.settle--;
+    if (!settling && !resized && bench === l.bench && l.m.equals(camera.matrixWorld) && l.p.equals(camera.projectionMatrix)) return;
     l.m.copy(camera.matrixWorld);
     l.p.copy(camera.projectionMatrix);
     l.w = size.width;
