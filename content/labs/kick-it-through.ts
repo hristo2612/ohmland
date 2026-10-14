@@ -133,7 +133,7 @@ export default defineLab({
         if (lab.closed("S3") && charge(lab) < 1) m.reset = true;
         return m.reset === true && lab.closed("S2") && flash(lab) > 0.3;
       },
-      hints: ["Press the white button. Does C2 empty?", "Its row, 33, needs a wire to C2's plus row, 32."],
+      hints: ["Press the white button. Does C2 empty?", "Pick Wire, then join row 33 to C2's plus row, 32."],
       highlight: ["S3", "hole:g32", "hole:g33"],
       success: "Fixed.",
     },

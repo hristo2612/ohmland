@@ -111,7 +111,7 @@ export default defineLab({
         if (!lab.isLit("D5") && halfDead(lab)) lab.memory["dark"] = true;
         return lab.memory["dark"] === true && lab.isLit("D5") && !halfDead(lab);
       },
-      hints: ["Follow the red stripe. See the break in the middle?", "Bridge each rail across its break with a wire."],
+      hints: ["Follow the red stripe. See the break in the middle?", "Pick Wire, then join each rail across its break."],
       highlight: ["hole:bp31", "hole:bp33", "hole:bn31", "hole:bn33"],
       nudges: [{ when: (lab) => lab.connected("rail+:10", "rail+:50") && !lab.connected("rail-:10", "rail-:50"), say: "Plus is across. Minus needs a bridge too." }],
       success: "Fixed.",
