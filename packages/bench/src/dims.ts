@@ -8,6 +8,8 @@ export const BOARD_TOP = 8.5;
 export const LEAD_R = 0.3; // 0.6 mm tinned lead
 
 export const RESISTOR = { len: 6.3, dia: 2.45, lift: 0.9, deskLead: 16 };
+/** Where a 1/4 W resistor's colour bands sit along its body (mm from its middle, first band toward lead a). */
+export const RESISTOR_BANDS: Record<4 | 5, readonly number[]> = { 4: [-2.36, -1.32, -0.42, 2.36], 5: [-2.42, -1.55, -0.72, 0.12, 2.42] };
 export const DIODE = { len: 5.2, dia: 2.7, lift: 0.8, deskLead: 16, leadR: 0.4 };
 
 export const LED = {

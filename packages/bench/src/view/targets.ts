@@ -65,7 +65,7 @@ export function partSpot(bench: BenchState, part: BenchState["parts"][number], s
   const pose = partPose(bench, part);
   const leg = pose.legs[sub];
   if (leg) return leg;
-  const local0 = partMarks(part)[sub];
+  const local0 = partMarks(part, { mount: pose.mount, ...(pose.span !== undefined ? { span: pose.span } : {}) })[sub];
   if (!local0) return null;
   const local = pose.lie ? lieDown(local0) : local0;
   const [rx, rz] = rotateXZ(local[0], local[2], pose.rot);

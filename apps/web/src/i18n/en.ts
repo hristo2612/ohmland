@@ -254,6 +254,12 @@ export const en = {
       flag: "flag",
       unit: "unit button",
       patch: "rubbed patch",
+      // A resistor's colour bands.
+      band1: "stripe 1",
+      band2: "stripe 2",
+      band3: "stripe 3",
+      band4: "stripe 4",
+      band5: "stripe 5",
       // The meter dial's letters.
       off: "OFF",
       dcv: "V",

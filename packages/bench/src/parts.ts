@@ -29,6 +29,7 @@ import {
   RESISTOR,
   RESISTOR_1W,
   RESISTOR_5W,
+  RESISTOR_BANDS,
   SAMPLE,
   SKIN,
   STATION,
@@ -163,9 +164,10 @@ export type PartDef<K extends BenchPartKind = BenchPartKind> = {
   spots?: (params: PartParamsMap[K]) => Record<string, Vec3>;
   /**
    * Named points on the model for `part:<id>/<name>` targets (project, focus, notes, tap checks): a schematic's symbols,
-   * a padlock's wheels, a gate's unit button. Local mm.
+   * a padlock's wheels, a gate's unit button, a resistor's bands. Local mm; `at` is how the part is mounted (a resistor
+   * on the board sits between its holes, or stands up when they are too close).
    */
-  marks?: (params: PartParamsMap[K]) => Record<string, Vec3>;
+  marks?: (params: PartParamsMap[K], at?: MarkMount) => Record<string, Vec3>;
   /** Simulator parts for this bench part. `node(leg)` gives the node a lead is on. */
   toSpecs: (part: PlacedPartOf<K>, node: (leg: string) => NodeId, ctx: NetContext) => PartSpec[];
   /** Metal contacts the part makes between anchors (a perfboard's solder joints, a splice), for connectivity. */
@@ -304,6 +306,7 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
       { leg: "b", dx: 4, dz: 0 },
     ],
     defaults: { ohms: 470, bands: 4, watts: 0.25, tolerance: 5 },
+    marks: (pp, at) => resistorBandMarks(pp, at),
     deskLegs: (pp) => {
       const w = pp.watts ?? 0.25;
       if (w >= 2) return deskAxial(RESISTOR_5W.len, RESISTOR_5W.w, RESISTOR_5W.deskLead, "a", "b");
@@ -1178,9 +1181,38 @@ export const PRINTED_KINDS: ReadonlySet<string> = new Set(["chart", "tag", "card
 export const UPRIGHT_KINDS: ReadonlySet<string> = new Set([...PRINTED_KINDS, "chip", "sevenseg", "regulator7805", "dip-switch"]);
 
 /** Named points on this part for `part:<id>/<name>` targets (local mm). */
-export function partMarks(part: Pick<PlacedPart, "kind" | "params">): Record<string, Vec3> {
+export function partMarks(part: Pick<PlacedPart, "kind" | "params">, at?: MarkMount): Record<string, Vec3> {
   const d = partDef(part.kind) as PartDef;
-  return d.marks ? (d.marks as (p: unknown) => Record<string, Vec3>)(part.params) : {};
+  return d.marks ? (d.marks as (p: unknown, at?: MarkMount) => Record<string, Vec3>)(part.params, at) : {};
+}
+
+/** How a part is mounted, for marks that depend on it: on the desk, or on the board `span` holes apart. */
+export type MarkMount = { mount: "board" | "desk"; span?: number };
+
+/**
+ * A resistor's colour bands (`band1` toward lead a ... `band4` or `band5`), on top of the body as the 3D model draws
+ * them: a 1 W body is the 1/4 W one scaled up; a ceramic block has none. The ink view draws desk parts larger than
+ * life and places its bands itself (ink/kinds/axial.tsx, resistorBandX).
+ */
+function resistorBandMarks(pp: PartParamsMap["resistor"], at?: MarkMount): Record<string, Vec3> {
+  const w = pp.watts ?? 0.25;
+  const board = at?.mount === "board";
+  if (!board && w >= 2) return {};
+  const centres = RESISTOR_BANDS[pp.bands === 5 ? 5 : 4];
+  const out: Record<string, Vec3> = {};
+  if (board) {
+    const L = (at?.span ?? 4) * PITCH;
+    const half = RESISTOR.len / 2 + 0.32;
+    // Holes too close for the body: it stands on one lead, its bands up the side.
+    const upright = L < half * 2 + 1.6;
+    centres.forEach((c, i) => (out[`band${i + 1}`] = upright ? [RESISTOR.dia / 2, 0.9 + half + c, 0] : [L / 2 + c, RESISTOR.lift + RESISTOR.dia, 0]));
+    return out;
+  }
+  const big = w >= 0.75;
+  const k = big ? RESISTOR_1W.len / RESISTOR.len : 1;
+  const top = big ? RESISTOR_1W.dia : RESISTOR.dia;
+  centres.forEach((c, i) => (out[`band${i + 1}`] = [c * k, top, 0]));
+  return out;
 }
 
 /** A mystery part's permutation as numbers (terminal i is wired as leg perm[i]), or null when it is not one. */
