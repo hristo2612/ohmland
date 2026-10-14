@@ -657,6 +657,7 @@ export class LabRuntime {
       }
       if (e.tapper !== undefined) this.setTapper(e.tapper);
       if (e.view) this.setView(e.view.name, e.view.on);
+      if (e.panelView) this.setView(e.panelView.name, e.panelView.on);
       if (e.roll) this.roll(e.roll.id, e.roll.times);
       if (e.trace !== undefined) this.trace(e.trace);
       // At least the step's own simulated time (a long press must end before the next step), and a beat to watch.

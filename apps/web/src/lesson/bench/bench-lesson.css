@@ -639,6 +639,10 @@
   .bl-tool .dial { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 2px; }
   .bl-tool .dial__pos { min-height: var(--bl-tap); padding: 0; font-size: var(--bl-text-xs); }
   .bl-tool .meter-panel__range .select { min-height: var(--bl-tap); }
+  /* The overlay toggles as one slim row: what they show, then the switches. */
+  .bl-tool .views-panel { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--bl-s-2); padding: var(--bl-s-1) var(--bl-s-2); }
+  .bl-tool .views-panel__row { flex-wrap: nowrap; gap: var(--bl-s-1); }
+  .bl-tool .views-panel__row .btn { flex: 1; min-height: var(--bl-tap); padding-inline: var(--bl-s-2); }
   /* While a tool is docked along the bottom, a selected part's bar (Add salt, Rotate) moves up under the undo buttons. */
   .bl-stage.bl-stage:has(> .bl-tool) .ohb-sel,
   .bl-stage.bl-stage:has(> .bl-tool) .ohi-sel { top: 64px; bottom: auto; }

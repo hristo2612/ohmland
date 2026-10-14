@@ -19,7 +19,9 @@ export type StepEffect = {
   /** Switch the auto-tapper on or off. */
   tapper?: boolean;
   /** Switch a view or overlay ("flow", "push", the board's "xray"), or a chip's x-ray panel ("xray:U1"). */
-  view?: { name: Extract<SolutionStep, { do: "view" }>["name"]; on: boolean };
+  view?: { name: "flow" | "electrons" | "push" | "xray"; on: boolean };
+  /** Open or close a chip's x-ray panel ("xray:U1"). */
+  panelView?: { name: `xray:${string}`; on: boolean };
   /** Run (or clear, with null) the loop tracer from an anchor. */
   trace?: string | null;
   /** Let a histogram's auto-roller roll. */
@@ -170,8 +172,11 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
       return { bench, inputs: [], wait: SETTLE, panel: { id: step.id, value: step.value } };
     case "tapper":
       return { bench, inputs: [], wait: SETTLE, tapper: step.on };
-    case "view":
-      return { bench, inputs: [], wait: SETTLE, view: { name: step.name, on: step.on } };
+    case "view": {
+      const name = step.name;
+      if (name.startsWith("xray:")) return { bench, inputs: [], wait: SETTLE, panelView: { name: name as `xray:${string}`, on: step.on } };
+      return { bench, inputs: [], wait: SETTLE, view: { name: name as "flow" | "electrons" | "push" | "xray", on: step.on } };
+    }
     case "roll":
       return { bench, inputs: [], wait: SETTLE, roll: { id: step.id, ...(step.times !== undefined ? { times: step.times } : {}) } };
     case "rub": {

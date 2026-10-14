@@ -110,6 +110,7 @@ export function replayLab(lab: LabDefinition, trace?: (line: string) => void): R
       session.setTapper(eff.tapper);
     }
     if (eff.view) session.setView(eff.view.name, eff.view.on);
+    if (eff.panelView) session.setView(eff.panelView.name, eff.panelView.on);
     if (eff.roll) {
       if (!session.rolls[eff.roll.id]) problems.push(`step ${i + 1}: no histogram "${eff.roll.id}"`);
       else {
