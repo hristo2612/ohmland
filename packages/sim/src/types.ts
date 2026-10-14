@@ -154,6 +154,31 @@ export type Netlist = {
   // Mixed into every per-part spread (tolerances, fuse ratings, relay thresholds, transistor gain), so a lab can
   // give each learner a different but repeatable bag of parts. Without it, spreads depend on part ids only.
   seed?: string;
+  // Nodes to watch for level crossings at every solver step (see WatchSpec); their edges arrive in Snapshot.edges.
+  watch?: WatchSpec[];
+};
+
+/**
+ * Edge watch: a node the simulator checks against a threshold after every solver step, so edges between two
+ * snapshots (contact bounce, a counter's ripple, a nanosecond glitch) are counted and timed exactly. The threshold
+ * is `level` volts; without it, `fraction` (default 0.5) of the voltage at node `of` (a chip's supply pin), or of the
+ * highest node voltage in the circuit when `of` is absent too. A Schmitt band of `hysteresis` volts (default 2% of
+ * the threshold, at least 5 mV) keeps a slow, noisy crossing from counting twice.
+ */
+export type WatchSpec = { id: string; node: NodeId; level?: number; of?: NodeId; fraction?: number; hysteresis?: number };
+
+/** The crossings of one watched node since the previous snapshot. */
+export type EdgeLog = {
+  rises: number;
+  falls: number;
+  // Where the node is now: above the threshold (true) or below it.
+  high: boolean;
+  // Every crossing as [simulated seconds, 1 rising or 0 falling], oldest first, timed by interpolating between the
+  // two solver points around it. At most EDGE_LOG_MAX per snapshot; `dropped` counts the rest (an oscillation).
+  log: [number, 0 | 1][];
+  dropped?: number;
+  // The threshold at the latest step, in volts.
+  level: number;
 };
 
 export type Health = "ok" | "hot" | "smoking" | "dead";
@@ -191,6 +216,7 @@ export type Snapshot = {
   parts: Record<string, PartState>;
   events: SimEvent[]; // since the previous snapshot
   lag?: number; // 0..1, how far the sim is behind real time
+  edges?: Record<string, EdgeLog>; // watched nodes (Netlist.watch) by watch id: crossings since the previous snapshot
 };
 
 // "replaceFuse" (multimeter): fit a new internal mA fuse. "replace" (any part): swap in a fresh part with the same

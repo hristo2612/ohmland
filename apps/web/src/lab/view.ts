@@ -5,7 +5,10 @@
 import { apart, gateAmps, isThrowSwitch, lifting, partLegs, slotTurn, staticCharge, stuckTo, tagText, traceLoop, type BenchNetlist, type BenchState, type GateCounts, type MeterSocket, type PlacedPart } from "@ohmland/bench/core";
 import type { NodeId, PartState, SimEvent, SimEventType, Snapshot } from "@ohmland/sim";
 import { resolveAttach } from "./anchors";
-import type { DrawingState, LabView, LabViews, MeterView, PanelState, Reading, Stats, StopwatchRun, TaskStatus } from "./define";
+import { chipLeg, chipPinNode, chipPinRef, chipSeat, levelOf, partChip, pinNumber, specChip, type Level } from "./chips";
+import type { CaptureView, DrawingState, EdgeCount, LabView, LabViews, MeterView, PanelState, Reading, RollsView, Stats, StopwatchRun, TaskStatus, TimingView } from "./define";
+import { distinctRun, dutyOf, edgesOf, midLevel, pressesOf, tallyOf, widthsOf, type Edge, type EdgeTrack } from "./signals";
+import { supplyNodeOf, watchKey } from "./watch";
 
 export type LabViewInput = {
   bench: BenchState;
@@ -44,12 +47,23 @@ export type LabViewInput = {
   views?: Readonly<LabViews>;
   /** Dots each gate has counted. */
   gates?: Readonly<GateCounts>;
+  /** Chip x-ray panels that are open ("xray:U1"). */
+  panelViews?: ReadonlySet<string>;
+  /** Edge logs of watched nodes, by watch key (see watch.ts). */
+  tracks?: ReadonlyMap<string, EdgeTrack>;
+  timing?: Readonly<Record<string, TimingView>>;
+  rolls?: Readonly<Record<string, RollsView>>;
+  capture?: CaptureView | null;
+  /** Parts the board refused to seat. */
+  rejected?: readonly string[];
 };
 
 const NO_VIEWS: LabViews = { flow: "off", push: false, xray: false, trace: null };
 
 const SPDT = { has: (kind: string) => isThrowSwitch(kind as PlacedPart["kind"]) };
 const EMPTY_PANEL: PanelState = { cells: {}, size: 0, answer: null, submissions: 0, wrong: 0, correct: false };
+const NO_TIMING: TimingView = { burst: null, replays: 0, replayed: null };
+const NO_ROLLS: RollsView = { list: [], tally: tallyOf([]), rolling: false, sampled: 0 };
 
 /** The simulator kind of a bench part, as the Hall of Fried Parts and achievements name it. */
 export function hallKind(part: PlacedPart | undefined, partId: string): string {
@@ -140,6 +154,21 @@ export function createLabView(input: LabViewInput): LabView {
   const pinNode = (id: string, leg: string) => nodeOf(`pin:${id}.${leg}`);
   const readings = input.readings ?? [];
   const history = input.history ?? (snapshot ? [snapshot] : []);
+  const simNetlist = simNet?.netlist ?? null;
+  const topoNetlist = net?.netlist ?? null;
+  const named = input.nodes ?? {};
+
+  /** The topology node of an attach point, chip pins by number or name ("U1.6", "U1.trig") included. */
+  const topoNode = (s: string): NodeId | null => {
+    const r = chipPinRef(s, bench, topoNetlist);
+    if (r) {
+      const n = chipPinNode(topoNetlist, r.id, r.n);
+      if (n) return n;
+      const part = partOf(r.id);
+      if (part) return nodeOf(`pin:${r.id}.${chipLeg(part, r.info, r.n)}`);
+    }
+    return nodeOf(resolveAttach(bench, s));
+  };
 
   const closedOf = (id: string): boolean => {
     const p = partOf(id);
@@ -149,15 +178,64 @@ export function createLabView(input: LabViewInput): LabView {
     return s?.closed === true;
   };
 
-  /** The simulator node of a named node or attach point (for voltages). */
+  /** The simulator node of a named node or attach point (for voltages); chip pins by number or name. */
   const resolveNode = (name: string): NodeId | null => {
-    const named = input.nodes?.[name];
-    if (named) return simNodeOf(resolveAttach(bench, named));
-    if (name === "gnd") return "gnd";
-    const a = resolveAttach(bench, name);
+    const target = named[name] ?? name;
+    if (target === "gnd") return "gnd";
+    const r = chipPinRef(target, bench, simNetlist);
+    if (r) {
+      const n = chipPinNode(simNetlist, r.id, r.n);
+      if (n) return n;
+      // A pin the netlist leaves out floats on its own node.
+      const float = `${r.id}.${r.info.pins[r.n - 1]}~float`;
+      if (snapshot && float in snapshot.nodes) return float;
+      const part = partOf(r.id);
+      if (part) return simNodeOf(`pin:${r.id}.${chipLeg(part, r.info, r.n)}`);
+    }
+    const a = resolveAttach(bench, target);
     if (a) return simNodeOf(a);
     // A raw netlist node name.
-    return snapshot && name in snapshot.nodes ? name : null;
+    return snapshot && target in snapshot.nodes ? target : null;
+  };
+
+  /** A node's logic level in a snapshot (see LabView.logic). */
+  const levelIn = (s: Snapshot | null, name: string): Level => {
+    if (!s) return "Z";
+    const target = named[name] ?? name;
+    const r = chipPinRef(target, bench, simNetlist);
+    const v = voltsAt(s, resolveNode(name));
+    if (r) {
+      const st = s.parts[r.id];
+      const pin = r.info.pins[r.n - 1]!;
+      const x = st?.extra?.[pin];
+      if (r.info.sim === "logic" && typeof x === "string") return x === "H" || x === "L" || x === "Z" ? x : "X";
+      if (st?.extra?.["powered"] === false || st?.health === "dead") return "Z";
+      const g = voltsAt(s, chipPinNode(simNetlist, r.id, 1)) ?? 0;
+      const sup = st?.extra?.["supply"];
+      return levelOf(v === undefined ? undefined : v - g, typeof sup === "number" ? sup : undefined);
+    }
+    const node = resolveNode(name);
+    let supply: number | undefined;
+    if (node && simNetlist) {
+      const vcc = supplyNodeOf(simNetlist, node);
+      if (vcc) supply = voltsAt(s, vcc);
+    }
+    if (supply === undefined) supply = Math.max(0, ...Object.values(s.nodes));
+    return levelOf(v, supply);
+  };
+
+  /** The edge log of a watched node, by the key the session watches it under. */
+  const trackFor = (node: string, level?: number): EdgeTrack | undefined => input.tracks?.get(watchKey(bench, simNetlist, named, node, level));
+
+  /** Edges of a history source: exact from the edge log for a watched "volts:" node, else from the snapshots. */
+  const edgesFor = (source: string, level: number | undefined, seconds: number | undefined): Edge[] => {
+    if (source.startsWith("volts:")) {
+      const tr = trackFor(source.slice(6), level);
+      if (tr) return seconds === undefined ? tr.edges : tr.after(t - seconds);
+    }
+    const pts = view.history(source, seconds ?? 12);
+    const lvl = level ?? midLevel(pts);
+    return lvl === null ? [] : edgesOf(pts, lvl);
   };
 
   const voltsAt = (s: Snapshot | null, node: NodeId | null): number | undefined => {
@@ -178,6 +256,15 @@ export function createLabView(input: LabViewInput): LabView {
     const key = source.slice(0, i);
     const target = source.slice(i + 1);
     if (key === "volts") return voltsAt(s, resolveNode(target));
+    if (key === "logic") {
+      const l = levelIn(s, target);
+      return l === "H" ? 1 : l === "L" ? 0 : undefined;
+    }
+    if (key === "extra") {
+      const dot = target.indexOf(".");
+      const x = s.parts[target.slice(0, dot)]?.extra?.[target.slice(dot + 1)];
+      return typeof x === "number" ? x : typeof x === "boolean" ? (x ? 1 : 0) : undefined;
+    }
     if (key === "gate") return Math.abs(gateAmps(bench, s, target));
     const p = s.parts[target];
     if (!p) return undefined;
@@ -192,6 +279,15 @@ export function createLabView(input: LabViewInput): LabView {
         return p.temp;
       case "p":
         return p.p;
+      case "closed": {
+        // A changeover switch reports its throw; buttons and plain switches whether they are closed.
+        const to = p.extra?.["to"];
+        return typeof to === "string" ? (to === "b" ? 1 : 0) : p.closed ? 1 : 0;
+      }
+      case "count": {
+        const c = p.extra?.["count"] ?? p.extra?.["count1"];
+        return typeof c === "number" ? c : undefined;
+      }
       default:
         return undefined;
     }
@@ -363,6 +459,11 @@ export function createLabView(input: LabViewInput): LabView {
         for (const l of bench.leads) n += (l.a.to ? 0 : 1) + (l.b.to ? 0 : 1);
         return n;
       },
+      get rejected() {
+        // The bench's own list, when it keeps one, and what the runtime saw it refuse.
+        const own = (bench as { rejected?: unknown }).rejected;
+        return [...new Set([...(Array.isArray(own) ? (own as string[]) : []), ...(input.rejected ?? [])])];
+      },
     }) as LabView["bench"],
     snapshot,
     events,
@@ -418,8 +519,8 @@ export function createLabView(input: LabViewInput): LabView {
     },
     amps: (id) => Math.abs(snapshot?.parts[id]?.i ?? 0),
     connected(a, b) {
-      const na = nodeOf(resolveAttach(bench, a));
-      const nb = nodeOf(resolveAttach(bench, b));
+      const na = topoNode(a);
+      const nb = topoNode(b);
       return !!na && na === nb;
     },
     seriesLoop,
@@ -436,8 +537,8 @@ export function createLabView(input: LabViewInput): LabView {
     probed(a, b, dir) {
       const m = bench.meter;
       if (!m || !m.probes.red.tip.to || !m.probes.black.tip.to || !net) return false;
-      const na = nodeOf(resolveAttach(bench, a));
-      const nb = nodeOf(resolveAttach(bench, b));
+      const na = topoNode(a);
+      const nb = topoNode(b);
       if (!na || !nb || na === nb) return false;
       const red = nodeOf("probe:red");
       const black = nodeOf("probe:black");
@@ -597,6 +698,7 @@ export function createLabView(input: LabViewInput): LabView {
       if (name === "xray") return v.xray;
       if (name === "trace") return v.trace !== null;
       if (name.startsWith("xray:")) {
+        if (input.panelViews?.has(name)) return true;
         const p = partOf(name.slice(5));
         return !!(p?.params as { xray?: boolean } | undefined)?.xray;
       }
@@ -633,6 +735,43 @@ export function createLabView(input: LabViewInput): LabView {
     control: (id) => input.controls?.[id],
     task: (id) => input.status?.[id] ?? "todo",
     trigger: (name) => input.onTrigger?.(name),
+
+    pin(chip, ref) {
+      const info = partChip(partOf(chip)) ?? specChip(simNetlist?.parts.find((x) => x.id === chip));
+      if (!info) return null;
+      const n = pinNumber(info, ref);
+      if (n === null) return null;
+      const at = `${chip}.${n}`;
+      return { n, name: info.pins[n - 1]!, node: resolveNode(at), volts: view.volts(at), level: levelIn(snapshot, at) };
+    },
+    chipSeat: (id) => chipSeat(bench, id),
+    logic: (node) => levelIn(snapshot, node),
+    widths: (source, level, seconds) => widthsOf(edgesFor(source, level, seconds)),
+    duty: (source, level, seconds) => dutyOf(edgesFor(source, level, seconds)),
+    values: (source, seconds = 10) => distinctRun(view.history(source, seconds)),
+    presses: (id, seconds = 10) => pressesOf(view.history(`closed:${id}`, seconds)),
+    edges(node, seconds): EdgeCount {
+      const tr = trackFor(node);
+      if (tr) {
+        const times = seconds === undefined ? [...tr.edges] : tr.after(t - seconds);
+        const all = seconds === undefined;
+        return {
+          rises: all ? tr.rises : times.filter(([, d]) => d === 1).length,
+          falls: all ? tr.falls : times.filter(([, d]) => d === 0).length,
+          times,
+          exact: true,
+          high: tr.high,
+        };
+      }
+      const pts = view.history(`volts:${node}`, seconds ?? 20);
+      const lvl = midLevel(pts);
+      const times = lvl === null ? [] : edgesOf(pts, lvl);
+      const last = pts[pts.length - 1];
+      return { rises: times.filter(([, d]) => d === 1).length, falls: times.filter(([, d]) => d === 0).length, times, exact: false, high: !!last && lvl !== null && last[1] >= lvl };
+    },
+    timing: (id) => input.timing?.[id] ?? NO_TIMING,
+    rolls: (id) => input.rolls?.[id] ?? NO_ROLLS,
+    capture: () => input.capture ?? null,
   };
   return view;
 }

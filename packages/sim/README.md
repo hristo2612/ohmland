@@ -182,6 +182,33 @@ use `data` to write their own.
 | timer555, logic | `proximity` | 0..1: how close a hand is to the chip. Floating inputs pick up more, mostly mains hum (see "Floating inputs") |
 | any | `replace` | `true`: swaps in a fresh part with the same id (clears damage, heat, wear, blown state, charge history) |
 
+## Edge watch (`Netlist.watch`, `Snapshot.edges`)
+
+Snapshots arrive about 30 times a second, so a 1 kHz clock, a bouncing contact or a counter's ripple happens between
+two of them. List the nodes to watch and the simulator checks each against a threshold after every solver step:
+
+```ts
+sim.load({ ...netlist, watch: [{ id: "clk", node: "clk", of: "v5" }, { id: "trig", node: "tr", level: 3 }] });
+const s = sim.step(1 / 30);
+s.edges?.clk; // { rises: 4, falls: 5, high: false, level: 2.5, log: [[0.10021, 0], [0.10032, 1], ...] }
+```
+
+| Field | Meaning |
+|---|---|
+| `id`, `node` | The key in `snapshot.edges` and the netlist node to watch. An unknown node is skipped. |
+| `level` | A fixed threshold in volts. |
+| `of`, `fraction` | Otherwise the threshold is `fraction` (default 0.5) of node `of`'s voltage (a chip's supply pin), or of the highest node voltage when `of` is absent. |
+| `hysteresis` | A Schmitt band either side of the threshold (default 2% of it, at least 5 mV). |
+
+Each snapshot carries, per watch: `rises` and `falls` since the previous snapshot, `high` (where the node is now),
+`level` (the threshold in volts) and `log`, every crossing as `[t, 1]` (rising) or `[t, 0]` (falling), oldest first,
+at most 4000 per snapshot (`dropped` counts the rest). A crossing is timed where the straight line between the two
+solver points around it meets the threshold. Digital edges land on breakpoints with a 1 ns settle step after them, so a
+logic output's edge is placed within a nanosecond: a 74HC393's ripple shows as separate edges about 7 ns apart, and
+the mod-6 glitch as a rise and fall of QB a few nanoseconds apart. A rebuild (`load`) keeps each watch's level by id,
+so editing the circuit invents no edge, and crossings not yet delivered still arrive with the next snapshot.
+`test/watch.test.ts` covers a 1 kHz 555, contact bounce, the 393's ripple and glitch, and rebuilds.
+
 ## Rebuilds
 
 `load()` builds a new circuit but carries over, for every part whose `id` and kind survive: capacitor voltage,
@@ -531,6 +558,8 @@ All optional, nothing renamed. Fields: resistor `tolerance` (default now 0.05) a
 `watts`, `enclosure`; wire `ohms`; `Netlist.seed`. Kind `dpdt`. Event types `spark` and `warning`; `data.cause` on
 damage events; `data.to` on `clicked`. Input keys `replaceFuse` and `replace`; type `InputValue`. `run()` speeds up
 to 3600.
+
+Edge watch, also additive: `Netlist.watch` (type `WatchSpec`) and `Snapshot.edges` (type `EdgeLog`).
 
 For the later units, also additive: kinds `inductor`, `timer555`, `logic` (models `74HC00`, `74HC02`, `74HC04`,
 `74HC08`, `74HC14`, `74HC27`, `74HC32`, `74HC74`, `74HC86`, `74HC393`, `4026B`), `sevenseg`, `regulator7805`; field
