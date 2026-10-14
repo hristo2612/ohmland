@@ -380,12 +380,11 @@ parts:
 
   # ------------------------------------------------------------------------------------------------------------------
   # Unit 4: Chips, CH13 to CH26 (docs/curriculum/unit-4.md, section 10). Counters, logic and the arcade.
-  # There is no chip icon yet: chips use the relay's black box with legs until one exists.
   # ------------------------------------------------------------------------------------------------------------------
 
   - id: seven-segment
     name: Seven-segment display
-    icon: led
+    icon: seven-segment
     blurb: Seven bar-shaped LEDs and a dot that share one lead. The right bars make any digit.
     facts:
       - "Bars a to g run clockwise from the top (a to f), with g across the middle. The dot is dp."
@@ -406,7 +405,7 @@ parts:
 
   - id: counter-4026b
     name: Decade counter (4026B)
-    icon: relay
+    icon: chip
     blurb: A 16-pin chip that adds one on every rising clock edge and drives a seven-segment display itself.
     facts:
       - "Pin 1 clock (counts on low to high), 2 clock inhibit, 3 display enable, 5 carry out, 15 reset, 16 plus, 8 minus."
@@ -417,7 +416,7 @@ parts:
 
   - id: logic-gates
     name: Logic gate chips (74HC)
-    icon: relay
+    icon: chip
     blurb: Small chips that each answer high or low by one fixed rule. Four gates in a 14-pin body.
     facts:
       - "74HC08 AND, 74HC32 OR, 74HC86 XOR and 74HC00 NAND share one pinout: inputs 1 and 2 give output 3, and so on."
@@ -438,7 +437,7 @@ parts:
 
   - id: ic-555-cmos
     name: CMOS 555 timer
-    icon: relay
+    icon: chip
     blurb: The 555's low-power twin. Same pins, but its output swings all the way to the rails.
     facts:
       - "Pins as the classic 555: 1 minus, 2 trigger, 3 output, 4 reset, 5 control, 6 threshold, 7 discharge, 8 plus."
@@ -448,7 +447,7 @@ parts:
 
   - id: counter-74hc393
     name: Binary counter (74HC393)
-    icon: relay
+    icon: chip
     blurb: Two 4-bit counters in one chip. Four outputs count 0 to 15 in binary.
     facts:
       - "Counter one: clock pin 1, clear pin 2, outputs QA to QD on pins 3 to 6. Counter two mirrors it on pins 8 to 13."
@@ -458,7 +457,7 @@ parts:
 
   - id: ic-socket
     name: IC socket
-    icon: relay
+    icon: chip
     blurb: A frame of springy contacts that a chip plugs into, so it can come out without desoldering.
     facts:
       - Solder the socket, not the chip. The chip goes in last, and swaps in seconds.

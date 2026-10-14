@@ -173,7 +173,7 @@ export default defineLab({
     ...STUCK,
     { do: "wait", seconds: 1 },
     { do: "unwire", wire: "W9" },
-    { do: "wait", seconds: 2 },
+    { do: "wait", seconds: 2.5 },
     { do: "check", task: "fix-it" },
   ],
 });
