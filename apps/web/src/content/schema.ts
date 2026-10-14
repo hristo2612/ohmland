@@ -276,12 +276,26 @@ export const lessonSchema = z
 // Each beat is one short robot line plus one thing to do (a lab task, a tap on the bench, a pick, a number), and
 // optionally a discovery: an ink note drawn onto a part and a rule stamped into the margin. docs/LESSONS.md.
 
-/** Word limits per kind of line (docs/LESSONS.md, "Budgets"): a robot line, a note on a part, a rule, a chip. */
-export const WORDS = { say: 12, note: 6, rule: 8, chip: 4, onDemand: 12 } as const;
-/** The most words a lesson's main path may show (every line on the way through, not hints or the UI chrome). */
-export const LESSON_MAX_WORDS = 150;
-/** The most words of on-demand text (hints and lines for wrong taps or picks) in the lesson file. */
-export const ON_DEMAND_MAX_WORDS = 60;
+/**
+ * Word limits per kind of line (docs/LESSONS.md, "Budgets"): a robot line, a note on a part, a rule, a chip.
+ *
+ * A robot line is one complete instruction (the verb, the thing, where it is, and a new word named as it appears), or
+ * a short purpose sentence and then the step (docs/LESSONS.md, "Writing beats"). Both fit in about 22 words; at 12, writers
+ * dropped the where and the why and wrote states as orders ("Probes on the skin."). A hint or a wrong line is a robot
+ * line too. Notes and rules stay field notes, written onto the bench.
+ */
+export const WORDS = { say: 22, note: 6, rule: 8, chip: 4, onDemand: 22 } as const;
+/**
+ * The most words a lesson's main path may show (every line on the way through, not hints or the UI chrome). The two
+ * reference lessons in the clear-sentence and why-first voice use 220 to 260 words for six beats with a secret and a
+ * fix-it (about 30 a beat); 320 leaves room for the course's eight-beat lessons without inviting padding.
+ */
+export const LESSON_MAX_WORDS = 320;
+/**
+ * The most words of on-demand text (hints and lines for wrong taps or picks) in the lesson file. Complete lines roughly
+ * double the old ones (the course's largest was 46 words under a cap of 60).
+ */
+export const ON_DEMAND_MAX_WORDS = 120;
 
 /** A bench lesson's word budgets: per line (as in WORDS), on the main path, and for all its on-demand lines. */
 export type WordBudget = { readonly [K in keyof typeof WORDS]: number } & { readonly lesson: number; readonly onDemandAll: number };
@@ -368,9 +382,10 @@ const benchStepSchema = z.looseObject({
 
 /**
  * The bench lesson schemas for a word budget: the course's (BUDGET, just below) or a try-out copy's looser one
- * (content/variants.ts). Only the word limits differ.
+ * (content/variants.ts). Only the word limits differ, and a try-out copy (`trial`) may use the watch line, which the
+ * course's voice does not (docs/LESSONS.md, "Writing beats": what to look for goes in the line itself).
  */
-export function benchSchemas(budget: WordBudget) {
+export function benchSchemas(budget: WordBudget, { trial = false }: { trial?: boolean } = {}) {
   /** A robot line (or a done line, a start button). */
   const line = words(budget.say);
   const ruleLine = words(budget.rule);
@@ -404,7 +419,10 @@ export function benchSchemas(budget: WordBudget) {
     .strictObject({
       /** The robot's line for this beat. */
       say: line,
-      /** A quieter second line under it, in graphite, while the learner acts: what to look for, or why. */
+      /**
+       * Try-out copies only (content/variants): a quieter second line under it, in graphite, while the learner acts. The
+       * course says what to look for in the robot's line.
+       */
       watch: line.optional(),
       /** Parts in play: spotlit and framed (part ids or attach points). */
       spot: z.array(anchor).min(1).optional(),
@@ -473,6 +491,7 @@ export function benchSchemas(budget: WordBudget) {
       if (b.wrong && !b.tap && !b.pick) ctx.addIssue({ code: "custom", message: "wrong lines go with a tap or a pick", path: ["wrong"] });
       if (b.then && !b.tap && !b.pick && !b.number) ctx.addIssue({ code: "custom", message: "then goes with a tap, pick or number check", path: ["then"] });
       if ((b.palette || b.program) && b.tool !== "code") ctx.addIssue({ code: "custom", message: "palette and program go with tool: code", path: [b.palette ? "palette" : "program"] });
+      if (b.watch && !trial) ctx.addIssue({ code: "custom", message: "the watch line is for try-out copies; say what to look for in the line itself", path: ["watch"] });
     });
 
   const object = z.strictObject({

@@ -81,7 +81,7 @@ export function loadVariants(set: string, root = findContentDir()): VariantSet {
     throw new ContentError(problems);
   }
   const course = getCourse();
-  const lessonSchema = benchSchemas(VARIANT_BUDGET).lesson;
+  const lessonSchema = benchSchemas(VARIANT_BUDGET, { trial: true }).lesson;
   const variants = parsed.data.variants.map((v): Variant => {
     const lessons = parsed.data.lessons.flatMap((id): VariantLesson[] => {
       const file = join(dir, v.id, id, "lesson.yaml");
