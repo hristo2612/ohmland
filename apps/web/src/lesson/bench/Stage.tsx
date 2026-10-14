@@ -25,6 +25,7 @@ import { takeSim } from "../../lab/prefetch";
 import { pickQuality } from "../../lab/quality";
 import { LabRuntime, type FriedCard } from "../../lab/runtime";
 import { applyStep } from "../../lab/steps";
+import { resolveAttach } from "../../lab/anchors";
 import { Annotations, useSize, useViewTick } from "./Annotations";
 import { holeName } from "./flow";
 import { allHoles, resolveAnchor, type Mark } from "./marks";
@@ -54,6 +55,8 @@ export type StageApi = {
   holeFor(text: string): string | null;
   /** Lets go of whatever the bench has selected (a new beat starts clean). */
   calm(): void;
+  /** Runs the loop tracer from a terminal (lab shorthand, "B1.neg"), or clears its ink with null. */
+  trace(from: string | null): void;
 };
 
 export type StageProps = {
@@ -297,6 +300,11 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
       calm() {
         const st = runtime.store.getState();
         if (st.ui.selection || st.ui.menu) st.setUi({ selection: null, menu: null });
+      },
+      trace(from) {
+        if (from === null) return runtime.trace(null);
+        const a = resolveAttach(runtime.store.getState().bench, from);
+        if (a) runtime.trace(a);
       },
       nameOf(anchor) {
         const b = runtime.store.getState().bench;
