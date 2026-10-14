@@ -1,11 +1,32 @@
 // Simulation-driven effects: smoke, LED halos, light spill and scorch marks.
 
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useContext, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Select } from "@react-three/postprocessing";
 import { canvasTexture, glowTexture, rng, smokeTexture } from "../three/canvas";
 import { prefersReducedMotion } from "../three/anim";
+import { PaletteContext } from "../scene/palette";
+import { RoomLight } from "../models/common";
+
+/**
+ * Glows on a light page are a tinted wash (light added to a near-white page barely shows); on a dark page, or with
+ * the room lights down, they add light.
+ */
+/** Marks effect meshes (glows, smoke, scorch): not part of a model's size, its hit area or its shadow. */
+const FX = { fx: true };
+
+/** True for the effect meshes above (and for additive glows made elsewhere). */
+export function isEffect(o: THREE.Object3D): boolean {
+  if (o.userData.fx) return true;
+  const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+  return !!m && !Array.isArray(m) && m.blending === THREE.AdditiveBlending;
+}
+
+function useGlowBlending(): THREE.Blending {
+  const dark = useContext(PaletteContext).dark;
+  const room = useContext(RoomLight);
+  return dark || room < 0.6 ? THREE.AdditiveBlending : THREE.NormalBlending;
+}
 
 const SMOKE_VERT = /* glsl */ `
 attribute vec3 offset;
@@ -47,6 +68,9 @@ type Particle = { x: number; y: number; z: number; vx: number; vy: number; vz: n
 export function Smoke({ active, amount = 1, dark = false, spread = 2 }: { active: boolean; amount?: number; dark?: boolean; spread?: number }) {
   const N = 48;
   const invalidate = useThree((s) => s.invalidate);
+  // On a light page grey smoke reads as a smudge: keep it pale there, and a little thinner.
+  const page = useContext(PaletteContext);
+  const pale = !page.dark;
   const reduced = useMemo(() => prefersReducedMotion(), []);
   const { geometry, material, parts } = useMemo(() => {
     const quad = new THREE.PlaneGeometry(1, 1);
@@ -63,14 +87,14 @@ export function Smoke({ active, amount = 1, dark = false, spread = 2 }: { active
     const m = new THREE.ShaderMaterial({
       vertexShader: SMOKE_VERT,
       fragmentShader: SMOKE_FRAG,
-      uniforms: { map: { value: smokeTexture() }, color: { value: new THREE.Color(dark ? "#4a4643" : "#aaa9a6") } },
+      uniforms: { map: { value: smokeTexture() }, color: { value: new THREE.Color(dark ? (pale ? "#77706a" : "#4a4643") : pale ? "#b1aba2" : "#aaa9a6") } },
       transparent: true,
       depthWrite: false,
     });
     const r = rng(Math.floor(Math.random() * 1e6));
     const ps: Particle[] = Array.from({ length: N }, () => ({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, age: 1, life: 0, spin: r() * 6, vs: (r() - 0.5) * 0.8 }));
     return { geometry: g, material: m, parts: ps };
-  }, [dark]);
+  }, [dark, pale]);
   useLayoutEffect(
     () => () => {
       geometry.dispose();
@@ -117,7 +141,7 @@ export function Smoke({ active, amount = 1, dark = false, spread = 2 }: { active
         off.setXYZ(i, p.x, p.y, p.z);
         size.setX(i, 2.4 + k * 15);
         const fadeIn = Math.min(1, k * 6);
-        alpha.setX(i, Math.max(0, (dark ? 1.0 : 1.5) * fadeIn * Math.pow(1 - k, 1.4) * (0.6 + 0.4 * amount)));
+        alpha.setX(i, Math.max(0, (dark ? 1.0 : 1.5) * (pale ? 0.95 : 1) * fadeIn * Math.pow(1 - k, 1.4) * (0.6 + 0.4 * amount)));
         spin.setX(i, p.spin);
         count++;
       } else {
@@ -135,62 +159,65 @@ export function Smoke({ active, amount = 1, dark = false, spread = 2 }: { active
     if (active) invalidate();
   }, [active, invalidate]);
   return (
-    <Select exclude>
-      <mesh geometry={geometry} material={material} frustumCulled={false} renderOrder={10} />
-    </Select>
+    <>
+      <mesh geometry={geometry} material={material} frustumCulled={false} renderOrder={10} userData={FX} />
+    </>
   );
 }
 
 /** Additive halo sprite around a lit LED (cheap glow, also used under bloom for a softer edge). */
 export function Halo({ color, intensity, size = 16 }: { color: string; intensity: number; size?: number }) {
+  const blending = useGlowBlending();
   const material = useMemo(
     () =>
       new THREE.SpriteMaterial({
         map: glowTexture(),
         color,
-        blending: THREE.AdditiveBlending,
+        blending,
         depthWrite: false,
         transparent: true,
         toneMapped: false,
       }),
-    [color],
+    [color, blending],
   );
   useLayoutEffect(() => () => material.dispose(), [material]);
-  material.opacity = Math.min(1, intensity);
-  const s = size * (0.45 + 0.55 * Math.min(1, intensity));
+  const wash = blending === THREE.NormalBlending;
+  material.opacity = Math.min(1, intensity) * (wash ? 0.62 : 1);
+  const s = size * (0.45 + 0.55 * Math.min(1, intensity)) * (wash ? 1.3 : 1);
   if (intensity <= 0.01) return null;
   return (
-    <Select exclude>
-      <sprite material={material} scale={[s, s, s]} renderOrder={12} />
-    </Select>
+    <>
+      <sprite material={material} scale={[s, s, s]} renderOrder={12} userData={FX} />
+    </>
   );
 }
 
 /** Coloured light pooling on the surface below a lit LED. */
 export function LightSpill({ color, intensity, radius = 10 }: { color: string; intensity: number; radius?: number }) {
+  const blending = useGlowBlending();
   const material = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
         map: glowTexture(),
         color,
-        blending: THREE.AdditiveBlending,
+        blending,
         depthWrite: false,
         transparent: true,
         toneMapped: false,
         polygonOffset: true,
         polygonOffsetFactor: -2,
       }),
-    [color],
+    [color, blending],
   );
   useLayoutEffect(() => () => material.dispose(), [material]);
-  material.opacity = Math.min(1, intensity) * 0.55;
+  material.opacity = Math.min(1, intensity) * (blending === THREE.NormalBlending ? 0.3 : 0.55);
   if (intensity <= 0.01) return null;
   return (
-    <Select exclude>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]} material={material} renderOrder={4}>
+    <>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]} material={material} renderOrder={4} userData={FX}>
         <planeGeometry args={[radius * 2, radius * 2]} />
       </mesh>
-    </Select>
+    </>
   );
 }
 
@@ -229,10 +256,10 @@ export function Scorch({ width = 12, depth = 7, opacity = 1 }: { width?: number;
   useLayoutEffect(() => () => material.dispose(), [material]);
   material.opacity = opacity;
   return (
-    <Select exclude>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]} material={material} renderOrder={3}>
+    <>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]} material={material} renderOrder={3} userData={FX}>
         <planeGeometry args={[width, depth]} />
       </mesh>
-    </Select>
+    </>
   );
 }

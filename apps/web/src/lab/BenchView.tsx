@@ -3,7 +3,7 @@
  * @ohmland/bench), so it is its own lazy chunk; the panels render before it arrives.
  */
 import { useEffect, useRef } from "react";
-import { Bench, prepareBench, type BenchController, type TrayItem } from "@ohmland/bench";
+import { Bench, prepareBench, type Bench3DController, type TrayItem } from "@ohmland/bench";
 import { m } from "../i18n";
 import type { Quality } from "./quality";
 import type { LabRuntime } from "./runtime";
@@ -46,10 +46,10 @@ declare global {
 export const prepare = prepareBench;
 
 export default function BenchView({ runtime, tray, quality, readOnly, highlight, locked, frame, onReady }: BenchViewProps) {
-  const ctrl = useRef<BenchController | null>(null);
+  const ctrl = useRef<Bench3DController | null>(null);
   useEffect(() => {
     window.ohmlandLab = {
-      project: (anchor) => ctrl.current?.project(anchor) ?? null,
+      project: (anchor) => ctrl.current?.projectClient(anchor) ?? null,
       pickAt: (x, y) => ctrl.current?.pickAt(x, y) ?? null,
       bench: () => runtime.store.getState().bench,
       status: () => ({ ...runtime.session.status }),

@@ -9,6 +9,7 @@ import { Scorch, Smoke } from "../effects/effects";
 import { FONT, canvasTexture, rng } from "../three/canvas";
 import { bentTube, latheY, memoGeo, roundedBox } from "../three/geometry";
 import { mat } from "../three/materials";
+import { keepColor } from "../three/paper";
 import { IN_HOLE, healthOf, mix, type ModelProps } from "./common";
 
 const HALF = RESISTOR.len / 2;
@@ -53,7 +54,8 @@ function bandLayout(n: number): { c: number; w: number }[] {
 function bandMaterial(color: BandColor, burnt: number): THREE.Material {
   const metal = color === "gold" || color === "silver";
   const hex = burnt > 0 ? mix(BAND_HEX[color], "#1d1510", burnt) : BAND_HEX[color];
-  return mat.paint(hex, metal && burnt < 0.5);
+  // The code must read exactly: the paper look leaves band colours alone.
+  return keepColor(mat.paint(hex, metal && burnt < 0.5));
 }
 
 const BODY_HEX = { carbon: "#dcc49c", metal: "#86b2da" };

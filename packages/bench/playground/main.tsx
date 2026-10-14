@@ -1,13 +1,15 @@
 import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Health, PartState, Snapshot } from "@ohmland/sim";
-import { Bench, type BenchController, DEFAULT_GALLERY, PartGallery, PartPreview, benchToNetlist, createBenchStore, emptyBench, type BenchAction, type BenchState, type Quality } from "../src";
-import { FULL_TRAY, clipBench, demoBench, propsBench, smokeBench } from "./scenes";
+import { type BenchController, BenchView, type BenchViewKind, DEFAULT_GALLERY, PartGallery, PartPreview, benchToNetlist, createBenchStore, emptyBench, type BenchAction, type BenchState, type Quality } from "../src";
+import { FULL_TRAY, clipBench, demoBench, glowBench, modulesBench, propsBench, smokeBench } from "./scenes";
 
 const q = new URLSearchParams(location.search);
 const num3 = (s: string | null) => (s ? (s.split(",").map(Number) as [number, number, number]) : undefined);
 const markReady = () => ((window as unknown as { __ready: boolean }).__ready = true);
 const quality: Quality = q.get("q") === "low" ? "low" : "high";
+// The night page: the bench reads the notebook tokens (index.html defines both themes).
+if (q.get("theme") === "dark") document.documentElement.dataset.theme = "dark";
 
 function initialBench(): BenchState {
   switch (q.get("scene")) {
@@ -19,8 +21,14 @@ function initialBench(): BenchState {
       return clipBench();
     case "smoke":
       return smokeBench();
+    case "glow":
+      return glowBench();
+    case "glow0":
+      return glowBench(false);
     case "props":
       return propsBench();
+    case "modules":
+      return modulesBench();
     default:
       return demoBench();
   }
@@ -123,9 +131,32 @@ function MockPanel({ bench, mock, setMock, log }: { bench: BenchState; mock: Moc
   );
 }
 
+const viewButton: React.CSSProperties = {
+  all: "unset",
+  cursor: "pointer",
+  padding: "0 12px",
+  height: 36,
+  display: "inline-flex",
+  alignItems: "center",
+  font: "500 14px Literata, Georgia, serif",
+  color: "#24221E",
+};
+
 function BenchApp() {
   const [store] = useState(() => createBenchStore(initialBench()));
   const controller = useRef<BenchController | null>(null);
+  // Both views draw the same store: switching keeps the bench, the undo history and the snapshot.
+  const [view, setView] = useState<BenchViewKind>(q.get("view") === "ink" ? "ink" : "3d");
+  useEffect(() => {
+    const focus = q.get("focus");
+    const spot = q.get("spot");
+    if (!focus && !spot) return;
+    const t = setTimeout(() => {
+      if (focus) controller.current?.focus(focus === "all" ? [] : focus.split(","), { instant: true });
+      if (spot) controller.current?.spotlight(spot.split(","));
+    }, 50);
+    return () => clearTimeout(t);
+  }, []);
   // Handles for the Playwright scripts.
   useEffect(() => {
     Object.assign(window, { __bench: store, __controller: controller });
@@ -163,7 +194,8 @@ function BenchApp() {
   const showPanel = q.get("panel") !== "0";
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
-      <Bench
+      <BenchView
+        view={view}
         store={store}
         tray={q.get("tray") === "0" ? [] : FULL_TRAY}
         snapshot={snapshot}
@@ -176,10 +208,24 @@ function BenchApp() {
         controllerRef={controller}
       />
       {showPanel && <MockPanel bench={bench} mock={mock} setMock={setMock} log={log} />}
+      {q.get("toggle") !== "0" && (
+        <div
+          role="group"
+          aria-label="View"
+          style={{ position: "absolute", left: "50%", top: 12, transform: "translateX(-50%)", display: "flex", background: "#FCFAF5", border: "1px solid #D8D0C1", boxShadow: "2px 2px 0 #E1D9CA", borderRadius: 2, zIndex: 2 }}
+        >
+          {(["3d", "ink"] as const).map((v) => (
+            <button key={v} type="button" aria-pressed={view === v} style={{ ...viewButton, background: view === v ? "#E1E6F4" : undefined, color: view === v ? "#1F3C9A" : viewButton.color }} onClick={() => setView(v)}>
+              {v === "3d" ? "3D" : "Ink"}
+            </button>
+          ))}
+        </div>
+      )}
       {showPanel && (
         <nav style={{ position: "absolute", right: 120, top: 26, display: "flex", gap: 10, font: "600 12px Inter, Arial", zIndex: 2 }}>
           <a href="?scene=demo">Demo</a>
           <a href="?scene=clips">Clip leads</a>
+          <a href="?scene=glow">First glow</a>
           <a href="?scene=empty">Empty</a>
           <a href="?mode=gallery">Gallery</a>
           <a href="?mode=preview">Preview</a>
