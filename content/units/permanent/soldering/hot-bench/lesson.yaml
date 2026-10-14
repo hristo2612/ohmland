@@ -1,0 +1,64 @@
+# Blueprint: docs/curriculum/unit-3.md, MP1. A bench lesson (docs/LESSONS.md).
+# One idea: the tip burns at once and stays hot for minutes after switch-off, so the iron lives in its stand.
+# Lab: content/labs/hot-bench.ts.
+format: bench
+id: hot-bench
+version: 1
+title: The hot end
+summary: Heat a soldering iron, find its hot end, park it in its stand and time how long it stays hot.
+minutes: 6
+lab: hot-bench
+unlocks:
+  parts: [soldering-iron]
+  isle: battery # TODO piece: iron-stand
+
+start:
+  title: The hot end
+  say: My blinker rattled apart. Solder makes circuits stay put.
+  go: Let's heat up
+
+beats:
+  - say: This is a soldering iron. Switch it on.
+    objective: Heat it up
+    do: switch-on
+    spot: [ST1]
+    note: { at: "spot:ST1.tip", text: "330 °C: hotter than an oven" }
+
+  - say: Show me the hot end.
+    tap: { answer: "spot:ST1.tip", among: ["spot:ST1.tip", "spot:ST1.grip", "spot:ST1.dial"] }
+    wrong:
+      "spot:ST1.grip": "That's the grip. Cool and safe to hold."
+      "spot:ST1.dial": "That's the dial. It sets the heat."
+
+  - say: Done for now. Lift the iron, then put it down.
+    objective: Home and cool
+    do: park-it
+    note: { at: "spot:ST1.stand", text: "its home, every time" }
+    rule: The iron lives in its stand.
+
+  - say: Switch it off and speed up time. Guess first.
+    guess: { options: [Cool at once, Cool in a minute, Hot for minutes], answer: Hot for minutes }
+    do: cool-down
+    tool: controls
+    note: { at: "spot:ST1.tip", text: "off, but hot for minutes" }
+
+  - say: An iron slips off the bench. You...
+    pick: { options: [Catch it, Step back], answer: Step back }
+    wrong: { Catch it: "Never. Grab the wrong end and it burns at once." }
+    rule: Never catch a falling iron.
+
+  - say: What is this?
+    pick: { on: ST1, options: [A soldering iron, A heat gun, A meter], answer: A soldering iron }
+
+secret:
+  task: wipe-tip
+  say: Curious? Clean the hot tip in the brass wool.
+  note: { at: "spot:ST1.wool", text: "brass wool: a shiny tip" }
+
+fixit:
+  say: Fix-it time. I left the iron out, still on. Make it safe.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. Nobody got burned.

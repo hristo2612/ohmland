@@ -1,0 +1,71 @@
+# Blueprint: docs/curriculum/unit-3.md, MP4. A bench lesson (docs/LESSONS.md).
+# One idea: a joint's shape tells you what went wrong, and the fix. New word: cold joint (three periods: beats 2, 3,
+# 8); desoldering braid is met by name and use. The patients are the lamp board's joints: once all are healthy, the
+# lamp on the other side lights. Lab: content/labs/joint-doctor.ts.
+format: bench
+id: joint-doctor
+version: 1
+title: The joint doctor
+summary: Read a lamp board's joints by their shape, then heal a cold joint, a ball, a thin ring and a bridge.
+minutes: 7
+lab: joint-doctor
+unlocks:
+  parts: [desoldering-braid]
+  isle: meter-kiosk
+
+start:
+  title: The joint doctor
+  say: My lamp board is dark. Its joints look sick.
+  go: Let's examine them
+
+beats:
+  - say: Tap a healthy joint.
+    objective: Examine
+    tap: { answer: [PB1.A2, PB1.D7], among: [PB1.A2, PB1.D2, PB1.D6, PB1.D7, PB1.D8, PB1.A8] }
+    spot: [PB1]
+    wrong:
+      PB1.D2: "Dull and grainy. That one's sick."
+      PB1.D6: "A round ball. Too much solder."
+      PB1.A8: "A thin ring. Too little solder."
+      PB1.D8: "It spills onto its neighbour. A bridge."
+    note: { at: tap, text: "healthy: a smooth little volcano" }
+
+  - say: This dull, grainy one is a cold joint.
+    spot: [PB1]
+    note: { at: PB1.D2, text: "cold joint: weak, comes and goes" }
+
+  - say: Show me the cold joint.
+    tap: { answer: PB1.D2, among: [PB1.A2, PB1.D2, PB1.D6, PB1.D7, PB1.D8, PB1.A8] }
+    spot: [PB1]
+
+  - say: Reheat it with a touch of fresh solder.
+    objective: Heal them
+    do: heal-cold
+
+  - say: This is braid. It soaks up solder. Fix the ball.
+    do: wick-the-ball
+    note: { at: BR1, text: "hot braid drinks the extra" }
+
+  - say: Now heal the thin ring and the bridge.
+    do: heal-rest
+    rule: "Smooth volcano: healthy. Anything else: fix it."
+
+  - say: Flip the board over. Is my lamp on?
+    do: see-it
+    done: Lit! Every joint is healthy.
+
+  - say: A dull, grainy joint is...
+    pick: { options: [A cold joint, A bridge, Too little], answer: A cold joint }
+
+secret:
+  task: make-cold
+  say: Curious? Make a cold joint on an empty pad. Lift too soon.
+  done: Dull and grainy, on purpose.
+
+fixit:
+  say: Fix-it time. My lamp flickers when the board flexes.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. Every joint is healthy.

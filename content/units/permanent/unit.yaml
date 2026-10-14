@@ -1,0 +1,11 @@
+# Unit 3: Making it permanent (blueprint: docs/curriculum/unit-3.md). Its island is Forge Isle: a board-shaped island
+# with a glowing workshop quarter, anvil pads and a pier of perfboard planks. The unit id matches the isle's
+# (packages/isle catalog: UNITS).
+id: permanent
+title: Making it permanent
+summary: On Forge Isle, heat an iron, make joints that hold, splice and sleeve wire, power the bench from the wall and build a blinker for keeps.
+isle:
+  theme: forge-isle
+  seed: 3
+modules:
+  - soldering

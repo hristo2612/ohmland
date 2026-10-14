@@ -1,0 +1,62 @@
+# Blueprint: docs/curriculum/unit-3.md, MP2. A bench lesson (docs/LESSONS.md).
+# One idea: each solder melts at its own temperature, so the tip is set well above it. The rest of the unit works with
+# lead-free at 370 °C (the blueprint's default spool). Lab: content/labs/pick-the-solder.ts.
+format: bench
+id: pick-the-solder
+version: 1
+title: Two spools
+summary: Melt tin-lead and lead-free solder on the tip, find where each one melts, and set the iron well above it.
+minutes: 6
+lab: pick-the-solder
+unlocks:
+  parts: [solder]
+  isle: wire-spool # TODO piece: solder-spool
+
+start:
+  title: Two spools
+  say: Solder is a metal that melts. But each kind melts differently.
+  go: Let's melt some
+
+beats:
+  - say: The iron is at 150 °C. Turn the dial to 200.
+    objective: Find the melt
+    do: dial-200
+    spot: [ST1]
+
+  - say: This is solder. Touch its end to the tip.
+    do: melt-leaded
+    done: It melts, and the tip turns silver.
+    note: { at: SD1, text: "tin-lead: melts at 183 °C" }
+
+  - say: Show me the lead-free spool.
+    tap: { answer: SD2, among: [SD1, SD2] }
+    wrong: { SD1: "That's tin-lead. Read the other label." }
+    then: [{ do: param, part: ST1, params: { spool: SD2 } }]
+
+  - say: Touch lead-free to the tip at 200 °C. Guess first.
+    guess: { options: [It melts, It stays solid], answer: It stays solid }
+    do: melt-lead-free
+    note: { at: SD2, text: "lead-free: melts near 220 °C" }
+
+  - say: Joints steal heat. Set the dial to 370 °C.
+    objective: Working heat
+    do: set-working
+    spot: [ST1]
+    note: { at: "spot:ST1.dial", text: "about 150 °C above the melt" }
+    rule: Set the tip well above the melt.
+
+  - say: What is this?
+    pick: { on: SD1, options: [Solder, Fuse wire, Hookup wire], answer: Solder }
+
+secret:
+  task: full-heat
+  say: Curious? Turn the dial all the way up.
+  note: { at: "spot:ST1.dial", text: "too hot: flux burns off" }
+
+fixit:
+  say: Fix-it time. My lead-free solder won't melt. Why?
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. Spool picked, dial set.
