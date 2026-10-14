@@ -27,7 +27,8 @@ export type InkApi = {
 };
 
 type Drag =
-  | { kind: "part"; id: string; offset: Vec2; spawned?: boolean }
+  /** `to`: where the part was last dragged (it goes into a holder's seat only when dropped there). */
+  | { kind: "part"; id: string; offset: Vec2; spawned?: boolean; to?: Vec2 }
   | { kind: "leg"; id: string; leg: string; flying: boolean }
   | { kind: "wireEnd"; id: string; end: "a" | "b" }
   | { kind: "wireNew"; from: string }
@@ -234,7 +235,9 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
         return;
       }
       case "part":
-        s.apply((b) => ops.movePart(b, d.id, [x - d.offset[0], z - d.offset[1]]));
+        // On its way it never sits in a holder: passing over a full bin must not push a part out of it.
+        d.to = [x - d.offset[0], z - d.offset[1]];
+        s.apply((b) => ops.movePart(b, d.id, d.to!, { seat: false }));
         break;
       case "leg":
         s.apply((b) => (d.flying ? ops.moveFlyingLeg(b, d.id, d.leg, [x, z]) : ops.moveSpanLeg(b, d.id, d.leg, [x, z])));
@@ -323,6 +326,10 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
       if (target && !s.locked.includes(target.id)) {
         const from = s.txBase?.parts.find((p) => p.id === d.id)?.pos ?? ([target.pos[0], target.pos[1] + 34] as Vec2);
         s.apply((b) => ops.dropOnto(b, d.id, target.id, from));
+      } else if (d.to) {
+        // Dropped on a holder: into the nearest free seat.
+        const to = d.to;
+        s.apply((b) => ops.movePart(b, d.id, to, { seat: "free" }));
       }
     }
     const before = s.txBase;
@@ -675,8 +682,8 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
       return s.addLead(color, [at[0] - 40, at[1] - 6], item.id);
     }
     const id = s.addPart(item.kind, (item.params ?? {}) as never, { pos: at }, item.id);
-    // Let it snap into the board, or into a holder, if it lands there.
-    store.getState().apply((b) => ops.movePart(b, id, at));
+    // Let it snap into the board, or into a free seat of a holder, if it lands there.
+    store.getState().apply((b) => ops.movePart(b, id, at, { seat: "free" }));
     return id;
   };
 

@@ -9,7 +9,11 @@ import { boardGeometry, partLegs, terminalNumber, type PlacedPart } from "@ohmla
 import { Icon } from "../components/Icon";
 import { m } from "../i18n";
 import type { PanelConfig, PanelState, SymbolKind } from "./define";
-import { cellKey, holeNet, legPairs, partStates } from "./panels";
+import { cellKey, holeNet, isThrowInput, legPairs, partStates, truthCell, truthComplete, truthInput, truthOutputs, truthRows } from "./panels";
+import { HistogramPanel } from "./histogram";
+import { KeysPanel } from "./keys";
+import { TimingPanel } from "./timing-diagram";
+import { XrayPanel } from "./xray";
 import type { LabRuntime } from "./runtime";
 import "./panels.css";
 
@@ -154,53 +158,89 @@ function ContinuityPanel({ runtime, cfg }: { runtime: LabRuntime; cfg: Extract<P
 
 function TruthTablePanel({ runtime, cfg }: { runtime: LabRuntime; cfg: Extract<PanelConfig, { kind: "truth-table" }> }) {
   const state = usePanel(runtime, cfg.id);
+  // The row the inputs are on now is marked live, so the table answers as the keys move.
+  useStore(runtime.store, (s) => s.snapshot);
   const id = useId();
-  const rows = useMemo(() => {
-    const out: string[][] = [[]];
-    for (const _ of cfg.inputs) {
-      const next: string[][] = [];
-      for (const r of out) for (const v of ["a", "b"]) next.push([...r, v]);
-      out.splice(0, out.length, ...next);
-    }
-    return out;
-  }, [cfg.inputs]);
+  const [said, setSaid] = useState("");
+  const rows = useMemo(() => truthRows(cfg), [cfg]);
+  const outs = truthOutputs(cfg);
+  const view = runtime.session.view();
+  const now = cfg.inputs.map((inp) => truthInput(inp, view));
+  const nowRow = now.every((v) => v !== null) ? now.join(",") : null;
+  const complete = truthComplete(cfg, state);
+  const inputWord = (i: number, v: string) => {
+    const inp = cfg.inputs[i]!;
+    if (isThrowInput(inp)) return v === "a" ? inp.a : inp.b;
+    return v === "1" ? inp.high ?? "1" : inp.low ?? "0";
+  };
+  const outLabel = (k: number) => {
+    const o = outs[k]!;
+    return o.label ?? ("node" in o ? o.node : m.lab.panels.lamp);
+  };
+  const outWord = (k: number, v: boolean) => ("node" in outs[k]! ? (v ? "1" : "0") : v ? m.lab.panels.on : m.lab.panels.off);
+  const keys = Object.keys(state.cells).join("|");
+  useEffect(() => {
+    const last = Object.keys(state.cells).pop();
+    if (!last) return;
+    const [row = "", k = "0"] = last.split("#");
+    const vals = row.split(",");
+    setSaid(`${vals.map((v, i) => `${cfg.inputs[i]?.label ?? ""} ${inputWord(i, v)}`).join(", ")}: ${outLabel(Number(k))} ${outWord(Number(k), state.cells[last]!)}`);
+    // Announce each newly logged row.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keys]);
+  const title = cfg.title ?? (cfg.mystery && !complete ? m.lab.chips.mystery : m.lab.panels.truth);
   return (
-    <section className="instrument panel" aria-labelledby={`${id}-t`} data-panel={cfg.id}>
+    <section className="instrument panel tt" aria-labelledby={`${id}-t`} data-panel={cfg.id} data-complete={complete || undefined}>
       <header className="instrument__head">
         <h3 id={`${id}-t`} className="instrument__title">
-          {cfg.title ?? m.lab.panels.truth}
+          {title}
         </h3>
       </header>
-      <p className="small muted panel__help">{m.lab.panels.truthHelp}</p>
+      <p className="small muted panel__help">{cfg.inputs.every(isThrowInput) ? m.lab.panels.truthHelp : m.lab.panels.truthHelpAny}</p>
       <table className="panel__table">
         <thead>
           <tr>
-            {cfg.inputs.map((inp) => (
-              <th key={inp.part} scope="col">
+            {cfg.inputs.map((inp, i) => (
+              <th key={i} scope="col">
                 {inp.label}
               </th>
             ))}
-            <th scope="col">{cfg.output.label ?? m.lab.panels.lamp}</th>
+            {outs.map((_, k) => (
+              <th key={`o${k}`} scope="col" className="tt__out">
+                {outLabel(k)}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => {
-            const v = state.cells[r.join(",")];
+          {rows.map((row) => {
+            const vals = row.split(",");
+            const here = row === nowRow;
             return (
-              <tr key={r.join(",")}>
-                {r.map((pos, i) => (
+              <tr key={row} data-now={here || undefined}>
+                {vals.map((v, i) => (
                   <td key={i} className="mono">
-                    {pos === "a" ? cfg.inputs[i]!.a : cfg.inputs[i]!.b}
+                    {inputWord(i, v)}
                   </td>
                 ))}
-                <td data-lit={v === true || undefined} data-open={v === false || undefined}>
-                  {v === undefined ? <span className="muted">?</span> : v ? m.lab.panels.on : m.lab.panels.off}
-                </td>
+                {outs.map((_, k) => {
+                  const v = state.cells[truthCell(row, k)];
+                  return (
+                    <td key={`o${k}`} className="tt__out" data-lit={v === true || undefined} data-open={v === false || undefined}>
+                      {v === undefined ? <span className="muted">?</span> : outWord(k, v)}
+                      {here && <span className="sr-only"> ({m.lab.chips.now})</span>}
+                    </td>
+                  );
+                })}
               </tr>
             );
           })}
         </tbody>
       </table>
+      {cfg.name && (complete || !cfg.mystery) && <p className="tt__name">{m.lab.chips.itIs(cfg.name)}</p>}
+      <p className="sr-only" aria-live="polite">
+        {said}
+      </p>
     </section>
   );
 }
@@ -482,6 +522,14 @@ export function LabPanels({ runtime, only }: { runtime: LabRuntime; only?: strin
             return <HoleHuntPanel key={cfg.id} runtime={runtime} cfg={cfg} />;
           case "symbol":
             return <SymbolPanel key={cfg.id} runtime={runtime} cfg={cfg} />;
+          case "xray":
+            return <XrayPanel key={cfg.id} runtime={runtime} cfg={cfg} />;
+          case "timing":
+            return <TimingPanel key={cfg.id} runtime={runtime} cfg={cfg} />;
+          case "histogram":
+            return <HistogramPanel key={cfg.id} runtime={runtime} cfg={cfg} />;
+          case "keys":
+            return <KeysPanel key={cfg.id} runtime={runtime} cfg={cfg} />;
         }
       })}
     </>

@@ -8,11 +8,13 @@ const course = getCourse();
 ---
 
 <Page title={m.parts.title} active="parts">
-  <div class="container">
-    <header class="page-head">
-      <h1>{m.parts.title}</h1>
-      <p class="lead">{m.parts.lead}</p>
-    </header>
-    <PartsBin client:load parts={course.parts} outline={course.outline} />
+  <div class="sheet">
+    <div class="sheet__main">
+      <header class="page-head">
+        <h1>{m.parts.title}</h1>
+        <p class="lead">{m.parts.lead}</p>
+      </header>
+      <PartsBin client:load parts={course.parts} outline={course.outline} />
+    </div>
   </div>
 </Page>

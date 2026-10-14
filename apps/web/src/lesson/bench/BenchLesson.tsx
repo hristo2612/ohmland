@@ -15,7 +15,7 @@ import { Icon } from "../../components/Icon";
 import { IconButton } from "../../components/IconButton";
 import { toast } from "../../components/toast-store";
 import { BenchSurfaceChunk, INK_RENDERER, readViewPref, resolveView, storeViewPref, type BenchViewKind, type BenchViewPref } from "../../lab/bench-view";
-import type { NoteSpec } from "../../lab/define";
+import type { NoteSpec, SolutionStep } from "../../lab/define";
 import { loadLab } from "../../lab/labs";
 import { preloadable, warmSimulator, whenIdle } from "../../lab/prefetch";
 import type { FriedCard } from "../../lab/runtime";
@@ -75,7 +75,8 @@ function spotOf(mo: Moment): string[] | null {
   const b = mo.beat;
   if (b?.spot) return b.spot;
   if (mo.part) return [mo.part];
-  const partOf = (a: string) => a.replace(/^(pin|part):/, "").split(".")[0]!;
+  // The part a leg (D1.anode) or a mark (part:M1/dial) belongs to.
+  const partOf = (a: string) => a.replace(/^(pin|part):/, "").split(/[./]/)[0]!;
   if (b?.tap?.answer !== undefined) {
     const all = [...(Array.isArray(b.tap.answer) ? b.tap.answer : [b.tap.answer]), ...(b.tap.among ?? [])];
     return [...new Set(all.filter((a) => !/^(hole:|[a-j]\d|rail|top)/.test(a)).map(partOf))];
@@ -84,6 +85,8 @@ function spotOf(mo: Moment): string[] | null {
   // A pop-up card leaves the whole bench in view: what it changes shows somewhere else (the LED).
   return null;
 }
+/** The bench steps a right check applies (`then`), as the lab's solution steps. */
+const stepsOf = (mo: Moment): SolutionStep[] => (mo.beat?.then ?? []) as SolutionStep[];
 /** The notebook boxes a lab task asks for (a number read off the bench, judged by the task's goal). */
 const notesOf = (note: NoteSpec | NoteSpec[] | undefined): NoteSpec[] => (note ? (Array.isArray(note) ? note : [note]) : []);
 
@@ -142,6 +145,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const lineRef = useRef<HTMLParagraphElement>(null);
   const pendingSetup = useRef<string | null>(null);
   const pendingTrace = useRef<string | null>(null);
+  const pendingThen = useRef<SolutionStep[]>([]);
   const pendingSkips = useRef<string[]>([]);
   const lastSecret = useRef(0);
   const prefetchedIsle = useRef(false);
@@ -306,6 +310,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
         setStamp(mo.rule);
         lines.push(m.lessonBench.stamped(mo.rule));
       }
+      // A right check can change the bench (a padlock wheel turned to the digit just found).
+      if (mo.beat?.then) state.current.api?.applySteps(stepsOf(mo));
       // The tracer shows the loop the learner just found (the right terminal tapped).
       if (mo.trace) runTrace(mo.trace);
       if (lines.length) announce(lines.join(" "));
@@ -336,6 +342,12 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
           return where ? [{ id: `note-${mo.key}`, kind: "note" as const, at: where, text: noteText(mo.note.text, rec?.at), tone: "blue" as const, faded: true }] : [];
         }),
       );
+      // What right checks put on the bench since the last task done comes back too (a task's checkpoint has the rest).
+      let lastTask = -1;
+      moments.slice(0, at).forEach((mo, k) => {
+        if (mo.task && t.includes(mo.task)) lastTask = k;
+      });
+      pendingThen.current = moments.slice(lastTask + 1, at).flatMap((mo) => (checkOf(a, mo.key)?.done ? stepsOf(mo) : []));
       enter(at, a);
       toast({ title: m.lesson.resumed, icon: "play", duration: 3500 });
     }
@@ -354,6 +366,10 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
     if (pendingSkips.current.length) {
       api.skip(pendingSkips.current);
       pendingSkips.current = [];
+    }
+    if (pendingThen.current.length) {
+      api.applySteps(pendingThen.current);
+      pendingThen.current = [];
     }
     if (pendingSetup.current) {
       api.applySetup(pendingSetup.current);

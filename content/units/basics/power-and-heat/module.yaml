@@ -1,6 +1,6 @@
 id: power-and-heat
 title: Power and heat
-summary: Watts and heat, power ratings, fuses that fail on purpose, and the resistance hiding inside every battery.
+summary: Count watts, pick power ratings, let fuses fail on purpose, measure big flows, and find the resistance inside every battery.
 landmark:
   id: power-station
   name: the Power Station
@@ -8,6 +8,8 @@ landmark:
   # caption: Fuses on guard, heatsinks cooling, batteries treated with respect. The island has power, safely.
   # mascot: Nothing smoking. Well, nothing that shouldn't be.
 lessons:
+  - count-the-watts
   - watts-and-heat
   - fuse-guard
+  - big-current
   - inside-the-battery

@@ -13,7 +13,7 @@ import { Button } from "../components/Button";
 import { m } from "../i18n";
 import type { IsleRevealInfo, IsleRevealResult } from "../lesson/isle-hooks";
 import { prefersReducedMotion } from "../progress/prefs";
-import { timeOption } from "./env";
+import { pageTime } from "./env";
 import { loadIsle } from "./load";
 import "./reveal.css";
 
@@ -127,7 +127,7 @@ function RevealDialog({ rt, plan, from, to, big, muted, outline, onShow, onDone 
     if (panel.current) ro.observe(panel.current);
     (async () => {
       try {
-        const v = await rt.mountIsle(el, plan, { interactive: false, quality: "high", muted, reducedMotion: reduced, at: from, messages: rt.isleMessages(outline), inset: inset(), ...timeOption() });
+        const v = await rt.mountIsle(el, plan, { interactive: false, quality: "high", muted, reducedMotion: reduced, at: from, messages: rt.isleMessages(outline), inset: inset(), paper: "clear", time: pageTime() });
         if (cancelled) {
           v.dispose();
           return;
@@ -173,7 +173,7 @@ function RevealDialog({ rt, plan, from, to, big, muted, outline, onShow, onDone 
       <div className="reveal__stage" ref={stage} />
       {status === "loading" && <span className="reveal__spinner" aria-hidden="true" />}
       <div className="reveal__panel" ref={panel}>
-        <p className="eyebrow">{big ? m.reveal.module : m.reveal.lesson}</p>
+        <p className="kicker">{big ? m.reveal.module : m.reveal.lesson}</p>
         <h2 id="reveal-title" className="reveal__title" ref={heading} tabIndex={-1}>
           {caption?.title ?? m.reveal.growing}
         </h2>

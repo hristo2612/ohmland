@@ -1,138 +1,65 @@
-# Blueprint: docs/curriculum/unit-1.md, L17.
+# Blueprint: docs/curriculum/unit-1.md, L17, trimmed (docs/curriculum/conversion-guide.md, B3 17). A bench lesson
+# (docs/LESSONS.md). One idea: cells chained plus to minus add their push. Lab: content/labs/stack-the-cells.ts.
+format: bench
 id: stack-the-cells
-version: 1
+version: 2
 title: Stack the cells
-summary: Link fruit cells in series, discover that voltages add, and light an LED with no resistor.
-minutes: 12
+summary: Chain lemon cells zinc to copper, watch their pushes add up, and light an LED with fruit.
+minutes: 8
+lab: stack-the-cells
 unlocks:
   parts: []
   isle: lemon-tree
-steps:
-  - type: hook
-    body: |
-      One lemon gives about 0.9 V. A red LED needs more than 1.5 V before it even starts to glow. The fix is the same
-      trick every battery uses inside: link cells in a chain so their voltages add up. The robot has lined up four
-      lemon cells and a pile of clip leads, and its dim LED face is watching you hopefully. Your mission: a
-      fruit-powered light.
-    visual: { kind: part, part: fruit-cell }
-    predict:
-      prompt: Two lemon cells of 0.9 V each, the zinc of one clipped to the copper of the next. Total voltage?
-      options:
-        - 0.9 V
-        - 1.8 V
-        - 0.45 V
-    mascot: One lemon isn't enough. Let's build a team.
 
-  - type: lab
-    lab: stack-the-cells
+start:
+  title: Light it with fruit
+  say: One lemon gave 0.9 V. My face needs more.
+  go: Build a team
 
-  - type: explain
-    cards:
-      - title: Series adds voltage
-        body: |
-          Link cells in a chain, the plus of one to the minus of the next, and their voltages add. Two fruit cells give
-          about 1.8 V, four give about 3.6 V. Get one link backwards and that cell subtracts instead: four cells with
-          one reversed give about 1.8 V. Every multi-cell battery relies on this. A 9 V battery is six 1.5 V cells in
-          series.
-        # widget (planned): cell-stack. Drag cells into a chain, flip any one, and watch the total voltage update.
-      - title: Why the LED survived
-        body: |
-          You connected an LED straight across the stack, with no resistor, and it survived. Each lemon cell has an
-          internal resistance of roughly a thousand ohms. Four in series add up to several thousand ohms, which holds
-          the current well under 1 mA. The cells' own resistance did the resistor's job. Try that with a 9 V battery
-          and the LED is toast.
-      - title: Voltage up, current no better
-        body: |
-          Stacking cells in series raises the voltage, but all the current still passes through every cell, so their
-          internal resistances add up too. More lemons in a chain won't give you a strong current. For more current
-          you'd need bigger electrodes placed closer together, or several stacks connected side by side in parallel.
+beats:
+  - say: Link two cells, zinc to copper. Measure across both.
+    objective: Two in a chain
+    do: two-in-series
+    tool: meter
+    note: { at: FC2, text: "zinc to copper: pushes add" }
 
-  - type: quiz
-    items:
-      - id: four-cells
-        type: numeric
-        prompt: Four fruit cells of 0.9 V each, all linked correctly in series. Total voltage?
-        answer: 3.6
-        unit: V
-        tolerance: 1
-        hint: In series, voltages add.
-        explain: "In series the voltages add: 4 × 0.9 = 3.6 V."
+  - say: Now link them copper to copper. Guess first.
+    guess: { options: [Still 1.8 V, About 0 V, About 3.6 V], answer: About 0 V }
+    do: wrong-way
+    tool: meter
+    note: { at: FC1, text: "back to back: they cancel" }
 
-      - id: one-reversed
-        type: numeric
-        prompt: In that same stack of four, one cell is linked the wrong way round. What's the total now?
-        answer: 1.8
-        unit: V
-        tolerance: 2
-        hint: A reversed cell pushes against the others.
-        explain: "Three cells add and the reversed one subtracts: 0.9 + 0.9 + 0.9 − 0.9 = 1.8 V."
+  - say: Chain all four, zinc to copper. Guess the total.
+    objective: Four in a chain
+    guess: { options: [0.9 V, 1.8 V, 3.6 V], answer: 3.6 V }
+    do: four-stack
+    tool: meter
+    done: 3.66 V. Enough for an LED.
+    rule: "Chain cells: their pushes add."
 
-      - id: no-resistor-why
-        type: choice
-        prompt: Why can a fruit battery light an LED with no resistor, when a 9 V battery would destroy it?
-        options:
-          - text: The fruit cells' high internal resistance limits the current
-            correct: true
-            why: Thousands of ohms inside the stack keep the current far below the LED's limit.
-          - text: Fruit electricity is gentler
-            why: Charge is charge. The difference is the resistance in the loop.
-          - text: The LED only needs 0.9 V
-            why: A red LED needs about 1.6 V or more to glow at all.
-        explain: A source with high internal resistance limits current all by itself.
+  - say: LED across the stack, long leg to copper. Dim the lights.
+    objective: Light my face
+    do: light-it
+    tool: controls
+    done: A glow from fruit!
 
-      # Blueprint listed eight stops, one more than an order item allows, so the LED's legs are in the prompt.
-      - id: trace-the-chain
-        type: order
-        prompt: A three-cell fruit battery lights an LED. The cells are numbered from the end nearest the LED's long leg. Trace the chain from the long leg to the short leg, putting the stops in between in order.
-        items:
-          - Cell 1 copper
-          - Cell 1 zinc
-          - Cell 2 copper
-          - Cell 2 zinc
-          - Cell 3 copper
-          - Cell 3 zinc
-        explain: The long leg meets the stack's free copper, its plus end. Each link joins a zinc to the next copper, and the last free zinc, the minus end, meets the short leg.
+  - say: A 9 V battery hides 1.5 V cells. How many?
+    pick: { options: [Two, Six, Nine], answer: Six }
+    wrong:
+      Two: "Two would give 3 V. Keep adding."
+      Nine: "Nine would give 13.5 V. Too many."
 
-      - id: copper-to-copper
-        type: choice
-        prompt: Zoe's two-cell stack reads about 0 V. Her link joins the copper of cell 1 to the copper of cell 2. What should she do?
-        options:
-          - text: Link the zinc of one cell to the copper of the next
-            correct: true
-            why: Copper to copper puts the cells back to back, so they cancel.
-          - text: Add a third cell
-            why: The wiring is wrong, so more cells won't fix it.
-          - text: Push the metals closer together
-            why: Spacing changes internal resistance, not the cancelling.
-        explain: "In series, always join plus to minus: zinc to copper."
+secret:
+  task: why-no-resistor
+  tool: meter
+  say: Curious? No resistor, yet it lives. Measure one lemon.
+  done: About half its push, lost inside. No resistor needed.
+  note: { at: FC2, text: "about 1 kΩ inside each lemon" }
 
-      - id: inside-9v
-        type: choice
-        prompt: What's inside a typical 9 V alkaline battery?
-        options:
-          - text: Six 1.5 V cells in series
-            correct: true
-            why: 6 × 1.5 V = 9 V.
-          - text: One big 9 V cell
-            why: No single common chemistry makes 9 V per cell.
-          - text: Nine 1 V cells
-            why: Alkaline cells are 1.5 V each, so it takes six.
-        explain: A 9 V battery is a stack of six small alkaline cells.
+fixit:
+  say: Fix-it time. My fruit lamp went dim. Find the rebel.
+  tasks:
+    - task: one-reversed
 
-  - type: wrap
-    rules:
-      - "Cells in series: their voltages add."
-      - Join plus to minus every time. A reversed cell subtracts.
-      - Series raises voltage, not current.
-      - High internal resistance can limit current all by itself.
-    realWorld:
-      parts:
-        - Four lemons, or lemon juice split into four small cups
-        - Four copper coins or strips
-        - Four galvanized nails or brackets
-        - Five clip leads
-        - A red LED
-        - A multimeter
-      safety:
-        - Don't eat the fruit afterwards.
-        - "The glow is faint: try it in a dim room."
+end:
+  say: Fruit-powered face. Best day on this island.

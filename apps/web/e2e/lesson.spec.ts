@@ -3,7 +3,7 @@ import { FIRST_LESSON_URL, playFirstLesson } from "./first-lesson";
 
 test("a guest finishes the first lesson and sees XP on the signed-off page", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Start learning" }).first().click();
+  await page.getByRole("link", { name: "Start the first lesson" }).first().click();
   await expect(page).toHaveURL(new RegExp(FIRST_LESSON_URL));
 
   await playFirstLesson(page);
@@ -14,9 +14,9 @@ test("a guest finishes the first lesson and sees XP on the signed-off page", asy
   await expect(finale.getByRole("heading", { name: "How a breadboard works, done" })).toBeVisible();
   await expect(page.locator(".finale__xp")).toHaveText("+135 XP");
 
-  // The XP survives a reload: the header chip on the course map shows level 2.
+  // The XP survives a reload: the header's notebook chip (a tally on phones) on the course map shows level 2.
   await page.goto("/learn");
-  await expect(page.locator(".level-chip__badge")).toHaveText("2");
+  await expect(page.locator("[data-level]").filter({ visible: true }).first()).toHaveAttribute("data-level", "2");
 });
 
 test("a lesson's first load carries no three.js", async ({ page }) => {

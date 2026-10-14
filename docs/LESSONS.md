@@ -105,6 +105,11 @@ Optional, on any beat:
   beat without one moves on by itself after a beat of the robot's success line. A beat with nothing to do draws its
   `note` and stamps its `rule` as it begins, beside its line, and the learner taps Next when they have read it.
 - `hint` (checks) and `wrong` (lines for particular wrong taps or chips). A `do` beat uses its lab task's `hints`.
+- `then` (checks): bench steps, written as the lab's solution steps, applied once the tap, pick or number is right,
+  the way a setup is applied: `then: [{ do: param, part: PL1, params: { wheel1: 3 } }]` turns a padlock's first wheel
+  to the digit just found. Use steps that set a state (`param`, `flip` with `to`, `clip`): a resumed lesson applies
+  them again. A step that needs the bench to keep its new state through a later task's setup belongs in the lab's
+  solution as well.
 - `xray: true`: the breadboard's metal strips show during the beat.
 - `trace: B1.neg`: the loop tracer runs from that terminal once the beat's action is done (the right tap on it, the
   task's goal met), or as the beat begins when it has nothing to do. Its red pencil line clears when the beat ends.
@@ -113,8 +118,12 @@ Optional, on any beat:
   fix-it round and the secret take a `tool` too (`fixit: { tool: meter, ... }`, `secret: { tool: meter, ... }`): the
   meter's range, for one, can only be changed on its panel.
 
-Anchors (`at`, `answer`, `among`, `on`, `spot`) use the lab's shorthand: a part `D1`, a lead `D1.anode`, a hole `e12`
-or `rail+:21`, a clip lead end `TL1.a`, a jumper end `W1.b`, or a raw bench anchor (`pin:D1.anode`, `part:D1`).
+Anchors (`at`, `answer`, `among`, `on`, `spot`, `trace`) use the lab's shorthand: a part `D1`, a lead `D1.anode`, a
+hole `e12` or `rail+:21`, a clip lead end `TL1.a`, a jumper end `W1.b`, or a raw bench anchor (`pin:D1.anode`,
+`part:D1`). A named mark on a part is `part:<id>/<mark>`: the meter's `part:M1/dial`, `part:M1/display` and sockets
+(`part:M1/com`), a drawing's symbol `part:SD1/R1`, a box's `lid`, `knob`, `tag` and padlock wheels
+(`part:CAB/wheel1`), a gate's `flag` and `unit`. Taps, notes and the spotlight work on marks in both views; a tapped
+mark that is wrong writes its own name ("dial", "wheel 2").
 
 ## Control of error
 

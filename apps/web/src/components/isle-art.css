@@ -1,0 +1,30 @@
+/* The island as an ink sketch. Outlines keep their weight at any size. Tokens only. */
+.isle-art { display: block; width: 100%; height: auto; overflow: visible; }
+.isle-art path, .isle-art polygon, .isle-art circle, .isle-art ellipse { vector-effect: non-scaling-stroke; }
+.isle-art pattern path { vector-effect: none; }
+.ia-hatch { stroke: var(--ink); stroke-width: 0.9; opacity: 0.42; }
+.ia-hatch--light { stroke-width: 0.8; opacity: 0.26; }
+.ia-face { fill: var(--paper-slip); stroke: var(--ink); stroke-width: var(--stroke-draw); stroke-linejoin: round; }
+.ia-side { stroke: none; }
+.ia-shade { stroke: var(--ink); }
+.ia-under { fill: var(--paper-slip); stroke: var(--ink); stroke-width: 1.25px; stroke-linejoin: round; }
+.ia-under--hatch { stroke: none; }
+.ia-shadow { fill: var(--sk-shade); }
+.ia-trace { fill: none; stroke: var(--copper); stroke-width: var(--stroke-draw); stroke-linecap: round; stroke-linejoin: round; }
+.ia-copper { fill: none; stroke: var(--copper); stroke-width: 3px; stroke-linecap: round; }
+.ia-via { fill: var(--paper-slip); stroke: var(--copper); stroke-width: 1.5px; }
+.ia-line { fill: none; stroke: var(--ink); stroke-width: var(--stroke-draw); stroke-linecap: round; }
+.ia-dot { fill: var(--ink); }
+.ia-smoke { fill: none; stroke: var(--ink-3); stroke-width: 1.5px; stroke-linecap: round; }
+.ia-fruit { fill: var(--sk-band-yellow); }
+.ia-lamp { fill: var(--paper-slip); stroke: var(--ink); stroke-width: var(--stroke-draw); }
+.ia-lamp--lit { fill: var(--sk-led-lit); }
+.ia-glow { fill: var(--sk-glow); opacity: 0.45; }
+
+/* A landmark still to come: pencilled in, dashed, not coloured. */
+.ia-plan .ia-face, .ia-plan .ia-line, .ia-plan .ia-lamp { fill: none !important; stroke: var(--ink-3); stroke-dasharray: 3 4; }
+.ia-plan .ia-shade, .ia-plan .ia-copper, .ia-plan .ia-smoke, .ia-plan .ia-fruit, .ia-plan .ia-dot, .ia-plan .ia-glow { display: none; }
+
+/* What you are building now: a note in blue ink. */
+.ia-you__text { fill: var(--blue); font-family: var(--font-hand); font-size: 24px; }
+.ia-you__arrow { fill: none; stroke: var(--blue); stroke-width: var(--stroke-mark); stroke-linecap: round; stroke-linejoin: round; }
