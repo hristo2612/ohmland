@@ -249,6 +249,8 @@ export function ViewRig({
         const [x0, z0, x1, z1] = frameWithParts(
           frame,
           boxes.map((x) => [x.min.x, x.min.z, x.max.x, x.max.z] as [number, number, number, number]),
+          // A tall screen is narrow: a part cut by its edge comes in whole (as in ink on a phone).
+          portrait ? 1.7 : undefined,
         );
         // The grown frame on the desk, and the parts whole inside it (their height counts).
         const inside = boxes.filter((x) => x.min.x >= x0 - 0.01 && x.max.x <= x1 + 0.01 && x.min.z >= z0 - 0.01 && x.max.z <= z1 + 0.01);

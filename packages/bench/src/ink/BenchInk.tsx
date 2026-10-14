@@ -30,6 +30,7 @@ import { INK_CSS } from "./styles";
 import { InkView } from "./view";
 import { TagSlips, type SlipProjector } from "../view/TagSlips";
 import { LOUPE, Loupe, createLoupeFeed } from "../view/Loupe";
+import { BoardRuler } from "../view/Ruler";
 import { SolderOverlay, type SolderViewApi } from "../solder/overlay/SolderOverlay";
 import { IronLayer, ScorchLayer } from "./kinds/solder";
 
@@ -109,6 +110,9 @@ function InkLens({ ids, view, x, y, d }: { ids: string[]; view: InkView; x: numb
     </svg>
   );
 }
+
+/** How far a phone's home framing grows a lab's frame to take in a part cut by its edge (view/framing.ts). */
+const PHONE_GROW = 1.7;
 
 /** The busy part of a breadboard: what sits in it and the jumpers, for framing on small screens. */
 function busyRect(model: InkModel): Rect | null {
@@ -220,7 +224,7 @@ export function BenchInk(props: BenchInkProps) {
       const frame: Rect = [f[0], f[1], f[2], f[3]];
       const boxes = [...m.parts.values()].map(partBounds);
       if (m.meter) boxes.push(rectOfPoints(boxCorners(m.meter.f, [-METER.width / 2, -METER.length / 2, METER.width / 2, METER.length / 2]))!);
-      return frameWithParts(frame, boxes);
+      return frameWithParts(frame, boxes, compact ? PHONE_GROW : undefined);
     }
     return compact && m.bench.board ? m.work : m.bounds;
   }, [store, compact]);
@@ -626,6 +630,7 @@ export function BenchInk(props: BenchInkProps) {
             </div>
             <Readouts store={store} model={model} view={view} labels={labels} spot={spot} compact={compact} />
             <TagSlips store={store} spot={spot} compact={compact} projector={slipProjector} />
+            <BoardRuler store={store} projector={slipProjector} size={size} />
             <InkOverlay
               store={store}
               labels={labels}

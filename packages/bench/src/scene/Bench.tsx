@@ -26,6 +26,7 @@ import { PaletteContext, useReadPalette } from "./palette";
 import { Readouts, StressTags, inspectKey } from "./Readouts";
 import { TagSlips } from "../view/TagSlips";
 import { LOUPE, Loupe, createLoupeFeed, type LoupeFeed } from "../view/Loupe";
+import { BoardRuler } from "../view/Ruler";
 import type { Pick } from "./pick";
 import { PaperRenderer, PaperUpkeep, SoftShadows, type ShadowArea } from "./Render";
 import { SpotlightRig, ViewRig, type ViewApi } from "./viewRig";
@@ -251,6 +252,7 @@ export function Bench(props: BenchProps) {
             </Canvas>
             <StressTags controller={controller} spot={spotTargets} compact={compact} />
             <TagSlips store={store} spot={spotTargets} compact={compact} projector={controller} />
+            <BoardRuler store={store} projector={controller} size={size} />
             <Overlay tray={tray} readOnly={readOnly} compact={compact} api={api} size={size} controller={controller} />
             <SolderOverlay store={store} view={solderView} compact={compact} readOnly={readOnly} tray={showTray} />
             <Loupe feed={loupeFeed} size={size} lens={(st, d) => <CanvasLens element={element} controller={controller} x={st.x} y={st.y} d={d} />} />
