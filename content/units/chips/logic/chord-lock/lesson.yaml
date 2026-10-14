@@ -1,0 +1,75 @@
+# Blueprint: docs/curriculum/unit-4.md, CH20. A bench lesson (docs/LESSONS.md).
+# One idea: flip a key's pull and "none of these pressed" becomes one more AND. Nothing new to name. A green lamp
+# stands in for the blueprint's transistor, relay and door; the secret re-keys the lock (the chord count is a
+# parts-bin fact now). Lab: content/labs/chord-lock.ts.
+format: bench
+id: chord-lock
+version: 1
+title: Chord lock
+summary: Build a lock that opens only for the right keys held together, by flipping the wrong keys' pulls.
+minutes: 8
+lab: chord-lock
+unlocks:
+  parts: []
+  isle: relay
+
+start:
+  title: Chord lock
+  say: My castle lock opens for A and B. Watch this.
+  go: Try it
+
+beats:
+  - say: Hold all four keys at once.
+    objective: A bad lock
+    tool: keys
+    spot: [S1, S2, S3, S4, D1]
+    do: mash-opens
+    note: { at: D1, text: "mash everything: it opens" }
+
+  - say: "Flip red key C: R3's leg to plus, its wire to minus."
+    objective: Flip the pulls
+    spot: [R3, WC]
+    do: flip-c
+    note: { at: R3, text: "untouched C now reads high" }
+
+  - say: Flip key D the same way.
+    spot: [R4, WD]
+    do: flip-d
+
+  - say: Now move the white wire from plus to pin 6.
+    spot: [W1, U1]
+    do: link
+
+  - say: Hold all four again. Guess first.
+    objective: A good lock
+    tool: keys
+    spot: [S1, S2, S3, S4, D1]
+    guess: { options: [It opens, It stays shut], answer: It stays shut }
+    do: mash-shut
+    note: { at: D1, text: "C or D held: locked" }
+    rule: A flipped pull checks a key is up.
+
+  - say: Now hold only A and B.
+    tool: keys
+    spot: [S1, S2, D1]
+    do: chord-opens
+
+  - say: C is held. What does pin 4 read?
+    pick: { options: [High, Low], answer: Low }
+    wrong:
+      High: C presses to minus now. Held, it reads low.
+
+secret:
+  task: re-key
+  say: "Secret: flip D back. Which chord opens it now?"
+  tool: keys
+  done: A, B and D. A brand new chord.
+  note: { at: R4, text: "flip a pull: a new key" }
+
+fixit:
+  say: My lock opens even with D held. Fix it.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Only the right chord opens my castle now.

@@ -1,0 +1,63 @@
+# Blueprint: docs/curriculum/unit-4.md, CH21. A bench lesson (docs/LESSONS.md).
+# One idea: two gates fed back into each other remember. New: the word "feedback" (a note on the crossed wires);
+# "latch" gets its third period ("What is this pair of gates now?"). Lab: content/labs/two-gates-remember.ts.
+format: bench
+id: two-gates-remember
+version: 1
+title: Two gates that remember
+summary: Cross two NOR gates' answers back into each other and watch them hold a lamp lit with the switch gone.
+minutes: 6
+lab: two-gates-remember
+unlocks:
+  parts: []
+  isle: switch
+
+start:
+  title: Two gates that remember
+  say: My castle needs a memory. Two gates will do.
+  go: Make a memory
+
+beats:
+  - say: Flip the switch one way, then the other.
+    objective: No memory yet
+    spot: [SW1, D1, D2]
+    do: swap
+    done: The lamps swap.
+
+  - say: Now pull the switch out. Guess first.
+    spot: [SW1, D1, D2]
+    guess: { options: [They keep their state, Both light up], answer: Both light up }
+    do: forgets
+    note: { at: U1, text: "no input: no memory" }
+
+  - say: "Cross the white wires: pin 3 to 4, pin 5 to 1."
+    objective: Feedback
+    spot: [W1, W2, U1]
+    do: cross-wires
+    note: { at: W1.b, text: "feedback: each holds the other" }
+
+  - say: Put the switch back, flip it, pull it out. Guess first.
+    spot: [SW1, D1, D2]
+    guess: { options: [It stays lit, It goes dark], answer: It stays lit }
+    do: remembers
+    rule: Two gates fed back remember.
+
+  - say: What is this pair of gates now?
+    pick: { options: [A latch, A counter, A clock], answer: A latch, on: U1 }
+    wrong:
+      A counter: It doesn't count. It holds one of two states.
+      A clock: A clock ticks by itself. This one waits to be pushed.
+
+secret:
+  task: both-set
+  say: "Secret: jumper pin 2 and pin 6 to plus at once."
+  done: Both dark. No memory there.
+  note: { at: U1, text: "both pushed: no memory left" }
+
+fixit:
+  say: My memory forgets one side. Fix it.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Two gates, one memory. My castle remembers.

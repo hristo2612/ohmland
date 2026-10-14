@@ -51,6 +51,71 @@ export function digit(o: { chip: string; display: string; col: number; dcol?: nu
   return { parts, wires };
 }
 
+/**
+ * The logic rail: a 7805 (VR1) standing in the far half at columns `col` to `col + 2` (in, ground, out), fed from the
+ * battery's near plus rail, with 0.33 µF on its input and 0.1 µF on its output. Its 5 V goes onto the far plus rail;
+ * the far minus rail is joined to the near one at the board's right end (`last`, a rail column).
+ */
+export function logicRail(col: number, last: number): { parts: BenchPart[]; wires: WireSpec[] } {
+  const c = col;
+  return {
+    parts: [
+      { id: "VR1", kind: "regulator7805", at: `h${c}`, locked: true, label: "5 V regulator VR1 (7805)" },
+      { id: "C8", kind: "ceramic-cap", at: `i${c}-i${c + 1}`, params: { farads: 0.33e-6 }, locked: true, label: "0.33 µF capacitor C8" },
+      { id: "C9", kind: "ceramic-cap", at: `f${c + 1}-f${c + 2}`, params: { farads: 0.1e-6 }, locked: true, label: "0.1 µF capacitor C9" },
+    ],
+    wires: [
+      wire("V1", `g${c}`, `rail+:${c}`, "red"),
+      wire("V2", `j${c + 1}`, `top-:${c + 1}`, "black"),
+      wire("V3", `j${c + 2}`, `top+:${c + 2}`, "orange"),
+      wire("V4", `top-:${last}`, `rail-:${last}`, "black"),
+    ],
+  };
+}
+
+/** Columns of a 14-pin chip's pins with pin 1 at column `c`: pins 1 to 7 along row e, 8 to 14 back along row f. */
+export const pinCol = (c: number, n: number): number => (n <= 7 ? c + n - 1 : c + 14 - n);
+
+/**
+ * A 74HC chip with pin 1 at e`col`: pin 14 to the far plus rail, pin 7 to the near minus rail, and the inputs of the
+ * gates listed in `spare` tied to minus (quad layout: gate 1 is pins 1 and 2, gate 2 pins 4 and 5, gate 3 pins 9 and
+ * 10, gate 4 pins 12 and 13), near ones down to the near rail, far ones up to the far rail. `taken` lists rail holes
+ * the lab already uses ("rail-:15").
+ */
+export function gateChip(o: {
+  id: string;
+  model: string;
+  col: number;
+  board: "half" | "full";
+  spare: number[];
+  /** Input pins to tie to minus, instead of `spare`'s gates (a 74HC02, 04 or 27 has its own layout). */
+  tie?: number[];
+  taken?: string[];
+  label?: string;
+  hidden?: string;
+  locked?: boolean;
+}): { parts: BenchPart[]; wires: WireSpec[] } {
+  const c = o.col;
+  const rails = railCols(o.board);
+  const used = new Set<string>(o.taken ?? []);
+  const rail = (side: "rail-" | "top-" | "top+", col: number) => {
+    const sorted = [...rails].sort((a, b) => Math.abs(a - col) - Math.abs(b - col) || a - b);
+    const pick = sorted.find((r) => !used.has(`${side}:${r}`))!;
+    used.add(`${side}:${pick}`);
+    return `${side}:${pick}`;
+  };
+  const w = (k: string, from: string, to: string, color: Extract<WireSpec, object>["color"]) => wire(`${o.id}-${k}`, from, to, color);
+  const wires: WireSpec[] = [w("vcc", `j${c}`, rail("top+", c), "red"), w("gnd", `a${c + 6}`, rail("rail-", c + 6), "black")];
+  const ins: Record<number, number[]> = { 1: [1, 2], 2: [4, 5], 3: [9, 10], 4: [12, 13] };
+  for (const n of o.tie ?? o.spare.flatMap((g) => ins[g] ?? [])) {
+    const col = pinCol(c, n);
+    wires.push(n <= 7 ? w(`t${n}`, `a${col}`, rail("rail-", col), "black") : w(`t${n}`, `j${col}`, rail("top-", col), "black"));
+  }
+  const params: Record<string, unknown> = { model: o.model };
+  if (o.hidden) Object.assign(params, { hidden: true, label: o.hidden });
+  return { parts: [{ id: o.id, kind: "chip", at: `e${c}`, params, locked: o.locked ?? true, label: o.label ?? `${o.model} ${o.id}` } as BenchPart], wires };
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Readings for goals.
 

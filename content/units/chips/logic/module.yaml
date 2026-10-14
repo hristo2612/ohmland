@@ -5,4 +5,10 @@ summary: Highs and lows, gates and their tables, a chord lock and a memory.
 landmark:
   id: logic-castle
   name: The Logic Castle
-lessons: []
+lessons:
+  - five-volts-exactly
+  - gatekeepers
+  - flip-the-answer
+  - chord-lock
+  - two-gates-remember
+  - chatter

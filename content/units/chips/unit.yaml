@@ -11,5 +11,5 @@ modules:
   # - timer-555
   # - alarm
   - counters
-  # - logic
+  - logic
   # - arcade
