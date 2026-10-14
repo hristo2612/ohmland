@@ -251,7 +251,21 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
         hooks.prefetch();
       }
       if (mo.kind !== "fix") setClock(null);
-      announce(mo.say);
+      // A beat with nothing to do shows its discovery as it begins: the note is drawn, the rule stamped. The learner
+      // reads it and taps Next.
+      const lines = [mo.say];
+      if (mo.action === "next" && mo.kind === "beat") {
+        if (mo.note && mo.note.at !== "tap") {
+          const text = noteText(mo.note.text, undefined);
+          addMark({ id: `note-${mo.key}`, kind: "note", at: mo.note.at, text, tone: "blue" });
+          lines.push(m.lessonBench.found(text));
+        }
+        if (mo.rule) {
+          setStamp(mo.rule);
+          lines.push(m.lessonBench.stamped(mo.rule));
+        }
+      }
+      announce(lines.join(" "));
     },
     [moments, lesson.lab, lesson.id, addMark, announce, hooks, runTrace],
   );
