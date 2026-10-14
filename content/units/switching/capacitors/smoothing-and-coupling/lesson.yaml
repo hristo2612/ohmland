@@ -25,7 +25,7 @@ beats:
     done: On, off, on, off. Headache.
     note: { at: D1, text: "choppy supply, choppy light" }
 
-  - say: Push in the 470 µF. Long leg row 11, stripe row 13.
+  - say: Push in the 470 µF. Long leg strip 11, stripe strip 13.
     objective: Smooth it out
     tool: tapper
     guess: { options: [Still flickers, Steady light, Goes dark], answer: Steady light }

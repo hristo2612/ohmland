@@ -68,7 +68,7 @@ export default defineLab({
       id: "half-on",
       prompt: "Probe Q1, red on C and black on E. Hold S1.",
       goal: (lab) => baseOhms(lab) === 470_000 && reading(lab, "half") && vce(lab) > 2,
-      hints: ["Red probe on row 22, black probe on row 20.", "Then hold the red button down."],
+      hints: ["Red probe on strip 22, black probe on strip 20.", "Then hold the red button down."],
       highlight: ["pin:Q1.c", "pin:Q1.e"],
       nudges: [{ when: (lab) => meterOnCE(lab) && !lab.closed("S1"), say: "Now hold S1 down while you read." }],
       success: "Half on: about 5.5 V across it.",
@@ -81,7 +81,7 @@ export default defineLab({
         lab.shared["ic10k"] = lab.amps("Q1");
         return true;
       },
-      hints: ["Pull out the 470 kΩ. Bend the 10 kΩ from row 16 to row 21.", "Keep the probes on C and E, and hold S1."],
+      hints: ["Pull out the 470 kΩ. Bend the 10 kΩ from strip 16 to strip 21.", "Keep the probes on C and E, and hold S1."],
       highlight: ["hole:b16", "hole:b21"],
       success: "Fully on: about 0.1 V across it.",
     },

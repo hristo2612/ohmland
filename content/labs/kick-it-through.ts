@@ -69,7 +69,7 @@ export default defineLab({
       id: "ceramic-blocks",
       prompt: "Swap the white wire for the ceramic. Watch D1.",
       goal: (lab) => lab.heldFor(1, socketA(lab, "CA") && !bridged(lab) && !lab.isLit("D1", 0.02)),
-      hints: ["Take the white wire out of rows 17 and 19.", "Then push the ceramic into rows 17 and 19, either way round."],
+      hints: ["Take the white wire out of strips 17 and 19.", "Then push the ceramic into strips 17 and 19, either way round."],
       highlight: ["wire:W2", "CA"],
       nudges: [{ when: (lab) => socketA(lab, "CA") && bridged(lab), say: "The white wire still bridges it. Take it out." }],
       success: "Dark.",
@@ -135,7 +135,7 @@ export default defineLab({
         if (lab.closed("S3") && charge(lab) < 1) m.reset = true;
         return m.reset === true && lab.closed("S2") && flash(lab) > 0.3;
       },
-      hints: ["Press the white button. Does C2 empty?", "Pick Wire, then join row 33 to C2's plus row, 32."],
+      hints: ["Press the white button. Does C2 empty?", "Pick Wire, then join strip 33 to C2's plus strip, 32."],
       highlight: ["S3", "hole:g32", "hole:g33"],
       success: "Fixed.",
     },

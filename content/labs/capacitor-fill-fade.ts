@@ -134,7 +134,7 @@ export default defineLab({
         // Still glowing a moment after letting go: the capacitor is feeding it again.
         return lab.t - m.let >= 0.6 && glow(lab) > 0.15;
       },
-      hints: ["Follow the capacitor's striped leg. Where does it go?", "Pick Wire, join row 13 to the minus rail, then refill."],
+      hints: ["Follow the capacitor's striped leg. Where does it go?", "Pick Wire, join strip 13 to the minus rail, then refill."],
       highlight: ["pin:C1.neg", "hole:a13"],
       success: "Fixed.",
     },

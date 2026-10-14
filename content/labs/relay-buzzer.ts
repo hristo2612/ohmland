@@ -82,11 +82,11 @@ export default defineLab({
     },
     {
       id: "move-one-wire",
-      prompt: "Run a wire from NC, row 16, to the coil, row 11.",
+      prompt: "Run a wire from NC, strip 16, to the coil, strip 11.",
       goal: buzzing,
-      hints: ["Pick Wire up top, then tap row 16 and row 11.", "Nothing? Check S2 is still on."],
+      hints: ["Pick Wire up top, then tap strip 16 and strip 11.", "Nothing? Check S2 is still on."],
       highlight: ["pin:K1.nc1", "pin:K1.coil1"],
-      nudges: [{ when: (lab) => fromNo(lab) && !lab.connected("K1.nc1", "K1.coil1"), say: "That's NO, row 18. NC is row 16." }],
+      nudges: [{ when: (lab) => fromNo(lab) && !lab.connected("K1.nc1", "K1.coil1"), say: "That's NO, strip 18. NC is strip 16." }],
       success: "It buzzes!",
     },
     {
@@ -106,7 +106,7 @@ export default defineLab({
         if (powered(lab) && lab.count("clicked", "K1", 1) === 0) lab.memory["silent"] = true;
         return lab.memory["silent"] === true && buzzing(lab);
       },
-      hints: ["Follow the green wire from the coil. Which contact does it reach?", "NO is open at rest. Move the wire to NC, row 16."],
+      hints: ["Follow the green wire from the coil. Which contact does it reach?", "NO is open at rest. Move the wire to NC, strip 16."],
       highlight: ["wire:W9", "pin:K1.nc1"],
       success: "Fixed.",
     },

@@ -47,7 +47,7 @@ export default defineLab({
     instruments: [{ kind: "tapper", part: "S1", hz: 4 }],
   },
   mascot: {
-    hint: "Across the supply: long leg in row 11, stripe to minus.",
+    hint: "Across the supply: long leg in strip 11, stripe to minus.",
     fried: "Oof. That one's for the Hall.",
   },
   tasks: [
@@ -60,12 +60,12 @@ export default defineLab({
     },
     {
       id: "smooth-it",
-      prompt: "Push the 470 µF in: long leg in row 11, stripe in row 13.",
+      prompt: "Push the 470 µF in: long leg in strip 11, stripe in strip 13.",
       goal: (lab) => {
         const s = ripple(lab);
         return lab.tapping("S1") && smoothing(lab, 470e-6) && !!s && s.span < 0.25 && s.mean > 0.2;
       },
-      hints: ["It goes across the supply: row 11 to the minus row.", "Long leg in row 11, stripe in row 13. Keep tapping."],
+      hints: ["It goes across the supply: strip 11 to the minus strip.", "Long leg in strip 11, stripe in strip 13. Keep tapping."],
       highlight: ["C1", "hole:d11", "hole:d13"],
       nudges: [{ when: (lab) => !lab.tapping("S1"), say: "Keep the tapper on, so we can see." }],
       success: "Steady.",
@@ -80,7 +80,7 @@ export default defineLab({
         const s = ripple(lab);
         return lab.memory["short"] === true && lab.tapping("S1") && smoothing(lab, 470e-6) && !!s && s.span < 0.25 && s.mean > 0.2;
       },
-      hints: ["Follow the stripe. Is its row joined to minus?", "Move the striped leg to row 13."],
+      hints: ["Follow the stripe. Is its strip joined to minus?", "Move the striped leg to strip 13."],
       highlight: ["pin:C1.neg", "hole:d13"],
       success: "Fixed.",
     },

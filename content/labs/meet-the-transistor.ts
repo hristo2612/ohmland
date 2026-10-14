@@ -59,7 +59,7 @@ export default defineLab({
   tasks: [
     {
       id: "place-q1",
-      prompt: "Place Q1, flat face toward you, legs in rows 20, 21, 22.",
+      prompt: "Place Q1, flat face toward you, legs in strips 20, 21, 22.",
       goal: placedRight,
       hints: ["Hover a leg to see its name.", "Flat face toward you: E, B, C from left to right."],
       highlight: ["hole:c20", "hole:c21", "hole:c22"],
@@ -88,7 +88,7 @@ export default defineLab({
         if (backwards(lab)) lab.memory["backwards"] = true;
         return lab.memory["backwards"] === true && placedRight(lab) && lab.closed("S1") && glow(lab) > 0.3;
       },
-      hints: ["Which way does Q1's flat face point?", "Flat face toward you: E in row 20, C in row 22."],
+      hints: ["Which way does Q1's flat face point?", "Flat face toward you: E in strip 20, C in strip 22."],
       highlight: ["Q1"],
       nudges: [{ when: (lab) => backwards(lab) && lab.closed("S1"), say: "Dim. Something's backwards here." }],
       success: "Bright again.",
@@ -97,7 +97,7 @@ export default defineLab({
       id: "no-resistor",
       prompt: "Jumper straight past the base resistor. Press S1.",
       goal: (lab) => lab.died("Q1"),
-      hints: ["Draw a wire from row 16 to row 21, beside R3. Then press S1."],
+      hints: ["Draw a wire from strip 16 to strip 21, beside R3. Then press S1."],
       success: "Nothing held the base flow back.",
       bonus: true,
     },

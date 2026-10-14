@@ -18,7 +18,7 @@ start:
   go: Show me
 
 beats:
-  - say: This is a transistor. Plug it into rows 20 to 22.
+  - say: This is a transistor. Plug it into strips 20 to 22.
     objective: Plug it in
     do: place-q1
     note: { at: Q1, text: "flat face: E, B, C" }

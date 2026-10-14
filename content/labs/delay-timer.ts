@@ -83,9 +83,9 @@ export default defineLab({
     },
     {
       id: "buffer-in",
-      prompt: "Pull the yellow jumper. Plug Q1 into rows 20 to 22.",
+      prompt: "Pull the yellow jumper. Plug Q1 into strips 20 to 22.",
       goal: (lab) => !bypassed(lab) && follower(lab) && lab.isLit("D2"),
-      hints: ["Drag the yellow jumper off the board.", "Q1 in rows 20 to 22, flat face toward you.", "Keep S1 on."],
+      hints: ["Drag the yellow jumper off the board.", "Q1 in strips 20 to 22, flat face toward you.", "Keep S1 on."],
       highlight: ["wire:W6.b", "hole:c20", "hole:c21", "hole:c22"],
       nudges: [{ when: (lab) => !bypassed(lab) && follower(lab) && !lab.closed("S1"), say: "Now switch S1 on." }],
       success: "Click!",

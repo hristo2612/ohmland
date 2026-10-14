@@ -26,7 +26,7 @@ beats:
       CB.pos: "That's the long leg, plus. Find the stripe."
     note: { at: CB.neg, text: "stripe and short leg: minus" }
 
-  - say: Push it in. Long leg row 20, stripe row 21.
+  - say: Push it in. Long leg strip 20, stripe strip 21.
     tool: meter
     do: electrolytic-right-way
     done: A gulp, then almost nothing.
