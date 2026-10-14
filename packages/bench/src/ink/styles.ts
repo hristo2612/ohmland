@@ -436,7 +436,7 @@ export const INK_CSS = `
 .ohi-item:focus-visible{outline:2px solid var(--k-focus)}
 .ohi-item svg{width:64px;height:40px;overflow:visible}
 .ohi-item small{font-size:11.5px;color:var(--k-ink-3)}
-.ohi-sel{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);max-width:calc(100% - 24px)}
+.ohi-sel{position:absolute;bottom:calc(12px + var(--ohi-inset-bottom,0px));left:calc((100% - var(--ohi-inset-right,0px)) / 2);transform:translateX(-50%);max-width:calc(100% - 24px - var(--ohi-inset-right,0px))}
 .ohi-sel .ohi-name{padding:0 10px 0 12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
 .ohi-menu{position:absolute;min-width:180px;padding:4px;display:flex;flex-direction:column}
 .ohi-menu .ohi-btn{justify-content:flex-start}
@@ -469,7 +469,7 @@ export const INK_CSS = `
 .ohi-compact .ohi-item{min-width:72px;min-height:74px}
 .ohi-compact .ohi-tools{left:8px;top:8px}
 .ohi-compact .ohi-view{right:8px;top:8px}
-.ohi-compact .ohi-sel{bottom:102px}
+.ohi-compact .ohi-sel{bottom:calc(102px + var(--ohi-inset-bottom,0px))}
 .ohi-compact.ohi-notray .ohi-sel{bottom:12px}
 .ohi-compact .ohi-hint{top:58px;white-space:normal;width:calc(100% - 32px);text-align:center;font-size:17px}
 .ohi-compact .ohi-label{display:none}

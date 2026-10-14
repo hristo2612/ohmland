@@ -45,7 +45,7 @@ const CSS = `
 .ohb-tools{position:absolute;top:12px;left:136px}
 .ohb-tools.ohb-wide-tray{left:232px}
 .ohb-view{position:absolute;top:12px;right:12px}
-.ohb-sel{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);max-width:calc(100% - 24px)}
+.ohb-sel{position:absolute;bottom:calc(14px + var(--ohb-inset-bottom,0px));left:calc((100% - var(--ohb-inset-right,0px)) / 2);transform:translateX(-50%);max-width:calc(100% - 24px - var(--ohb-inset-right,0px))}
 .ohb-sel .ohb-name{padding:0 8px 0 12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
 .ohb-menu{position:absolute;min-width:180px;padding:2px;display:flex;flex-direction:column}
 .ohb-menu .ohb-btn{justify-content:flex-start}
@@ -62,7 +62,7 @@ const CSS = `
 .ohb-compact .ohb-item{min-width:72px;min-height:0;font-size:13px;line-height:16px}
 .ohb-compact .ohb-tools{left:8px;top:8px}
 .ohb-compact .ohb-view{right:8px;top:8px}
-.ohb-compact .ohb-sel{bottom:92px}
+.ohb-compact .ohb-sel{bottom:calc(92px + var(--ohb-inset-bottom,0px))}
 .ohb-compact .ohb-status{left:8px;bottom:92px}
 .ohb-compact .ohb-hint{top:60px;white-space:normal;width:calc(100% - 32px);text-align:center}
 .ohb-compact .ohb-tools .ohb-label,.ohb-compact .ohb-sel .ohb-label{display:none}

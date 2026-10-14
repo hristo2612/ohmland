@@ -104,6 +104,9 @@ export function Bench(props: BenchProps) {
       focus: (targets, opts) => {
         const i = opts?.inset ?? {};
         inset.current = { top: i.top ?? 0, right: i.right ?? 0, bottom: i.bottom ?? 0, left: i.left ?? 0 };
+        // The selection bar keeps clear of a docked panel too (Overlay.tsx reads these).
+        elementRef.current?.style.setProperty("--ohb-inset-bottom", `${inset.current.bottom}px`);
+        elementRef.current?.style.setProperty("--ohb-inset-right", `${inset.current.right}px`);
         if (view.current) view.current.focus(targets, opts);
         else pendingFocus.current = { targets: [...targets], opts };
       },
