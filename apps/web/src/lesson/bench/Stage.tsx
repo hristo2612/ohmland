@@ -9,7 +9,7 @@
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useStore } from "zustand";
 import { boardGeometry, trayLeft } from "@ohmland/bench/core";
-import type { LabDefinition, LabTask } from "../../lab/define";
+import { isOptional, type LabDefinition, type LabTask } from "../../lab/define";
 import { m } from "../../i18n";
 import { useLearner } from "../../progress/store";
 import { prefersReducedMotion } from "../../progress/prefs";
@@ -151,10 +151,14 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   gate.current = { task: props.gate, secret: props.secret };
 
   // The lab as the lesson runs it: a task's goal only counts while the lesson waits for it (or it is the secret).
+  // A bonus task that fires an achievement trigger stays armed the whole lesson, so a clean run can still earn it.
   const gated = useMemo<LabDefinition>(
     () => ({
       ...lab,
-      tasks: lab.tasks.map((t) => ({ ...t, goal: (v) => (t.id === gate.current.task || t.id === gate.current.secret) && t.goal(v) })),
+      tasks: lab.tasks.map((t) => {
+        const always = isOptional(t) && !!t.trigger;
+        return { ...t, goal: (v) => (always || t.id === gate.current.task || t.id === gate.current.secret) && t.goal(v) };
+      }),
     }),
     [lab],
   );
