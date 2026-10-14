@@ -23,7 +23,6 @@ start:
 beats:
   - say: Press GO, then open the door while green glows.
     objective: Exit delay
-    spot: [S1, DR1, D1, D9, D2]
     do: exit-delay
     note: { at: D9, text: "green on: the door is ignored" }
 
