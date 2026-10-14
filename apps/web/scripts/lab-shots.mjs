@@ -189,9 +189,12 @@ const SHOTS = [
     await page.waitForTimeout(600);
   }],
   ["lab-fried-desktop-light", DESKTOP, "light", async (page, base) => {
-    // One LED, too much current: the 15 Ω resistor dropped into the holder, so the LED burns out.
+    // One LED, too much current: the 1.5 kΩ pulled out and the 15 Ω pushed into its holes, so the LED burns out.
     await openLab(page, base, "basics/led-burnout");
-    await page.evaluate(() => window.ohmlandLab.step({ do: "place", part: "R4", kind: "resistor", at: "in:H1", params: { ohms: 15, watts: 0.25 } }));
+    await page.evaluate(() => {
+      window.ohmlandLab.step({ do: "move", part: "R1", at: "desk:-30,46" });
+      window.ohmlandLab.step({ do: "place", part: "R4", kind: "resistor", params: { ohms: 15, watts: 0.25 }, at: "c6-c10" });
+    });
     await deselect(page);
     await page.waitForTimeout(1500);
   }],
