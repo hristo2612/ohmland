@@ -89,8 +89,8 @@ export type StageProps = {
   /** Anchors to frame without a spotlight (a breadboard corner for a hole check). */
   frame: string[] | null;
   /**
-   * Hands-on work: a beat's bench task ("beat") or a fix-it bench ("fix"). Its parts in play are framed at a reading
-   * scale, and on a phone a beat with no `spot` frames its task's working parts (the lab's `highlight`).
+   * Hands-on work: a beat's bench task ("beat") or a fix-it bench ("fix"). While its task is open, its parts in play
+   * (and on a phone a beat's working parts, the lab's `highlight`) are framed whole, no closer than a reading scale.
    */
   hands?: "beat" | "fix" | null;
   /** The robot's line for the moment: hands-on framing keeps every part it names in view. */
@@ -175,7 +175,6 @@ const READ_DESK = 32;
 /** The docked drawing slip on a phone: its width, and the room it takes at the top of the bench (framing keeps clear). */
 const SLIP_WIDTH = 150;
 const SLIP_TOP = 146;
-
 
 function StageRunner(props: StageProps & { lab: LabDefinition }) {
   const { lab, lessonId } = props;
