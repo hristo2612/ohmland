@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useStore } from "zustand";
 import { boardGeometry } from "../board";
+import { METER } from "../layout";
 import { LabelsContext } from "../labels";
 import { connectivity } from "../netlist";
 import { BenchStoreContext, createBenchStore } from "../store";
@@ -18,11 +19,12 @@ import { BoxWires, InkOverlays, InkPush } from "./draw/Overlays";
 import { MeterBody, MeterLeads } from "./draw/Meter";
 import { Readouts } from "./draw/Readouts";
 import { DefsContext, InkDefs } from "./draw/shared";
-import { n3 } from "./frame";
+import { frameWithParts } from "../view/framing";
+import { boxCorners, n3 } from "./frame";
 import { attachInteraction, type InkApi } from "./interaction";
 import { KeyCursor, anchorName, handleInkKey, partName, startCursor, type KeyEnv } from "./keys";
 import { mergeInkLabels, type InkLabels } from "./labels";
-import { buildModel, targetOwners, targetPoint, targetRect, targetsRect, type InkModel, type InkPick } from "./model";
+import { buildModel, partBounds, targetOwners, targetPoint, targetRect, targetsRect, type InkModel, type InkPick } from "./model";
 import { InkOverlay, partDetail, useFollow } from "./Overlay";
 import { INK_CSS } from "./styles";
 import { InkView } from "./view";
@@ -152,12 +154,20 @@ export function BenchInk(props: BenchInkProps) {
     return { top: p.top + i.top, right: p.right + i.right, bottom: p.bottom + i.bottom, left: p.left + i.left };
   }, []);
 
-  /** The rectangle to frame: the lab's frame, else everything on a big screen, the work area on a phone. */
+  /**
+   * The rectangle to frame: the lab's frame, with a part that pokes a little out of it taken in whole (parts are drawn
+   * larger than life: a battery at its edge), else everything; on a phone with a breadboard, the board and its parts.
+   */
   const homeRect = useCallback((): Rect => {
     const f = store.getState().frame;
-    if (f) return [f[0], f[1], f[2], f[3]];
     const m = modelRef.current;
-    return compact ? m.work : m.bounds;
+    if (f) {
+      const frame: Rect = [f[0], f[1], f[2], f[3]];
+      const boxes = [...m.parts.values()].map(partBounds);
+      if (m.meter) boxes.push(rectOfPoints(boxCorners(m.meter.f, [-METER.width / 2, -METER.length / 2, METER.width / 2, METER.length / 2]))!);
+      return frameWithParts(frame, boxes);
+    }
+    return compact && m.bench.board ? m.work : m.bounds;
   }, [store, compact]);
   const fitHomeNow = useCallback(
     (instant: boolean) => {

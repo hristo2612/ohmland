@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createControllerHub, type BenchController } from "../src/view/controller";
 import { meterSpot, parseTarget, targetPoint } from "../src/view/targets";
+import { frameWithParts } from "../src/view/framing";
 import { addLead, addPart, clipLead, defaultMeter, emptyBench } from "../src/ops";
 import { anchorPosition } from "../src/layout";
 
@@ -90,5 +91,16 @@ describe("targets", () => {
     expect(meterSpot(b, "nowhere")).toBeNull();
     expect(targetPoint(b, "lead:TL1")).not.toBeNull();
     expect(targetPoint(b, "part:X9")).toBeNull();
+  });
+});
+
+describe("home framing", () => {
+  it("takes in a part that pokes out of the lab's frame, not one left mostly outside it", () => {
+    const frame: [number, number, number, number] = [-90, -60, 90, 60];
+    // A battery drawn a little past the left edge comes in whole; a far meter that only touches the corner does not.
+    expect(frameWithParts(frame, [[-110, -20, -50, 30]])).toEqual([-110, -60, 90, 60]);
+    expect(frameWithParts(frame, [[80, 40, 260, 200]])).toEqual(frame);
+    // Nothing outside the frame changes it.
+    expect(frameWithParts(frame, [[200, 0, 260, 40]])).toEqual(frame);
   });
 });
