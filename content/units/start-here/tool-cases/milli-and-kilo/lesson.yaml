@@ -39,18 +39,22 @@ beats:
     spot: [CAB, L1]
     pick: { on: L1, options: ["47 Ω", "470 Ω", "4,700 Ω"], answer: "4,700 Ω" }
     hint: k means times a thousand.
+    # Each right answer clicks its wheel (the lab's open-padlock setup sets all three again).
+    then: [{ do: param, part: CAB, params: { lock: { wheels: ["4,700 Ω", "0.02 A", "9,000 mV"], set: [true, false, false] } } }]
 
   - say: "Wheel two: 20 mA is..."
     spot: [CAB, L2]
     pick: { on: L2, options: ["0.2 A", "0.02 A", "0.002 A"], answer: "0.02 A" }
     hint: m means a thousandth. Three places left.
+    then: [{ do: param, part: CAB, params: { lock: { wheels: ["4,700 Ω", "0.02 A", "9,000 mV"], set: [true, true, false] } } }]
 
   - say: "Wheel three: 9 V is..."
     spot: [CAB, L3]
     pick: { on: L3, options: ["90 mV", "900 mV", "9,000 mV"], answer: "9,000 mV" }
     hint: A volt is a thousand millivolts.
+    then: [{ do: param, part: CAB, params: { lock: { wheels: ["4,700 Ω", "0.02 A", "9,000 mV"], set: [true, true, true] } } }]
 
-  - say: Three wheels set. Lift the lid.
+  - say: The padlock clicks open. Lift the lid.
     spot: [CAB]
     do: open-padlock
     done: Open! Parts for our last case.
