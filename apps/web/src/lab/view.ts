@@ -2,7 +2,7 @@
  * Builds the LabView goals read. Pure: the runtime and the headless solution replay both feed it the bench, the latest
  * snapshot, the recent snapshot history and the notebook.
  */
-import { apart, gateAmps, isThrowSwitch, lifting, partLegs, slotTurn, staticCharge, stuckTo, tagText, traceLoop, type BenchNetlist, type BenchState, type GateCounts, type MeterSocket, type PlacedPart, type StationState } from "@ohmland/bench/core";
+import { apart, gateAmps, isThrowSwitch, lifting, partLegs, rejectedParts, slotTurn, staticCharge, stuckTo, tagText, traceLoop, type BenchNetlist, type BenchState, type GateCounts, type MeterSocket, type PlacedPart, type StationState } from "@ohmland/bench/core";
 import { mcuPin, type NodeId, type PartState, type SimEvent, type SimEventType, type Snapshot } from "@ohmland/sim";
 import { pinName } from "@ohmland/code";
 import { resolveAttach } from "./anchors";
@@ -475,9 +475,8 @@ export function createLabView(input: LabViewInput): LabView {
         return n;
       },
       get rejected() {
-        // The bench's own list, when it keeps one, and what the runtime saw it refuse.
-        const own = (bench as { rejected?: unknown }).rejected;
-        return [...new Set([...(Array.isArray(own) ? (own as string[]) : []), ...(input.rejected ?? [])])];
+        // What the bench refuses to seat as it stands (a perched surface mount chip) and what the runtime saw it refuse.
+        return [...new Set([...rejectedParts(bench), ...(input.rejected ?? [])])];
       },
     }) as LabView["bench"],
     snapshot,
