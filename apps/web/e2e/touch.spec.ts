@@ -3,6 +3,15 @@ import { atMoment, bench, benchReady, clipTo, flipBlockSwitch, project, taskDone
 
 type Point = { x: number; y: number };
 
+/** CSS px a dragged thing rides above the finger (DRAG.touchLift, packages/bench/src/view/drag.ts). */
+const LIFT = 44;
+
+/**
+ * Where a finger must go so the clip it holds lands on `to`: the clip keeps the hold it was picked up by (its tip is
+ * `tip`, the finger went down at `grab`) and rides LIFT px above the finger.
+ */
+const aim = (to: Point, grab: Point, tip: Point): Point => ({ x: to.x - (tip.x - grab.x), y: to.y - (tip.y - grab.y) + LIFT });
+
 /**
  * A finger drag, as real touch events (the bench sees pointerType "touch"). `before` runs with the finger still down
  * at the end point, so a test can read what the bench shows before it lifts.
@@ -82,18 +91,61 @@ test("a phone frames the lamp's legs to aim at, and a finger clips a lead onto t
   await atMoment(page, "b4", "act");
   await page.waitForTimeout(600);
 
-  // Clip it back, the finger landing 6 px off the long leg toward the short one: it snaps to the long leg, and the
-  // loupe names it before the finger lifts.
+  // Clip it back, the clip (riding above the finger) landing 6 px off the long leg toward the short one: it snaps to
+  // the long leg, and the loupe names it before the finger lifts.
   const a = await project(page, "pin:D1.anode");
   const k = await project(page, "pin:D1.cathode");
   const d = Math.hypot(k.x - a.x, k.y - a.y) || 1;
   const drop = { x: a.x + ((k.x - a.x) / d) * 6, y: a.y + ((k.y - a.y) / d) * 6 };
   const loose = await onClip(page, "TL3", "b");
-  await touchDrag(page, loose, drop, async () => {
+  await touchDrag(page, loose, aim(drop, loose, await project(page, "lead:TL3.b")), async () => {
     await expect(page.locator("[data-loupe]")).toBeVisible();
     await expect(page.locator("[data-loupe-name]")).toContainText("long leg");
   });
   await expect(page.locator("[data-loupe]")).toHaveCount(0);
   expect((await bench(page)).leads.find((l) => l.id === "TL3")?.b.to).toBe("pin:D1.anode");
   await taskDone(page, "mend-the-loop");
+});
+
+test("a finger carries a clip above itself onto the other leg, and the page never scrolls", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "touch, on a phone");
+  await page.goto("/learn/start-here/welcome-to-the-bench");
+  await page.locator("[data-primary]").first().click();
+  await benchReady(page);
+  // On to the beat that frames the lamp's legs (the earlier ones close in on the switch and the battery).
+  await atMoment(page, "b0", "act");
+  await page.evaluate(() => window.ohmlandLab!.step!({ do: "flip", part: "S1", to: "b" }));
+  await atMoment(page, "b1", "act");
+  await page.locator('[data-tap="B1.neg"]').click();
+  await atMoment(page, "b1", "done");
+  await page.locator("[data-primary]").first().click();
+  await atMoment(page, "b2", "act");
+  await clipTo(page, "TL1", "a", "pin:B1.pos");
+  await atMoment(page, "b2", "done");
+  await page.locator("[data-primary]").first().click();
+  await atMoment(page, "b3", "guess");
+  await page.locator("[data-guess='2']").click();
+  await atMoment(page, "b3", "act");
+  await page.waitForTimeout(600);
+  const where = () =>
+    page.evaluate(() => ({ scroll: document.scrollingElement?.scrollTop ?? 0, top: Math.round(document.querySelector(".bench-surface")!.getBoundingClientRect().top) }));
+  const before = await where();
+
+  // The black clip comes off the short leg and goes onto the long one, riding above the finger all the way.
+  const grab = await onClip(page, "TL4", "a");
+  const tip = await project(page, "lead:TL4.a");
+  const target = await project(page, "pin:D1.anode");
+  const finger = aim(target, grab, tip);
+  await touchDrag(page, grab, finger, async () => {
+    await expect(page.locator("[data-loupe]")).toBeVisible();
+    await expect(page.locator("[data-loupe-name]")).toContainText("long leg");
+    // Where it would land glows in blue ink; the clip is above the finger, not under it.
+    await expect(page.locator("[data-drag-marks] [data-drag-ghost]")).toHaveCount(1);
+    const held = await project(page, "lead:TL4.a");
+    expect(finger.y + (tip.y - grab.y) - held.y).toBeGreaterThan(LIFT * 0.7);
+    expect(await where()).toEqual(before);
+  });
+  expect((await bench(page)).leads.find((l) => l.id === "TL4")?.a.to).toBe("pin:D1.anode");
+  await expect(page.locator("[data-drag-marks]")).toHaveCount(0);
+  expect(await where()).toEqual(before);
 });

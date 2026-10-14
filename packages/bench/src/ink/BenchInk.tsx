@@ -30,6 +30,9 @@ import { INK_CSS } from "./styles";
 import { InkView } from "./view";
 import { TagSlips, type SlipProjector } from "../view/TagSlips";
 import { LOUPE, Loupe, createLoupeFeed } from "../view/Loupe";
+import { DragMarks, LensMarks } from "../view/DragMarks";
+import { createFeed, sameMarks, type DragMarksState, type Lift } from "../view/drag";
+import { partCenter } from "../ops";
 import { BoardRuler } from "../view/Ruler";
 import { SolderOverlay, type SolderViewApi } from "../solder/overlay/SolderOverlay";
 import { IronLayer, ScorchLayer } from "./kinds/solder";
@@ -136,6 +139,7 @@ export function BenchInk(props: BenchInkProps) {
   const [view] = useState(() => new InkView());
   const [keys] = useState(() => new KeyCursor());
   const [loupe] = useState(createLoupeFeed);
+  const [marks] = useState(() => createFeed<DragMarksState>(sameMarks));
   const api = useRef<InkApi | null>(null);
   const onAction = useRef(props.onAction);
   const onChange = useRef(props.onChange);
@@ -207,6 +211,9 @@ export function BenchInk(props: BenchInkProps) {
   padRef.current = pad;
   const trayStripRef = useRef(0);
   trayStripRef.current = showTray && compact ? trayCoverOf("ink", tray.length, size.w).bottom : 0;
+  /** The edges the tray covers: a drag near them does not pan the view (dropping there takes a part back). */
+  const coveredRef = useRef({ left: 0, bottom: 0 });
+  coveredRef.current = showTray ? trayCoverOf("ink", tray.length, size.w) : { left: 0, bottom: 0 };
   /** The part of the view a docked panel covers (focus's `inset`): framing keeps clear of it. */
   const insetRef = useRef<Pad>(NO_PAD);
   /** The room to keep clear at each edge: the view's own chrome plus the docked panel. */
@@ -343,6 +350,40 @@ export function BenchInk(props: BenchInkProps) {
     requestAnimationFrame(() => requestAnimationFrame(() => props.onReady?.()));
   }, [size.w, props.onReady]);
 
+  /**
+   * A dragged part drawn off its place in the state (view/drag.ts): moved, a little bigger and casting a soft shadow,
+   * by a CSS transform on its drawing, so nothing re-renders while it follows the pointer and settles.
+   */
+  const liftPart = useCallback(
+    (id: string, lift: Lift | null) => {
+      const el = element?.querySelector<SVGGElement>(`[data-kb="part:${CSS.escape(id)}"]`);
+      if (!el) return;
+      if (!lift) {
+        el.style.transform = "";
+        el.style.transformOrigin = "";
+        el.style.filter = "";
+        return;
+      }
+      const b = store.getState().bench;
+      const part = b.parts.find((p) => p.id === id);
+      const [cx, cz] = part ? partCenter(b, part) : [0, 0];
+      const k = lift.k;
+      el.style.transformOrigin = "0 0";
+      el.style.transform = `translate(${lift.dx + cx * (1 - k)}px, ${lift.dz + cz * (1 - k)}px) scale(${k})`;
+      // The shadow is sized in desk mm: keep it a few screen px at any zoom.
+      const sh = document.getElementById(`${defsId}-lift-sh`);
+      if (sh) {
+        const s = view.cam.s;
+        sh.setAttribute("dx", String(1 / s));
+        sh.setAttribute("dy", String(3 / s));
+        sh.setAttribute("stdDeviation", String(3 / s));
+        sh.setAttribute("flood-opacity", String(0.3 * lift.h));
+      }
+      el.style.filter = lift.h > 0.02 ? `url(#${defsId}-lift)` : "";
+    },
+    [element, store, view, defsId],
+  );
+
   // Pointer interaction.
   useEffect(() => {
     if (!element) return;
@@ -354,13 +395,16 @@ export function BenchInk(props: BenchInkProps) {
       readOnly: () => readOnlyRef.current,
       emit,
       loupe: { feed: loupe, labels: () => labelsNow.current },
+      marks,
+      lift: liftPart,
+      covered: () => coveredRef.current,
     });
     api.current = a;
     return () => {
       detach();
       api.current = null;
     };
-  }, [element, store, view, emit, loupe]);
+  }, [element, store, view, emit, loupe, marks, liftPart]);
 
   // The solder overlay draws over this view through the same projection.
   const solderView = useMemo<SolderViewApi>(
@@ -659,10 +703,17 @@ export function BenchInk(props: BenchInkProps) {
             />
             <SolderOverlay store={store} view={solderView} compact={compact} readOnly={readOnly} tray={showTray} />
             {/* The touch loupe: the drawing under the finger, cloned twice life size. */}
+            {/* Where a drag would land: ghost legs, glowing drop points, a cross, the target's name (on touch the loupe names it). */}
+            <DragMarks feed={marks} />
             <Loupe
               feed={loupe}
               size={size}
-              lens={(st, d) => <InkLens ids={[`${defsId}-desk`, `${defsId}-top`]} view={view} x={st.x} y={st.y} d={d} />}
+              lens={(st, d) => (
+                <>
+                  <InkLens ids={[`${defsId}-desk`, `${defsId}-top`]} view={view} x={st.x} y={st.y} d={d} />
+                  <LensMarks feed={marks} x={st.x} y={st.y} d={d} />
+                </>
+              )}
             />
             <div className="ohi-sr" aria-live="polite">
               {said}

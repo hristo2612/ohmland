@@ -530,6 +530,7 @@ export const INK_CSS = `
 .ohi-compact .ohi-tray h2{display:none}
 .ohi-compact .ohi-tray-list{display:flex;flex-direction:row;overflow-x:auto;overflow-y:hidden;padding:4px}
 .ohi-compact .ohi-item{min-width:72px;min-height:74px}
+.ohi-compact .ohi-tray-list[data-scroll] .ohi-item{touch-action:pan-x}
 .ohi-compact .ohi-tools{left:8px;top:8px}
 .ohi-compact .ohi-view{right:8px;top:8px}
 .ohi-compact .ohi-sel{bottom:calc(102px + var(--ohi-inset-bottom,0px))}

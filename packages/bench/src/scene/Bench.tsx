@@ -26,6 +26,8 @@ import { PaletteContext, useReadPalette } from "./palette";
 import { Readouts, StressTags, inspectKey } from "./Readouts";
 import { TagSlips } from "../view/TagSlips";
 import { LOUPE, Loupe, createLoupeFeed, type LoupeFeed } from "../view/Loupe";
+import { DragMarks, LensMarks } from "../view/DragMarks";
+import { createFeed, sameMarks, type DragMarksState, type Feed } from "../view/drag";
 import { BoardRuler } from "../view/Ruler";
 import type { Pick } from "./pick";
 import { PaperRenderer, PaperUpkeep, SoftShadows, type ShadowArea } from "./Render";
@@ -68,6 +70,8 @@ export function Bench(props: BenchProps) {
   // The touch loupe (view/Loupe.tsx): the interaction feeds it, a copy of the canvas fills it.
   const [loupeFeed] = useState(createLoupeFeed);
   const loupe = useMemo(() => ({ feed: loupeFeed, labels: () => labelsNow.current }), [loupeFeed]);
+  // Where a drag would land (view/DragMarks.tsx), drawn over the canvas.
+  const [marks] = useState(() => createFeed<DragMarksState>(sameMarks));
   const [element, setElement] = useState<HTMLDivElement | null>(null);
   const elementRef = useRef<HTMLDivElement | null>(null);
   elementRef.current = element;
@@ -247,6 +251,7 @@ export function Bench(props: BenchProps) {
                 notify={notify}
                 pendingFocus={pendingFocus}
                 loupe={loupe}
+                marks={marks}
               />
               <Warmup held={held} offscreen={quality === "high"} dark={palette.dark} onWarm={release} />
             </Canvas>
@@ -255,7 +260,17 @@ export function Bench(props: BenchProps) {
             <BoardRuler store={store} projector={controller} size={size} />
             <Overlay tray={tray} readOnly={readOnly} compact={compact} api={api} size={size} controller={controller} />
             <SolderOverlay store={store} view={solderView} compact={compact} readOnly={readOnly} tray={showTray} />
-            <Loupe feed={loupeFeed} size={size} lens={(st, d) => <CanvasLens element={element} controller={controller} x={st.x} y={st.y} d={d} />} />
+            <DragMarks feed={marks} />
+            <Loupe
+              feed={loupeFeed}
+              size={size}
+              lens={(st, d) => (
+                <>
+                  <CanvasLens element={element} controller={controller} x={st.x} y={st.y} d={d} />
+                  <LensMarks feed={marks} x={st.x} y={st.y} d={d} />
+                </>
+              )}
+            />
           </div>
         </PaletteContext.Provider>
       </LabelsContext.Provider>
@@ -306,15 +321,15 @@ function CameraRig({
         void c.setLookAt(...pos, ...tgt, false);
         c.setBoundary(new THREE.Box3(new THREE.Vector3(center[0] - 420, -5, center[1] - 300), new THREE.Vector3(center[0] + 420, 120, center[1] + 320)));
         c.boundaryEnclosesCamera = false;
-        // Left drag orbits, right drag pans, wheel zooms; one finger orbits, two fingers zoom and pan.
-        // Values from camera-controls' ACTION table.
+        // Left drag orbits, right drag pans, wheel zooms. A finger on the empty bench pans (as in ink), two fingers
+        // zoom and pan, three orbit. Values from camera-controls' ACTION table.
         c.mouseButtons.left = 1; // ROTATE
         c.mouseButtons.middle = 16; // DOLLY
         c.mouseButtons.right = 2; // TRUCK
         c.mouseButtons.wheel = 16; // DOLLY
-        c.touches.one = 64; // TOUCH_ROTATE
+        c.touches.one = 128; // TOUCH_TRUCK
         c.touches.two = 4096; // TOUCH_DOLLY_TRUCK
-        c.touches.three = 128; // TOUCH_TRUCK
+        c.touches.three = 64; // TOUCH_ROTATE
       }}
     />
   );
@@ -472,8 +487,10 @@ function BenchScene({
   notify,
   pendingFocus,
   loupe,
+  marks,
 }: {
   loupe: { feed: LoupeFeed; labels: () => BenchLabels };
+  marks: Feed<DragMarksState>;
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
   inset: React.MutableRefObject<Required<Inset>>;
   store: BenchStore;
@@ -513,7 +530,7 @@ function BenchScene({
       invalidate();
     });
   }, [store, invalidate]);
-  useInteraction({ store, element, readOnly, api, emit, viewPad, view, loupe });
+  useInteraction({ store, element, readOnly, api, emit, viewPad, view, loupe, marks });
   const spot = useMemo(() => new Spotlight({ amount: 0, color: new THREE.Color(palette.paper) }), []);
   useEffect(() => () => spot.dispose(), [spot]);
 
@@ -630,7 +647,8 @@ function BenchScene({
           part={p}
           holder={holders.get(p.id)}
           board={bench.board}
-          selected={ui.selection?.type === "part" && ui.selection.id === p.id}
+          // Brackets go while a part is in hand (as in ink): the drag's marks show where it lands.
+          selected={ui.selection?.type === "part" && ui.selection.id === p.id && !ui.dragging}
           hinted={hl.has(p.id)}
           pressed={!!ui.pressed[p.id]}
           quality={quality}
