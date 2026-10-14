@@ -253,7 +253,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         for (const step of task.setup) {
           const e = applyStep(b, step);
           b = e.bench;
-          for (const i of e.inputs) if (!i.after) inputs.push(i);
+          for (const { after: _after, ...i } of e.inputs) inputs.push(i);
         }
         runtime.loadBench(b);
         for (const i of inputs) runtime.setInput(i.id, i.key, i.value);
