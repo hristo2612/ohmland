@@ -7,6 +7,7 @@ import { formatFarads, formatOhms } from "../colorCode";
 import { DIAL_MODES } from "../layout";
 import * as ops from "../ops";
 import { isThrowSwitch, partDef } from "../parts";
+import { trayLeft } from "../tray";
 import type { BenchStore } from "../store";
 import type { LeadColor, MeterMode, PlacedPart, TrayItem, WireColor } from "../types";
 import { rectOfPoints } from "./camera";
@@ -149,16 +150,9 @@ export function InkOverlay({ store, labels, tray, readOnly, compact, api, size, 
   const selPart = sel?.type === "part" ? bench.parts.find((p) => p.id === sel.id) : undefined;
   const selWire = sel?.type === "wire" ? bench.wires.find((w) => w.id === sel.id) : undefined;
   const selLead = sel?.type === "lead" ? bench.leads.find((l) => l.id === sel.id) : undefined;
-  const placed = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const p of bench.parts) m.set(p.kind, (m.get(p.kind) ?? 0) + 1);
-    m.set("lead", bench.leads.length);
-    return m;
-  }, [bench]);
+  // What is left of each item, counted as the 3D view counts it (leads by colour, parts by kind and params).
   // Items that are used up leave the tray (fewer things to look at).
-  const items = tray
-    .map((item) => ({ item, left: item.count === undefined ? undefined : Math.max(0, item.count - (placed.get(item.kind) ?? 0)) }))
-    .filter((x) => x.left !== 0);
+  const items = useMemo(() => tray.map((item) => ({ item, left: trayLeft(item, bench) })).filter((x) => x.left !== 0), [tray, bench]);
   const showTray = !readOnly && items.length > 0;
 
   const actions = (inMenu: boolean) => {
