@@ -7,7 +7,7 @@ import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 /** The LED comes into play standing wrong: both legs in strip 10, so the strip joins them and skips it. */
 const LED_IN_ONE_STRIP: SolutionStep[] = [
   { do: "place", part: "R1", kind: "resistor", at: "rail+:10-b10", params: { ohms: 1000 } },
-  { do: "place", part: "D1", kind: "led", at: "c10", rot: 90, params: { color: "red" } },
+  { do: "place", part: "D1", kind: "led", at: "d10", rot: 270, params: { color: "red" } },
   { do: "wire", id: "W1", from: "a11", to: "rail-:11", color: "black" },
 ];
 
@@ -27,6 +27,8 @@ export default defineLab({
   title: "How a breadboard works",
   bench: {
     board: "half",
+    // The board fills the view; the battery's snap leads come in from the left.
+    frame: ["desk:-46,-30", "desk:46,30"],
     parts: [{ id: "B1", kind: "battery", at: "rails", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" }],
     tray: [],
     instruments: [],
@@ -41,7 +43,7 @@ export default defineLab({
       prompt: "Give each of the LED's legs its own strip.",
       setup: LED_IN_ONE_STRIP,
       goal: (lab) => lab.isLit("D1") && !lab.connected("D1.anode", "D1.cathode"),
-      hints: ["Drag the LED so its legs sit side by side, in strips 10 and 11.", "Long leg in strip 10, with the resistor. Short leg in strip 11."],
+      hints: ["Tap the LED, then turn it with Rotate.", "Long leg in strip 10, with the resistor. Short leg in strip 11."],
       highlight: ["D1", "hole:c11"],
       nudges: [{ when: (lab) => (lab.part("D1")?.v ?? 0) < -1, say: "Close. Long leg toward the resistor." }],
       success: "It glows.",
@@ -69,7 +71,7 @@ export default defineLab({
   ],
   solution: [
     ...LED_IN_ONE_STRIP,
-    { do: "move", part: "D1", at: "c10", rot: 0 },
+    { do: "rotate", part: "D1" },
     { do: "check", task: "fix-led" },
     { do: "unwire", wire: "W1" },
     { do: "wire", id: "W1", from: "a11", to: "rail-:26", color: "black" },

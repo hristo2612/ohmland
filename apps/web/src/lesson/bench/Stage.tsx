@@ -16,7 +16,9 @@ import { prefersReducedMotion } from "../../progress/prefs";
 import { LabAudio } from "../../lab/audio";
 import { buildBench } from "../../lab/build";
 import { BenchSurfaceChunk, type BenchController, type BenchViewKind } from "../../lab/bench-view";
-import { ConnectionsPanel } from "../../lab/instruments";
+import { ConnectionsPanel, ControlsPanel, MeterPanel, ScopePanel } from "../../lab/instruments";
+import { LabPanels } from "../../lab/panels-ui";
+import { LoggerPanel, StopwatchPanel, TapperPanel } from "../../lab/timing";
 import { friedLabel } from "../../lab/labels";
 import { loadedLab, loadLab } from "../../lab/labs";
 import { takeSim } from "../../lab/prefetch";
@@ -28,6 +30,7 @@ import { holeName } from "./flow";
 import { allHoles, resolveAnchor, type Mark } from "./marks";
 import { ResistorSlider } from "./ResistorSlider";
 import type { Popup } from "../../content/schema";
+import "../../lab/lab.css";
 
 const Surface = BenchSurfaceChunk.Component;
 
@@ -47,6 +50,8 @@ export type StageApi = {
   labelOf(anchor: string): string;
   /** A hole id for what the learner typed ("c7", "+21"), or null. */
   holeFor(text: string): string | null;
+  /** Lets go of whatever the bench has selected (a new beat starts clean). */
+  calm(): void;
 };
 
 export type StageProps = {
@@ -60,6 +65,8 @@ export type StageProps = {
   /** The secret bonus task: always armed. */
   secret: string | null;
   readOnly: boolean;
+  /** Whether the tray of parts and leads is out (only while a task may need it). */
+  trayOpen: boolean;
   /** Parts in play: spotlit. */
   spot: string[] | null;
   xray: boolean;
@@ -68,6 +75,9 @@ export type StageProps = {
   marks: Mark[];
   check: StageCheck;
   popup: Popup | null;
+  /** The one instrument or panel the beat needs ("meter", "scope", "logger", "stopwatch", "tapper", "controls" or a
+   * lab panel id). Null: the panel the lab ties to the current task, if any. */
+  tool: string | null;
   keyboardOpen: boolean;
   onApi(api: StageApi | null): void;
   onBenchReady(): void;
@@ -144,7 +154,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     }),
     [lab],
   );
-  const built = useMemo(() => buildBench(lab.bench), [lab]);
+  const built = useMemo(() => buildBench(lab.bench, { seed: learnerSeed() }), [lab]);
   const muted = useLearner((s) => s.learner.settings.muted);
   const mutedRef = useRef(muted);
   mutedRef.current = muted;
@@ -166,6 +176,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         labelFor: (rec, bench) => friedLabel(rec, bench),
         sound: (kind) => audio.cue(kind),
         audio: (samples) => audio.play(samples),
+        relay: (count, pull) => audio.relay(count, pull),
       }),
     // One runtime per visit; `done` is read once, at the start.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -267,6 +278,10 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         const legName = leg ? (m.lessonBench.legs[leg] ?? leg) : "";
         return legName ? `${name}: ${legName}` : name;
       },
+      calm() {
+        const st = runtime.store.getState();
+        if (st.ui.selection || st.ui.menu) st.setUi({ selection: null, menu: null });
+      },
       holeFor(text) {
         const b = runtime.store.getState().bench;
         if (!b.board) return null;
@@ -283,6 +298,22 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     return () => cb.current.onApi(null);
   }, [api]);
 
+  // The tray shows only while a task may need it, and only with something left in it. It is decided as a beat begins
+  // and kept for the whole beat: every change reframes the bench, which must never happen under the learner's hand.
+  const trayHas = () => {
+    const b = runtime.store.getState().bench;
+    return built.tray.some((item) => {
+      if (item.count === undefined) return true;
+      const color = item.kind === "lead" ? (item.params as { color?: string } | undefined)?.color : undefined;
+      const used = item.kind === "lead" ? b.leads.filter((l) => !color || l.color === color).length : b.parts.filter((p) => p.kind === item.kind).length;
+      return item.count - used > 0;
+    });
+  };
+  const [trayShown, setTrayShown] = useState(false);
+  useEffect(() => {
+    setTrayShown(props.trayOpen && trayHas());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.trayOpen, props.gate]);
   const [quality] = useState(() => pickQuality());
   const [benchReady, setBenchReady] = useState(false);
   const readOnly = props.readOnly || !!ui.showing;
@@ -294,11 +325,12 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
           <Surface
             view={props.view}
             runtime={runtime}
-            tray={readOnly ? [] : built.tray}
+            tray={readOnly || !trayShown ? [] : built.tray}
             quality={quality}
             readOnly={readOnly}
             highlight={props.hintHighlight}
             locked={built.locked}
+            frame={built.frame}
             controllerRef={controllerRef}
             onReady={() => {
               setBenchReady(true);
@@ -319,12 +351,46 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
           )}
         </div>
       )}
+      <ToolDock runtime={runtime} built={built} tool={props.tool ?? defaultTool(lab, props.gate)} />
       {props.keyboardOpen && (
         <div className="bl-keyboard">
           <p className="bl-keyboard__hint">{m.lessonBench.keyboardHint}</p>
           <ConnectionsPanel runtime={runtime} />
         </div>
       )}
+    </div>
+  );
+}
+
+/** A seed that is the same for a learner every visit (their first finished lesson), for shuffled mystery parts. */
+function learnerSeed(): string {
+  const lessons = Object.entries(useLearner.getState().learner.lessons);
+  if (!lessons.length) return "guest";
+  const [id, rec] = lessons.reduce((a, b) => (b[1].at < a[1].at ? b : a));
+  return `${id}|${rec.at}`;
+}
+
+/** The panel a lab ties to a task (`show`), when the beat names no tool. */
+function defaultTool(lab: LabDefinition, task: string | null): string | null {
+  if (!task) return null;
+  return lab.panels?.find((p) => p.show?.includes(task))?.id ?? null;
+}
+
+/** One instrument at a time, only when the beat needs it: a slip on the bench's lower edge. */
+function ToolDock({ runtime, built, tool }: { runtime: LabRuntime; built: ReturnType<typeof buildBench>; tool: string | null }) {
+  if (!tool) return null;
+  let body: ReactNode = null;
+  if (tool === "meter" && built.bench.meter) body = <MeterPanel runtime={runtime} />;
+  else if (tool === "scope" && built.scope) body = <ScopePanel runtime={runtime} config={built.scope} />;
+  else if (tool === "logger" && built.logger) body = <LoggerPanel runtime={runtime} config={built.logger} />;
+  else if (tool === "stopwatch" && built.stopwatch) body = <StopwatchPanel runtime={runtime} config={built.stopwatch} />;
+  else if (tool === "tapper" && built.tapper) body = <TapperPanel runtime={runtime} config={built.tapper} />;
+  else if (tool === "controls" && built.controls.length) body = <ControlsPanel runtime={runtime} controls={built.controls} />;
+  else if (runtime.lab.panels?.some((p) => p.id === tool)) body = <LabPanels runtime={runtime} only={tool} />;
+  if (!body) return null;
+  return (
+    <div className="bl-tool" data-tool={tool}>
+      {body}
     </div>
   );
 }
@@ -392,26 +458,62 @@ function TapLayer({
   }
 
   const targets = check.kind === "meet" ? [check.part] : check.targets;
+  const placed = spread(
+    targets.flatMap((t) => {
+      const p = pointOf(t);
+      return p ? [{ id: t, x: p.x, y: p.y, big: check.kind === "meet" || !t.includes(".") }] : [];
+    }),
+  );
   return (
     <>
-      {targets.map((t) => {
-        const p = pointOf(t);
-        if (!p) return null;
-        const big = check.kind === "meet" || !t.includes(".");
-        return (
-          <button
-            key={t}
-            type="button"
-            className={`bl-target${big ? " bl-target--part" : ""}`}
-            style={{ left: p.x, top: p.y }}
-            aria-label={m.lessonBench.tapHere(labelOf(t))}
-            data-tap={t}
-            onClick={() => onTap(t)}
-          />
-        );
-      })}
+      <svg className="bl-leaders" aria-hidden="true">
+        {placed.map((t) => (t.moved ? <line key={t.id} x1={t.x} y1={t.y} x2={t.ax} y2={t.ay} /> : null))}
+      </svg>
+      {placed.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          className={`bl-target${t.big ? " bl-target--part" : ""}`}
+          style={{ left: t.x, top: t.y }}
+          aria-label={m.lessonBench.tapHere(labelOf(t.id))}
+          data-tap={t.id}
+          onClick={() => onTap(t.id)}
+        />
+      ))}
     </>
   );
+}
+
+/**
+ * Tap targets that would overlap (two legs of one LED a few pixels apart) are pushed apart along the line between
+ * them, keeping a thin leader line back to the true point, so each can be told apart and tapped.
+ */
+function spread(pts: { id: string; x: number; y: number; big: boolean }[]) {
+  const out = pts.map((p) => ({ ...p, ax: p.x, ay: p.y, moved: false }));
+  const MIN = 56;
+  for (let pass = 0; pass < 6; pass++) {
+    for (let i = 0; i < out.length; i++)
+      for (let j = i + 1; j < out.length; j++) {
+        const a = out[i]!;
+        const b = out[j]!;
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        let d = Math.hypot(dx, dy);
+        if (d >= MIN) continue;
+        if (d < 0.5) {
+          dx = 0;
+          dy = 1;
+          d = 1;
+        }
+        const push = (MIN - d) / 2;
+        a.x -= (dx / d) * push;
+        a.y -= (dy / d) * push;
+        b.x += (dx / d) * push;
+        b.y += (dy / d) * push;
+        a.moved = b.moved = true;
+      }
+  }
+  return out;
 }
 
 /** The lesson's one pop-up card, taped to a part, kept inside the bench. */

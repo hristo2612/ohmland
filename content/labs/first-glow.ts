@@ -21,6 +21,7 @@ export default defineLab({
   title: "Your first glow",
   bench: {
     board: "none",
+    frame: ["desk:-96,-34", "desk:78,30"],
     parts: [
       // Loose and unconnected.
       { id: "B1", kind: "battery", at: "desk:-74,6", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },

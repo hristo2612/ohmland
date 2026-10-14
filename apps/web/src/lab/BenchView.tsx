@@ -34,6 +34,8 @@ type LabHook = {
   showMe(taskId: string): Promise<void>;
   /** A lab panel's state. */
   panel(id: string): unknown;
+  /** Applies one solution step to the bench, as a learner's move would (bench lessons; for scripts on small screens). */
+  step?(s: unknown): void;
 };
 
 declare global {

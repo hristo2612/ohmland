@@ -233,7 +233,16 @@
 .bl-number__input--short { width: 5ch; }
 .bl-number__input:focus { outline: none; border-bottom-color: var(--bl-blue); }
 .bl-number__unit { font-family: var(--bl-mono); }
+/* The keyboard path for hole taps: there for keyboards and screen readers, out of sight until focused. */
 .bl-number--quiet { margin-top: var(--bl-s-2); }
+.bl-number--quiet:not(:focus-within) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
 .bl-clock {
   display: inline-flex;
@@ -393,6 +402,8 @@
 .bl-target:hover, .bl-target:focus-visible { background: color-mix(in srgb, var(--bl-blue-wash) 60%, transparent); outline: none; }
 .bl-target:focus-visible { box-shadow: 0 0 0 3px var(--bl-paper), 0 0 0 5px var(--focus); }
 .bl-target:active { transform: scale(0.94); }
+.bl-leaders { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.bl-leaders line { stroke: var(--bl-blue); stroke-width: 1.5; stroke-dasharray: 3 3; }
 .bl-holes { position: absolute; inset: 0; pointer-events: auto; cursor: crosshair; }
 .bl-holes__hover {
   position: absolute;
@@ -436,6 +447,21 @@
 .bl-slider__stops { display: flex; justify-content: space-between; margin: 0; padding: 0; list-style: none; color: var(--bl-ink-3); font-size: var(--bl-text-xs); }
 .bl-slider__stops [data-on] { color: var(--bl-blue); font-weight: 600; }
 .bl-slider__caption { margin: 0 0 var(--bl-s-2); color: var(--bl-ink-2); font-size: var(--bl-text-sm); }
+
+/* One instrument at a time, on the bench's lower edge. */
+.bl-tool {
+  position: absolute;
+  right: var(--bl-s-3);
+  bottom: var(--bl-s-3);
+  width: min(360px, calc(100% - 24px));
+  max-height: 55%;
+  overflow: auto;
+  padding: var(--bl-s-3);
+  border: 1px solid var(--bl-rule);
+  background: var(--bl-slip);
+  box-shadow: var(--bl-slip-shadow);
+  animation: bl-pop var(--bl-dur-write) var(--bl-ease-press) backwards;
+}
 
 .bl-keyboard {
   position: absolute;
@@ -488,8 +514,6 @@
   padding: var(--bl-s-6);
   border: 1px solid var(--bl-rule);
   background-color: var(--bl-slip);
-  background-image: linear-gradient(transparent calc(var(--bl-cell) * 1.25 - 1px), var(--bl-rule-soft) 1px);
-  background-size: 100% calc(var(--bl-cell) * 1.25);
   box-shadow: var(--bl-slip-shadow);
   color: var(--bl-ink);
 }
@@ -586,13 +610,13 @@
   .bl-margin__foot { margin-top: 0; }
   .bl-steps { margin: 0; }
   .bl-line { font-size: var(--bl-text-lg); }
-  .bl-xp { right: -20px; font-size: var(--bl-text-md); }
+  .bl-xp { top: -14px; right: auto; left: 0; font-size: var(--bl-text-md); }
   .bl-stamped { padding: var(--bl-s-2); }
   .bl-stamp { width: 40px; height: 40px; }
   .bl-target--part { width: 64px; height: 48px; margin: -24px 0 0 -32px; }
   .ann__text { font-size: 18px; }
   .bl--finale .bl-main--finale { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; }
-  .bl-margin--finale { display: flex; max-height: none; border-top: 0; border-bottom: 1.5px solid var(--bl-rose); }
+  .bl-margin--finale { order: 0; display: flex; max-height: none; border-top: 0; border-bottom: 1.5px solid var(--bl-rose); }
   .bl-finale__page { padding: var(--bl-s-4) var(--bl-s-4) var(--bl-s-12); }
   .bl-page { padding: var(--bl-s-4); }
   .bl-stamp--checked { position: static; justify-self: end; align-self: flex-end; }

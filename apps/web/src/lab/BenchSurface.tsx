@@ -10,7 +10,9 @@ import { Bench, partPose, prepareBench, type BenchController as Bench3D, type Be
 import { m } from "../i18n";
 import type { BenchController, BenchViewKind, ScreenPoint } from "./bench-view";
 import type { Quality } from "./quality";
+import type { SolutionStep } from "./define";
 import type { LabRuntime } from "./runtime";
+import { applyStep } from "./steps";
 
 export type BenchSurfaceProps = {
   view: BenchViewKind;
@@ -21,6 +23,8 @@ export type BenchSurfaceProps = {
   /** Lab hints: parts or anchors to point out (merged with the controller's spotlight). */
   highlight?: string[] | undefined;
   locked?: string[];
+  /** The desk rectangle to frame, from the lab's bench config. */
+  frame?: [number, number, number, number] | null;
   controllerRef: RefObject<BenchController | null>;
   onReady?: () => void;
 };
@@ -37,13 +41,15 @@ function partPoint(bench: BenchState, id: string): [number, number, number] | nu
   if (pose.mount === "board" && legs.length) {
     const x = legs.reduce((s, l) => s + l[0], 0) / legs.length;
     const z = legs.reduce((s, l) => s + l[2], 0) / legs.length;
-    return [x, Math.max(...legs.map((l) => l[1])) + 3, z];
+    // An LED stands on its legs: point at its dome, not at the strip under it.
+    const lift = part.kind === "led" ? 8 : part.kind === "resistor" ? 1.5 : 3;
+    return [x, Math.max(...legs.map((l) => l[1])) + lift, z];
   }
   const lift = part.kind === "battery" ? 14 : part.kind === "toggle-switch" ? 14 : 4;
   return [pose.origin[0], lift, pose.origin[2]];
 }
 
-export default function BenchSurface({ view, runtime, tray, quality, readOnly, highlight, locked, controllerRef, onReady }: BenchSurfaceProps) {
+export default function BenchSurface({ view, runtime, tray, quality, readOnly, highlight, locked, frame, controllerRef, onReady }: BenchSurfaceProps) {
   const host = useRef<HTMLDivElement>(null);
   const inner = useRef<Bench3D | null>(null);
   const [spot, setSpot] = useState<string[] | null>(null);
@@ -128,6 +134,19 @@ export default function BenchSurface({ view, runtime, tray, quality, readOnly, h
     else inner.current?.resetView();
   }, [view, ready]);
 
+  // The tray comes and goes with the lesson's beats: frame the bench again for the room that is left.
+  const hasTray = tray.length > 0;
+  const firstTray = useRef(true);
+  useEffect(() => {
+    if (!ready) return;
+    if (firstTray.current) {
+      firstTray.current = false;
+      return;
+    }
+    const raf = requestAnimationFrame(() => (viewRef.current === "ink" ? inner.current?.topView() : inner.current?.resetView()));
+    return () => cancelAnimationFrame(raf);
+  }, [hasTray, ready]);
+
   // A test and tutorial hook, the same as the classic lab step's (apps/web/e2e/lab.ts drives it): page coordinates.
   useEffect(() => {
     window.ohmlandLab = {
@@ -146,6 +165,13 @@ export default function BenchSurface({ view, runtime, tray, quality, readOnly, h
       sim: () => {
         const s = runtime.store.getState().snapshot;
         return s ? { t: s.t, lag: s.lag ?? 0 } : null;
+      },
+      showMe: (taskId) => runtime.showMe(taskId),
+      panel: (id) => runtime.session.panels[id] ?? null,
+      step: (s) => {
+        const e = applyStep(runtime.store.getState().bench, s as SolutionStep);
+        if (e.bench !== runtime.store.getState().bench) runtime.store.getState().apply(() => e.bench);
+        for (const i of e.inputs) runtime.setInput(i.id, i.key, i.value);
       },
     };
     return () => {
@@ -167,6 +193,7 @@ export default function BenchSurface({ view, runtime, tray, quality, readOnly, h
         readOnly={!!readOnly}
         highlight={shown}
         locked={locked}
+        frame={frame ?? null}
         labels={m.benchUi}
         onAction={runtime.onAction}
         controllerRef={inner}

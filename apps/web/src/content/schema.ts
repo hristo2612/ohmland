@@ -366,6 +366,11 @@ export const beatSchema = z
     spot: z.array(anchor).min(1).optional(),
     /** Show the metal strips inside the breadboard during this beat. */
     xray: z.boolean().optional(),
+    /**
+     * The one instrument or panel this beat needs: meter, scope, logger, stopwatch, tapper, controls, or a lab panel
+     * id. Without it, a lab panel tied to the beat's task (its `show`) appears; otherwise none.
+     */
+    tool: z.string().trim().regex(/^[a-z0-9-]+$/, "must be meter, scope, logger, stopwatch, tapper, controls or a panel id").optional(),
 
     // One thing to do (at most one of these; none means a plain Next).
     /** The three-period lesson's first period: name a part ("This is an LED."). Tap it to go on. */

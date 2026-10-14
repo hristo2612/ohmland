@@ -68,6 +68,18 @@ describe("bench lessons", () => {
         }
       });
 
+      it("names only tools the lab has", () => {
+        const built = buildBench(lab.bench);
+        const have = new Set<string>([...(lab.panels ?? []).map((p) => p.id)]);
+        if (built.bench.meter) have.add("meter");
+        if (built.scope) have.add("scope");
+        if (built.logger) have.add("logger");
+        if (built.stopwatch) have.add("stopwatch");
+        if (built.tapper) have.add("tapper");
+        if (built.controls.length) have.add("controls");
+        for (const b of lesson.beats) if (b.tool) expect(have.has(b.tool), `tool "${b.tool}"`).toBe(true);
+      });
+
       it("points only at things on the bench", () => {
         const all = benches(lab);
         const anchors = new Set<string>();

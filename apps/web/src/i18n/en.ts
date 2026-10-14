@@ -256,6 +256,7 @@ export const en = {
     tapHere: (label: string) => `Tap: ${label}`,
     legs: { anode: "anode, the long leg", cathode: "cathode, the short leg", pos: "plus terminal", neg: "minus terminal", a: "one end", b: "other end", com: "middle terminal" } as Record<string, string>,
     wrongTap: "Not that one. Look again.",
+    right: ["Yep.", "Spot on.", "Right.", "That's it."],
     wrongPick: "Not quite. Try another.",
     holes: {
       field: "Type a hole",

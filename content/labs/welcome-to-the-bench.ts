@@ -17,6 +17,7 @@ export default defineLab({
   title: "Welcome to the bench",
   bench: {
     board: "none",
+    frame: ["desk:-92,-58", "desk:80,56"],
     parts: [
       { id: "B1", kind: "battery", at: "desk:-72,2", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
       // A big toggle switch on a small wooden block, wired between com and b, so "on" is thrown to b.

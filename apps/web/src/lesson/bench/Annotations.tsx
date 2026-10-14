@@ -135,12 +135,17 @@ export function Annotations({ controllerRef, bench, marks }: { controllerRef: Re
                   <path className="ann__path" pathLength={1} d="M-8,1 L-3,7 L9,-8" />
                 </g>
               );
-            if (mk.kind === "ring")
+            if (mk.kind === "ring") {
+              // A whole part gets a loose pencil loop; a leg or a hole a small ring.
+              const whole = (resolveAnchor(bench, mk.at) ?? "").startsWith("part:");
+              const rx = whole ? 52 : 15;
+              const ry = whole ? 34 : 11;
               return (
                 <g key={mk.id} className={`ann ann--ring ann--${mk.tone}`}>
-                  <path className="ann__path" pathLength={1} d={`M${p.x + 15},${p.y} A15,11 0 1 1 ${p.x + 14.6},${p.y - 3.2}`} />
+                  <path className="ann__path" pathLength={1} d={`M${p.x + rx},${p.y} A${rx},${ry} 0 1 1 ${p.x + rx * 0.97},${p.y - ry * 0.3}`} />
                 </g>
               );
+            }
             const text = mk.text ?? "";
             const pl = notePlacement(p, size, text);
             return (

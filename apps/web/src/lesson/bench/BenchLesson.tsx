@@ -132,6 +132,11 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
     setMarks((ms) => [...ms.filter((x) => x.id !== mk.id), { ...mk, id: mk.id ?? `m${marksSeq++}` }]);
   }, []);
   const floatXp = (n: number) => setXpFloat({ n, key: Date.now() });
+  useEffect(() => {
+    if (!xpFloat) return;
+    const t = window.setTimeout(() => setXpFloat(null), 1400);
+    return () => window.clearTimeout(t);
+  }, [xpFloat]);
 
   // ---- The bench view: remembered per device, ink on phones by default ------------------------------------------
   useEffect(() => {
@@ -183,7 +188,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       setNumberText("");
       setHoleText("");
       // The last moment's notes fade to small marks; pencil rings go.
-      setMarks((ms) => ms.filter((k) => k.kind !== "ring").map((k) => (k.kind === "note" || k.kind === "label" ? { ...k, faded: true } : k)));
+      setMarks((ms) => ms.filter((k) => k.kind !== "ring" && k.kind !== "strip").map((k) => (k.kind === "note" || k.kind === "label" ? { ...k, faded: true } : k)));
       const done = isMomentDone(mo, a, t);
       if (done) setPhase("done");
       else if (mo.beat?.guess && typeof a[answerKeys.guess(mo.key)] !== "number") setPhase("guess");
@@ -191,6 +196,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       if (mo.action === "meet" && mo.part) addMark({ id: `label-${mo.key}`, kind: "label", at: mo.part, text: mo.note?.text ?? mo.part, tone: "ink" });
       if (mo.beat?.tap?.joinedTo) addMark({ id: `marker-${mo.key}`, kind: "ring", at: mo.beat.tap.joinedTo, tone: "red" });
       if (mo.beat?.pick?.on) addMark({ id: `on-${mo.key}`, kind: "ring", at: mo.beat.pick.on, tone: "ink" });
+      state.current.api?.calm();
       if (mo.task && !done) {
         pendingSetup.current = mo.task;
         if (state.current.api) {
@@ -227,6 +233,10 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       if (mo.done) {
         say(mo.done, opts.mood ?? "happy");
         lines.push(mo.done);
+      } else if (mo.action === "tap" || mo.action === "pick" || mo.action === "number") {
+        // A check right without a line of its own: a short "yep" replaces any nudge still showing.
+        const pool = m.lessonBench.right;
+        say(pool[moments.indexOf(mo) % pool.length]!, "happy");
       }
       if (mo.note && mo.action !== "meet") {
         const at = mo.note.at === "tap" ? (opts.tapped ?? "") : mo.note.at;
@@ -241,7 +251,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       if (lines.length) announce(lines.join(" "));
       if (!hasDiscovery(mo)) window.setTimeout(() => state.current.moment === mo && goNext(), prefersReducedMotion() ? 600 : 1300);
     },
-    [addMark, announce, say, goNext],
+    [addMark, announce, say, goNext, moments],
   );
 
   // ---- Restore and save ----------------------------------------------------------------------------------------------
@@ -679,7 +689,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   }
 
   const fix = moment.fix;
-  const stepsDone = Math.min(moments.length, index + (phase === "done" ? 1 : 0));
+  const stepsDone = Math.min(moments.length, index + 1);
 
   return (
     <div
@@ -816,12 +826,14 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               gate={gate}
               secret={lesson.secret?.task ?? null}
               readOnly={readOnly}
+              trayOpen={!!gate}
               spot={spot}
               xray={started && !!moment.beat?.xray}
               hintHighlight={hintHighlight}
               marks={marks}
               check={check}
               popup={popup}
+              tool={started && phase !== "guess" ? (moment.beat?.tool ?? null) : null}
               keyboardOpen={keyboard}
               onApi={setApi}
               onBenchReady={() => setBenchReady(true)}
