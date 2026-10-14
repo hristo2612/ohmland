@@ -15,6 +15,7 @@ import { Icon } from "../../components/Icon";
 import { IconButton } from "../../components/IconButton";
 import { toast } from "../../components/toast-store";
 import { BenchSurfaceChunk, INK_RENDERER, readViewPref, resolveView, storeViewPref, type BenchViewKind, type BenchViewPref } from "../../lab/bench-view";
+import type { NoteSpec } from "../../lab/define";
 import { loadLab } from "../../lab/labs";
 import { preloadable, warmSimulator, whenIdle } from "../../lab/prefetch";
 import type { FriedCard } from "../../lab/runtime";
@@ -83,6 +84,9 @@ function spotOf(mo: Moment): string[] | null {
   // A pop-up card leaves the whole bench in view: what it changes shows somewhere else (the LED).
   return null;
 }
+/** The notebook boxes a lab task asks for (a number read off the bench, judged by the task's goal). */
+const notesOf = (note: NoteSpec | NoteSpec[] | undefined): NoteSpec[] => (note ? (Array.isArray(note) ? note : [note]) : []);
+
 type Line = { text: string; mood: RobotMood; key: number };
 
 const INTERACTIVE = "input, textarea, select, button, a[href], [role=radio], [role=button], [role=application], [contenteditable=true], summary";
@@ -124,6 +128,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const [live, setLive] = useState("");
   const [numberText, setNumberText] = useState("");
   const [holeText, setHoleText] = useState("");
+  /** What the learner typed into the lab task's notebook boxes (by note id), for a `do` beat whose task asks. */
+  const [notebookText, setNotebookText] = useState<Record<string, string>>({});
 
   const moment = moments[index]!;
   const tasks = tasksOf(answers, lesson.lab);
@@ -207,6 +213,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       setTried([]);
       setNumberText("");
       setHoleText("");
+      setNotebookText({});
       // The last moment's notes fade to small marks; pencil rings go.
       setMarks((ms) => ms.filter((k) => k.kind !== "ring" && k.kind !== "strip").map((k) => (k.kind === "note" || k.kind === "label" ? { ...k, faded: true } : k)));
       const done = isMomentDone(mo, a, t);
@@ -485,6 +492,23 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
     } else say(mo.beat?.hint ?? m.lessonBench.number.wrong, "thinking");
   };
 
+  /**
+   * A number for the lab notebook (a `do` beat whose task declares `note`): it goes to the lab, whose goal judges it
+   * against the bench. If the task is still open a moment later, the robot nudges.
+   */
+  const onNote = (spec: NoteSpec) => {
+    const mo = moment;
+    if (!api || !mo.task || phase !== "act") return;
+    if (api.runtime.setNote(spec.id, notebookText[spec.id] ?? "") === null) return say(m.lessonBench.number.invalid, "thinking");
+    // A task with several boxes is only judged once every box has a value: no nudge for a right first number.
+    const all = notesOf(api.task(mo.task)?.note);
+    if (all.some((n) => n.id !== spec.id && !(notebookText[n.id] ?? "").trim())) return;
+    window.setTimeout(() => {
+      const cur = state.current;
+      if (cur.moment === mo && cur.phase === "act" && !cur.tasks.includes(mo.task!)) say(m.lessonBench.number.wrong, "thinking");
+    }, 900);
+  };
+
   const onGuess = (i: number | null) => {
     if (i !== null) setAnswer(answerKeys.guess(moment.key), i);
     setPhase("act");
@@ -718,6 +742,25 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
     );
   }
 
+  // A `do` beat whose lab task asks for a number read off the bench: one box per note, above the help links.
+  const noteBoxes =
+    started && phase === "act" && moment.task
+      ? notesOf(api?.task(moment.task)?.note).map((spec, _i, boxes) => {
+          const text = notebookText[spec.id] ?? "";
+          const field = `bl-note-${spec.id}`;
+          return (
+            <form key={spec.id} className="bl-number bl-number--note" data-note={spec.id} onSubmit={(e) => { e.preventDefault(); onNote(spec); }}>
+              <label className="bl-number__label" htmlFor={field}>{spec.label}</label>
+              <input id={field} className="bl-number__input" inputMode="decimal" autoComplete="off" value={text} onChange={(e) => setNotebookText((t) => ({ ...t, [spec.id]: e.target.value }))} />
+              {spec.unit && <span className="bl-number__unit">{spec.unit}</span>}
+              <button type="submit" className="btn btn--primary" data-primary={boxes.length === 1 ? "" : undefined} disabled={!text.trim()}>
+                {m.lessonBench.number.check}
+              </button>
+            </form>
+          );
+        })
+      : null;
+
   const fix = moment.fix;
   // The current objective's name, as a quiet kicker: one thing at a time, never the whole list.
   const objective = moment.kind === "beat" ? moments.slice(0, index + 1).reverse().find((mo) => mo.beat?.objective)?.beat?.objective : undefined;
@@ -816,7 +859,10 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
                 {m.lessonBench.fixit.left(clock.left)}
               </p>
             )}
-            <div className="bl-act">{action}</div>
+            <div className="bl-act">
+              {noteBoxes}
+              {action}
+            </div>
             {fried.length > 0 && (
               <div className="bl-fried">
                 {fried.map((c) => (
@@ -872,7 +918,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               marks={marks}
               check={check}
               popup={popup}
-              tool={started && phase !== "guess" ? (moment.beat?.tool ?? null) : null}
+              tool={started && phase !== "guess" ? (moment.tool ?? null) : null}
               keyboardOpen={keyboard}
               onApi={setApi}
               onBenchReady={() => setBenchReady(true)}
