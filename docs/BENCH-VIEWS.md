@@ -50,9 +50,11 @@ interface BenchController {
   /**
    * Frame these parts or anchors nicely (smooth unless reduced motion). Empty array: frame the whole work area.
    * `inset`: CSS px of the view a docked panel covers at each edge; the framing keeps clear of it, and it holds (a
-   * resize, reset view) until the next focus.
+   * resize, reset view) until the next focus. `read`: hands-on work, at least this many CSS px between neighbouring
+   * holes (2.54 mm) at the targets, when every target has leads or clip points (`needsReading`); what does not fit
+   * at that scale is cropped round the targets' anchors (`focalTargets`), and the learner pans for the rest.
    */
-  focus(targets: string[], opts?: { padding?: number; instant?: boolean; inset?: { top?: number; right?: number; bottom?: number; left?: number } }): void;
+  focus(targets: string[], opts?: { padding?: number; instant?: boolean; inset?: { top?: number; right?: number; bottom?: number; left?: number }; read?: number }): void;
   /** Temporarily emphasise parts (glow ring, dim the rest). */
   spotlight(targets: string[] | null): void;
 }
@@ -70,14 +72,16 @@ Implementation notes (both views):
 - Targets besides anchors: `part:<id>` (the meter is `part:M1`), `part:M1/display`, `part:M1/dial`,
   `part:M1/range` (its RANGE key), `part:M1/<socket>`, `lead:<id>` and `wire:<id>` for a whole lead or wire, `part:R1/a` for a part's lead and
   `part:<id>/<mark>` for a named spot on a part (`PartDef.marks`: a drawing's symbol `part:SD1/R1`, a box's `lid`,
-  `knob` and `tag`, a padlock's `wheel1`, a gate's `flag` and `unit`, a tag's `text`). Both views place marks at the
-  same desk point. `parseTarget` and `targetPoint` (a
+  `knob` and `tag`, a padlock's `wheel1`, a gate's `flag` and `unit`, a tag's `text`), and an LED's stress bar,
+  `part:D1/stress` (`stressPoint`, where both views draw the bar). Both views place marks at the same desk point. `parseTarget` and `targetPoint` (a
   renderer-free world point) live in `src/view/targets.ts`.
 - `project()` returns null for a target that does not exist; `visible` is false off screen or behind the camera.
 - `onViewChange` fires at most once per drawn frame, for camera, size and bench changes (overlays follow drags).
 - In 3D, `focus` frames the targets' rendered models with some bench around them (a single small part is framed no
-  tighter than about 24 mm), and `spotlight` veils the rest of the bench in the page colour and rings each target in
-  red pencil. The 3D controller (`Bench3DController`) adds `project([x, y, z])`, `projectClient()` (page px, for
+  tighter than about 24 mm, and without `read` the targets fill at most 45% of the view's height), and `spotlight`
+  veils the rest of the bench in the page colour, rings each target in red pencil where the camera sees it (a holder
+  brings what it holds, as in ink), and hides outright any part, lead or meter probe that stands between the camera
+  and a target. The 3D controller (`Bench3DController`) adds `project([x, y, z])`, `projectClient()` (page px, for
   tests), `topView()`, `resetView()`, `atHome()`, `pickAt()` and `stats()`.
 - In ink, `focus` frames the targets' drawn outlines with some bench around them (never tighter than about 24 mm, a
   comfortable reading scale at most) and keeps that framing when the bench resizes until the learner pans; it waits for
@@ -127,6 +131,16 @@ RANGE key beside it steps the range: a tap goes up (auto, then each range from t
 press goes down. The display shows the range (AUTO, or the range such as 20V) where the dial has more than one. Keys:
 on the focused dial (or the selected meter) left and right turn it and up and down step the range; on the focused
 RANGE key Enter, Space or an arrow up steps up and an arrow down steps down.
+
+When a view is so close that the breadboard's own row letters and strip numbers are out of sight (a phone working at
+a reading scale), both views pin them to the bench's edge beside their rows and strips (`view/Ruler.tsx`), letters
+down the left and numbers along the top (the other way round on a board seen end on).
+
+A finger hides what it touches, so a touch drag of a clip, a probe tip, a part, a lead or a jumper end shows a loupe
+in both views (`view/Loupe.tsx`): a lens twice life size held above the finger (beside it near the top edge), the snap
+ring of the point a drop would land on inside it, and that point's name in blue ink above it ("D1 long leg", "a14",
+"c6 to c10") before the finger lifts. On touch a clip or probe tip snaps to the nearest drop point within 22 px
+(`TOUCH_SNAP`). Ink fills the lens with a copy of its drawing; 3D copies its canvas after each frame.
 
 Soldering (Unit 3) is one DOM overlay (`SolderOverlay`) that both renderers mount over their canvas. It places its
 handles (the iron, the solder's end, every pad, lead and splice) with the view's `project()` on `spot:` anchors, and

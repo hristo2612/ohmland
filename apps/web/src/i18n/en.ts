@@ -263,6 +263,7 @@ export const en = {
       flag: "flag",
       unit: "unit button",
       patch: "rubbed patch",
+      stress: "stress bar",
     } as Record<string, string>,
     /** A continuity table drawn on its part: one arc per pair of legs tested (ToolInk.tsx). */
     arcs: {
@@ -1037,6 +1038,12 @@ export const en = {
       conductors: "LETS FLOW THROUGH",
       insulators: "STOPS FLOW",
       cabinet: "PARTS",
+    },
+    /** The touch loupe: where a dragged clip, probe or part would land, written above the finger. */
+    loupe: {
+      legs: { anode: "long leg", cathode: "short leg", pos: "plus", neg: "minus", wrap: "wrapper", base: "wood", com: "middle", wiper: "wiper" },
+      span: (from: string, to: string) => `${from} to ${to}`,
+      probe: (color: string) => `${color} probe`,
     },
   },
 

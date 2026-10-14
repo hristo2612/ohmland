@@ -15,7 +15,7 @@ import type { Anchor, BenchState, MeterMode, MeterSocket, MeterState, PlacedPart
 import { rectOfPoints, unionRect, type Rect } from "./camera";
 import { INK, boxCorners, toLocal, toWorld, type Box, type Frame } from "./frame";
 import { inkKind } from "./kinds";
-import { parseTarget } from "../view/targets";
+import { STRESS_MARK, parseTarget, stressPoint } from "../view/targets";
 import { perfMount } from "../solder/perfboard";
 
 export { INK, boxCorners, frameTransform, toLocal, toWorld, type Box, type Frame } from "./frame";
@@ -600,6 +600,10 @@ export function targetRect(model: InkModel, target: string): Rect | null {
   const pi = model.parts.get(id);
   if (pi) {
     if (!sub) return partBounds(pi);
+    if (sub === STRESS_MARK && pi.part.kind === "led") {
+      const [x, , z] = stressPoint(bench, pi.part);
+      return [x - 1.5, z - 1.5, x + 1.5, z + 1.5];
+    }
     const p = pi.legs[sub];
     if (p) return [p[0] - 1.5, p[1] - 1.5, p[0] + 1.5, p[1] + 1.5];
     // A named mark: a drawing's symbol, a box's lid or knob, a gate's flag (in the drawing's own frame).

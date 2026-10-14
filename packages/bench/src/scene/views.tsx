@@ -5,7 +5,7 @@ import * as THREE from "three";
 import type { PartState } from "@ohmland/sim";
 import { boardGeometry, boardOrigin, holeWorld } from "../board";
 import { BOARD_TOP, BOX, CABINET, PITCH, TOGGLE_BASE } from "../dims";
-import { METER, METER_RANGES, anchorPosition, isOnBoard, meterRange, outwardHeading, partPose, probeTip, socketWorld, meterLocalToWorld } from "../layout";
+import { METER, METER_RANGES, anchorPosition, isOnBoard, meterRange, outwardHeading, partPose, probeTip, socketWorld, meterLocalToWorld, workCenter } from "../layout";
 import { parseAnchor } from "../anchors";
 import { partDef, rotateXZ, type Hotspot } from "../parts";
 import { PartModel, flyingLeads, type PartModelProps } from "../models/PartModel";
@@ -19,7 +19,7 @@ import { GATE } from "../dims";
 import type { BenchState, MeterState, PlacedPart, ProbeColor, Quality, TestLead, Vec3, Wire } from "../types";
 import { Proxy, localBox } from "./pick";
 import { prefersReducedMotion, useAnimating } from "../three/anim";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { usePaperPalette } from "./palette";
 import { BarrelPlug, PerfboardModel } from "../models/Solder";
 import { extraLookKey, useProbeState } from "../probe";
@@ -405,8 +405,12 @@ function leadEndPose(bench: BenchState, lead: TestLead, end: "a" | "b"): ClipPos
   return clipPose(here, tailDir, true);
 }
 
-/** Cable length for a lead whose clips' tails are `d` mm apart. */
-const leadLength = (d: number) => Math.min(320, d * 1.1 + 45);
+/**
+ * Cable length for a lead whose clips' tails are `d` mm apart. A lead lying loose (neither clip on anything) keeps only
+ * a little slack: the rest would bunch up into a kink between two clips lying close together on the desk.
+ */
+const leadLength = (d: number, loose = false) => (loose ? d * 1.08 + 6 : Math.min(320, d * 1.1 + 45));
+const isLoose = (lead: TestLead) => !lead.a.to && !lead.b.to;
 
 /**
  * A clip lead's shape as the 3D view draws it: each clip's pose and the cable between their tails. The flow dots,
@@ -415,7 +419,7 @@ const leadLength = (d: number) => Math.min(320, d * 1.1 + 45);
 export function leadCable(bench: BenchState, lead: TestLead, floor: FloorFn): { a: ClipPose; b: ClipPose; cable: THREE.Vector3[] } {
   const a = leadEndPose(bench, lead, "a");
   const b = leadEndPose(bench, lead, "b");
-  const cable = ropePoints(a.tail, a.tailDir, b.tail, b.tailDir, leadLength(a.tail.distanceTo(b.tail)), LEAD_CABLE_R, floor, 2, 0.28);
+  const cable = ropePoints(a.tail, a.tailDir, b.tail, b.tailDir, leadLength(a.tail.distanceTo(b.tail), isLoose(lead)), LEAD_CABLE_R, floor, 2, 0.28);
   return { a, b, cable };
 }
 
@@ -512,7 +516,7 @@ export function LeadView({
           </group>
         );
       })}
-      <Cable from={pa.tail} fromDir={pa.tailDir} to={pb.tail} toDir={pb.tailDir} length={leadLength(pa.tail.distanceTo(pb.tail))} radius={LEAD_CABLE_R} color={lead.color} floor={floor} bend={0.28} points={shape.cable} />
+      <Cable from={pa.tail} fromDir={pa.tailDir} to={pb.tail} toDir={pb.tailDir} length={leadLength(pa.tail.distanceTo(pb.tail), isLoose(lead))} radius={LEAD_CABLE_R} color={lead.color} floor={floor} bend={0.28} points={shape.cable} />
       {gates.map((g) => (
         <GateOnLead key={g.id} gate={g} cable={shape.cable} selected={selectedPart === g.id} hinted={!!hintedParts?.has(g.id)} />
       ))}
@@ -523,26 +527,35 @@ export function LeadView({
 // ---------------------------------------------------------------------------------------------------------------
 // Meter with plugs, cables and probes.
 
-function probePose(bench: BenchState, meter: MeterState, color: ProbeColor): { tip: THREE.Vector3; axis: THREE.Vector3 } {
+/**
+ * `turned`: the camera looks along the bench from its left end (a tall screen), not from the front; the probes lean
+ * away from it all the same.
+ */
+function probePose(bench: BenchState, meter: MeterState, color: ProbeColor, turned = false): { tip: THREE.Vector3; axis: THREE.Vector3 } {
   const tipArr = probeTip(bench, color);
   const tip = v3(tipArr);
   const pr = meter.probes[color];
   const sock = pr.socket ? socketWorld(meter, pr.socket) : ([pr.plugPos[0], 0, pr.plugPos[1]] as Vec3);
   if (pr.tip.to) {
-    // Lean the probe back toward the meter (and a little away from the viewer) so it does not hide the board.
-    const tx = sock[0] - tip.x;
-    const tz = sock[2] - tip.z;
-    const tl = Math.hypot(tx, tz) || 1;
-    let hx = tx / tl;
-    let hz = tz / tl - 0.55;
-    const hl = Math.hypot(hx, hz) || 1;
+    // Held steep and leaning out to the side, away from the middle of the work and a little away from the viewer:
+    // seen from the front, the handle rises beside the circuit instead of over it or toward the camera.
+    const [cx, cz] = workCenter(bench);
+    // Toward the viewer, and across the view, on the desk.
+    const [vx, vz] = turned ? [-1, 0] : [0, 1];
+    const [sx, sz] = [vz, -vx];
+    const off = (tip.x - cx) * sx + (tip.z - cz) * sz;
+    const side = Math.abs(off) > 8 ? Math.sign(off) : color === "red" ? 1 : -1;
+    let hx = side * sx - 0.35 * vx;
+    let hz = side * sz - 0.35 * vz;
+    const hl = Math.hypot(hx, hz);
     hx /= hl;
     hz /= hl;
+    // The two probes fan apart a little when they stand on the same side.
     const bias = color === "red" ? 0.22 : -0.22;
     const c = Math.cos(bias);
     const sn = Math.sin(bias);
     [hx, hz] = [hx * c - hz * sn, hx * sn + hz * c];
-    const el = 0.88;
+    const el = 1.08;
     return { tip, axis: new THREE.Vector3(hx * Math.cos(el), Math.sin(el), hz * Math.cos(el)).normalize() };
   }
   const toward = new THREE.Vector3(sock[0] - tip.x, 0, sock[2] - tip.z);
@@ -568,6 +581,8 @@ export function MeterView({
   selected: boolean;
   floor: FloorFn;
 }) {
+  // On a tall screen the board is seen from its left end (viewRig's quarter turn).
+  const turned = useThree((st) => st.size.width / Math.max(1, st.size.height) < 0.85) && !!bench.board;
   const rotY = (meter.rot * Math.PI) / 180;
   const dialLabelPos = (i: number): [number, number, number] => {
     const a = (i * 45 * Math.PI) / 180;
@@ -591,7 +606,7 @@ export function MeterView({
       </group>
       {(["red", "black"] as const).map((color) => {
         const pr = meter.probes[color];
-        const { tip, axis } = probePose(bench, meter, color);
+        const { tip, axis } = probePose(bench, meter, color, turned);
         const back = tip.clone().addScaledVector(axis, PROBE_LEN);
         let plugPos: THREE.Vector3;
         let plugQuat: THREE.Quaternion;
@@ -613,12 +628,12 @@ export function MeterView({
           plugDir = d;
         }
         return (
-          <group key={color}>
+          <group key={color} name={`probe:${color}`}>
             <group position={plugPos} quaternion={plugQuat}>
               <BananaPlug color={color} />
               <Proxy pick={{ type: "plug", color }} size={[10, PLUG_TOP + 4, 10]} position={[0, PLUG_TOP / 2, 0]} />
             </group>
-            <group position={tip} quaternion={quatFromY(axis)}>
+            <group name="probe-body" position={tip} quaternion={quatFromY(axis)}>
               <Probe color={color} />
               {/* The tip end (to the finger guard) and the grip: a stroke on a pencil card under a resting tip draws. */}
               <Proxy pick={{ type: "probe", color, tip: true }} size={[12, PROBE_GRIP - 9, 12]} position={[0, (PROBE_GRIP + 9) / 2, 0]} />

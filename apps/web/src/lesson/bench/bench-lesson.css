@@ -476,11 +476,12 @@ html:has(.bl:not(.bl--finale)) { overflow: hidden; }
 .bl-slider__stops [data-on] { color: var(--bl-blue); font-weight: 600; }
 .bl-slider__caption { margin: 0 0 var(--bl-s-2); color: var(--bl-ink-2); font-size: var(--bl-text-sm); }
 
-/* One instrument at a time, on the bench's lower edge. A tall one scrolls inside, never the page. */
+/* One instrument at a time, on the bench's lower edge (above the parts tray's strip when it shows). A tall one scrolls
+   inside, never the page. */
 .bl-tool {
   position: absolute;
   right: var(--bl-s-3);
-  bottom: var(--bl-s-3);
+  bottom: calc(var(--bl-s-3) + var(--bl-tray-bottom, 0px));
   width: min(360px, calc(100% - 24px));
   max-height: 55%;
   overflow: auto;
@@ -675,7 +676,7 @@ html:has(.bl:not(.bl--finale)) { overflow: hidden; }
   .ann__text { font-size: 18px; }
   /* The dock as a slim strip across the foot of the bench, so the bench stays in view above it. (The meter and a
      continuity table never dock: they are drawn on the bench.) */
-  .bl-tool { left: var(--bl-s-2); right: var(--bl-s-2); bottom: var(--bl-s-2); width: auto; padding: var(--bl-s-1); }
+  .bl-tool { left: calc(var(--bl-s-2) + var(--bl-tray-left, 0px)); right: var(--bl-s-2); bottom: calc(var(--bl-s-2) + var(--bl-tray-bottom, 0px)); width: auto; padding: var(--bl-s-1); }
   /* Every docked panel as a slim strip: one frame (the dock's), no explaining line (the robot says it), controls at
      a full touch size. */
   .bl-tool .instrument { gap: var(--bl-s-1); padding: var(--bl-s-1) var(--bl-s-2); border: 0; border-radius: 0; background: transparent; }

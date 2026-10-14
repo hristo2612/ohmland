@@ -14,6 +14,8 @@ import { toLocal } from "./frame";
 import { holeNear, hitTest, snapTarget } from "./hit";
 import { actuatorFrame, type InkModel, type InkPick, leadPoint } from "./model";
 import type { InkView } from "./view";
+import type { BenchLabels } from "../labels";
+import { TOUCH_SNAP, dragName, type LoupeFeed } from "../view/Loupe";
 
 export type InkApi = {
   /** Start dragging a tray item from a DOM pointer event. */
@@ -68,6 +70,8 @@ export type InkInteractionCtx = {
   model: () => InkModel;
   readOnly: () => boolean;
   emit: (a: BenchAction) => void;
+  /** The touch loupe (view/Loupe.tsx): fed while a finger drags, cleared when it lifts. */
+  loupe?: { feed: LoupeFeed; labels: () => BenchLabels };
 };
 
 /** Whether an attach point is, or hangs off (a clip on a probe tip, a tip on a clip ...), something starting with `prefix`. */
@@ -157,7 +161,7 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
     const b = bench();
     const model = ctx.model();
     const targets = collectTargets(b, model, opts).filter((t) => !opts.exclude || !(t.kind === "probe" || t.kind === "lead") || !hangsOn(b, t.anchor, opts.exclude));
-    return snapTarget(b, toClient, cx, cy, touch ? 40 : 26, opts, targets);
+    return snapTarget(b, toClient, cx, cy, touch ? TOUCH_SNAP : 26, opts, targets);
   };
   const partCenter = (id: string): Vec2 | null => {
     const b = bench();
@@ -337,9 +341,16 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
       default:
         break;
     }
+    // A finger hides what it touches: the loupe shows it, and names where a drop would land.
+    if (g.touch && ctx.loupe && (d.kind === "clip" || d.kind === "probe" || d.kind === "part" || d.kind === "leg" || d.kind === "wireEnd")) {
+      const [lx, ly] = local(cx, cy);
+      const st = store.getState();
+      ctx.loupe.feed.set({ x: lx, y: ly, name: dragName(st.bench, d as Parameters<typeof dragName>[1], st.ui.snapTarget, ctx.loupe.labels()) });
+    }
   };
 
   const endDrag = (g: Gesture) => {
+    ctx.loupe?.feed.set(null);
     const d = g.drag;
     const s = store.getState();
     if (!d || d.kind === "pan") return;
@@ -357,7 +368,7 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
       // Dropped right on a part of the same kind: the two swap places and wiring (a fresh LED for a dead one).
       const target = ops.swapTarget(s.bench, d.id);
       if (target && !s.locked.includes(target.id)) {
-        const from = s.txBase?.parts.find((p) => p.id === d.id)?.pos ?? ([target.pos[0], target.pos[1] + 34] as Vec2);
+        const from = s.txBase?.parts.find((p) => p.id === d.id)?.pos ?? ops.asideSpot(s.bench, target, [target.pos[0], target.pos[1] + 34], [d.id]);
         s.apply((b) => ops.dropOnto(b, d.id, target.id, from));
       } else if (d.cable && d.to) {
         // A gate dropped on a cable as drawn: on that lead.
@@ -508,6 +519,7 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
         if (g?.drag?.kind === "press") store.getState().press(g.drag.id, false);
         if (store.getState().txBase) store.getState().cancel();
         gesture = null;
+        ctx.loupe?.feed.set(null);
         setUi({ dragging: false, snapTarget: null });
         startPinch();
       }
@@ -638,6 +650,7 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
   };
 
   const onCancel = (e: PointerEvent) => {
+    ctx.loupe?.feed.set(null);
     pointers.delete(e.pointerId);
     if (pinch && pinch.ids.includes(e.pointerId)) pinch = null;
     const g = gesture;
@@ -751,6 +764,7 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
       };
       const up = (ev: PointerEvent) => {
         if (ev.pointerId !== g.pointerId) return;
+        ctx.loupe?.feed.set(null);
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", up);
         window.removeEventListener("pointercancel", up);
@@ -782,7 +796,7 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
             // A fresh part dropped right on one of its kind takes its place and wiring; the old one moves aside.
             const id = g.drag.id;
             const target = ops.swapTarget(st.bench, id);
-            if (target && !st.locked.includes(target.id)) st.apply((b) => ops.dropOnto(b, id, target.id, [target.pos[0], target.pos[1] + 34]));
+            if (target && !st.locked.includes(target.id)) st.apply((b) => ops.dropOnto(b, id, target.id, ops.asideSpot(b, target, [target.pos[0], target.pos[1] + 34], [id])));
           }
           st.commit();
           if (g.drag?.kind === "part") emit({ type: "part:add", partId: g.drag.id, kind: item.kind as never });
