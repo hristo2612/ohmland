@@ -1,19 +1,22 @@
 // A single part on a slowly turning stand, for the parts bin and lesson hooks.
 
-import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type { PartState } from "@ohmland/sim";
 import { PartModel } from "../models/PartModel";
+import { isEffect } from "../effects/effects";
 import { MultimeterModel } from "../models/Multimeter";
 import { defaultParams } from "../parts";
 import { StudioEnvironment, StudioLights } from "../scene/Studio";
+import { PaletteContext, useReadPalette } from "../scene/palette";
+import { PaperRenderer, PaperUpkeep } from "../scene/Render";
+import { installPaperTone } from "../three/paper";
+import { Spotlight } from "../three/post";
 import { LabelsContext, mergeLabels, type BenchLabels } from "../labels";
 import { prefersReducedMotion } from "../three/anim";
 import { glowTexture } from "../three/canvas";
 import type { BenchPartKind, MeterMode, PartParamsMap, Quality } from "../types";
-import { Bloom, EffectComposer, ToneMapping } from "@react-three/postprocessing";
-import { ToneMappingMode } from "postprocessing";
 
 export type PreviewKind = BenchPartKind | "multimeter";
 
@@ -33,7 +36,7 @@ export function AutoLift({ children, onSize, deps, center = false }: { children:
       const m = o as THREE.Mesh;
       if (!m.isMesh || !m.geometry || !m.visible) return;
       const material = m.material as THREE.Material & { blending?: THREE.Blending };
-      if (material.blending === THREE.AdditiveBlending) return;
+      if (isEffect(m) || material.blending === THREE.AdditiveBlending) return;
       m.geometry.computeBoundingBox();
       m4.multiplyMatrices(toLocal, m.matrixWorld);
       box.union(m.geometry.boundingBox!.clone().applyMatrix4(m4));
@@ -86,16 +89,16 @@ function Framer({ box, margin = 1.08 }: { box: THREE.Box3 | null; margin?: numbe
   return null;
 }
 
-function Pedestal() {
+function Pedestal({ dark }: { dark: boolean }) {
   const shadow = useMemo(
-    () => new THREE.MeshBasicMaterial({ map: glowTexture(), color: "#000000", transparent: true, opacity: 0.22, depthWrite: false }),
-    [],
+    () => new THREE.MeshBasicMaterial({ map: glowTexture(), color: dark ? "#000000" : "#3a3226", transparent: true, opacity: dark ? 0.4 : 0.2, depthWrite: false }),
+    [dark],
   );
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
         <circleGeometry args={[400, 64]} />
-        <shadowMaterial opacity={0.18} />
+        <shadowMaterial opacity={dark ? 0.3 : 0.12} color={dark ? "#000000" : "#3a3226"} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} material={shadow}>
         <planeGeometry args={[40, 40]} />
@@ -137,35 +140,39 @@ export function PartPreview({ kind, params, state, pose = "stand", spin = 0.45, 
         quality={quality}
       />
     );
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
+  const palette = useReadPalette(el);
+  const bg = background ?? palette.paper;
+  const spot = useMemo(() => new Spotlight({ amount: 0, color: new THREE.Color(bg) }), []);
+  useEffect(() => () => spot.dispose(), [spot]);
+  installPaperTone();
   return (
-    <div className={className} style={{ position: "relative", width: "100%", height: "100%", ...style }}>
+    <div ref={setEl} className={className} style={{ position: "relative", width: "100%", height: "100%", background: bg, ...style }}>
       <Canvas
         frameloop="demand"
-        shadows="percentage"
+        shadows={quality === "high" ? "percentage" : false}
         dpr={[1, 2]}
         camera={{ fov: 30, position: [0, 40, 60] }}
-        gl={{ antialias: true, toneMapping: THREE.NeutralToneMapping, preserveDrawingBuffer: true }}
+        gl={{ antialias: quality === "low", alpha: false, toneMapping: THREE.CustomToneMapping, preserveDrawingBuffer: true }}
         onCreated={({ scene }) => {
-          if (background) scene.background = new THREE.Color(background);
+          scene.background = new THREE.Color(bg);
         }}
       >
-        <LabelsContext.Provider value={merged}>
-          <StudioEnvironment intensity={0.7} />
-          <StudioLights quality={quality} shadowSpan={80} />
-          <Pedestal />
-          <Turntable speed={reduced ? 0 : spin}>
-            <AutoLift center deps={`${kind}:${pose}:${JSON.stringify(params ?? {})}`} onSize={(b) => setBox((prev) => (prev && prev.equals(b) ? prev : b))}>
-              {body}
-            </AutoLift>
-          </Turntable>
-          <Framer box={box} />
-          {quality === "high" && (
-            <EffectComposer multisampling={4}>
-              <Bloom mipmapBlur luminanceThreshold={1} intensity={0.8} radius={0.6} />
-              <ToneMapping mode={ToneMappingMode.NEUTRAL} />
-            </EffectComposer>
-          )}
-        </LabelsContext.Provider>
+        <PaletteContext.Provider value={palette}>
+          <LabelsContext.Provider value={merged}>
+            <StudioEnvironment intensity={palette.dark ? 0.2 : 0.3} />
+            <StudioLights quality={quality} shadowSpan={80} palette={palette} />
+            <Pedestal dark={palette.dark} />
+            <Turntable speed={reduced ? 0 : spin}>
+              <AutoLift center deps={`${kind}:${pose}:${JSON.stringify(params ?? {})}`} onSize={(b) => setBox((prev) => (prev && prev.equals(b) ? prev : b))}>
+                {body}
+              </AutoLift>
+            </Turntable>
+            <Framer box={box} />
+            <PaperUpkeep version={box} dark={palette.dark} shadows={quality === "high"} live={!reduced && spin !== 0} />
+            <PaperRenderer quality={quality} palette={palette} spot={spot} bloom={0.9} />
+          </LabelsContext.Provider>
+        </PaletteContext.Provider>
       </Canvas>
     </div>
   );

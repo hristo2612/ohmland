@@ -3,7 +3,8 @@ import { defineConfig } from "@playwright/test";
 
 // Headless Chromium renders WebGL through Metal on macOS; elsewhere use SwiftShader.
 const gl = process.platform === "darwin" ? ["--use-angle=metal", "--ignore-gpu-blocklist"] : ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"];
-const port = 5299;
+// BENCH_PORT picks another port when several checkouts run their shots at once.
+const port = Number(process.env.BENCH_PORT ?? 5299);
 
 export default defineConfig({
   testDir: ".",

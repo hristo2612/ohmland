@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 import type { MeterMode, ProbeColor } from "../types";
+import { isEffect } from "../effects/effects";
 
 export const PICK_LAYER = 5;
 
@@ -82,7 +83,7 @@ export function localBox(group: THREE.Object3D): THREE.Box3 {
     const m = o as THREE.Mesh;
     if (!m.isMesh || !m.geometry || !m.layers.isEnabled(0)) return;
     const mat = m.material as THREE.Material & { blending?: THREE.Blending };
-    if (mat.blending === THREE.AdditiveBlending || (o as THREE.Mesh & { isInstancedMesh?: boolean }).isInstancedMesh) return;
+    if (isEffect(o) || (o as THREE.Mesh & { isInstancedMesh?: boolean }).isInstancedMesh) return;
     if (m.geometry.type === "InstancedBufferGeometry") return;
     m.geometry.computeBoundingBox();
     m4.multiplyMatrices(inv, m.matrixWorld);

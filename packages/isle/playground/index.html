@@ -5,14 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Isle playground</title>
     <style>
+      /* The playground dresses itself like the Classic notebook (its tokens), or like the old sky for the classic look. */
       :root {
-        --ink: #1f2430;
-        --muted: #5b6372;
-        --panel: rgba(255, 255, 255, 0.9);
-        --line: rgba(31, 36, 48, 0.12);
-        --accent: #d9813a;
-        --accent-ink: #ffffff;
+        --paper: #f6f2e9;
+        --slip: #fcfaf5;
+        --grid: #e7e0d3;
+        --ink: #24221e;
+        --ink-2: #57524a;
+        --rule: #3d3a34;
+        --rule-soft: #d8d0c1;
+        --shadow-ink: #e1d9ca;
+        --blue: #1f3c9a;
+        --red: #b23a1c;
+        --btn-bg: #24221e;
+        --btn-fg: #f6f2e9;
         color-scheme: light;
+      }
+      body.night {
+        --paper: #1b1a18;
+        --slip: #242320;
+        --grid: #262522;
+        --ink: #ece6da;
+        --ink-2: #bdb6a8;
+        --rule: #8f887b;
+        --rule-soft: #3a3833;
+        --shadow-ink: #0f0e0d;
+        --blue: #9ab3f4;
+        --red: #f2906f;
+        --btn-bg: #ece6da;
+        --btn-fg: #1b1a18;
+        color-scheme: dark;
       }
       * {
         box-sizing: border-box;
@@ -21,8 +43,14 @@
       body {
         margin: 0;
         height: 100%;
-        font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+        font: 15px/1.45 "Literata", Georgia, "Times New Roman", serif;
         color: var(--ink);
+        background-color: var(--paper);
+        /* the page's own grid, seen through a clear isle */
+        background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+        background-size: 24px 24px;
+      }
+      body.classic {
         background: #e4f3f4;
       }
       #isle {
@@ -33,18 +61,18 @@
         position: fixed;
         top: 12px;
         left: 12px;
-        width: 268px;
+        width: 284px;
         max-width: calc(100vw - 24px);
-        padding: 12px;
-        border-radius: 14px;
-        background: var(--panel);
-        border: 1px solid var(--line);
-        box-shadow: 0 8px 30px rgba(20, 30, 50, 0.12);
-        backdrop-filter: blur(8px);
+        padding: 12px 14px;
+        border-radius: 2px;
+        background: var(--slip);
+        border: 1.5px solid var(--rule);
+        box-shadow: 3px 3px 0 var(--shadow-ink);
       }
       .panel h1 {
         margin: 0 0 8px;
-        font-size: 15px;
+        font-size: 16px;
+        font-weight: 600;
       }
       .row {
         display: flex;
@@ -58,36 +86,38 @@
         display: flex;
         flex-direction: column;
         gap: 2px;
-        font-size: 12px;
-        color: var(--muted);
+        font-size: 13px;
+        color: var(--ink-2);
       }
       input[type="number"],
       select {
         width: 100%;
-        padding: 5px 6px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
+        padding: 4px 6px;
+        border: 1px solid var(--rule-soft);
+        border-radius: 2px;
         font: inherit;
-        background: #fff;
+        color: var(--ink);
+        background: var(--paper);
       }
       button {
         min-height: 36px;
         padding: 0 12px;
-        border-radius: 999px;
-        border: 1px solid var(--line);
-        background: #fff;
+        border-radius: 2px;
+        border: 1.5px solid var(--rule);
+        background: var(--slip);
+        color: var(--ink);
         font: inherit;
         cursor: pointer;
       }
       button.primary {
-        background: var(--accent);
-        color: var(--accent-ink);
+        background: var(--btn-bg);
+        color: var(--btn-fg);
         border-color: transparent;
       }
       button:focus-visible,
       input:focus-visible,
       select:focus-visible {
-        outline: 2px solid var(--accent);
+        outline: 2px solid var(--blue);
         outline-offset: 2px;
       }
       .check {
@@ -99,27 +129,40 @@
       #stats {
         margin-top: 8px;
         font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
-        color: var(--muted);
+        color: var(--ink-2);
         white-space: pre;
       }
+      /* A tapped thing's label: an ink slip pinned above it by a short pencil line. */
       #label {
         position: fixed;
-        transform: translate(-50%, calc(-100% - 10px));
-        padding: 8px 10px;
+        transform: translate(-50%, calc(-100% - 18px));
+        padding: 6px 10px 7px;
         max-width: 240px;
-        border-radius: 10px;
-        background: #fff;
-        box-shadow: 0 6px 20px rgba(20, 30, 50, 0.18);
+        border-radius: 2px;
+        background: var(--slip);
+        border: 1.5px solid var(--rule);
+        box-shadow: 3px 3px 0 var(--shadow-ink);
         pointer-events: none;
-        font-size: 13px;
+        font-size: 14px;
+      }
+      #label::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 100%;
+        width: 1.5px;
+        height: 16px;
+        background: var(--rule);
       }
       #label strong {
         display: block;
+        font-weight: 600;
       }
       #label span {
-        color: var(--muted);
-        font-size: 12px;
+        color: var(--ink-2);
+        font-size: 13px;
       }
+      /* The reveal's caption: an ink slip, its kicker in red pencil (the robot's colour). */
       #card {
         position: fixed;
         left: 50%;
@@ -127,29 +170,31 @@
         transform: translateX(-50%);
         min-width: 240px;
         max-width: calc(100vw - 24px);
-        padding: 12px 16px;
-        border-radius: 14px;
-        background: #fff;
-        box-shadow: 0 10px 30px rgba(20, 30, 50, 0.2);
+        padding: 10px 16px 12px;
+        border-radius: 2px;
+        background: var(--slip);
+        border: 1.5px solid var(--rule);
+        box-shadow: 3px 3px 0 var(--shadow-ink);
         text-align: center;
       }
       #card small {
-        color: var(--accent);
-        font-weight: 700;
-        letter-spacing: 0.04em;
+        color: var(--red);
+        font-weight: 600;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        font-size: 11px;
+        font-size: 12px;
       }
       #card h2 {
         margin: 2px 0 4px;
-        font-size: 17px;
+        font-size: 19px;
+        font-weight: 600;
       }
       #card ul {
         list-style: none;
         margin: 0;
         padding: 0;
-        color: var(--muted);
-        font-size: 13px;
+        color: var(--ink-2);
+        font-size: 14px;
       }
       .toggle {
         display: none;
@@ -184,6 +229,23 @@
           <label>Lessons <input id="lessons" type="number" min="0" max="2000" /></label>
           <label>Modules <input id="modules" type="number" min="0" max="500" /></label>
           <label>Units <input id="units" type="number" min="1" max="5" /></label>
+        </div>
+        <div class="row">
+          <label
+            >Look
+            <select id="look">
+              <option value="notebook">Notebook</option>
+              <option value="classic">Classic sky</option>
+            </select>
+          </label>
+          <label
+            >Paper
+            <select id="paper">
+              <option value="grid">Grid</option>
+              <option value="plain">Plain</option>
+              <option value="clear">Clear (the page's)</option>
+            </select>
+          </label>
         </div>
         <div class="row">
           <label>Seed <input id="seed" type="number" min="1" /></label>
