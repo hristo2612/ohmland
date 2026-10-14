@@ -89,6 +89,18 @@ const stepsOf = (mo: Moment): SolutionStep[] => (mo.beat?.then ?? []) as Solutio
 /** The notebook boxes a lab task asks for (a number read off the bench, judged by the task's goal). */
 const notesOf = (note: NoteSpec | NoteSpec[] | undefined): NoteSpec[] => (note ? (Array.isArray(note) ? note : [note]) : []);
 
+/** Where a fried part's note and Replace control go: the part, or for the meter's own fuse its mA socket. */
+const friedAt = (card: FriedCard): string => (card.kind === "meter-fuse" ? `part:${card.partId.replace(/:fuse$/, "")}/ma` : card.partId);
+
+/** A guess against what happened, once a moment is done: folded into the robot's line, never a block of its own. */
+function verdictOf(mo: Moment, answers: Answers): { right: boolean; guess: string } | null {
+  const g = mo.beat?.guess;
+  const i = answers[answerKeys.guess(mo.key)];
+  if (!g || g.answer === undefined || typeof i !== "number" || g.options[i] === undefined) return null;
+  // Quoted mid-sentence: an ordinary first word loses its capital ("It goes dark" -> "it goes dark").
+  return { right: g.options[i] === g.answer, guess: g.options[i]!.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase()) };
+}
+
 type Line = { text: string; mood: RobotMood; key: number };
 
 const INTERACTIVE = "input, textarea, select, button, a[href], [role=radio], [role=button], [role=application], [contenteditable=true], summary";
@@ -148,6 +160,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const pendingThen = useRef<SolutionStep[]>([]);
   const pendingSkips = useRef<string[]>([]);
   const lastSecret = useRef(0);
+  /** The moment last finished, set at once (a fry reported in the same bench tick as the task sees it before React does). */
+  const finished = useRef<Moment | null>(null);
   const prefetchedIsle = useRef(false);
 
   const announce = useCallback((text: string) => {
@@ -229,8 +243,10 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       setNumberText("");
       setHoleText("");
       setNotebookText({});
-      // The last moment's notes fade to small marks; pencil rings and warnings go.
-      setMarks((ms) => ms.filter((k) => k.kind !== "ring" && k.kind !== "strip" && !k.id.startsWith("notice-")).map((k) => (k.kind === "note" || k.kind === "label" ? { ...k, faded: true } : k)));
+      // The last moment's notes fade to small marks; pencil rings, warnings and the Hall's notes go.
+      setMarks((ms) =>
+        ms.filter((k) => k.kind !== "ring" && k.kind !== "strip" && !k.id.startsWith("notice-") && !k.id.startsWith("hall-")).map((k) => (k.kind === "note" || k.kind === "label" ? { ...k, faded: true } : k)),
+      );
       const done = isMomentDone(mo, a, t);
       if (done) setPhase("done");
       else if (mo.beat?.guess && typeof a[answerKeys.guess(mo.key)] !== "number") setPhase("guess");
@@ -239,8 +255,9 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       if (mo.beat?.tap?.joinedTo) addMark({ id: `marker-${mo.key}`, kind: "ring", at: mo.beat.tap.joinedTo, tone: "red" });
       if (mo.beat?.pick?.on) addMark({ id: `on-${mo.key}`, kind: "ring", at: mo.beat.pick.on, tone: "ink" });
       state.current.api?.calm();
-      // A setup puts fresh parts on the bench: nothing is left to replace.
-      if (mo.task && !done && state.current.api?.task(mo.task)?.setup?.length) setFried([]);
+      // A part fried in the last beat is part of what happened there (a fuse blown on purpose stays blown for the
+      // next beat to probe): its Replace control leaves with that beat.
+      setFried([]);
       if (mo.task && !done) {
         pendingSetup.current = mo.task;
         if (state.current.api) {
@@ -289,9 +306,13 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const complete = useCallback(
     (mo: Moment, opts: { tapped?: string; mood?: RobotMood } = {}) => {
       setPhase("done");
-      // What a wrong try wrote on the bench has done its job: the discovery takes its place.
-      setMarks((ms) => ms.filter((k) => !k.id.startsWith("miss-")));
+      finished.current = mo;
+      // What a wrong try wrote on the bench has done its job: the discovery takes its place (and the Hall's note, when
+      // the fry was the point of the beat).
+      setMarks((ms) => ms.filter((k) => !k.id.startsWith("miss-") && !(mo.note && k.id.startsWith("hall-"))));
       const lines: string[] = [];
+      const said = verdictOf(mo, state.current.answers);
+      if (said) lines.push(said.right ? m.lessonBench.called : m.lessonBench.guessed(said.guess));
       if (mo.done) {
         say(mo.done, opts.mood ?? "happy");
         lines.push(mo.done);
@@ -424,13 +445,18 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
 
   const onFried = useCallback(
     (card: FriedCard) => {
+      const mo = state.current.moment;
+      // The fry that finished this beat (a fuse blown on purpose) is its result: the beat's own line and note say it.
+      const result = finished.current === mo;
       setFried((f) => [...f.filter((c) => c.partId !== card.partId), card]);
-      // The secret's own line stays (a fry for science), but the robot looks sorry for the part either way.
-      if (Date.now() - lastSecret.current > 600 && state.current.moment.kind !== "secret") say(state.current.api?.lab.mascot?.fried ?? m.lessonBench.friedLine, "sad");
+      // Written on the part itself, in red pencil: off it goes to the Hall of Fried Parts.
+      if (!(result && mo.note)) addMark({ id: `hall-${card.partId}`, kind: "note", at: friedAt(card), text: m.lessonBench.hallNote, tone: "red" });
+      // The secret's own line and a beat's result line stay (a fry for science), but the robot looks sorry either way.
+      if (Date.now() - lastSecret.current > 600 && mo.kind !== "secret" && !(result && mo.done)) say(state.current.api?.lab.mascot?.fried ?? m.lessonBench.friedLine, "sad");
       else setLine((l) => (l ? { ...l, mood: "sad" } : l));
       announce(m.lab.fried.title(card.shownLabel));
     },
-    [say, announce],
+    [say, announce, addMark],
   );
 
   const onNudge = useCallback(
@@ -706,6 +732,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const mood: RobotMood = !started ? "idle" : (line?.mood ?? (phase === "done" ? "happy" : "idle"));
   const guess = moment.beat?.guess;
   const guessPicked = typeof answers[answerKeys.guess(moment.key)] === "number" ? guess?.options[answers[answerKeys.guess(moment.key)] as number] : undefined;
+  const verdict = started && phase === "done" ? verdictOf(moment, answers) : null;
   const hintsLeft = hintLines().length > hints;
   const canShow = !!moment.task && hints >= hintLines().length && hintLines().length > 0 && !!api?.runtime.canShow(moment.task);
 
@@ -924,14 +951,24 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               </p>
             )}
             <p className="bl-line" ref={lineRef} tabIndex={-1} data-step-heading key={`${moment.key}-${line?.key ?? 0}-${started}`}>
+              {verdict && (
+                <span className="bl-said" data-said={verdict.right ? "right" : "wrong"}>
+                  {verdict.right ? (
+                    m.lessonBench.called
+                  ) : (
+                    <>
+                      {m.lessonBench.guessedBefore}
+                      <span className="bl-said__guess">{verdict.guess}</span>
+                      {m.lessonBench.guessedAfter}
+                    </>
+                  )}{" "}
+                </span>
+              )}
               {shownLine}
             </p>
-            {guessPicked !== undefined && (
+            {guessPicked !== undefined && phase !== "done" && (
               <p className="bl-guess">
                 <span className="bl-guess__k">{m.lessonBench.guessLabel}</span> <span className="bl-hand bl-hand--blue">{guessPicked}</span>
-                {phase === "done" && guess?.answer !== undefined && (
-                  <span className="bl-guess__verdict">{guess.answer === guessPicked ? m.lessonBench.called : m.lessonBench.missed}</span>
-                )}
               </p>
             )}
             {fix && phase === "act" && fix.index === 0 && (
@@ -949,26 +986,6 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               {noteBoxes}
               {action}
             </div>
-            {fried.length > 0 && (
-              <div className="bl-fried">
-                {fried.map((c) => (
-                  <button
-                    key={c.key}
-                    type="button"
-                    className="btn btn--secondary btn--small"
-                    data-replace
-                    onClick={() => {
-                      api?.replace(c);
-                      setFried((f) => f.filter((x) => x.key !== c.key));
-                    }}
-                  >
-                    <Icon name="retry" size={16} />
-                    {c.kind === "meter-fuse" ? m.lab.meter.replaceFuse : m.lessonBench.replace}
-                  </button>
-                ))}
-                <span className="bl-fried__hall">{m.lessonBench.hall}</span>
-              </div>
-            )}
           </div>
           <div className="bl-margin__foot">
             {stamp && (
@@ -1002,6 +1019,12 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               xray={started && !!moment.beat?.xray}
               hintHighlight={hintHighlight}
               marks={marks}
+              replace={started && phase === "act" ? fried.map((c) => ({ card: c, at: friedAt(c) })) : []}
+              onReplace={(c) => {
+                api?.replace(c);
+                setFried((f) => f.filter((x) => x.key !== c.key));
+                setMarks((ms) => ms.filter((k) => k.id !== `hall-${c.partId}`));
+              }}
               check={check}
               popup={popup}
               tool={tool}

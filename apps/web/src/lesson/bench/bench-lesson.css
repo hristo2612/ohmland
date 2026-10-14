@@ -182,7 +182,8 @@
 .bl-struck { text-decoration: line-through; text-decoration-color: var(--bl-red); text-decoration-thickness: 2px; }
 .bl-guess { margin: 0; color: var(--bl-ink-2); font-size: var(--bl-text-sm); }
 .bl-guess__k { font-size: var(--bl-text-xs); font-weight: 600; letter-spacing: var(--tracking-caps); text-transform: uppercase; }
-.bl-guess__verdict { display: block; margin-top: var(--bl-s-1); color: var(--bl-blue); font-family: var(--bl-hand); font-size: var(--bl-text-md); }
+/* A guess against what happened, said by the robot as the start of its line; the learner's own words stay in blue ink. */
+.bl-said__guess { color: var(--bl-blue); }
 
 .bl-act { display: flex; flex-direction: column; align-items: flex-start; gap: var(--bl-s-3); }
 .bl-go, .bl-next { animation: bl-fade var(--bl-dur-write) var(--bl-ease-out) backwards; }
@@ -268,8 +269,6 @@
 .bl-clock[aria-pressed="true"] { border-style: solid; color: var(--bl-ink); }
 .bl-clock__left { margin: 0; color: var(--bl-blue); font-family: var(--bl-mono); font-size: var(--bl-text-xl); }
 
-.bl-fried { display: flex; flex-wrap: wrap; align-items: center; gap: var(--bl-s-2); }
-.bl-fried__hall { color: var(--bl-red); font-size: var(--bl-text-xs); font-weight: 600; letter-spacing: var(--tracking-caps); text-transform: uppercase; }
 
 .bl-xp {
   position: absolute;
@@ -421,6 +420,31 @@
   border-radius: 50%;
   pointer-events: none;
 }
+
+/* A fried part's Replace control, taped to the bench just under the part. */
+.bl-replace-host { position: absolute; inset: 0; pointer-events: none; }
+.bl-replace {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bl-s-1);
+  min-height: var(--bl-tap);
+  padding: 0 var(--bl-s-3);
+  border: 1px solid var(--bl-red);
+  background: var(--bl-slip);
+  box-shadow: var(--bl-slip-shadow);
+  color: var(--bl-red);
+  font: inherit;
+  font-size: var(--bl-text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  transform: translateX(-50%);
+  animation: bl-fade var(--bl-dur-write) var(--bl-ease-out) backwards;
+}
+.bl-replace:hover { background: var(--bl-red-wash); }
+.bl-replace:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .bl-popup-host { position: absolute; inset: 0; pointer-events: none; }
 .bl-popup {

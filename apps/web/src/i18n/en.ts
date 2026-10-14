@@ -200,9 +200,14 @@ export const en = {
     guessLabel: "Your guess",
     yourGuess: (g: string) => `Your guess: ${g}`,
     called: "Called it.",
-    missed: "Not this time. Now you know.",
+    /** A wrong guess, folded into the robot's line: "You guessed {it stays lit}." The guess is in the learner's ink. */
+    guessedBefore: "You guessed ",
+    guessedAfter: ".",
+    guessed: (g: string) => `You guessed ${g}.`,
     replace: "Replace part",
-    hall: "In the Hall of Fried Parts",
+    replaceLabel: (part: string) => `Replace the ${part}`,
+    /** Written in red pencil on a part that just died (6 words at most). */
+    hallNote: "off to the Hall",
     friedLine: "Pop. That one's for the Hall.",
     marginLabel: "The robot's notes",
     benchLabel: "Workbench",

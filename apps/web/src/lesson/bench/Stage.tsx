@@ -11,6 +11,7 @@ import { useStore } from "zustand";
 import { PRINTED_KINDS, boardGeometry, trayLeft, type BenchState } from "@ohmland/bench/core";
 import { isOptional, type LabDefinition, type LabTask, type SolutionStep } from "../../lab/define";
 import { m } from "../../i18n";
+import { Icon } from "../../components/Icon";
 import { useLearner } from "../../progress/store";
 import { prefersReducedMotion } from "../../progress/prefs";
 import { LabAudio } from "../../lab/audio";
@@ -88,6 +89,9 @@ export type StageProps = {
   /** Hint highlights of the current task. */
   hintHighlight: string[] | undefined;
   marks: Mark[];
+  /** Parts that died while the learner works on this beat, each with its Replace control on the bench beside it. */
+  replace: { card: FriedCard; at: string }[];
+  onReplace(card: FriedCard): void;
   check: StageCheck;
   popup: Popup | null;
   /** The one instrument or panel the beat needs ("meter", "scope", "logger", "stopwatch", "tapper", "controls", "views"
@@ -447,6 +451,8 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
       {benchReady && (
         <div className="bl-overlay">
           <Annotations controllerRef={controllerRef} bench={bench} marks={props.marks} />
+          {/* The meter's fuse has its own Replace on the docked meter. */}
+          <ReplaceLayer controllerRef={controllerRef} bench={bench} items={props.replace.filter((r) => !(r.card.kind === "meter-fuse" && tool === "meter"))} onReplace={(c) => cb.current.onReplace(c)} />
           <TapLayer controllerRef={controllerRef} bench={bench} check={props.check} labelOf={api.labelOf} onTap={(a) => cb.current.onTap(a)} />
           {props.popup && (
             <PopupCard controllerRef={controllerRef} bench={bench} at={props.popup.at} title={m.lessonBench.popup.resistorTitle}>
@@ -627,6 +633,42 @@ function TapLayer({
         />
       ))}
     </>
+  );
+}
+
+/** A fried part's Replace control, on the bench just under the part (kept inside the bench), not in the margin. */
+function ReplaceLayer({
+  controllerRef,
+  bench,
+  items,
+  onReplace,
+}: {
+  controllerRef: RefObject<BenchController | null>;
+  bench: import("@ohmland/bench/core").BenchState;
+  items: { card: FriedCard; at: string }[];
+  onReplace(card: FriedCard): void;
+}) {
+  useViewTick(controllerRef);
+  const [ref, size] = useSize();
+  const c = controllerRef.current;
+  return (
+    <div className="bl-replace-host" ref={ref}>
+      {c &&
+        size.w > 0 &&
+        items.map(({ card, at }) => {
+          const a = resolveAnchor(bench, at);
+          const p = a ? c.project(a) : null;
+          if (!p || !p.visible) return null;
+          const left = Math.max(64, Math.min(size.w - 64, p.x));
+          const top = p.y + 72 < size.h - 8 ? p.y + 40 : Math.max(8, p.y - 84);
+          return (
+            <button key={card.key} type="button" className="bl-replace" style={{ left, top }} data-replace aria-label={m.lessonBench.replaceLabel(card.shownLabel.replace(/^[A-Z](?=[a-z])/, (x) => x.toLowerCase()))} onClick={() => onReplace(card)}>
+              <Icon name="retry" size={16} />
+              {card.kind === "meter-fuse" ? m.lab.meter.replaceFuse : m.lessonBench.replace}
+            </button>
+          );
+        })}
+    </div>
   );
 }
 
