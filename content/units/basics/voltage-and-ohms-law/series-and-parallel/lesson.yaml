@@ -1,135 +1,56 @@
-# Blueprint: docs/curriculum/unit-1.md, L12.
+# Blueprint: docs/curriculum/unit-1.md, L12, split (docs/curriculum/conversion-guide.md, B3), retitled "Side by side".
+# A bench lesson (docs/LESSONS.md) on the half breadboard. One idea: side by side, the total is less than the smallest.
+# Lab: content/labs/series-and-parallel.ts. End to end moved to end-to-end.
+format: bench
 id: series-and-parallel
-version: 1
-title: End to end, side by side
-summary: Combine resistors in series and in parallel, predict the totals, and measure the currents.
-minutes: 13
+version: 2
+title: Side by side
+summary: Put resistors side by side on the breadboard, and find the pair squeezes less than either one alone.
+minutes: 7
+lab: series-and-parallel
 unlocks:
   parts: []
   isle: resistor
-steps:
-  - type: hook
-    body: |
-      Two resistors can team up in two ways. End to end, current has to squeeze through both, one after the other.
-      Side by side, current gets a choice of paths. One arrangement makes the total resistance bigger, the other makes
-      it smaller. The robot bets you can't predict how much smaller. Grab two 1 kΩ resistors and prove it wrong.
-    visual: { kind: part, part: resistor }
-    predict:
-      prompt: Two 1 kΩ resistors side by side, with both pairs of ends joined. Total resistance?
-      options:
-        - 2 kΩ
-        - 1 kΩ
-        - 500 Ω
-    mascot: Two resistors, two ways to team up. Place your bets.
 
-  - type: lab
-    lab: series-and-parallel
+start:
+  title: Side by side
+  say: Two resistors side by side. Bet you can't guess the total.
+  go: Take the bet
 
-  - type: explain
-    cards:
-      - title: "End to end: add them"
-        body: |
-          In series, current passes through one resistor and then the next, so their resistances simply add:
-          R = R1 + R2. Two 1 kΩ resistors make 2 kΩ, three make 3 kΩ. On 9 V, two 1 kΩ in series pass 4.5 mA, and
-          each one takes half the voltage: 4.5 V apiece.
-        # widget (planned): series-parallel. Flip two resistors between series and parallel and see the total
-        # resistance, battery current and branch currents update.
-      - title: "Side by side: more paths"
-        body: |
-          In parallel, current splits between the paths and joins up again, so the pair conducts more easily than
-          either one alone. For two resistors, the total is (R1 × R2) ÷ (R1 + R2): product over sum. Two equal
-          resistors give exactly half. For any number of branches, add the reciprocals: 1/R = 1/R1 + 1/R2 + 1/R3 and
-          so on.
-      - title: The smallest wins
-        body: |
-          A parallel group always has less resistance than its smallest member. Put 100 Ω beside 1 MΩ and you get just
-          under 100 Ω, because nearly all the current takes the easy path. That's why a short circuit is so dramatic:
-          a wire across a part is a parallel path of almost zero ohms, and it steals nearly all the current.
-      - title: Shared voltage, shared current
-        body: |
-          Every branch of a parallel group has the same voltage across it, because their ends are joined. Each branch
-          then takes its own current by Ohm's law, and the branch currents add up. Series is the mirror image: one
-          current through everything, with the voltage shared out. Most real circuits mix both.
+beats:
+  - say: Put R2 beside R1, in the same two strips. Guess first.
+    objective: Two paths
+    guess: { options: [About 2 kΩ, About 1 kΩ, About 500 Ω], answer: About 500 Ω }
+    do: parallel-ohms
+    done: Half! Two paths, half the squeeze.
+    note: { at: R2, text: "two paths: half the squeeze" }
+    rule: "Side by side: less than the smallest."
 
-  - type: quiz
-    items:
-      - id: series-total
-        type: numeric
-        prompt: 1 kΩ and 3.3 kΩ in series. Total resistance?
-        answer: 4.3
-        unit: kΩ
-        tolerance: 1
-        explain: "In series, just add: 1 + 3.3 = 4.3 kΩ."
+  - say: Now 1 kΩ beside 3.3 kΩ. Predict the total.
+    objective: Predict a pair
+    do: predict-pair
 
-      - id: parallel-total
-        type: numeric
-        prompt: 1 kΩ and 3.3 kΩ in parallel. Total resistance?
-        answer: 767
-        unit: Ω
-        tolerance: 2
-        hint: Multiply them, then divide by their sum.
-        explain: "Product over sum: (1,000 × 3,300) ÷ 4,300 ≈ 767 Ω."
+  - say: Drop the 3.3 kΩ onto R2. Were you close?
+    do: predict-mixed
+    note: { at: R3, text: "767 Ω: less than either" }
 
-      - id: tiny-and-huge
-        type: choice
-        prompt: 100 Ω in parallel with 1 MΩ. The total is about...
-        options:
-          - text: Just under 100 Ω
-            correct: true
-            why: The total is always below the smallest branch, and the 1 MΩ path carries almost nothing.
-          - text: About 1 MΩ
-            why: Adding a parallel path can only lower the total.
-          - text: About 500 kΩ
-            why: Parallel resistance isn't an average.
-        explain: In parallel, the smallest resistance dominates.
+  - say: "Power on. R1 alone: 9.3 mA. Add R2 back. Guess first."
+    objective: Count the flow
+    guess: { options: [Halves, Stays the same, Doubles], answer: Doubles }
+    do: add-a-branch
+    done: 18.4 mA. Twice the flow!
+    note: { at: R2, text: each path takes its own flow }
 
-      - id: add-a-branch
-        type: choice
-        prompt: A 1 kΩ resistor across 9 V draws 9 mA. You add a second 1 kΩ in parallel. What current does the battery supply now?
-        options:
-          - text: 18 mA
-            correct: true
-            why: Each branch has the full 9 V and takes 9 mA, and the currents add.
-          - text: 4.5 mA
-            why: That would be the two resistors in series.
-          - text: 9 mA
-            why: The new branch adds its own current on top.
-        explain: Parallel branches each draw their own current from the same voltage.
+secret:
+  task: smallest-wins
+  say: Curious? Put the 1 MΩ beside them too.
+  done: Barely a flicker. The small paths win.
+  note: { at: R4, text: "huge path: almost no flow" }
 
-      - id: sams-claim
-        type: choice
-        prompt: Sam says two 1 kΩ resistors in parallel make 2 kΩ. What do you tell Sam?
-        options:
-          - text: That's the series total. In parallel they make 500 Ω
-            correct: true
-            why: Two equal parallel resistors give half.
-          - text: Sam is right
-            why: Adding resistances is the series rule.
-          - text: In parallel they make 1 kΩ
-            why: A second path lowers the total below either resistor.
-        explain: Series adds. Parallel gives less than the smallest.
+fixit:
+  say: Sam's side-by-side pair reads 2 kΩ. Fix it.
+  tasks:
+    - task: fix-sams-pair
 
-      - id: three-equal
-        type: numeric
-        prompt: Three 3.3 kΩ resistors in parallel. Total resistance?
-        answer: 1.1
-        unit: kΩ
-        tolerance: 2
-        hint: Equal resistors in parallel share the load evenly.
-        explain: "N equal resistors in parallel give the value divided by N: 3.3 ÷ 3 = 1.1 kΩ."
-
-  - type: wrap
-    rules:
-      - "Series: resistances add."
-      - "Parallel: the total is less than the smallest branch."
-      - Two equal resistors in parallel make half.
-      - Parallel branches share a voltage. Series parts share a current.
-    realWorld:
-      parts:
-        - Two 1 kΩ resistors
-        - A 3.3 kΩ resistor
-        - A multimeter
-        - A 9 V battery
-        - Clip leads
-      safety:
-        - "Safe at these values: the biggest current is under 20 mA."
+end:
+  say: Less than the smallest. You won the bet.
