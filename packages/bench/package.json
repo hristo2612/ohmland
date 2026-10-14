@@ -12,7 +12,8 @@
     "dev": "vite playground",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "shots": "playwright test -c e2e/playwright.config.ts"
+    "shots": "playwright test -c e2e/playwright.config.ts",
+    "shots:ink": "playwright test -c e2e/ink.config.ts"
   },
   "dependencies": {
     "@ohmland/sim": "workspace:*",
