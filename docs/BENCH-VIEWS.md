@@ -125,6 +125,10 @@ resistor leads, rotate, delete, wire hole to hole, clip and unclip test leads, m
 meter dial, flip switches, press buttons, use sliders such as light and fingertip, x-ray the breadboard, undo and redo.
 Mouse, touch and keyboard in both.
 
+When a view is so close that the breadboard's own row letters and strip numbers are out of sight (a phone working at
+a reading scale), both views pin them to the bench's edge beside their rows and strips (`view/Ruler.tsx`), letters
+down the left and numbers along the top (the other way round on a board seen end on).
+
 A finger hides what it touches, so a touch drag of a clip, a probe tip, a part, a lead or a jumper end shows a loupe
 in both views (`view/Loupe.tsx`): a lens twice life size held above the finger (beside it near the top edge), the snap
 ring of the point a drop would land on inside it, and that point's name in blue ink above it ("D1 long leg", "a14",
