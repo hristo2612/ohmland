@@ -405,8 +405,12 @@ function leadEndPose(bench: BenchState, lead: TestLead, end: "a" | "b"): ClipPos
   return clipPose(here, tailDir, true);
 }
 
-/** Cable length for a lead whose clips' tails are `d` mm apart. */
-const leadLength = (d: number) => Math.min(320, d * 1.1 + 45);
+/**
+ * Cable length for a lead whose clips' tails are `d` mm apart. A lead lying loose (neither clip on anything) keeps only
+ * a little slack: the rest would bunch up into a kink between two clips lying close together on the desk.
+ */
+const leadLength = (d: number, loose = false) => (loose ? d * 1.08 + 6 : Math.min(320, d * 1.1 + 45));
+const isLoose = (lead: TestLead) => !lead.a.to && !lead.b.to;
 
 /**
  * A clip lead's shape as the 3D view draws it: each clip's pose and the cable between their tails. The flow dots,
@@ -415,7 +419,7 @@ const leadLength = (d: number) => Math.min(320, d * 1.1 + 45);
 export function leadCable(bench: BenchState, lead: TestLead, floor: FloorFn): { a: ClipPose; b: ClipPose; cable: THREE.Vector3[] } {
   const a = leadEndPose(bench, lead, "a");
   const b = leadEndPose(bench, lead, "b");
-  const cable = ropePoints(a.tail, a.tailDir, b.tail, b.tailDir, leadLength(a.tail.distanceTo(b.tail)), LEAD_CABLE_R, floor, 2, 0.28);
+  const cable = ropePoints(a.tail, a.tailDir, b.tail, b.tailDir, leadLength(a.tail.distanceTo(b.tail), isLoose(lead)), LEAD_CABLE_R, floor, 2, 0.28);
   return { a, b, cable };
 }
 
@@ -512,7 +516,7 @@ export function LeadView({
           </group>
         );
       })}
-      <Cable from={pa.tail} fromDir={pa.tailDir} to={pb.tail} toDir={pb.tailDir} length={leadLength(pa.tail.distanceTo(pb.tail))} radius={LEAD_CABLE_R} color={lead.color} floor={floor} bend={0.28} points={shape.cable} />
+      <Cable from={pa.tail} fromDir={pa.tailDir} to={pb.tail} toDir={pb.tailDir} length={leadLength(pa.tail.distanceTo(pb.tail), isLoose(lead))} radius={LEAD_CABLE_R} color={lead.color} floor={floor} bend={0.28} points={shape.cable} />
       {gates.map((g) => (
         <GateOnLead key={g.id} gate={g} cable={shape.cable} selected={selectedPart === g.id} hinted={!!hintedParts?.has(g.id)} />
       ))}
