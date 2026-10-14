@@ -16,7 +16,7 @@ import { prefersReducedMotion } from "../three/anim";
 import { isEffect } from "../effects/effects";
 import { SPOT_LAYER, type Spotlight } from "../three/post";
 import type { PaperPalette } from "../three/paper";
-import type { FocusOptions, ScreenPoint } from "../view/controller";
+import type { FocusOptions, Inset, ScreenPoint } from "../view/controller";
 import { meterSpot, parseTarget, targetPoint } from "../view/targets";
 
 export type ViewApi = {
@@ -142,6 +142,7 @@ export function ViewRig({
   store,
   apiRef,
   viewPad,
+  inset,
   setSpotTargets,
   initialCamera,
   onChange,
@@ -150,6 +151,8 @@ export function ViewRig({
   store: BenchStore;
   apiRef: React.MutableRefObject<ViewApi | null>;
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
+  /** The part of the view a docked panel covers (focus's `inset`): every framing keeps clear of it. */
+  inset: React.MutableRefObject<Required<Inset>>;
   setSpotTargets: (t: string[] | null) => void;
   initialCamera: boolean;
   /** Called once per drawn frame in which the camera, the canvas size or the bench changed. */
@@ -267,12 +270,13 @@ export function ViewRig({
       const w = Math.max(1, width);
       const h = Math.max(1, height);
       const pad = viewPad.current;
+      const i = inset.current;
       const px = (x: number) => (x / w) * 2;
       const py = (y: number) => (y / h) * 2;
-      const l = -1 + px(pad.left + padding);
-      const r = 1 - px(padding);
-      const b = -1 + py(pad.bottom + padding);
-      const t = 1 - py(padding);
+      const l = -1 + px(Math.max(pad.left, i.left) + padding);
+      const r = 1 - px(i.right + padding);
+      const b = -1 + py(Math.max(pad.bottom, i.bottom) + padding);
+      const t = 1 - py(i.top + padding);
       return { l: Math.min(l, r - 0.2), r, b: Math.min(b, t - 0.2), t, aspect: w / h };
     };
 
@@ -424,7 +428,7 @@ export function ViewRig({
     return () => {
       apiRef.current = null;
     };
-  }, [get, store, apiRef, viewPad, invalidate, setSpotTargets]);
+  }, [get, store, apiRef, viewPad, inset, invalidate, setSpotTargets]);
 
   // Tell overlays when the camera, the canvas size or the bench changed (once per drawn frame, before it is drawn).
   const last = useRef({ m: new THREE.Matrix4(), p: new THREE.Matrix4(), w: -1, h: -1, bench: null as BenchState | null });

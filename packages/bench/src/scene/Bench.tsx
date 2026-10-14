@@ -17,7 +17,7 @@ import { RoomLight } from "../models/common";
 import { JumperWire } from "../models/Leads";
 import { installPaperTone, paperizeScene, type PaperPalette } from "../three/paper";
 import { Spotlight } from "../three/post";
-import type { BenchController, ScreenPoint } from "../view/controller";
+import type { BenchController, FocusOptions, Inset, ScreenPoint } from "../view/controller";
 import type { BenchRendererProps } from "../view/types";
 import { Desk, StudioEnvironment, StudioLights } from "./Studio";
 import { useInteraction, handleBenchKey, type InteractionApi } from "./Interaction";
@@ -64,6 +64,8 @@ export function Bench(props: BenchProps) {
   const api = useRef<InteractionApi | null>(null);
   const view = useRef<ViewApi | null>(null);
   const viewPad = useRef({ left: 0, bottom: 0 });
+  /** The part of the view a docked panel covers (focus's `inset`): framing keeps clear of it. */
+  const inset = useRef<Required<Inset>>({ top: 0, right: 0, bottom: 0, left: 0 });
   const onAction = useRef(props.onAction);
   const onChange = useRef(props.onChange);
   onAction.current = props.onAction;
@@ -81,7 +83,7 @@ export function Bench(props: BenchProps) {
       }
     }
   }, [listeners]);
-  const pendingFocus = useRef<{ targets: string[]; opts?: { padding?: number; instant?: boolean } } | null>(null);
+  const pendingFocus = useRef<{ targets: string[]; opts?: FocusOptions } | null>(null);
 
   const controller = useMemo<Bench3DController>(
     () => ({
@@ -100,6 +102,8 @@ export function Bench(props: BenchProps) {
         return () => listeners.delete(cb);
       },
       focus: (targets, opts) => {
+        const i = opts?.inset ?? {};
+        inset.current = { top: i.top ?? 0, right: i.right ?? 0, bottom: i.bottom ?? 0, left: i.left ?? 0 };
         if (view.current) view.current.focus(targets, opts);
         else pendingFocus.current = { targets: [...targets], opts };
       },
@@ -205,6 +209,7 @@ export function Bench(props: BenchProps) {
                 camera={props.camera}
                 onReady={props.onReady}
                 viewPad={viewPad}
+                inset={inset}
                 palette={palette}
                 margin={props.margin ?? true}
                 spotTargets={spotTargets}
@@ -383,6 +388,7 @@ function BenchScene({
   camera,
   onReady,
   viewPad,
+  inset,
   palette,
   margin,
   spotTargets,
@@ -391,6 +397,7 @@ function BenchScene({
   pendingFocus,
 }: {
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
+  inset: React.MutableRefObject<Required<Inset>>;
   store: BenchStore;
   element: HTMLElement | null;
   api: React.MutableRefObject<InteractionApi | null>;
@@ -406,7 +413,7 @@ function BenchScene({
   spotTargets: string[] | null;
   setSpotTargets: (t: string[] | null) => void;
   notify: () => void;
-  pendingFocus: React.MutableRefObject<{ targets: string[]; opts?: { padding?: number; instant?: boolean } } | null>;
+  pendingFocus: React.MutableRefObject<{ targets: string[]; opts?: FocusOptions } | null>;
 }) {
   const bench = useBench((s) => s.bench);
   const ui = useBench((s) => s.ui);
@@ -517,7 +524,7 @@ function BenchScene({
       <SoftShadows areas={shadowAreas} version={changed} palette={palette} />
       <PaperUpkeep version={changed} dark={palette.dark} shadows={quality === "high"} />
       <CameraRig center={center} initial={camera} bench={bench} viewPad={viewPad} />
-      <ViewRig store={store} apiRef={view} viewPad={viewPad} setSpotTargets={setSpotTargets} initialCamera={!!camera} onChange={notify} pendingFocus={pendingFocus} />
+      <ViewRig store={store} apiRef={view} viewPad={viewPad} inset={inset} setSpotTargets={setSpotTargets} initialCamera={!!camera} onChange={notify} pendingFocus={pendingFocus} />
       <SpotlightRig store={store} targets={spotTargets} spot={spot} palette={palette} />
       <ReadySignal onReady={onReady} />
       <RoomLight.Provider value={ambient}>
