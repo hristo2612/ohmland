@@ -234,6 +234,7 @@ export const en = {
       npn: { c: "collector", b: "base", e: "emitter" },
       phototransistor: { c: "collector", e: "emitter" },
       "electrolytic-cap": { pos: "plus, the long leg", neg: "minus, the stripe side" },
+      box: { t1: "left post", t2: "right post" },
     } as Record<string, Record<string, string>>,
     /** Names for marks on parts (part:M1/dial), written on the bench when one is tapped. */
     marks: {
@@ -566,6 +567,7 @@ export const en = {
       socketNames: { com: "COM", vohm: "VΩ", ma: "mA", a10: "10A" } as Record<string, string>,
       wrongSocket: "The red lead is in a current socket. Touching a battery like this will blow the fuse.",
       needCurrentSocket: "For current, move the red lead to the mA or 10A socket.",
+      acrossVoltage: "The probes are across a voltage. To read it, turn the dial to volts.",
       probesFree: "Touch the probe tips to two points to measure.",
       fuseBlown: "The meter's mA fuse has blown. The mA range reads nothing until it is replaced.",
       replaceFuse: "Replace meter fuse",
