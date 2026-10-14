@@ -1228,7 +1228,7 @@ export const en = {
     removeLabel: (name: string) => `Delete ${name}`,
     savedAt: (date: string) => `Saved ${date}`,
     defaultName: (n: number) => `Build ${n}`,
-    short: "Your parts, a meter, no rules.",
+    short: "Your parts. No rules.",
     fresh: "Bench",
     toDesk: "Use the desk",
     toBoard: "Use a breadboard",
