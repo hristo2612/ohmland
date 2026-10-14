@@ -229,6 +229,7 @@ export class MultimeterDevice extends Device {
     const a = this.acc;
     const T = a.t;
     const mean = a.v / T;
+    const meanSq = a.v2 / T;
     const ima = a.ima / T;
     const i10 = a.i10 / T;
     this.resetAcc();
@@ -244,7 +245,7 @@ export class MultimeterDevice extends Device {
         value = mean;
         break;
       case "acv":
-        value = Math.sqrt(Math.max(0, a.v2 / T - mean * mean));
+        value = Math.sqrt(Math.max(0, meanSq - mean * mean));
         break;
       case "dca-ma":
         value = ima;

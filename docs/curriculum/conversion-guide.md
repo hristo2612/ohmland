@@ -308,6 +308,9 @@ circuit running.
   `swapped-volts` dropped; `resistor-drop`, `blue-led` → `share-the-push`.
 - Fix-it: "My lamp died the moment I measured. Fix it." Repair: the meter on volts is in the gap; close the loop and
   put the probes across.
+- As built: O1 is two beats, `move-the-plug` (new, the prediction's action) then `reset-meter` (the dial only, any DC
+  volts range). Fix-it task `fix-in-gap` (the meter in the gap reads 8.01 V). The bench stacks the meter in front of
+  the loop so it fits a phone.
 
 **10b `share-the-push`** (new) · "The shared push" · 6 min. Idea: around a loop, the parts share the battery's push.
 - Objectives: O1 `battery-volts` (moved); O2 `add-them-up` (moved, a number check). Secret (new `blue-led`): "Swap in
@@ -316,6 +319,10 @@ circuit running.
   parts bin (`led-color`).
 - Quiz: `resistor-drop` → number check; `blue-led` → secret prediction.
 - Fix-it: "Resistor 9.4 V, LED 0 V. Fix it." Repair: remove the stray lead shorting the LED.
+- As built: O2 measures first (`resistor-share`, `led-share`, new), then `add-them-up` is the lab note box (typed total
+  judged against the learner's own readings: 7.40 + 1.97 V, battery 9.37 V). `resistor-drop` is a number check after
+  it. Secret `blue-led`: drop the blue LED onto the red one; the probes follow it, 3.01 V. Fix-it `fix-stray-lead`: a
+  green lead from the resistor straight to battery minus. Unlocks `led-color` (moved from `volts-across`).
 
 **11 `find-the-law`** · Split, kept half · "Find the law" · 9 min. Idea: V = I × R, found in your own data and proved by
 one prediction.
@@ -327,6 +334,11 @@ one prediction.
 - Quiz: `double-r` → prediction; `current-calc`, `led-resistor`, `nearest-value`, `unit-slip` → `use-the-law`;
   `resistance-calc` dropped.
 - Fix-it: "Row three reads zero. Fix it." Repair: the red plug sits in VΩ while the dial is on mA; move it to mA.
+- As built: each row's I × R is typed while its reading is on the meter (`first-row`, new, for 1 kΩ; then
+  `fill-the-table` for the rest), so nothing has to be remembered; `spot-the-pattern` asks for the number that keeps
+  turning up (the battery's push). The prediction is its own note-only task, `predict-4k7` (new), before the kept
+  `predict-and-test` measures; the 4.7 kΩ resistor comes into play on the desk. `lawmaker` fires as before. Fix-it
+  task `fix-red-plug`. Readings: 9.19, 6.25, 4.23, 2.85 mA; 4.7 kΩ 2.00 mA.
 
 **11b `use-the-law`** (new) · "Predict, then pick" · 6 min. Idea: turn the law round to choose a resistor.
 - Objectives: O1 `size-the-resistor` (new: type the resistance for 15 mA from 9 V with a 2 V LED; answer 467 Ω,
@@ -336,6 +348,10 @@ one prediction.
   together".
 - Quiz: `led-resistor` → O1; `nearest-value` → check; `current-calc` → secret; `unit-slip` → fix-it idea.
 - Fix-it: "I picked 47 Ω for my LED. Fix it before it pops." Repair: swap for 470 Ω.
+- As built: the bench opens with the meter already in series and a quick `wild-guess` (new: 4.7 kΩ, 1.62 mA). The two
+  sums (7 V, then 467 Ω) are number checks, so `size-the-resistor` is not a lab task; `pick-and-prove` is the 470 Ω
+  in the holder (15.41 mA), with nudges for the tray's 4.7 kΩ, 47 Ω (OL) and 10 kΩ. Secret `ten-k`: 0.76 mA. Fix-it
+  task `fix-wrong-pick` (47 Ω reads OL on 20 mA; nothing burns in the simulator at about 120 mA).
 
 **12a `end-to-end`** (new) · "End to end" · 5 min. Idea: in series, squeezes add.
 - Objectives: O1 `series-ohms` (moved); O2 `series-current` (new: the pair in one loop with the battery, meter in
@@ -343,6 +359,10 @@ one prediction.
 - Cards: "End to end: add them" → rule "In series, squeezes add."
 - Quiz: `series-total` → number check.
 - Fix-it: "These should read 2 kΩ. The meter says 1. Fix it." Repair: remove the lead shorting one resistor.
+- As built, on the half board: the meter already probes strips 10 and 18 (OL) and R2 bridges 14 to 18 (1.99 kΩ).
+  O2 is `meter-on-ma` (new: power comes in as a setup, the learner sets the meter for current) then `series-current`
+  (the meter bridges strips 18 and 22: 4.69 mA). Secret (new `swap-in-3k3`): the 3.3 kΩ onto R2, 2.18 mA. Fix-it
+  `fix-shorted` keeps the meter on current: a yellow jumper across R2 makes 9.28 mA.
 
 **12 `series-and-parallel`** · Split, kept half, retitled "Side by side" · "Side by side" · 7 min. Idea: side by side,
 the total is less than the smallest.
@@ -354,6 +374,11 @@ the total is less than the smallest.
   fix-it; `three-equal` dropped.
 - Fix-it: "Sam's side-by-side pair reads 2 kΩ. Fix it." Repair: rewire the series pair as a parallel
   pair.
+- As built, on the half board: O2's prediction is its own note-only task `predict-pair` (new) before the kept
+  `predict-mixed` (0.77 kΩ). O3 is `add-a-branch` (new, replacing `four-times`, whose series half now lives in
+  `end-to-end`): power comes in with R1 alone (9.28 mA), the learner adds R2 beside it (18.43 mA). The secret
+  `smallest-wins` stays on that powered bench: 1 MΩ beside the pair moves the flow by 0.01 mA. Fix-it
+  `fix-sams-pair`: R2 back beside R1, then the black probe from strip 18 to 14 (OL in between).
 
 **13a `count-the-watts`** (new) · "Count the watts" · 6 min. Idea: power is push times flow, in watts.
 - Objectives: O1 `cool-one` (moved, number check in mW); O2 `power-it` (moved, number check in W). Secret: none.

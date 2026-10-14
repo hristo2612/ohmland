@@ -27,6 +27,8 @@ export const PartView = memo(function PartView({ pi, store, name }: { pi: PartIn
   // The desk clock shows simulated time; nothing else re-renders as it passes.
   const clock = !!inkKind(pi.part.kind).clock;
   const minutes = useStore(store, (s) => (clock ? Math.floor((s.snapshot?.t ?? 0) / 60) : 0));
+  // Underneath a perfboard turned copper side up: the board draws the legs that poke through.
+  if (pi.pose.under) return null;
   return (
     <g data-own={pi.part.id} data-kb={`part:${pi.part.id}`} tabIndex={0} role="button" aria-label={name}>
       <FlyingLeads pi={pi} />
@@ -150,7 +152,7 @@ export function GlowLayer({ parts, store, defs, quality }: { parts: PartInk[]; s
   return (
     <g>
       {parts
-        .filter((p) => p.part.kind === "led")
+        .filter((p) => p.part.kind === "led" && !p.pose.under)
         .map((p) => (
           <LedGlow key={p.part.id} pi={p} store={store} defs={defs} rays={quality === "high"} />
         ))}

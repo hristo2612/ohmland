@@ -19,6 +19,18 @@ import type { InteractionApi } from "./Interaction";
 // switched on. Colours and type come from the page's notebook tokens when it has them (fallbacks are the light page).
 const CSS = `
 .ohb-root:focus-visible{box-shadow:inset 0 0 0 2px var(--focus,#1F3C9A)}
+.ohb-readouts{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.ohb-stress{position:absolute;left:0;top:0;width:52px;height:10px;background:var(--paper-slip,#FCFAF5);border:1px solid var(--rule-soft,#D8D0C1);box-shadow:2px 2px 0 var(--shadow-ink,#E1D9CA)}
+.ohb-stress i{position:absolute;left:0;top:0;bottom:0;background:var(--sk-band-green,#3C8B4A)}
+.ohb-stress[data-tone="mid"] i{background:var(--sk-band-orange,#E07B24)}
+.ohb-stress[data-tone="high"] i{background:var(--sk-band-red,#C9372A)}
+.ohb-stress[data-tone="dead"] i{background:var(--ink-3,#6B655B)}
+.ohb-stress b{position:absolute;top:0;bottom:0;width:1px;background:var(--ink,#24221E)}
+.ohb-root[data-dark] .ohb-stress i{background:var(--sk-band-green,#4FA35D)}
+.ohb-root[data-dark] .ohb-stress[data-tone="mid"] i{background:var(--sk-band-orange,#EB8F3A)}
+.ohb-root[data-dark] .ohb-stress[data-tone="high"] i{background:var(--sk-band-red,#E0584A)}
+.ohb-root[data-dark] .ohb-stress[data-tone="dead"] i{background:var(--ink-3,#9A9488)}
+.ohb-root[data-dark] .ohb-stress b{background:var(--ink,#ECE6DA)}
 .ohb-ui{position:absolute;inset:0;pointer-events:none;font:400 14px/20px var(--font-serif,"Literata",Georgia,"Times New Roman",serif);color:var(--ink,#24221E)}
 .ohb-panel{pointer-events:auto;background:var(--paper-slip,#FCFAF5);border:1px solid var(--rule-soft,#D8D0C1);border-radius:2px;box-shadow:2px 2px 0 var(--shadow-ink,#E1D9CA)}
 .ohb-row{display:flex;gap:2px;align-items:center;padding:2px}
@@ -254,8 +266,7 @@ export function Overlay({
         out.push(
           <button key={`act:${a.id}`} type="button" className="ohb-btn ohb-chip" onClick={() => {
             if (fresh()) return;
-            const p = ops.actionParams(s.bench, selPart.id, a.id);
-            if (p) s.setParams(selPart.id, p as never);
+            s.apply((b) => ops.runAction(b, selPart.id, a.id));
             close();
           }}>
             {labels.actions[`${selPart.kind}.${a.id}`] ?? a.id}

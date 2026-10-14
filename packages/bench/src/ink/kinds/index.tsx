@@ -14,10 +14,11 @@ import { MCU } from "./mcu";
 import { POWER } from "./power";
 import { PROPS } from "./props";
 import { RADIAL } from "./radial";
+import { SOLDER_INK } from "./solder";
 import { START } from "./start";
 import type { DrawProps, InkKind, InkRegistry } from "./types";
 
-export const INK_KINDS: InkRegistry = { ...AXIAL, ...RADIAL, ...CONTROLS, ...POWER, ...PROPS, ...START, ...MCU, ...CHIPS };
+export const INK_KINDS: InkRegistry = { ...AXIAL, ...RADIAL, ...CONTROLS, ...POWER, ...PROPS, ...START, ...MCU, ...CHIPS, ...SOLDER_INK };
 
 function Fallback({ pi }: DrawProps) {
   const labels = useLabels();
@@ -59,7 +60,8 @@ export function PartDrawing(p: DrawProps): ReactNode {
 
 /** The flexible leads of desk parts (battery snap, speaker wires), in desk coordinates. */
 export function FlyingLeads({ pi }: { pi: PartInk }) {
-  if (!pi.ends) return null;
+  // Hookup wire and an adapter's cord draw themselves.
+  if (!pi.ends || pi.part.kind === "hookup-wire" || pi.part.kind === "wall-adapter") return null;
   const exits: Record<string, { at: Vec2; dir: Vec2; color: string }> =
     pi.part.kind === "battery"
       ? { pos: { at: [-1.6, -3.4], dir: [0, -1], color: "red" }, neg: { at: [1.6, -3.4], dir: [0, -1], color: "black" } }

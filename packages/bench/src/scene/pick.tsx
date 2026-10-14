@@ -24,7 +24,8 @@ export type Pick =
   | { type: "dial" }
   | { type: "dialMode"; mode: MeterMode }
   | { type: "plug"; color: ProbeColor }
-  | { type: "probe"; color: ProbeColor };
+  /** `tip`: the probe's tip end, which a pencil card's drawing strip under it beats (the grip still wins). */
+  | { type: "probe"; color: ProbeColor; tip?: true };
 
 const proxyMaterial = new THREE.MeshBasicMaterial({ visible: true, transparent: true, opacity: 0, depthWrite: false });
 const unitBox = new THREE.BoxGeometry(1, 1, 1);
