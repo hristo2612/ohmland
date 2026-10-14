@@ -311,7 +311,7 @@ export function useInteraction({
       for (const l of b.leads) {
         let pts = cables.get(l);
         if (!pts) {
-          pts = leadCable(b, l, floorFor.floor).cable;
+          pts = leadCable(b, l, floorFor.floor, store.getState().cableStyle).cable;
           cables.set(l, pts);
         }
         let total = 0;
