@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { Drive, runProgram, type DriveMode } from "../src";
+import { Drive, VirtualBoard, Vm, compile, runProgram, type DriveMode } from "../src";
 import * as P from "./programs";
 
 const US = 1e6;
@@ -176,6 +176,28 @@ void loop() {
     expect(rises[0]).toBeCloseTo(0, 3);
     expect(rises[1]).toBeCloseTo(1.5, 3);
     expect(rises[2]).toBeCloseTo(3.5, 3);
+  });
+});
+
+describe("step and trace", () => {
+  test("step runs one statement at a time; trace keeps the last few with their board times", () => {
+    const c = compile(P.BLINK);
+    if (!c.ok) throw new Error("does not compile");
+    const vm = new Vm(c.program, { trace: 8 });
+    const board = new VirtualBoard();
+    const lines: (number | undefined)[] = [];
+    for (let k = 0; k < 8; k++) {
+      expect(vm.step(board)).toBe("step");
+      lines.push(c.program.stmts[vm.stmt]?.span?.line);
+    }
+    // setup's pinMode, then each pass: the call to loop() (no line of its own), then lines 6 to 9.
+    expect(lines).toEqual([2, undefined, 6, 7, 8, 9, undefined, 6]);
+    // The second pass's digitalWrite has run: 1 µs for the step, 3 for the pin call.
+    expect(vm.t).toBe(2_000_020);
+    const tr = vm.traced();
+    expect(tr).toHaveLength(8);
+    expect(tr[0]!.t).toBe(0);
+    expect(tr[tr.length - 1]!.t).toBe(2_000_016);
   });
 });
 
