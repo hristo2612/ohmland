@@ -109,6 +109,40 @@ async function solderPad(page: Page, view: View, spot: string, opts: { feedMs?: 
   );
 }
 
+/** Where the iron is now ("stand", a spot or "desk"), and the scorch marks on the desk. */
+const ironState = (page: Page) =>
+  page.evaluate(() => {
+    const st = (window as unknown as SolderWindow).__bench.getState();
+    const iron = String(st.bench.parts.find((p) => p.id === "ST1")?.params.iron ?? "stand");
+    return { iron, scorch: ((st.station as unknown as { scorch?: unknown[] } | null)?.scorch ?? []).length };
+  });
+
+/**
+ * Drop the iron on the bare desk behind the station (no spot under the pointer): it lands there, scorches the paper,
+ * then slides home. `touch` drags with a finger through CDP.
+ */
+async function dropOnDesk(page: Page, view: View, touch = false) {
+  const grip = await at(page, view, "spot:ST1.grip");
+  const stand = await at(page, view, "spot:ST1.stand");
+  const to = { x: stand.x - 40, y: stand.y - 130 };
+  if (touch) {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: grip.x, y: grip.y }] });
+    for (let i = 1; i <= 12; i++) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: grip.x + ((to.x - grip.x) * i) / 12, y: grip.y + ((to.y - grip.y) * i) / 12 }] });
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  } else {
+    await page.mouse.move(grip.x, grip.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 14 });
+    await page.mouse.up();
+  }
+  await page.waitForTimeout(300);
+  expect((await ironState(page)).iron).toBe("desk");
+  // About 2 s on the paper scorches it; after 4 s the iron slides back into its stand.
+  await page.waitForFunction(() => (window as unknown as SolderWindow).__bench.getState().bench.parts.find((p) => p.id === "ST1")?.params.iron === "stand", null, { timeout: 15_000 });
+  expect((await ironState(page)).scorch).toBeGreaterThan(0);
+}
+
 for (const view of ["ink", "3d"] as const) {
   test.describe(`${view}: desktop`, () => {
     test.use({ viewport: { width: 1440, height: 900 } });
@@ -138,6 +172,11 @@ for (const view of ["ink", "3d"] as const) {
       await shot(page, `solder-${view}-lit`);
     });
 
+    test("the iron dropped on the bare desk scorches it, then slides home", async ({ page }) => {
+      await open(page, view, "scene=solder&joints=none");
+      await dropOnDesk(page, view);
+    });
+
     test("magnifier and tug", async ({ page }) => {
       await open(page, view, "scene=solder&joints=some");
       const p = await at(page, view, "spot:PB1.D3");
@@ -162,6 +201,12 @@ for (const view of ["ink", "3d"] as const) {
 
   test.describe(`${view}: phone`, () => {
     test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+    test("a finger drops the iron on the bare desk: it scorches it, then slides home", async ({ page }) => {
+      // A phone frames the station, as a lesson about it does.
+      await open(page, view, "scene=solder&joints=none&focus=part:ST1");
+      await dropOnDesk(page, view, true);
+    });
 
     test("quick mode: press and hold a joint", async ({ page }) => {
       // A lesson frames the board on a phone; quick mode needs only the joint.
