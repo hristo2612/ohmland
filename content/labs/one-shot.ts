@@ -23,6 +23,8 @@ const LAMP_ON_PIN1: SolutionStep[] = [{ do: "move", part: "R3", at: "b14-b20" }]
 export default defineLab({
   id: "one-shot",
   title: "One tap, one glow",
+  // A 555 wakes with its latch at random: let a power-up glow end unseen.
+  settle: 5,
   bench: {
     board: "half",
     frame: ["top+:1", "rail-:29"],

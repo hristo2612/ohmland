@@ -37,6 +37,8 @@ const SLIPPED: SolutionStep[] = [
 export default defineLab({
   id: "blink-forever",
   title: "It never rests",
+  // A 555 wakes with its latch at random: let a power-up glow end unseen.
+  settle: 5,
   bench: {
     board: "half",
     frame: ["top+:1", "rail-:29"],
@@ -80,6 +82,8 @@ export default defineLab({
     hint: "Pin 2 must sit on the capacitor's strip.",
     fried: "That shouldn't happen here. Fresh chip in.",
   },
+  // The 555 map so far (the notebook draws it on the signed-off page).
+  panels: [{ kind: "xray", id: "xray", part: "U1", pins: [1, 8, 2, 3, 6, 7, 4] }],
   tasks: [
     {
       id: "blink-forever",

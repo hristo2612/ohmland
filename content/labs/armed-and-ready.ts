@@ -40,6 +40,8 @@ const DISARM_ON_PIN2: SolutionStep[] = [
 export default defineLab({
   id: "armed-and-ready",
   title: "Exit, wait, alarm",
+  // A 555 wakes with its latch at random: let a power-up glow end unseen.
+  settle: 5,
   bench: {
     board: "full",
     frame: ["top+:1", "rail-:63", "desk:-186,0", "desk:128,88"],
@@ -118,6 +120,8 @@ export default defineLab({
     hint: "Find where yellow ends. Something must carry that moment.",
     fried: "Loud, but that shouldn't break. Fresh part in.",
   },
+  // The 555 map so far (the notebook draws it on the signed-off page).
+  panels: [{ kind: "xray", id: "xray", part: "U1", pins: [1, 8, 2, 3, 6, 7, 4, 5] }],
   tasks: [
     {
       id: "exit-delay",

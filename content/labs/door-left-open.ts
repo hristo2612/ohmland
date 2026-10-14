@@ -29,6 +29,8 @@ const SIDE_BY_SIDE: SolutionStep[] = [
 export default defineLab({
   id: "door-left-open",
   title: "The door left open",
+  // A 555 wakes with its latch at random: let a power-up glow end unseen.
+  settle: 5,
   bench: {
     board: "half",
     frame: ["top+:1", "rail-:30", "desk:142,8"],
@@ -66,6 +68,8 @@ export default defineLab({
     hint: "The capacitor goes between the loop and pin 2.",
     fried: "That shouldn't happen here. Fresh part in.",
   },
+  // The 555 map so far (the notebook draws it on the signed-off page).
+  panels: [{ kind: "xray", id: "xray", part: "U1", pins: [1, 8, 2, 3, 6, 7, 4, 5] }],
   tasks: [
     {
       id: "door-opens",

@@ -26,6 +26,8 @@ const PIN6_TO_PLUS: SolutionStep[] = [
 export default defineLab({
   id: "set-and-clear",
   title: "Set and clear",
+  // A 555 wakes with its latch at random: let a power-up glow end unseen.
+  settle: 5,
   bench: {
     board: "half",
     frame: ["top+:1", "rail-:29"],

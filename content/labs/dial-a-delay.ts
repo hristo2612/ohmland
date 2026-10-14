@@ -36,6 +36,8 @@ const SHORTED_R1: SolutionStep[] = [
 export default defineLab({
   id: "dial-a-delay",
   title: "Dial a delay",
+  // A 555 wakes with its latch at random: let a power-up glow end unseen.
+  settle: 5,
   bench: {
     board: "half",
     frame: ["top+:1", "rail-:29"],
@@ -65,12 +67,15 @@ export default defineLab({
     tray: [{ id: "C2", kind: "electrolytic-cap", params: { farads: 22e-6, volts: 16 }, count: 1, label: "22 µF capacitor" }],
     instruments: [{ kind: "stopwatch", start: { part: "S1", pressed: true }, stop: { part: "D1", lit: false }, watch: "U1.6" }],
     controls: [{ id: "knob", label: "Knob RV1", part: "RV1", key: "position", min: 0, max: 1, value: 0.1, step: 0.005, unit: "%" }],
+    watch: ["U1.3"],
   },
   mascot: {
     hint: "1.1 × R × 10 µF = 2 s. Solve for R.",
     fried: "Pop. Pin 7 met plus with nothing between. Fresh chip in.",
   },
   fried: { chip: "555 timer, pin 7 straight to plus" },
+  // The 555 map so far (the notebook draws it on the signed-off page).
+  panels: [{ kind: "xray", id: "xray", part: "U1", pins: [1, 8, 2, 3, 6, 7] }],
   tasks: [
     {
       id: "longer-glow",
@@ -123,7 +128,11 @@ export default defineLab({
         const at = lab.memory["brokeAt"] as number | undefined;
         if (at === undefined || lab.connected("R1.a", "R1.b") || !alive(lab) || knob(lab) > 0.02) return false;
         // A 0.11 s glow fills the capacitor a little before the stopwatch notes it, so no `fromEmpty` here.
-        return runsSince(lab, at).some((r) => runNear(lab, T(lab, "C1"), 0.3, r));
+        const t = T(lab, "C1");
+        if (runsSince(lab, at).some((r) => runNear(lab, t, 0.3, r))) return true;
+        // A blink this short can fall between two frames of a slow screen; pin 3's own edges time it exactly.
+        const e = lab.edges("U1.3").times.filter(([x]) => x >= at);
+        return e.some(([x, d], i) => d === 1 && e[i + 1]?.[1] === 0 && Math.abs(e[i + 1]![0] - x - t) <= 0.3 * t);
       },
       hints: ["Fix first, turn second.", "A jumper skips R1. Take it out, then turn the knob to zero."],
       highlight: ["W10"],

@@ -47,6 +47,8 @@ function dutySince(lab: LabView, key: string, cond: boolean) {
 export default defineLab({
   id: "short-and-sweet",
   title: "Short flash, long gap",
+  // A 555 wakes with its latch at random: let a power-up glow end unseen.
+  settle: 5,
   bench: {
     board: "half",
     frame: ["top+:1", "rail-:29"],

@@ -25,6 +25,8 @@ const PULL_DOWN: SolutionStep[] = [{ do: "move", part: "R2", at: "b15-rail-:15" 
 export default defineLab({
   id: "ghost-press",
   title: "The ghost press",
+  // A 555 wakes with its latch at random: let a power-up glow end unseen.
+  settle: 5,
   bench: {
     board: "half",
     frame: ["top+:1", "rail-:29"],
@@ -64,6 +66,8 @@ export default defineLab({
     hint: "A pin needs something holding it. Plus, through a resistor.",
     fried: "Nothing should break here. Fresh part in.",
   },
+  // The 555 map so far (the notebook draws it on the signed-off page).
+  panels: [{ kind: "xray", id: "xray", part: "U1", pins: [1, 8, 2, 3] }],
   tasks: [
     {
       id: "ghost",

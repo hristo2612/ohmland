@@ -26,6 +26,8 @@ const ONE_SIDE: SolutionStep[] = [{ do: "move", part: "U1", at: "b14" }];
 export default defineLab({
   id: "meet-the-chips",
   title: "Pin 1 by the notch",
+  // A 555 wakes with its latch at random: let a power-up glow end unseen.
+  settle: 5,
   bench: {
     board: "half",
     frame: ["top+:1", "rail-:29"],

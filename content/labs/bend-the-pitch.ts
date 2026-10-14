@@ -30,6 +30,8 @@ const ON_PIN4: SolutionStep[] = [
 export default defineLab({
   id: "bend-the-pitch",
   title: "Bend the note",
+  // A 555 wakes with its latch at random: let a power-up glow end unseen.
+  settle: 5,
   bench: {
     board: "half",
     frame: ["top+:1", "rail-:29"],
