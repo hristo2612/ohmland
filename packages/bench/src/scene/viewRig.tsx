@@ -18,7 +18,7 @@ import { SPOT_LAYER, type Spotlight } from "../three/post";
 import type { PaperPalette } from "../three/paper";
 import type { FocusOptions, Inset, ScreenPoint } from "../view/controller";
 import { STRESS_MARK, meterSpot, parseTarget, targetPoint } from "../view/targets";
-import { focalTargets, frameWithParts, needsReading } from "../view/framing";
+import { frameWithParts } from "../view/framing";
 import { heldOf, holderOf } from "../seats";
 
 export type ViewApi = {
@@ -372,20 +372,8 @@ export function ViewRig({
       return solveFrame(pts, angles(opts.turn, !!opts.top), cam.fov ?? FOV, rect.aspect, rect, 45);
     };
 
-    /**
-     * A pose `read` px between neighbouring holes at the targets, when `pose` frames them smaller: as much of them as
-     * fits at that scale, moved only as far as it takes to keep their anchors (`focalTargets`) in view. Null when
-     * `pose` is close enough already.
-     */
-    const readingPose = (
-      pose: { position: THREE.Vector3; target: THREE.Vector3 },
-      boxes: THREE.Box3[],
-      targets: string[],
-      read: number,
-      padding: number,
-      turn: boolean,
-      zoom?: number,
-    ): { position: THREE.Vector3; target: THREE.Vector3 } | null => {
+    /** `pose` pulled back along its view until neighbouring holes at its target are no more than `read` px apart. */
+    const noCloser = (pose: { position: THREE.Vector3; target: THREE.Vector3 }, read: number) => {
       const { width, height } = get().size;
       const cam = (get().camera as THREE.PerspectiveCamera).clone();
       cam.position.copy(pose.position);
@@ -395,33 +383,9 @@ export function ViewRig({
       const a = pose.target.clone().project(cam);
       const b = pose.target.clone().addScaledVector(right, PITCH).project(cam);
       const pitch = Math.hypot(((b.x - a.x) / 2) * width, ((b.y - a.y) / 2) * height);
-      read = Math.min(read, zoom ? pitch * zoom : Infinity);
-      if (pitch >= read) return null;
-      // The desk the free part of the view shows at that scale (depth foreshortened by the camera's tilt).
-      const rect = viewRect(padding);
-      const mm = PITCH / read;
-      const across = (((rect.r - rect.l) / 2) * width * mm) / 2;
-      const deep = (((rect.t - rect.b) / 2) * height * mm) / Math.cos(turn ? PORTRAIT_POLAR : HOME_POLAR) / 2;
-      const [hx, hz] = turn ? [deep, across] : [across, deep];
-      const all = new THREE.Box3();
-      for (const bx of boxes) all.union(bx);
-      const focal = new THREE.Box3();
-      for (const t of focalTargets(bench(), targets)) {
-        const fb = targetBox(t);
-        if (fb && !fb.isEmpty()) focal.union(fb);
-      }
-      if (focal.isEmpty()) focal.copy(all);
-      const keep = (c: number, lo: number, hi: number, half: number) => {
-        const room = 3;
-        if (hi - lo > (half - room) * 2) return (lo + hi) / 2;
-        return Math.min(lo + half - room, Math.max(hi - half + room, c));
-      };
-      const c = all.getCenter(new THREE.Vector3());
-      const cx = keep(c.x, focal.min.x, focal.max.x, hx);
-      const cz = keep(c.z, focal.min.z, focal.max.z, hz);
-      const y = Math.max(0, focal.min.y);
-      const sheet = new THREE.Box3(new THREE.Vector3(cx - hx, y, cz - hz), new THREE.Vector3(cx + hx, y + 1, cz + hz));
-      return frame([sheet], { padding, turn });
+      if (pitch <= read) return pose;
+      const back = pose.position.clone().sub(pose.target).multiplyScalar(pitch / read);
+      return { position: pose.target.clone().add(back), target: pose.target };
     };
 
     const isPortrait = () => {
@@ -524,7 +488,7 @@ export function ViewRig({
         const turn = !printed && shouldTurn(boxes);
         // Hands-on work (`read`) comes as close as aiming needs; a look at a part keeps the camera back.
         let pose = frame(boxes, { padding, turn, minSize: MIN_FRAME, maxFill: opts.read ? undefined : MAX_FILL });
-        if (opts.read && needsReading(bench(), targets)) pose = readingPose(pose, boxes, targets, opts.read, padding, turn, opts.readZoom) ?? pose;
+        if (opts.read) pose = noCloser(pose, opts.read);
         home.current = null;
         move(pose, !opts.instant);
       },

@@ -476,6 +476,19 @@ html:has(.bl:not(.bl--finale)) { overflow: hidden; }
 .bl-slider__stops [data-on] { color: var(--bl-blue); font-weight: 600; }
 .bl-slider__caption { margin: 0 0 var(--bl-s-2); color: var(--bl-ink-2); font-size: var(--bl-text-sm); }
 
+/* The drawing a beat builds from, docked above the bench on a phone while the board is framed close. */
+.bl-drawing {
+  position: absolute;
+  top: var(--bl-s-2);
+  right: calc(var(--bl-tap) + var(--bl-s-3));
+  padding: var(--bl-s-1);
+  border: 1px solid var(--bl-rule);
+  background: var(--bl-slip);
+  box-shadow: var(--bl-slip-shadow);
+  pointer-events: none;
+  animation: bl-pop var(--bl-dur-write) var(--bl-ease-press) backwards;
+}
+
 /* One instrument at a time, on the bench's lower edge. A tall one scrolls inside, never the page. */
 .bl-tool {
   position: absolute;

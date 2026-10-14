@@ -1120,6 +1120,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               spot={spot}
               frame={frame}
               hands={started ? (moment.kind === "fix" ? "fix" : moment.kind === "beat" && moment.action === "task" ? "beat" : null) : null}
+              line={started ? moment.say : undefined}
               xray={started && !!moment.beat?.xray}
               hintHighlight={hintHighlight}
               marks={marks}

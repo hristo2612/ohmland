@@ -2,7 +2,7 @@
  * Ink marks the lesson draws over the bench (Annotations.tsx renders them through BenchController.project, so they
  * look the same over the 3D and the ink view). Pure helpers: anchor resolution and hole judging for tap checks.
  */
-import { boardGeometry, type BenchState } from "@ohmland/bench/core";
+import { boardGeometry, hiddenParts, type BenchState } from "@ohmland/bench/core";
 import { resolveAttach } from "../../lab/anchors";
 
 export type MarkKind =
@@ -68,4 +68,52 @@ export function stripHoles(bench: BenchState, hole: string): string[] {
 /** Every hole id on the bench's board. */
 export function allHoles(bench: BenchState): string[] {
   return bench.board ? [...boardGeometry(bench.board).holes.keys()] : [];
+}
+
+/** Words that name a kind of part at the end of a label ("1 kΩ resistor", "9 V battery"): either half names it. */
+const KIND_WORDS = new Set(["resistor", "battery", "switch", "led", "lamp", "fuse", "capacitor", "transistor", "relay", "diode", "button", "pushbutton", "cell", "chip", "probe", "trimmer", "speaker", "box"]);
+
+/**
+ * The parts on the bench a robot line names: by id ("R1"), by label ("Lamp", "Switch"), or by either half of a label
+ * that ends in a kind ("the 1.5 kΩ", "the battery's snap").
+ */
+export function namedParts(line: string, bench: BenchState, labels: Record<string, string>): string[] {
+  const text = ` ${line
+    .toLowerCase()
+    .replace(/['’]s\b/g, " ")
+    .replace(/[,!?;:()"]|\.(?=\s|$)/g, " ")
+    .replace(/\s+/g, " ")} `;
+  const hidden = new Set(hiddenParts(bench));
+  return bench.parts
+    .filter((p) => !hidden.has(p.id))
+    .filter((p) => {
+      const label = (labels[p.id] ?? "").toLowerCase().trim();
+      const names = new Set<string>([p.id.toLowerCase()]);
+      if (label.length >= 3) names.add(label);
+      const words = label.split(/\s+/);
+      const last = words[words.length - 1] ?? "";
+      if (words.length > 1 && KIND_WORDS.has(last)) {
+        names.add(last);
+        // A value names one part ("the 1.5 kΩ"); a colour ("red") is not a name, it is how a line describes things.
+        const value = words.slice(0, -1).join(" ");
+        if (/\d/.test(value)) names.add(value);
+      }
+      return [...names].some((n) => n.length >= 2 && text.includes(` ${n} `));
+    })
+    .map((p) => p.id);
+}
+
+/**
+ * Lab shorthand as framing targets, each taken whole: a lead or a jumper named by its id (both ends in view), and a
+ * part's lead or terminal with the part it belongs to (a battery's snap brings the battery).
+ */
+export function wholeTargets(bench: BenchState, list: readonly string[] | undefined): string[] {
+  return (list ?? []).flatMap((s) => {
+    if (bench.leads.some((l) => l.id === s)) return [`lead:${s}`];
+    if (bench.wires.some((x) => x.id === s)) return [`wire:${s}`];
+    const a = resolveAnchor(bench, s);
+    if (!a) return [];
+    const pin = /^pin:([^.]+)\./.exec(a);
+    return pin && bench.parts.some((p) => p.id === pin[1]) ? [a, `part:${pin[1]}`] : [a];
+  });
 }

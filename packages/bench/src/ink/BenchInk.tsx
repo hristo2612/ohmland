@@ -19,7 +19,7 @@ import { BoxWires, InkOverlays, InkPush } from "./draw/Overlays";
 import { MeterBody, MeterLeads } from "./draw/Meter";
 import { Readouts } from "./draw/Readouts";
 import { DefsContext, InkDefs } from "./draw/shared";
-import { focalTargets, frameWithParts, needsReading } from "../view/framing";
+import { frameWithParts } from "../view/framing";
 import { boxCorners, n3 } from "./frame";
 import { attachInteraction, type InkApi } from "./interaction";
 import { KeyCursor, anchorName, handleInkKey, partName, startCursor, type KeyEnv } from "./keys";
@@ -249,32 +249,8 @@ export function BenchInk(props: BenchInkProps) {
     },
     [view, homeRect, compact, store, padNow],
   );
-  /**
-   * The rectangle that frames `rect` at no less than `read` px between neighbouring holes, when the targets need it:
-   * as much of `rect` as fits at that scale, moved only as far as it takes to keep the targets' anchors in view.
-   */
-  const readingRect = useCallback(
-    (rect: Rect, pad: Pad, read: number, targets: string[], zoom?: number): { rect: Rect; s: number } | null => {
-      const m = modelRef.current;
-      const fit = fitRect(rect, view.vp, pad, 60).s;
-      const s = Math.min(read / PITCH, zoom ? fit * zoom : Infinity);
-      if (!needsReading(m.bench, targets) || fit >= s) return null;
-      const hw = Math.max(1, view.vp.w - pad.left - pad.right) / s / 2;
-      const hh = Math.max(1, view.vp.h - pad.top - pad.bottom) / s / 2;
-      const focal = targetsRect(m, focalTargets(m.bench, targets)) ?? rect;
-      const keep = (c: number, lo: number, hi: number, half: number) => {
-        const room = 3;
-        if (hi - lo > (half - room) * 2) return (lo + hi) / 2;
-        return Math.min(lo + half - room, Math.max(hi - half + room, c));
-      };
-      const cx = keep((rect[0] + rect[2]) / 2, focal[0], focal[2], hw);
-      const cz = keep((rect[1] + rect[3]) / 2, focal[1], focal[3], hh);
-      return { rect: [cx - hw, cz - hh, cx + hw, cz + hh], s };
-    },
-    [view],
-  );
   /** What the view frames: home, or what focus() asked for. A resize frames it again (unless the learner moved). */
-  const framing = useRef<{ targets: string[]; padding?: number; read?: number; readZoom?: number } | null>(null);
+  const framing = useRef<{ targets: string[]; padding?: number; read?: number } | null>(null);
   const applyFraming = useCallback(
     (instant: boolean) => {
       if (!view.sized) return;
@@ -298,12 +274,10 @@ export function BenchInk(props: BenchInkProps) {
       const py = Math.min(p * 0.5, Math.max(0, view.vp.h - base.top - base.bottom) * 0.2);
       const pad = { top: base.top + py, right: base.right + px, bottom: base.bottom + py, left: base.left + px };
       const rect = growRect([cx - hw, cz - hh, cx + hw, cz + hh], 3);
-      // Hands-on work keeps holes and legs far enough apart to aim at, even when not everything fits.
-      const read = f.read ? readingRect(rect, pad, f.read, f.targets, f.readZoom) : null;
-      if (read) view.fit(read.rect, pad, { instant, max: Math.max(18, read.s) });
-      else view.fit(rect, pad, { instant, max: 18 });
+      // Hands-on work comes no closer than its reading scale: the whole job stays in view (the loupe aims).
+      view.fit(rect, pad, { instant, max: f.read ? Math.min(18, f.read / PITCH) : 18 });
     },
-    [view, fitHomeNow, padNow, readingRect],
+    [view, fitHomeNow, padNow],
   );
   const fitHome = useCallback(
     (instant = false) => {
@@ -486,7 +460,6 @@ export function BenchInk(props: BenchInkProps) {
               targets: [...targets],
               ...(opts?.padding !== undefined ? { padding: opts.padding } : {}),
               ...(opts?.read ? { read: opts.read } : {}),
-              ...(opts?.readZoom ? { readZoom: opts.readZoom } : {}),
             }
           : null;
         const i = opts?.inset ?? {};
