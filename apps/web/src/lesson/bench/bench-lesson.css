@@ -639,6 +639,27 @@
   .bl-tool .dial { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 2px; }
   .bl-tool .dial__pos { min-height: var(--bl-tap); padding: 0; font-size: var(--bl-text-xs); }
   .bl-tool .meter-panel__range .select { min-height: var(--bl-tap); }
+  /* Every docked panel as a slim strip: one frame (the dock's), no explaining line (the robot says it), controls at
+     a full touch size. */
+  .bl-tool .instrument { gap: var(--bl-s-1); padding: var(--bl-s-1) var(--bl-s-2); border: 0; border-radius: 0; background: transparent; }
+  .bl-tool .panel__help { display: none; }
+  .bl-tool .instrument .btn,
+  .bl-tool .instrument .select { min-height: var(--bl-tap); }
+  .bl-tool .instrument__head { min-height: var(--bl-tap); }
+  /* The continuity log: its matrices side by side, small cells (they are read, not tapped). */
+  .bl-tool .panel__matrices { flex-wrap: nowrap; gap: var(--bl-s-3); }
+  .bl-tool .panel__matrix th { min-width: 22px; padding: 1px; }
+  .bl-tool .panel__matrix td { width: 22px; height: 22px; }
+  .bl-tool .panel__table th,
+  .bl-tool .panel__table td { padding: 2px var(--bl-s-2); }
+  /* The pin map: two even columns that always fit the strip. */
+  .bl-tool .panel__pins { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--bl-s-1) var(--bl-s-2); }
+  .bl-tool .panel__pin { gap: var(--bl-s-1); min-width: 0; }
+  .bl-tool .panel__pin .select { width: 100%; min-width: 0; }
+  /* Scope, logger and stopwatch: a shorter screen. */
+  .bl-tool .scope-panel__screen,
+  .bl-tool .logger__screen { height: 104px; }
+  .bl-tool .watch__time { padding: var(--bl-s-1) var(--bl-s-3); font-size: 26px; }
   /* The overlay toggles as one slim row: what they show, then the switches. */
   .bl-tool .views-panel { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--bl-s-2); padding: var(--bl-s-1) var(--bl-s-2); }
   .bl-tool .views-panel__row { flex-wrap: nowrap; gap: var(--bl-s-1); }
