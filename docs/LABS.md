@@ -252,7 +252,13 @@ on its 2/3 tap. Live, each named pin shows its volts, a watcher shows "2.10 < 3.
 the latch dot lights when set, the drain switch closes, the reset line turns amber while it holds the latch off.
 Unnamed pins show only a dashed number. A screen reader hears one sentence per block, and the state changes as they
 happen. For a gate chip the x-ray shows which gate is which, wired to its pins, high pins amber. The notebook's still
-map is `<Chip555Map pins={[1, 8, 2, 3]} />` (`xray.tsx`), stamped "Complete" with all eight pins.
+map is `<Chip555Map pins={[1, 8, 2, 3]} />` (`xray.tsx`), stamped "Complete" with all eight pins: a 555's x-ray draws
+it, with the lab's `pins`, on the bench lesson's signed-off notebook page (also the module's finale), so the map grows
+lesson by lesson.
+
+**Notebook figures.** A panel can write one small ink figure onto the bench lesson's signed-off notebook page
+(`apps/web/src/lesson/bench/NotebookFigures.tsx`, `figureOf`, by panel kind). It gets the lab and what the session
+recorded (its notes and panel states). Today the 555's x-ray offers the 555 map.
 
 The simulator places a chip's edges exactly, but a switch or button acting on a chip input is seen by the chip at the
 end of the solver's first 1 µs step after it, so a slow-motion replay of a button-clocked counter shows about half a
