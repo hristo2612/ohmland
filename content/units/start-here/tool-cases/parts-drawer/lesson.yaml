@@ -24,24 +24,24 @@ beats:
     note: { at: "part:DRB/face", text: "long line: plus" }
 
   - say: Clip the switch into the gap. Flip it.
-    spot: [S2, TL2.b, TL3.a]
+    spot: [S2, D9]
     do: test-switch
     note: { at: "part:DRS/face", text: a gap you open and close }
 
   - say: Now the LED. Try it both ways.
     objective: One-way LED
-    spot: [D1, TL2.b, TL3.a]
+    spot: [D1, D9]
     do: led-both-ways
     note: { at: D1, text: "LED: one way only" }
     rule: "LED: long leg toward plus."
 
   - say: See its symbol? The triangle points the way flow goes.
-    spot: ["part:DRL/face"]
+    spot: [DRL]
     note: { at: "part:DRL/face", text: "triangle: the way flow goes" }
 
   - say: And the resistor.
     objective: File them all
-    spot: [RB, TL2.b, TL3.a]
+    spot: [RB, D9]
     do: test-resistor
     note: { at: "part:DRR/face", text: "zigzag: a squeeze" }
 

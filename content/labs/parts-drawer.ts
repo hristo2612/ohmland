@@ -35,15 +35,15 @@ export default defineLab({
       { id: "DRR", kind: "bin", at: "desk:40,-64", params: { style: "drawer", face: "resistor" }, locked: true, label: "Resistor drawer" },
       { id: "DRL", kind: "bin", at: "desk:120,-64", params: { style: "drawer", face: "led" }, locked: true, label: "LED drawer" },
       // The loose parts to sort.
-      { id: "B2", kind: "battery", at: "desk:-140,14", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, label: "9 V battery" },
+      { id: "B2", kind: "battery", at: "desk:-140,14", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, label: "9 volt battery" },
       { id: "S2", kind: "toggle-switch", at: "desk:-70,14", params: { base: true, throws: 1, to: "a" }, label: "Switch" },
-      { id: "RB", kind: "resistor", at: "desk:20,14", params: { ohms: 10000, watts: 0.25 }, label: "10 kΩ resistor" },
+      { id: "RB", kind: "resistor", at: "desk:20,14", params: { ohms: 10000, watts: 0.25 }, label: "10 kilohm resistor" },
       { id: "D1", kind: "led", at: "desk:80,14", rot: 180, params: { color: "red", maxmA: 50 }, label: "Red LED" },
       { id: "PB1", kind: "pushbutton", at: "desk:150,14", params: { base: true }, label: "Push button" },
       // The tester at the front: its gap is the two loose clips, TL2.b (40, 66) and TL3.a (-40, 60).
       { id: "B1", kind: "battery", at: "desk:0,140", rot: 90, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "Tester battery" },
-      { id: "R1", kind: "resistor", at: "desk:92,108", rot: 90, params: { ohms: 1000, watts: 0.25 }, locked: true, label: "1 kΩ resistor" },
-      { id: "D9", kind: "led", at: "desk:-92,108", params: { color: "red", maxmA: 50 }, locked: true, label: "My lamp" },
+      { id: "R1", kind: "resistor", at: "desk:76,96", params: { ohms: 1000, watts: 0.25 }, locked: true, label: "1 kilohm resistor" },
+      { id: "D9", kind: "led", at: "desk:-76,96", params: { color: "red", maxmA: 50 }, locked: true, label: "My lamp" },
     ],
     leads: [
       { id: "TL1", from: "B1.pos", to: "R1.a", color: "red" },

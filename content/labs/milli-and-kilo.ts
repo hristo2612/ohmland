@@ -10,9 +10,9 @@ const WHEELS = ["4,700 Ω", "0.02 A", "9,000 mV"];
 /** The padlock's three wheels, answered (the lesson's three picks): the lid can be lifted. */
 const WHEELS_SET: SolutionStep[] = [{ do: "param", part: "CAB", params: { lock: { wheels: WHEELS, set: [true, true, true] } } }];
 
-/** The fix-it bench: a little bin labelled 4,700 Ω with the wrong tag (470 Ω) filed in it. */
+/** The fix-it bench: a parts tray labelled 4,700 Ω with the wrong tag (470 Ω) filed in it. */
 const WRONG_TAG: SolutionStep[] = [
-  { do: "place", part: "BN1", kind: "bin", at: "desk:-150,96", params: { label: "4,700 Ω", accepts: ["tag"] } },
+  { do: "place", part: "BN1", kind: "bin", at: "desk:62,118", params: { style: "tray", label: "4,700 Ω" } },
   { do: "place", part: "L6", kind: "tag", at: "in:BN1", params: { text: "470 Ω" } },
 ];
 
@@ -21,23 +21,23 @@ export default defineLab({
   title: "The prefix padlock",
   bench: {
     board: "none",
-    frame: ["desk:-236,-96", "desk:150,124"],
+    frame: ["desk:-236,-96", "desk:150,172"],
     parts: [
       // The lamp loop, lit from the start: about 7.5 mA through the 1 kΩ resistor and the red LED.
-      { id: "B1", kind: "battery", at: "desk:-206,4", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
-      { id: "R1", kind: "resistor", at: "desk:-142,-48", params: { ohms: 1000, watts: 0.25 }, locked: true, label: "1 kΩ resistor" },
+      { id: "B1", kind: "battery", at: "desk:-206,4", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 volt battery" },
+      { id: "R1", kind: "resistor", at: "desk:-142,-48", params: { ohms: 1000, watts: 0.25 }, locked: true, label: "1 kilohm resistor" },
       { id: "D1", kind: "led", at: "desk:-92,22", rot: 180, params: { color: "red", maxmA: 50 }, locked: true, label: "Red LED" },
-      { id: "L0", kind: "tag", at: "desk:-142,-24", params: { text: "1 kΩ" }, locked: true, label: "Resistor tag" },
+      { id: "L0", kind: "tag", at: "desk:-142,-24", params: { text: "1 kΩ" }, locked: true, label: "1 kilohm tag" },
       // A gate on the lead into the lamp, showing the flow as a number.
       { id: "G1", kind: "gate", at: "lead:TL2", params: { mode: "number", unit: "A" }, locked: true, label: "Gate" },
       // The parts cabinet and its padlock's three clues.
       { id: "CAB", kind: "box", at: "desk:62,-42", params: { style: "cabinet", lock: { wheels: WHEELS, set: [false, false, false] } }, locked: true, label: "Parts cabinet" },
-      { id: "L1", kind: "tag", at: "desk:20,40", params: { text: "4.7 kΩ" }, label: "4.7 kΩ tag" },
-      { id: "L2", kind: "tag", at: "desk:62,40", params: { text: "20 mA" }, label: "20 mA tag" },
-      { id: "L3", kind: "tag", at: "desk:104,40", params: { text: "9 V" }, label: "9 V tag" },
+      { id: "L1", kind: "tag", at: "desk:20,40", params: { text: "4.7 kΩ" }, label: "4.7 kilohm tag" },
+      { id: "L2", kind: "tag", at: "desk:62,40", params: { text: "20 mA" }, label: "20 milliamp tag" },
+      { id: "L3", kind: "tag", at: "desk:104,40", params: { text: "9 V" }, label: "9 volt tag" },
       // Inside the cabinet: parts for the last case, and a tag with a capital M.
-      { id: "L4", kind: "tag", at: "in:CAB.s2", params: { text: "2.2 MΩ" }, label: "2.2 MΩ tag" },
-      { id: "R5", kind: "resistor", at: "in:CAB.s3", params: { ohms: 1000 }, label: "1 kΩ resistor" },
+      { id: "L4", kind: "tag", at: "in:CAB.s1", params: { text: "2.2 MΩ" }, label: "2.2 megohm tag" },
+      { id: "R5", kind: "resistor", at: "in:CAB.s3", params: { ohms: 1000 }, label: "1 kilohm resistor" },
       { id: "D5", kind: "led", at: "in:CAB.s5", params: { color: "red" }, label: "Red LED" },
     ],
     leads: [
@@ -80,7 +80,7 @@ export default defineLab({
     },
     {
       id: "fix-it",
-      prompt: "The bin says 4,700 Ω. File the right tag in it.",
+      prompt: "The tray says 4,700 Ω. File the right tag in it.",
       setup: WRONG_TAG,
       goal: (lab) => {
         const held = lab.holds("BN1");
@@ -112,7 +112,7 @@ export default defineLab({
     { do: "param", part: "L4", params: { alt: true } },
     { do: "check", task: "mega" },
     ...WRONG_TAG,
-    { do: "move", part: "L6", at: "desk:-206,96" },
+    { do: "move", part: "L6", at: "desk:150,118" },
     { do: "move", part: "L1", at: "in:BN1" },
     { do: "check", task: "fix-it" },
   ],

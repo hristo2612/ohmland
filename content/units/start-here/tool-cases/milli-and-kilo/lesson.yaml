@@ -68,7 +68,7 @@ secret:
   note: { at: L4, text: "M: mega, a million. Case matters!" }
 
 fixit:
-  say: Someone filed the wrong tag in this bin. Fix it.
+  say: Someone filed the wrong tag in this tray. Fix it.
   tasks:
     - task: fix-it
 

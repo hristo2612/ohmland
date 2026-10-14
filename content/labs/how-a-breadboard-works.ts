@@ -34,8 +34,8 @@ export default defineLab({
     // The board fills the view; the battery's snap leads come in from the left.
     frame: ["desk:-46,-30", "desk:46,30"],
     parts: [
-      { id: "B1", kind: "battery", at: "rails", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
-      { id: "R1", kind: "resistor", at: "rail+:10-b10", params: { ohms: 1000 }, label: "1 kΩ resistor" },
+      { id: "B1", kind: "battery", at: "rails", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 volt battery" },
+      { id: "R1", kind: "resistor", at: "rail+:10-b10", params: { ohms: 1000 }, label: "1 kilohm resistor" },
       { id: "D1", kind: "led", at: "d10", rot: 270, params: { color: "red", maxmA: 50 }, label: "Red LED" },
     ],
     wires: [{ id: "W1", from: "a11", to: "rail-:11", color: "black" }],

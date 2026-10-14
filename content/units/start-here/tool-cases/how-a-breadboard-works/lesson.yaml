@@ -58,10 +58,6 @@ beats:
   - say: Last one. This hole sits on a rail.
     tap: { joinedTo: "rail+:21" }
 
-  - say: What is this?
-    xray: true
-    pick: { on: c4, options: [A strip, A rail, A jumper], answer: A strip }
-
 secret:
   task: short-the-rails
   say: "Secret: join plus straight to minus with a wire."

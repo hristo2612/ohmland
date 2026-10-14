@@ -36,14 +36,12 @@ beats:
 
   - say: Probe the two brass posts. A fresh 9 V reads...
     objective: Read the box
-    spot: [BX, "part:M1"]
     tool: meter
     guess: { options: [Exactly 9, A bit under, A bit over], answer: A bit over }
     do: read-battery
     note: { at: "part:M1/display", text: "9.4 V: a fresh 9 V" }
 
   - say: Now swap the probes.
-    spot: [BX, "part:M1"]
     tool: meter
     do: swap-probes
     note: { at: "part:M1/display", text: "minus: red is on the − side" }
@@ -56,7 +54,7 @@ beats:
 
   - say: Open the box. Were you right?
     do: open-the-box
-    note: { at: B1.pos, text: plus snap right under it }
+    note: { at: B1.pos, text: plus snap wired to that post }
 
   - say: What is this?
     pick: { on: "part:M1", options: [A meter, A gate, A battery], answer: A meter }

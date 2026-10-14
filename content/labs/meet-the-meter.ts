@@ -25,9 +25,9 @@ export default defineLab({
     parts: [
       // The black box: two identical brass posts; inside, the battery's plus goes to the right one.
       { id: "BX", kind: "box", at: "desk:-58,10", params: { marks: "plain", wiring: { "s1.pos": "t2", "s1.neg": "t1" } }, locked: true, label: "Black box" },
-      { id: "B1", kind: "battery", at: "in:BX.s1", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "in:BX.s1", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 volt battery" },
       // A scuffed, used battery off to the left, for the secret.
-      { id: "B2", kind: "battery", at: "desk:-162,30", params: { emf: 7.6, internalOhms: 6, mAh: 500, worn: true }, locked: true, label: "Tired 9 V battery" },
+      { id: "B2", kind: "battery", at: "desk:-162,30", params: { emf: 7.6, internalOhms: 6, mAh: 500, worn: true }, locked: true, label: "Tired 9 volt battery" },
     ],
     tray: [],
     // Both leads lying unplugged next to the meter.
@@ -96,6 +96,8 @@ export default defineLab({
       },
       hints: ["Which letter on the dial means push?", "Turn the dial back to 20 in the V part."],
       highlight: ["M1"],
+      // The panel's socket advice points at mA; across a battery that only blows the fuse.
+      nudges: [{ when: (lab) => lab.meter?.red === "ma" || lab.meter?.red === "a10", say: "Red stays in VΩ. Turn the dial instead." }],
       success: "9.4 V again.",
     },
     {

@@ -32,7 +32,7 @@ export default defineLab({
     board: "half",
     frame: ["desk:-92,-124", "desk:96,32"],
     parts: [
-      { id: "B1", kind: "battery", at: "rails", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "rails", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 volt battery" },
       // The drawing: battery on the left, plus at the top, then the resistor and the LED clockwise. The LED is torn off.
       {
         id: "CARD",
@@ -113,7 +113,6 @@ export default defineLab({
       },
       hints: ["Which leg is the long one?", "Turn the LED round: long leg toward the resistor."],
       highlight: ["D1"],
-      nudges: [{ when: backwards, say: "The short leg faces plus. Turn it round." }],
       success: "Fixed.",
     },
     {
