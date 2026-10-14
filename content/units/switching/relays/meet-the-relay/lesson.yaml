@@ -1,140 +1,65 @@
+# Blueprint: docs/curriculum/unit-2.md, Lesson 4; conversion: docs/curriculum/conversion-guide.md, C2 (4).
+# A bench lesson (docs/LESSONS.md). One idea: a coil's magnet moves a switch, and the coil never touches the contacts.
+# New: the relay (coil, COM, NC, NO). Lab: content/labs/meet-the-relay.ts; the clean-map bonus keeps the pin-sleuth
+# trigger.
+format: bench
 id: meet-the-relay
-version: 1
-title: A switch flipped by a magnet
+version: 2
+title: Flipped by a magnet
 summary: Find the coil and the contacts of an unlabeled relay, and hear it switch for the first time.
-minutes: 10
+minutes: 8
+lab: meet-the-relay
 unlocks:
   parts: [relay]
   isle: relay
-steps:
-  - type: hook
-    body: |
-      So far your finger has done all the switching. What if a current could do it instead? Wrap wire around a bit of
-      iron, push current through, and the iron becomes a magnet strong enough to tug a springy contact across.
 
-      That's a **relay**: a switch flipped by a magnet you can turn on and off. The robot has one with five legs and
-      no labels. Time to find out which leg does what.
-    visual: { kind: part, part: relay }
-    predict:
-      prompt: A relay is a switch moved by a magnet. Will current from the magnet's coil flow through the switch contacts?
-      options:
-        - Yes, it's all one circuit
-        - No, they're separate
-        - Only when the relay clicks
-    mascot: Hear that click? That's a magnet doing your job.
+start:
+  title: Flipped by a magnet
+  say: Five legs, no labels. One pair hides a magnet.
+  go: Let's probe
 
-  - type: lab
-    lab: meet-the-relay
-    intro: Five screw terminals, numbered 1 to 5. Use the ohms range first, then continuity, then the battery.
+beats:
+  - say: Ohms dial. Find the pair that reads a few hundred.
+    objective: Find the coil
+    tool: meter
+    do: find-the-coil
+    done: About 540 Ω. A long, thin coil of copper.
+    note: { at: wired:K1.coil1, text: "coil: flow makes a magnet" }
 
-  - type: explain
-    cards:
-      - title: An electromagnet
-        body: |
-          Current flowing through a coil of wire makes a magnetic field. Wind the coil around iron and the field gets
-          much stronger. Turn the current off and the magnetism mostly vanishes.
+  - say: Beep dial now. Which other pair beeps at rest?
+    objective: Find the contacts
+    tool: meter
+    do: find-com-nc
+    note: { at: wired:K1.nc1, text: "COM and NC: joined at rest" }
 
-          A relay uses that magnet to pull a small iron lever, the **armature**, which pushes springy contacts from
-          one position to the other.
-      - title: Two worlds in one box
-        body: |
-          The coil side is the control side. The contact side is the switched side. They share a box but not a
-          single wire.
+  - say: Keep the probes there. Clip the coil, then hold S1. Guess first.
+    objective: Make it click
+    tool: meter
+    guess: { options: [The beep stops, Nothing changes], answer: The beep stops }
+    do: energize
+    done: Click! COM let go of NC.
+    note: { at: wired:K1.no1, text: "NO: joined while powered" }
 
-          A relay with a 9 V coil can switch a circuit powered by a different battery, or even one at a different
-          voltage. That separation is called **isolation**, and it's the reason relays are so useful.
-        mascot: Two worlds, one box, zero shared wires.
-      - title: COM, NO and NC
-        body: |
-          Inside is an SPDT switch. **COM** (common) is the pole. **NC** (normally closed) touches COM while the coil
-          is off. **NO** (normally open) touches COM only while the coil is on.
+  - say: Name all five terminals in the pin map.
+    do: name-the-legs
+    rule: Coil and contacts never touch.
 
-          Many relays have two of these sets moved together (DPDT). Schematics always draw relays at rest, with the
-          coil off.
-        mascot: At rest, COM hugs NC. Energized, it switches partners.
-      - title: Where relays live
-        body: |
-          A car's starter motor draws 100 A or more, far too much for the key switch. So the key powers a relay's
-          small coil, and the relay's chunky contacts carry the big current.
+  - say: Which reading was the coil?
+    pick: { options: ["0.2 Ω", "540 Ω", "OL"], answer: "540 Ω" }
+    wrong:
+      "0.2 Ω": That's a closed contact. Almost no resistance.
+      "OL": That's an open contact. No path at all.
 
-          Washing machines, fridges and heating systems are full of relays doing the same job: a small, safe current
-          controlling a big one.
+secret:
+  task: peek-relay
+  say: Curious? Peek inside, then press S1.
+  done: See it swing? That's the armature.
+  note: { at: K1, text: "the armature swings" }
 
-  - type: quiz
-    items:
-      - id: which-is-coil
-        type: choice
-        prompt: You measure pairs of legs on an unknown relay. Which reading is most likely the coil?
-        options:
-          - text: 0.2 Ω
-            why: That's a closed contact, almost no resistance.
-          - text: 520 Ω
-            correct: true
-            why: A long coil of thin wire measures a few hundred ohms.
-          - text: OL
-            why: OL means no connection, like an open contact.
-        explain: Contacts read near zero or OL. A small relay coil reads hundreds of ohms.
+fixit:
+  say: Pressing should light my lamp. It goes dark. Fix it.
+  tasks:
+    - task: fix-lamp-no
 
-      - id: beeping-stops
-        type: choice
-        prompt: The meter beeps between COM and NC. You energize the coil. What happens?
-        options:
-          - text: The beeping stops
-            correct: true
-            why: The pole leaves NC and moves to NO.
-          - text: The beep gets louder
-            why: Continuity is just yes or no.
-          - text: Nothing changes
-            why: If nothing changed, the relay isn't pulling in.
-        explain: Energizing the coil moves COM from NC to NO.
-
-      - id: drawn-at-rest
-        type: choice
-        prompt: A relay on a schematic shows COM resting on NC. Is the coil powered?
-        options:
-          - text: Not necessarily, because symbols always show the resting state
-            correct: true
-            why: Relays are drawn with the coil off.
-          - text: No, never
-            why: The drawing can't tell you. The circuit decides when the coil is on.
-          - text: Yes, always
-            why: Schematics don't show a relay pulled in.
-        explain: Drawings show relays relaxed. You have to read the rest of the circuit to know when the coil is on.
-
-      - id: relay-terms
-        type: match
-        prompt: Match each relay term to its meaning.
-        pairs:
-          - { left: COM, right: The moving contact (the pole) }
-          - { left: NC, right: Connected to COM when the coil is off }
-          - { left: "NO", right: Connected to COM when the coil is on }
-          - { left: Coil, right: The electromagnet that does the moving }
-        explain: These four names are printed on most relay datasheets.
-
-      - id: car-starter
-        type: choice
-        prompt: Why use a relay to start a car instead of running the starter current through the key switch?
-        options:
-          - text: Relays are cheaper than switches
-            why: Not the reason. It's about current.
-          - text: A small current in the coil can control a huge current in the contacts
-            correct: true
-            why: The key only carries the coil's small current.
-          - text: The relay makes extra current
-            why: Relays switch current. They don't create it.
-        explain: Relays let a small, safe control current switch a large one.
-
-  - type: wrap
-    rules:
-      - A relay is a switch moved by an electromagnet.
-      - The coil side and the contact side are electrically separate.
-      - COM touches NC at rest and NO when the coil is energized.
-      - Schematics show relays at rest.
-    realWorld:
-      parts:
-        - A small relay with a 9 V coil
-        - A 9 V battery and snap
-        - A pushbutton
-        - A multimeter and clip leads
-      safety:
-        - Keep relay experiments at battery voltages. Never connect relay contacts to mains.
+end:
+  say: Flipped by a magnet. Clicks in my dreams tonight.

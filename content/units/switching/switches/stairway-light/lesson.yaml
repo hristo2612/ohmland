@@ -1,145 +1,55 @@
+# Blueprint: docs/curriculum/unit-2.md, Lesson 3; conversion: docs/curriculum/conversion-guide.md, C2 (3).
+# A bench lesson (docs/LESSONS.md). One idea: with two travellers, either switch toggles the lamp.
+# Lab: content/labs/stairway-light.ts. Switches in series moved to both-switches.
+format: bench
 id: stairway-light
-version: 1
-title: Either switch, any time
-summary: Wire two SPDT switches so either one flips the same light, and meet your first truth table.
-minutes: 12
+version: 2
+title: Either switch
+summary: Join two changeover switches with two travellers so either one flips the same lamp.
+minutes: 7
+lab: stairway-light
 unlocks:
   parts: []
   isle: led-lamp
-steps:
-  - type: hook
-    body: |
-      Picture a long staircase with one light. You switch it on at the bottom, climb up, and now you want it off from
-      the top. Two switches, one lamp, and either switch must work, whatever the other one did.
 
-      Electricians solve this every day with two ordinary SPDT switches and two wires. Can you work out the trick
-      before you see it?
-    visual: { kind: part, part: slide-switch }
-    predict:
-      prompt: Two switches control one lamp. Upstairs flips, then downstairs flips. If the lamp started off, how does it end?
-      options:
-        - "On"
-        - "Off"
-        - Depends on the wiring
-    mascot: Upstairs, downstairs, any switch, any time.
+start:
+  title: Either switch
+  say: One stair lamp. A switch at the bottom, one at the top.
+  go: Let's wire
 
-  - type: lab
-    lab: stairway-light
-    intro: The battery, resistor and LED are wired to both poles already. You decide how the four throws connect.
+beats:
+  - say: Join the throws. A1 to B1, then A2 to B2.
+    objective: Two travellers
+    spot: [SA, SB]
+    do: wire-travelers
+    note: { at: SA, text: "two roads; the poles pick one" }
 
-  - type: explain
-    cards:
-      - title: Series means AND
-        body: |
-          With one wire between the switches there's a single road. Switch A must point at it *and* switch B must
-          point at it. Only one combination of four lights the lamp.
+  - say: Try all four flips. Does every single flip work? Guess first.
+    guess: { options: [Every flip, Only some], answer: Every flip }
+    do: two-travelers
+    done: Every flip. Upstairs or down, any time.
+    note: { at: D1, text: "on when they match" }
+    rule: Any single flip toggles the lamp.
 
-          Hold on to that "and". In Unit 4 you'll meet it again as a chip called an AND gate.
-      - title: Two travelers
-        body: |
-          Give each pair of throws its own wire, called a **traveler**, and there are two roads. The lamp is on
-          whenever both poles pick the same road.
+  - say: Lamp on. Flip upstairs, then downstairs. Now?
+    pick: { options: ["On", "Off"], answer: "On" }
+    wrong: { "Off": "Two flips, two toggles. Back where it began." }
 
-          Flip either switch and its pole jumps to the other road, so the lamp changes state. That's why either
-          switch always works, no matter what the other one did last.
-      - title: Truth tables
-        body: |
-          A **truth table** lists every combination of inputs and the output for each. Two switches give 2 × 2 = 4
-          rows.
+  - say: Cross the travellers at B. Then flip through all four.
+    objective: Cross them
+    guess: { options: [It breaks, Still a stairway], answer: Still a stairway }
+    do: cross-the-travelers
+    done: Still a stairway. Now different means on.
+    note: { at: D1, text: "on when they differ" }
 
-          Your stairway made "on when they match" or, with crossed travelers, "on when they differ". Logic designers
-          call those XNOR and XOR. You just built one with your hands.
-        mascot: You just built a logic gate. With your hands. I'm impressed.
-      - title: Names around the world
-        body: |
-          In North America this is called three-way switching, because each switch has three terminals. In the UK
-          and many other places it's called two-way switching. Same circuit, different counting.
+  - say: Crossed now. A on A1, B on B1. Lamp?
+    pick: { options: ["On", "Off"], answer: "Off" }
+    wrong: { "On": "Crossed, matching switches mean off. Check the table." }
 
-          Need a third switch on a middle landing? Electricians add an intermediate switch that swaps the two
-          travelers over, and any number of those can sit between the two ends.
-        mascot: Four rows, one truth. Tables never get tired.
+fixit:
+  say: The top switch only works half the time. Fix it.
+  tasks:
+    - task: fix-traveler
 
-  - type: quiz
-    items:
-      - id: two-flips
-        type: choice
-        prompt: A stairway light is on. You flip the upstairs switch, then the downstairs switch. Now the light is...
-        options:
-          - text: Off, because the last flip turned it off
-            why: The first flip turned it off. The second flip turned it back on.
-          - text: "On"
-            correct: true
-            why: Two flips, two toggles, back where it started.
-          - text: Stuck, because the switches now disagree
-            why: In a stairway circuit every flip works, whatever the other switch says.
-        explain: Every single flip toggles the lamp, so an even number of flips leaves it as it was.
-
-      - id: three-switches
-        type: choice
-        prompt: How many rows does a truth table need for three switches?
-        options:
-          - text: "3"
-            why: That's one row per switch, but the rows list combinations.
-          - text: "6"
-            why: Each extra switch doubles the count, it doesn't add two.
-          - text: "8"
-            correct: true
-            why: "Each switch doubles the combinations: 2 × 2 × 2 = 8."
-          - text: "9"
-            why: Each switch has two positions, not three.
-        hint: Two switches gave 4 rows.
-        explain: "Every switch doubles the number of combinations: 2 × 2 × 2 = 8 rows."
-
-      - id: missing-traveler
-        type: choice
-        prompt: Your stairway light sometimes ignores a flip. From some positions, flipping either switch does nothing. What's the most likely wiring fault?
-        options:
-          - text: One traveler is missing
-            correct: true
-            why: With one traveler you're back to a series pair, where only one combination conducts.
-          - text: The LED is reversed
-            why: Then it would never light at all.
-          - text: The battery is weak
-            why: A weak battery dims the LED but doesn't change which flips work.
-        explain: A stairway needs both travelers. Lose one, and a flip only works when the other switch happens to point at the remaining wire.
-
-      - id: current-path
-        type: order
-        prompt: Both switches point at traveler 1 and the lamp is lit. Put the current's path in order.
-        items:
-          - The battery's positive terminal
-          - The resistor
-          - The LED
-          - Switch A's pole
-          - Traveler 1
-          - Switch B's pole
-          - The battery's negative terminal
-        explain: Conventional current leaves the positive terminal, passes the resistor and the LED, then rides whichever traveler both poles touch.
-
-      - id: series-and
-        type: choice
-        prompt: Two switches sit in series with a lamp. Which description fits?
-        options:
-          - text: The lamp is on only when A and B are both closed
-            correct: true
-            why: One road, two gates, and both must be open.
-          - text: The lamp is on when either switch is closed
-            why: That's two switches in parallel.
-          - text: The lamp toggles on every flip
-            why: That's the stairway circuit.
-        explain: Series switches give AND. Parallel switches give OR.
-
-  - type: wrap
-    rules:
-      - "Switches in series: all must close (AND)."
-      - "Switches in parallel: any one can close (OR)."
-      - Two SPDT switches joined by two travelers let either one toggle a lamp.
-      - A truth table lists every input combination and its output.
-    realWorld:
-      parts:
-        - Two SPDT slide switches
-        - A 9 V battery and snap
-        - A 470 Ω resistor and a red LED
-        - Five clip leads
-      safety:
-        - Build this at 9 V only. Real stair lights run on mains wiring, which is a job for electricians.
+end:
+  say: Upstairs, downstairs, any switch, any time. Nice wiring.
