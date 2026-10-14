@@ -174,6 +174,9 @@ export function ViewRig({
   const cache = useRef<{ bench: BenchState | null; frame: number; points: Map<string, Vec3 | null> }>({ bench: null, frame: -1, points: new Map() });
   /** Drawn frames so far, and how many more frames overlays hear about after a bench change. */
   const frames = useRef({ n: 0, settle: 0 });
+  /** The bench the models were last drawn for (the frame loop keeps it), and a focus to frame again once they catch up. */
+  const drawn = useRef<BenchState | null>(null);
+  const again = useRef<{ targets: string[]; opts?: FocusOptions } | null>(null);
 
   useLayoutEffect(() => {
     const controls = () => get().controls as unknown as CameraControlsImpl | null;
@@ -498,6 +501,12 @@ export function ViewRig({
           goHome(false, !opts.instant);
           return;
         }
+        // Right after a bench change (a task's setup moved the parts) the models still stand where they were: frame
+        // what they show now, and again once they have caught up.
+        if (store.getState().bench !== drawn.current || frames.current.settle > 0) {
+          again.current = { targets: [...targets], opts };
+          invalidate();
+        }
         const boxes = targets.map(targetBox).filter((b): b is THREE.Box3 => !!b && !b.isEmpty());
         if (!boxes.length) return;
         // Leave some of the bench around the targets, so the learner sees where they are.
@@ -568,6 +577,14 @@ export function ViewRig({
     if (bench !== l.bench) f.settle = 3;
     const settling = f.settle > 0;
     if (settling) f.settle--;
+    drawn.current = bench;
+    if (again.current && f.settle === 0 && api) {
+      // The models have caught up with the bench: frame the last focus again, where the parts are now.
+      const a = again.current;
+      again.current = null;
+      api.focus(a.targets, a.opts);
+      camera.updateMatrixWorld();
+    } else if (again.current) invalidate();
     if (!settling && !resized && bench === l.bench && l.m.equals(camera.matrixWorld) && l.p.equals(camera.projectionMatrix)) return;
     l.m.copy(camera.matrixWorld);
     l.p.copy(camera.projectionMatrix);
