@@ -58,6 +58,8 @@ export function Bench(props: BenchProps) {
   const [store] = useState(() => props.store ?? createBenchStore(props.initial));
   const labels = useMemo(() => mergeLabels(props.labels), [props.labels]);
   const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const elementRef = useRef<HTMLDivElement | null>(null);
+  elementRef.current = element;
   const palette = useReadPalette(element, props.theme);
   const api = useRef<InteractionApi | null>(null);
   const view = useRef<ViewApi | null>(null);
@@ -84,7 +86,15 @@ export function Bench(props: BenchProps) {
   const controller = useMemo<Bench3DController>(
     () => ({
       project: (t) => view.current?.project(t) ?? null,
-      projectClient: (t) => api.current?.project(t as string) ?? null,
+      // Any target (a part, a mark, an anchor) in page coordinates, as the ink view's projectClient gives it.
+      projectClient: (t) => {
+        const p = typeof t === "string" ? view.current?.project(t) : null;
+        if (p && elementRef.current) {
+          const r = elementRef.current.getBoundingClientRect();
+          return { x: p.x + r.left, y: p.y + r.top };
+        }
+        return api.current?.project(t as string) ?? null;
+      },
       onViewChange: (cb) => {
         listeners.add(cb);
         return () => listeners.delete(cb);

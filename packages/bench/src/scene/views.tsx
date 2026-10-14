@@ -13,6 +13,7 @@ import { useBench, useBenchStore } from "../store";
 import { MultimeterModel } from "../models/Multimeter";
 import { AlligatorClip, BananaPlug, CLIP_LEN, Cable, JumperWire, PLUG_TOP, PROBE_LEN, Probe, StrippedEnd, quatFromY } from "../models/Leads";
 import { GateModel } from "../models/StartProps";
+import { Billboard } from "@react-three/drei";
 import { ropePoints, type FloorFn } from "../three/geometry";
 import { GATE } from "../dims";
 import type { BenchState, MeterState, PlacedPart, ProbeColor, Quality, TestLead, Vec3, Wire } from "../types";
@@ -183,11 +184,16 @@ function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality,
         {body}
         {box && (
           <>
-            <Proxy
-              pick={{ type: "part", id: part.id }}
-              size={[Math.max(box.max.x - box.min.x + 1.5, 6), Math.max(box.max.y - box.min.y + 1, 4), Math.max(box.max.z - box.min.z + 1.5, 6)]}
-              position={[(box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, (box.min.z + box.max.z) / 2]}
-            />
+            {part.kind === "box" && part.params.lid ? (
+              // An open box is picked by its front strip, so the parts inside it stay in reach.
+              <Proxy pick={{ type: "part", id: part.id }} size={[box.max.x - box.min.x, 8, (part.params.style === "cabinet" ? CABINET.strip : BOX.strip) + 2]} position={[(box.min.x + box.max.x) / 2, (part.params.style === "cabinet" ? CABINET.h : BOX.h) - 2, (part.params.style === "cabinet" ? CABINET.d : BOX.d) / 2 - (part.params.style === "cabinet" ? CABINET.strip : BOX.strip) / 2]} />
+            ) : (
+              <Proxy
+                pick={{ type: "part", id: part.id }}
+                size={[Math.max(box.max.x - box.min.x + 1.5, 6), Math.max(box.max.y - box.min.y + 1, 4), Math.max(box.max.z - box.min.z + 1.5, 6)]}
+                position={[(box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, (box.min.z + box.max.z) / 2]}
+              />
+            )}
             {actuator &&
               (((part.params as { base?: boolean }).base || part.kind === "dpdt-switch") && pose.mount === "desk" ? (
                 // The lever, slider, button or knob on its wooden block: a generous target, since it is the one thing to press.
@@ -203,7 +209,8 @@ function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality,
           </>
         )}
         {hotspots.map((h, i) => (
-          <Proxy key={i} pick={{ ...h.pick, id: part.id }} size={h.size} position={h.at} />
+          // A gate's hotspot is on its flag, which faces the camera above the collar.
+          <Proxy key={i} pick={{ ...h.pick, id: part.id }} size={part.kind === "gate" ? [h.size[0], h.size[1], 4] : h.size} position={part.kind === "gate" ? [h.at[0], h.at[1], 1.6] : h.at} />
         ))}
         {part.kind === "box" && part.params.knob && <Proxy pick={{ type: "rotor", id: part.id }} size={[18, 10, 18]} position={[0, BOX.h + 4, BOX.d / 2 - BOX.strip / 2]} />}
         {def.span && pose.mount === "board" && pose.span !== undefined && (
@@ -415,10 +422,13 @@ function GateOnLead({ gate, cable, selected, hinted }: { gate: PlacedPart; cable
         <GateModel id={gate.id} params={gate.params as never} />
       </group>
       <Proxy pick={{ type: "part", id: gate.id }} size={[GATE.len + 4, GATE.ring + 4, GATE.ring + 4]} />
-      <Proxy pick={{ type: "part", id: gate.id }} size={[GATE.flagW, GATE.flagH, 3]} position={[0, GATE.lift, 0]} />
-      {hotspots.map((h, i) => (
-        <Proxy key={i} pick={{ ...h.pick, id: gate.id }} size={[h.size[0], h.size[1], 4]} position={[h.at[0], h.at[1], 1.6]} />
-      ))}
+      {/* The flag faces the camera; its hit boxes turn with it (the unit button stays under the pointer). */}
+      <Billboard position={[0, GATE.lift, 0]} name="gate-flag">
+        <Proxy pick={{ type: "part", id: gate.id }} size={[GATE.flagW, GATE.flagH, 3]} />
+        {hotspots.map((h, i) => (
+          <Proxy key={i} pick={{ ...h.pick, id: gate.id }} size={[h.size[0], h.size[1], 4]} position={[h.at[0], 0, 1.6]} />
+        ))}
+      </Billboard>
       {(selected || hinted) && (
         <mesh position={[0, 0, 0]} renderOrder={20} userData={OVERLAY}>
           <sphereGeometry args={[GATE.len * 0.6, 16, 12]} />

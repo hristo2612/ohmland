@@ -140,7 +140,10 @@ export type PartParamsMap = {
     worn?: boolean;
     /** State of charge it starts at, 0..1 (default full): a tired battery for a time-lapse. */
     charge?: number;
-    /** A cutaway (AA): the can cut open to show the two chemicals and the separator. Tapping the cell toggles it. */
+    /**
+     * A cutaway (AA): the can cut open to show the two chemicals and the separator. When it is set (true or false) a
+     * tap on the cell toggles it; left out, the cell is a plain battery.
+     */
     xray?: boolean;
   };
   pushbutton: { cap?: "black" | "red" | "blue" | "yellow" | "white"; /** Connected until pressed. */ normallyClosed?: boolean } & Base;

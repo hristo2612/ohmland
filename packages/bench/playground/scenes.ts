@@ -202,6 +202,7 @@ export function modulesBench(): BenchState {
 // Start here (docs/curriculum/start-here.md). Run them with `sim=1` for live flow dots, gates and push.
 
 type P = BenchState["parts"][number];
+const q = (k: string) => (typeof location !== "undefined" ? new URLSearchParams(location.search).get(k) : null);
 const pp = (id: string, kind: P["kind"], params: Record<string, unknown>, pos: [number, number], rot = 0): P => ({ id, kind, params, pos, rot }) as P;
 const clip = (id: string, color: BenchState["leads"][number]["color"], a: string | null, b: string | null, apos: [number, number] = [0, 0], bpos: [number, number] = [0, 0]) => ({
   id,
@@ -299,7 +300,7 @@ export function boxesBench(open = false): BenchState {
 /** The tired battery (SH7): the lamp on a battery at 8%, the desk clock, an AA cut open beside it. */
 export function tiredBench(): BenchState {
   const b = lampBench({ charge: 0.08 });
-  b.parts.push(pp("CK1", "clock", {}, [-80, -80]), pp("XA", "battery", { size: "aa", emf: 1.58, internalOhms: 0.15, xray: true }, [-170, 70]));
+  b.parts.push(pp("CK1", "clock", {}, [-80, -80]), pp("XA", "battery", { size: "aa", emf: 1.58, internalOhms: 0.15, xray: q("xray") !== "0" }, [-170, 70]));
   return b;
 }
 

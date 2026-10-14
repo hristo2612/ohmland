@@ -94,7 +94,7 @@ shows the inside.
 
 Batteries take `charge` (0 to 1, the state of charge a battery starts at: a tired battery for a time-lapse) and, for an
 AA cell, `xray: true` (cut open along its length: the can, manganese dioxide, the separator, the zinc paste and the
-brass pin; tapping the cell toggles it). A `tag` tapped toggles `alt`: its value written out without the prefix ("10
+brass pin); an AA with `xray` set (start it at `false`) toggles it when tapped. A `tag` tapped toggles `alt`: its value written out without the prefix ("10
 kΩ" becomes "10,000 Ω", "20 mA" becomes "0.02 A", "2.2 MΩ" becomes "2,200,000 Ω", "9 V" stays).
 
 **The static toy** is its own small model, not the circuit simulator (`packages/bench/src/static.ts`): moving a balloon,

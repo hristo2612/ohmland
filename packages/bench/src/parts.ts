@@ -483,8 +483,9 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
       if (pp.size === "coin") return {};
       return { wrap: [-BATTERY.wid / 2 + 2.6, BATTERY.len - 0.8, BATTERY.thick / 2 - 2.2] };
     },
-    // An AA cell can be cut open: tap it to see inside.
-    hotspots: (pp) => (pp.size === "aa" ? [{ pick: { type: "setting", key: "xray", value: !pp.xray }, at: [-4, AA.lift + AA.dia / 2, 0], size: [32, AA.dia, AA.dia], on: !!pp.xray }] : []),
+    // An AA cell set up for it (`xray` given, true or false) can be cut open: tap it to see inside. Other cells are
+    // plain batteries to pick up.
+    hotspots: (pp) => (pp.size === "aa" && pp.xray !== undefined ? [{ pick: { type: "setting", key: "xray", value: !pp.xray }, at: [-4, AA.lift + AA.dia / 2, 0], size: [32, AA.dia, AA.dia], on: !!pp.xray }] : []),
     toSpecs: (p, n) => {
       const spec: PartSpec = {
         id: p.id,
@@ -744,8 +745,9 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     defaults: { mode: "ticks", unit: "A" },
     deskLegs: () => ({}),
     // In number mode the unit on the flag is a button: A or mA.
-    hotspots: (pp) => (pp.mode === "number" ? [{ pick: { type: "setting", key: "unit", value: pp.unit === "mA" ? "A" : "mA" }, at: [GATE.flagW / 2 - 5, GATE.lift, 0], size: [10, 8, 10] }] : []),
-    marks: () => ({ flag: [0, GATE.lift, 0], unit: [GATE.flagW / 2 - 5, GATE.lift, 0] }),
+    // (The flag stands above the collar in 3D and is drawn up the page in ink: z is -lift there.)
+    hotspots: (pp) => (pp.mode === "number" ? [{ pick: { type: "setting", key: "unit", value: pp.unit === "mA" ? "A" : "mA" }, at: [GATE.flagW / 2 - 5.8, GATE.lift, -GATE.lift], size: [10, 9, 9] }] : []),
+    marks: () => ({ flag: [0, GATE.lift, 0], unit: [GATE.flagW / 2 - 5.8, GATE.lift, 0] }),
     settings: [
       { key: "mode", values: ["ticks", "number"] },
       { key: "unit", values: ["A", "mA"] },
