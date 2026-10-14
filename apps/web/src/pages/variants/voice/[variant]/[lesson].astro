@@ -1,0 +1,35 @@
+---
+/**
+ * One try-out lesson (content/variants/voice/<variant>/<lesson>): the bench lesson player as a trial, so nothing is
+ * restored, saved or earned, and signing off comes back to /variants/voice. Hidden and not indexed.
+ */
+import LessonLayout from "../../../../layouts/LessonLayout.astro";
+import { BenchLesson } from "../../../../lesson/bench/BenchLesson";
+import { getCourse } from "../../../../content/load";
+import { loadVariants, type Variant, type VariantLesson } from "../../../../content/variants";
+
+export function getStaticPaths() {
+  return loadVariants("voice").variants.flatMap((variant) =>
+    variant.lessons.map((lesson) => ({ params: { variant: variant.id, lesson: lesson.id }, props: { variant, lesson } })),
+  );
+}
+
+const { variant, lesson } = Astro.props as { variant: Variant; lesson: VariantLesson };
+const course = getCourse();
+const back = "/variants/voice";
+---
+
+<LessonLayout title={lesson.title} description={variant.style} noindex>
+  <BenchLesson
+    client:load
+    lesson={lesson}
+    outline={course.outline}
+    parts={{}}
+    module={{ id: lesson.module, title: variant.name, landmark: { id: "", name: "" } }}
+    next={null}
+    mapHref={back}
+    trial
+    coach={variant.coach}
+    labLines={lesson.labLines}
+  />
+</LessonLayout>

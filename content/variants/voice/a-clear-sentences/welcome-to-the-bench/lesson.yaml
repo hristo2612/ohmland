@@ -1,0 +1,92 @@
+# Voice variant A, "Clear sentences": content/units/start-here/first-cases/welcome-to-the-bench in whole instructions.
+format: bench
+id: welcome-to-the-bench
+version: 1
+title: Welcome to the bench
+summary: A desk lamp will not light. Find the gap, and learn that flow needs a closed loop.
+minutes: 5
+lab: welcome-to-the-bench
+unlocks:
+  parts: [battery-9v, alligator-clips]
+  isle: led-lamp
+
+start:
+  title: The dark lamp
+  say: My desk lamp won't light. Will you help me find out why?
+  go: Take the case
+
+beats:
+  - say: Switch the lamp on. Flip the silver lever on the wooden block over to ON.
+    objective: Find the gap
+    do: close-the-switch
+
+  - say: Still dark, so the path is broken somewhere. Tap the battery's minus (−) snap, and I'll follow the wires from there.
+    tap: { answer: B1.neg, among: [B1.pos, B1.neg] }
+    trace: B1.neg
+    wrong: { B1.pos: "That's the plus (+) snap. Tap the other one, marked minus (−)." }
+    done: My pencil follows the wires and stops at the red clip. It bites plastic, not metal.
+    note: { at: TL1.a, text: "this clip bites plastic: a gap" }
+
+  - say: Drag the red clip off the battery's plastic wrapper and onto its plus (+) snap, the shiny metal stud.
+    do: find-the-gap
+    trace: B1.neg
+    note: { at: D1, text: "loop: metal all the way round" }
+    rule: Flow needs a closed loop of metal.
+
+  - say: What will the lamp do if you pull one clip off, far away from it? Guess, then try it.
+    objective: Break it, mend it
+    guess: { options: [It stays lit, It dims, It goes dark], answer: It goes dark }
+    do: break-the-loop
+    done: Dark at once. One gap anywhere stops the flow everywhere.
+    note: { at: D1, text: "one gap, all dark" }
+
+  - say: Clip the loose clip back onto the metal it came from, to close the loop again.
+    do: mend-the-loop
+
+  - say: What do we call a path of metal that goes all the way round and back to the battery?
+    pick: { options: [a loop, a lamp, a line], answer: a loop }
+
+secret:
+  task: swap-battery-leads
+  say: "Bonus: swap the two battery clips, red onto minus and black onto plus. What does the lamp do?"
+  done: Dark, and nothing broke. This lamp only works one way round.
+  note: { at: D1, text: "backwards: dark, no harm" }
+
+fixit:
+  say: "Fix-it time: the switch is on, but the lamp stays dark. Find the gap and fix it."
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. You found the gap, and my lamp is lit for the first time in ages.
+
+labLines:
+  close-the-switch:
+    hints:
+      - "The switch is the wooden block with OFF and ON printed on it. Drag or tap its silver lever."
+    success: Click. The switch is on, but the lamp is still dark.
+  find-the-gap:
+    hints:
+      - "The red clip sits on top of the battery, biting the wrapper. Drag it onto the round metal stud marked plus (+)."
+    nudges:
+      - Keep the switch on ON while you move the clip.
+    success: It glows! Now metal touches metal all the way round.
+  break-the-loop:
+    hints:
+      - "Drag any clip off the metal it holds, for example the black clip on the battery's minus snap."
+    nudges:
+      - Keep the switch on ON for this one.
+    success: Dark.
+  mend-the-loop:
+    hints:
+      - Find the clip lying loose on the desk and drag it back onto the metal it came from.
+    success: The light is back. The loop is closed again.
+  fix-it:
+    hints:
+      - Follow each clip round the loop. One of them bites wood instead of metal.
+      - Move that clip onto the metal screw beside it.
+    success: Wood is a gap too. Fixed!
+  swap-battery-leads:
+    hints:
+      - Take both clips off the battery, then clip each one onto the other snap.
+    success: Dark, and nothing broke.
