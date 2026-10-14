@@ -135,10 +135,12 @@ Optional, on any beat:
   fix-it round and the secret take a `tool` too (`fixit: { tool: meter, ... }`, `secret: { tool: meter, ... }`).
   Two tools are drawn on the bench instead of docked beside it. `meter`: the bench meter is the instrument (a tap on
   its dial turns it one detent, a long press one back; its RANGE key steps the range up, a long press down; the display
-  shows the range); over the bench there is only its reading, large, while the display is off screen or too small to
-  read, and a red pencil ring on the socket the red lead belongs in when it is in the wrong one (none while the probes
-  sit across a voltage on a current position: there the zero is the mistake to see); a blown mA fuse gets its Replace
-  control at the mA socket while the beat waits on the bench. A continuity panel: drawn on its part, an arc for each
+  shows the range). Over the bench there is a red pencil ring on the socket the red lead belongs in when it is in the
+  wrong one (none while the probes sit across a voltage on a current position: there the zero is the mistake to see),
+  and a blown mA fuse's Replace control at the mA socket while the beat waits on the bench. Only while part of the
+  meter is out of view (a beat framed close on what it measures) a slip stands in for that part: the reading, large; a
+  key that steps like the dial and one that steps like RANGE (44 px, a tap on, a long press back); the fuse's Replace.
+  A continuity panel: drawn on its part, an arc for each
   pair of legs tested, solid and labelled with the positions it beeped in (A, B; rest, held), or dashed with a small
   cross when it never beeped, faint until tested in the position the part is in now. The part is framed, and its arcs
   stay until the beat ends; a pin map for the same part shows them too, and the signed-off notebook page keeps them.

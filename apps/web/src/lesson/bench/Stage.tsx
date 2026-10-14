@@ -538,7 +538,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
           {/* The meter's fuse has its own Replace on the docked meter. */}
           <ReplaceLayer controllerRef={controllerRef} bench={bench} items={props.replace.filter((r) => !(r.card.kind === "meter-fuse" && tool === "meter"))} onReplace={(c) => cb.current.onReplace(c)} />
           <TapLayer controllerRef={controllerRef} bench={bench} check={props.check} labelOf={api.labelOf} onTap={(a) => cb.current.onTap(a)} />
-          {tool === "meter" && built.bench.meter && <MeterInk runtime={runtime} controllerRef={controllerRef} act={!!props.gate && !readOnly} />}
+          {tool === "meter" && built.bench.meter && <MeterInk runtime={runtime} controllerRef={controllerRef} act={!!props.gate && !readOnly} readOnly={readOnly} />}
           {arcs && <ContinuityInk runtime={runtime} controllerRef={controllerRef} panel={arcs} />}
           {props.popup && (
             <PopupCard controllerRef={controllerRef} bench={bench} at={props.popup.at} title={m.lessonBench.popup.resistorTitle}>

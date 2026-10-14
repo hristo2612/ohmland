@@ -70,7 +70,8 @@ Implementation notes (both views):
   and `spotlight` are applied to the new view. `hub.inner()` is the active view's own controller, and `hub.refocus()`
   frames the last focus again (the tray came or went, so the room round the bench changed).
 - Targets besides anchors: `part:<id>` (the meter is `part:M1`), `part:M1/display`, `part:M1/dial`,
-  `part:M1/range` (its RANGE key), `part:M1/<socket>`, `lead:<id>` and `wire:<id>` for a whole lead or wire, `part:R1/a` for a part's lead and
+  `part:M1/range` (its RANGE key), `part:M1/<socket>`, `lead:<id>` and `wire:<id>` for a whole lead or wire,
+  `part:R1/a` for a part's lead and
   `part:<id>/<mark>` for a named spot on a part (`PartDef.marks`: a drawing's symbol `part:SD1/R1`, a box's `lid`,
   `knob` and `tag`, a padlock's `wheel1`, a gate's `flag` and `unit`, a tag's `text`), and an LED's stress bar,
   `part:D1/stress` (`stressPoint`, where both views draw the bar). Both views place marks at the same desk point. `parseTarget` and `targetPoint` (a

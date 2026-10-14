@@ -163,6 +163,12 @@ async function doneOr(page, task, fallback) {
     await page.waitForFunction((t) => window.ohmlandLab.status()[t] === "done", task, { timeout: 8000 });
   }
 }
+/** A tap on the meter's dial or RANGE key: on the bench, or on the slip's key while that part of the meter is out of view. */
+async function meterTap(page, what) {
+  const key = page.locator(`[data-meter-key="${what}"]`);
+  if (await key.count()) await key.click();
+  else await clickTarget(page, `part:M1/${what}`);
+}
 /**
  * Turns the meter's dial and steps its range on the bench itself, as a learner does: each tap on the dial turns it one
  * detent, each tap on RANGE steps the range up. When a tap does not land (a probe lying over the dial), the lab hook.
@@ -170,11 +176,11 @@ async function doneOr(page, task, fallback) {
 async function dialTo(page, mode, range) {
   const meter = () => page.evaluate(() => window.ohmlandLab.bench().meter);
   for (let i = 0; i < 8 && (await meter()).mode !== mode; i++) {
-    await clickTarget(page, "part:M1/dial");
+    await meterTap(page, "dial");
     await page.waitForTimeout(200);
   }
   for (let i = 0; range && i < 8 && (await meter()).range !== range; i++) {
-    await clickTarget(page, "part:M1/range");
+    await meterTap(page, "range");
     await page.waitForTimeout(200);
   }
   const m = await meter();

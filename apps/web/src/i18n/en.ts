@@ -265,6 +265,12 @@ export const en = {
       patch: "rubbed patch",
       stress: "stress bar",
     } as Record<string, string>,
+    /** The meter's keys over the bench while its own dial or RANGE key is out of view (ToolInk.tsx). */
+    meterKeys: {
+      dial: (mode: string) => `Dial: ${mode}`,
+      range: (range: string) => `Range: ${range}`,
+      how: "Tap to step on, hold to step back",
+    },
     /** A continuity table drawn on its part: one arc per pair of legs tested (ToolInk.tsx). */
     arcs: {
       /** Labels on an arc for the positions it beeped in: a slider's sides, a one-way toggle, a button. */
