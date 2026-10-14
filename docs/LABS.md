@@ -381,6 +381,11 @@ fire a named trigger once per visit. An achievement in `apps/web/src/progress/ac
 `labEvent: "name"` unlocks when it fires. The runtime also fires `relay-clicked`, `relay-worn-out`,
 `capacitor-reversed-died` and `speaker-concert-a` by itself, in every lab and on the free-build bench.
 
+Renaming or moving a task an achievement names breaks it: the achievement's `refs` list every lesson, task and trigger
+it uses, and `apps/web/src/progress/achievements.test.ts` fails when one no longer exists or no learner can reach it.
+A bonus task in a bench lesson only completes when it is the lesson's secret or fires a trigger. The solution test
+also fails when a lab's solution never fires a trigger the lab declares.
+
 ## Solutions
 
 Every lab ships a solution: bench actions, as data. `apps/web/src/lab/solutions.test.ts` replays each one with the

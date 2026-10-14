@@ -754,15 +754,17 @@ fast one moves the pitch; a capacitor turns the steps into a wail (the smoothing
 | Id | Change |
 |---|---|
 | `first-reading`, `glow-getter` | Unchanged conditions; their lessons now live in Start here. |
-| `island-founder` | "Complete all 23 lessons of Basics." |
-| `curious-mind` | Bonus list for Basics: `two-hundred`, `double-spacing`, `slide-along`, `paint-330`, `probe-tips`, `other-side`, `blue-led`, `ten-k`, `smallest-wins`, `one-watt-too`, `battery-check`, `watch-it-sag`, `one-lemon-led`, `why-no-resistor`, `two-aa` (15). Keep the threshold at 8. |
+| `island-founder` | "Finish all 23 lessons of Basics." The count in the description comes from the course outline. |
+| `curious-mind` | Every secret Basics offers (the achievements test keeps the list complete): `two-hundred`, `double-spacing`, `slide-along`, `tiny-gold`, `probe-tips`, `other-side`, `blue-led`, `ten-k`, `swap-in-3k3`, `smallest-wins`, `one-watt-too`, `battery-check`, `watch-it-sag`, `one-lemon-led`, `why-no-resistor` (15 once Start here takes its lessons). The threshold is half, rounded up: 8. |
 | `bracketed` | `fuse-guard/blow-1a` done, and `big-current/measure-big` done with no `blown` event on F2 in that lab (a trigger in `big-current`). |
 | `lawmaker`, `smoke-tester`, `sour-power`, `upside-down`, `stripe-sharp`, `clean-sweep` | Unchanged (their tasks stay in their labs; checks still feed `firstTry`). |
-| `two-islands` | "Complete all 28 lessons of Switching." |
+| `two-islands` | "Finish all 28 lessons of Switching." The count comes from the course outline. |
 | `spark-catcher` | `coil-kickback/watch-the-spike` and `the-diode/diode-clamp` done. |
 | `tau-tamer` | The three `rc-time-constant` tasks plus the `hit-the-target` fix-it, each τ within 5%. |
 | `five-second-club` | Lab `tune-the-timer`, task `five-seconds`. |
-| `pin-sleuth`, `either-way`, `feather-touch`, `wailer`, `first-click`, `buzzed-to-bits`, `wrong-way-round`, `tuning-fork`, `night-shift`, `smoke-signals` | Unchanged. |
+| `tuning-fork` | No lesson's tone lands near 440 Hz, so it is the free bench's challenge (unit-2.md, section 8): a flasher of tray parts (100 nF beads, two 10 kΩ in each base) sings about 433 Hz. The description says so. |
+| `night-shift` | The sandbox card `dusk-patrol` needs a light control the free bench lacks, so for now it is `night-light/set-dusk` (lamp on at 18% light, off at 32%). |
+| `pin-sleuth`, `either-way`, `feather-touch`, `wailer`, `first-click`, `buzzed-to-bits`, `wrong-way-round`, `smoke-signals` | Unchanged. |
 
 ### D2. Parts unlocks that move
 
