@@ -34,7 +34,8 @@ export default defineLab({
   title: "A tiny current in charge",
   bench: {
     board: "full",
-    frame: ["desk:-90,-30", "desk:-4,30"],
+    // The circuit's columns, 12 to 27.
+    frame: ["top+:12", "rail-:27"],
     parts: [
       { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "rail+:3", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "R1", kind: "resistor", at: "rail+:23-b23", params: { ohms: 470 }, locked: true, label: "470 Ω resistor R1" },
@@ -46,11 +47,7 @@ export default defineLab({
       { id: "W1", from: "a14", to: "rail+:15", color: "red" },
       { id: "W2", from: "a20", to: "rail-:21", color: "black" },
     ],
-    tray: [
-      { id: "Q1", kind: "npn", count: 1, label: "2N3904" },
-      { id: "R4", kind: "resistor", params: { ohms: 220_000 }, count: 1, label: "220 kΩ" },
-      { id: "R2", kind: "resistor", params: { ohms: 1_000_000 }, count: 1, label: "1 MΩ" },
-    ],
+    tray: [{ id: "Q1", kind: "npn", count: 1, label: "2N3904" }],
     instruments: [],
   },
   mascot: {

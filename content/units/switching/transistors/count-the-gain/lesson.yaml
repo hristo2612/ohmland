@@ -48,8 +48,9 @@ beats:
 
 fixit:
   say: Fix-it time. My base meter reads zero. Why?
+  tool: meter
   tasks:
-    - task: fix-plug
+    - task: fix-link
 
 end:
   say: About 200 times. Your transistor has a number now.

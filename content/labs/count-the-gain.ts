@@ -8,7 +8,8 @@
 // link and bridge the gap with the meter's probes (red on the rail, black on the row) to read that path's current.
 //
 // Measured in the simulator: the base takes 17.7 µA and the collector 3.6 mA, a gain of about 205 (this Q1's β at
-// that current); with 220 kΩ the base takes 37 µA and the collector 7.8 mA, about twice as much.
+// that current); with 220 kΩ the base takes 38 µA and the collector 7.8 mA, about twice as much. With the probes
+// around a link that is still in, the meter reads 0.0 µA: the wire carries the flow.
 import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 
 /** The resistor from row 16 to Q1's base (whichever one the learner put there), or null. */
@@ -26,19 +27,15 @@ const reading = (lab: LabView, part: string, key: string) => lab.heldFor(0.6, la
 /** The yellow link is out (nothing joins the + rail to row 16 but the meter). */
 const baseLinkOut = (lab: LabView) => !lab.connected("B1.pos", "c16");
 
-/**
- * The fix-it bench: the green link back in, the meter bridging the yellow link's gap on 200 µA, but its red plug in the
- * volts socket. It reads zero, and almost no current reaches the base, so the LED stays dark.
- */
-const RED_IN_VOLTS: SolutionStep[] = [
-  { do: "unwire", wire: "W3" },
+/** The probes sit on both sides of a link that is still in: the wire carries the flow, the meter sees almost none. */
+const aroundLink = (lab: LabView, row: string) => lab.connected("probe:red", "B1.pos") && lab.connected("probe:black", row) && lab.connected("B1.pos", row);
+const probingAroundLink = (lab: LabView) => aroundLink(lab, "c16") || aroundLink(lab, "c25");
+
+/** The fix-it bench: the green link back in, and the probes on both sides of the yellow link, which is still in. */
+const AROUND_THE_LINK: SolutionStep[] = [
   { do: "probe", red: "rail+:16", black: "a16", mode: "dca-ma", range: "200uA" },
-  { do: "plug", probe: "red", socket: "vohm" },
   { do: "wire", id: "W4", from: "a25", to: "rail+:25", color: "green" },
 ];
-
-/** Probes on both sides of a link that is still in: the wire carries the flow, the meter sees almost none. */
-const probingAroundLink = (lab: LabView) => !!lab.meter?.redAt && !!lab.meter?.blackAt && lab.connected("B1.pos", "c16") && lab.connected("B1.pos", "c25") && !lab.meterInSeriesWith("D1");
 
 /** The yellow link back in and the probes free, so the base is fed again for the collector reading. */
 const LINK_BACK: SolutionStep[] = [
@@ -51,7 +48,9 @@ export default defineLab({
   title: "Count the gain",
   bench: {
     board: "full",
-    frame: ["desk:-90,-30", "desk:-4,30"],
+    // The circuit (columns 12 to 27) on the left, room on the right for the meter's panel, and the loose probe tips in
+    // front. The meter itself sits off to the left; its panel shows the reading.
+    frame: ["top+:11", "rail-:40", "desk:-40,40"],
     parts: [
       { id: "B1", kind: "battery", at: "desk:-116,-46", holes: { pos: "rail+:3", neg: "rail-:3" }, params: { snap: true, emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
       { id: "R1", kind: "resistor", at: "b25-b23", params: { ohms: 470 }, locked: true, label: "470 Ω resistor R1" },
@@ -65,11 +64,8 @@ export default defineLab({
       { id: "W3", from: "a16", to: "rail+:16", color: "yellow" },
       { id: "W4", from: "a25", to: "rail+:25", color: "green" },
     ],
-    tray: [
-      { id: "R4", kind: "resistor", params: { ohms: 220_000 }, count: 1, label: "220 kΩ" },
-      { id: "R2", kind: "resistor", params: { ohms: 1_000_000 }, count: 1, label: "1 MΩ" },
-    ],
-    instruments: [{ kind: "meter", at: "desk:-178,22", rot: 16, mode: "dca-ma", range: "200uA", red: "ma", black: "com", tips: { red: "desk:-40,48", black: "desk:-28,54" } }],
+    tray: [{ id: "R4", kind: "resistor", params: { ohms: 220_000 }, count: 1, label: "220 kΩ" }],
+    instruments: [{ kind: "meter", at: "desk:-178,22", rot: 16, mode: "dca-ma", range: "200uA", red: "ma", black: "com", tips: { red: "desk:-46,36", black: "desk:-36,37" } }],
   },
   mascot: {
     start: "How much bigger is the river? Let's count.",
@@ -143,17 +139,18 @@ export default defineLab({
       success: "About twice the base flow, about twice the collector flow.",
     },
     {
-      id: "fix-plug",
+      id: "fix-link",
       prompt: "The base meter reads zero. Fix it.",
-      setup: RED_IN_VOLTS,
+      setup: AROUND_THE_LINK,
+      // Probed around a link that is still in first (the setup), then the link out and the meter in series.
       goal: (lab) => {
-        if (lab.meter?.red === "vohm") lab.memory["volts"] = true;
+        if (aroundLink(lab, "c16")) lab.memory["around"] = true;
         const r = baseResistor(lab);
-        return lab.memory["volts"] === true && lab.meter?.red === "ma" && !!r && reading(lab, r, "fixed");
+        return lab.memory["around"] === true && baseLinkOut(lab) && !!r && reading(lab, r, "fixed");
       },
-      hints: ["Follow the red lead to the meter. Which socket?", "Current goes in the mA socket."],
-      highlight: ["part:M1/sockets"],
-      success: "Reading again. Current needs the mA socket.",
+      hints: ["Where can the flow go besides the meter?", "Pull the yellow link. Then all the flow uses the meter."],
+      highlight: ["wire:W3"],
+      success: "Reading again. A current meter needs the gap to itself.",
     },
   ],
   solution: [
@@ -172,9 +169,10 @@ export default defineLab({
     { do: "place", part: "R4", kind: "resistor", at: "b16-b21", params: { ohms: 220_000 } },
     { do: "wait", seconds: 0.5 },
     { do: "check", task: "double-it" },
-    ...RED_IN_VOLTS,
-    { do: "plug", probe: "red", socket: "ma" },
+    ...AROUND_THE_LINK,
+    { do: "wait", seconds: 0.5 },
+    { do: "unwire", wire: "W3" },
     { do: "wait", seconds: 1 },
-    { do: "check", task: "fix-plug" },
+    { do: "check", task: "fix-link" },
   ],
 });
