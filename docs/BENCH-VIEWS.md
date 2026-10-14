@@ -50,11 +50,12 @@ interface BenchController {
   /**
    * Frame these parts or anchors nicely (smooth unless reduced motion). Empty array: frame the whole work area.
    * `inset`: CSS px of the view a docked panel covers at each edge; the framing keeps clear of it, and it holds (a
-   * resize, reset view) until the next focus. `read`: hands-on work, at least this many CSS px between neighbouring
-   * holes (2.54 mm) at the targets, when every target has leads or clip points (`needsReading`); what does not fit
-   * at that scale is cropped round the targets' anchors (`focalTargets`), and the learner pans for the rest.
+   * resize, reset view) until the next focus. `read`: hands-on work, framed no closer than this many CSS px between
+   * neighbouring holes (2.54 mm); targets that do not fit at that scale are fitted whole, and the touch loupe aims.
+   * `near`: CSS px per mm the work needs; with `withHome` the home view is taken in too while it still shows the work
+   * that close, else the view comes that close round the targets.
    */
-  focus(targets: string[], opts?: { padding?: number; instant?: boolean; inset?: { top?: number; right?: number; bottom?: number; left?: number }; read?: number }): void;
+  focus(targets: string[], opts?: { padding?: number; instant?: boolean; inset?: { top?: number; right?: number; bottom?: number; left?: number }; read?: number; near?: number; withHome?: boolean }): void;
   /** Temporarily emphasise parts (glow ring, dim the rest). */
   spotlight(targets: string[] | null): void;
 }

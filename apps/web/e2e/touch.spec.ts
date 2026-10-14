@@ -14,9 +14,9 @@ const aim = (to: Point, grab: Point, tip: Point): Point => ({ x: to.x - (tip.x -
 
 /**
  * A finger drag, as real touch events (the bench sees pointerType "touch"). `before` runs with the finger still down
- * at the end point, so a test can read what the bench shows before it lifts.
+ * at the end point and may return a point to slide the finger on to before it lifts (a learner reading the loupe).
  */
-async function touchDrag(page: Page, from: Point, to: Point, before?: () => Promise<void>) {
+async function touchDrag(page: Page, from: Point, to: Point, before?: () => Promise<Point | void>, lifting?: () => Promise<void>) {
   const cdp = await page.context().newCDPSession(page);
   const at = (p: Point) => [{ x: Math.round(p.x), y: Math.round(p.y) }];
   await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: at(from) });
@@ -25,7 +25,12 @@ async function touchDrag(page: Page, from: Point, to: Point, before?: () => Prom
     await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: at(p) });
   }
   await page.waitForTimeout(200);
-  await before?.();
+  const next = await before?.();
+  if (next) {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: at(next) });
+    await page.waitForTimeout(200);
+  }
+  await lifting?.();
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await page.waitForTimeout(250);
   await cdp.detach();
@@ -76,10 +81,8 @@ test("a phone frames the lamp's legs to aim at, and a finger clips a lead onto t
   await atMoment(page, "b3", "act");
   await page.waitForTimeout(600);
 
-  // The working parts come close: the lamp's two legs are a finger's aim apart.
-  const anode = await project(page, "pin:D1.anode");
-  const cathode = await project(page, "pin:D1.cathode");
-  expect(Math.hypot(anode.x - cathode.x, anode.y - cathode.y)).toBeGreaterThanOrEqual(20);
+  // The whole job stays in view: the lamp and the far end of the lead the hint points at (its battery clip).
+  for (const t of ["part:D1", "lead:TL4.b"]) expect((await page.evaluate((x) => window.ohmlandLab!.project(x), t))).not.toBeNull();
 
   // Unclip the green lead from the long leg: drop it on the empty desk.
   const grab = await onClip(page, "TL3", "b");
@@ -91,17 +94,19 @@ test("a phone frames the lamp's legs to aim at, and a finger clips a lead onto t
   await atMoment(page, "b4", "act");
   await page.waitForTimeout(600);
 
-  // Clip it back, the clip (riding above the finger) landing 6 px off the long leg toward the short one: it snaps to
-  // the long leg, and the loupe names it before the finger lifts.
+  // Clip it back, the clip (riding above the finger) landing 6 px off the long leg toward the short one. The loupe names
+  // where it would land before the finger lifts; a learner who reads "short leg" there slides back toward the long leg.
   const a = await project(page, "pin:D1.anode");
   const k = await project(page, "pin:D1.cathode");
   const d = Math.hypot(k.x - a.x, k.y - a.y) || 1;
   const drop = { x: a.x + ((k.x - a.x) / d) * 6, y: a.y + ((k.y - a.y) / d) * 6 };
   const loose = await onClip(page, "TL3", "b");
-  await touchDrag(page, loose, aim(drop, loose, await project(page, "lead:TL3.b")), async () => {
+  const tip = await project(page, "lead:TL3.b");
+  await touchDrag(page, loose, aim(drop, loose, tip), async () => {
     await expect(page.locator("[data-loupe]")).toBeVisible();
-    await expect(page.locator("[data-loupe-name]")).toContainText("long leg");
-  });
+    const name = (await page.locator("[data-loupe-name]").textContent()) ?? "";
+    return name.includes("long leg") ? undefined : aim({ x: a.x - ((k.x - a.x) / d) * 3, y: a.y - ((k.y - a.y) / d) * 3 }, loose, tip);
+  }, () => expect(page.locator("[data-loupe-name]")).toContainText("long leg"));
   await expect(page.locator("[data-loupe]")).toHaveCount(0);
   expect((await bench(page)).leads.find((l) => l.id === "TL3")?.b.to).toBe("pin:D1.anode");
   await taskDone(page, "mend-the-loop");
