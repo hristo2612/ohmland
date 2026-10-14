@@ -1,0 +1,87 @@
+# Voice variant D, "Why first": content/units/basics/resistance/what-resists as a sentence of purpose, then the step; the
+# robot says why it happened as each beat is done.
+format: bench
+id: what-resists
+version: 1
+title: What resists?
+summary: Turn the dial to Ω and measure your own skin, dry and then wet.
+minutes: 6
+lab: what-resists
+unlocks:
+  parts: []
+  isle: wire-spool
+
+start:
+  title: Your skin resists
+  say: Everything slows electricity down a little, even you. Let's find out how much.
+  go: Let's measure
+
+beats:
+  - say: "Let's find out how much your dry skin resists. The probes already touch it: turn the meter's dial to Ω, ohms."
+    objective: Dry skin
+    tool: meter
+    do: dry-skin
+    done: Almost a million ohms, because dry skin is a poor path for flow.
+    note: { at: P1, text: "Ω: the meter sends its own tiny flow" }
+    rule: "Ohms: measure with no battery connected."
+
+  - say: Big numbers get short names. The screen says 0.840 MΩ. How many kΩ, thousands of ohms, is that?
+    tool: meter
+    number: { answer: 840, unit: kΩ, tolerance: 1 }
+    hint: M is a million and k is a thousand, so multiply by 1,000.
+    done: "840 kΩ, because one MΩ is a thousand kΩ."
+    note: { at: part:M1/display, text: "M: mega, a million" }
+
+  - say: Let's see if water changes it. Guess first, then tap WET on the skin patch.
+    objective: Wet skin
+    tool: meter
+    guess: { options: [more ohms, about the same, fewer ohms], answer: fewer ohms }
+    do: wet-skin
+    done: About 46 kΩ, far fewer, because water lets the flow into your skin.
+    note: { at: P1, text: "dry 840 kΩ, wet 46 kΩ" }
+
+  - say: Let's lock it in. On the dial, what does Ω measure?
+    pick: { options: [push, flow, squeeze], answer: squeeze, on: part:M1/dial }
+    wrong: { push: "Push is V, volts. Try again.", flow: "Flow is A, amps. Try again." }
+
+secret:
+  task: double-spacing
+  say: "Bonus, to see where the ohms hide: move the probe on 2 to the 4 mark. Double?"
+  tool: meter
+  done: Barely up, because most of the ohms are where the tips touch your skin.
+  note: { at: P1, text: most ohms are where the tips touch }
+
+fixit:
+  say: Fix-it time. OL means the number won't fit this range, like a ruler that's too short. Make it fit.
+  tool: meter
+  tasks:
+    - task: fix-dry
+
+end:
+  say: You resist a little, and now you can measure it.
+
+labLines:
+  dry-skin:
+    hints:
+      - To pick ohms, find Ω on the dial just after V~, or tap Ω on the meter panel.
+      - Leave the probes on the 0 and 2 marks, so the reading stays steady.
+    nudges:
+      - "OL means the number is too big for this range: pick 2 MΩ under Range."
+    success: Almost a million ohms.
+  wet-skin:
+    hints:
+      - To wet the skin, tap WET, one of the tabs on the front of the patch.
+      - Leave the probes on the 0 and 2 marks, so only the water changes.
+    nudges:
+      - Keep the probes 2 cm apart, so only the water changes.
+    success: Tens of thousands of ohms.
+  fix-dry:
+    hints:
+      - "OL means over the limit: dry skin is over 200 kΩ, more than this range can show."
+      - To make room, pick a bigger range under Range, like 2 MΩ.
+    success: Fixed, because the bigger range has room for a big number.
+  double-spacing:
+    hints:
+      - To double the distance, drag the tip on the 2 mark to the 4 mark.
+      - Hold still until the number settles.
+    success: Up, but nowhere near double.

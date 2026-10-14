@@ -33,7 +33,10 @@ import { holeName, type PinName } from "./flow";
 import { allHoles, resolveAnchor, type Mark } from "./marks";
 import { ResistorSlider } from "./ResistorSlider";
 import { ContinuityInk, MeterInk, continuityFor } from "./ToolInk";
+import { CoachMark } from "./CoachMark";
+import { coachAnchors, firstMove } from "./coach";
 import type { Popup } from "../../content/schema";
+import type { LabLines } from "../../content/variants";
 import type { CodeBeat } from "../../lab/code/CodeDrawer";
 import "../../lab/lab.css";
 
@@ -107,6 +110,12 @@ export type StageProps = {
   tool: string | null;
   /** Unit 5: the beat's code drawer palette and starting program (with `tool: code`). */
   code?: CodeBeat | null;
+  /** The task whose first move the coach mark draws on the bench (a `do` beat's), or null. */
+  coach?: string | null;
+  /** A try-out copy: nothing goes to the learner's record (no fried parts, achievements or lab events). */
+  trial?: boolean;
+  /** The lesson's own words for the lab's tasks, in place of the lab's (a try-out voice). */
+  labLines?: LabLines | undefined;
   keyboardOpen: boolean;
   onApi(api: StageApi | null): void;
   onBenchReady(): void;
@@ -153,9 +162,24 @@ export default function Stage(props: StageProps) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.labId]);
+  const worded = useMemo(() => lab && withLines(lab, props.labLines), [lab, props.labLines]);
   if (failed) return <p className="bl-bench-note">{m.lessonBench.failed}</p>;
-  if (!lab) return <StageSkeleton />;
-  return <StageRunner {...props} lab={lab} />;
+  if (!worded) return <StageSkeleton />;
+  return <StageRunner {...props} lab={worded} />;
+}
+
+/** The lab with a lesson's own words for its tasks: hints, nudges (in the lab's order) and success lines. */
+function withLines(lab: LabDefinition, lines: LabLines | undefined): LabDefinition {
+  if (!lines) return lab;
+  return {
+    ...lab,
+    tasks: lab.tasks.map((t) => {
+      const w = lines[t.id];
+      if (!w) return t;
+      const nudges = t.nudges?.map((n, i) => ({ ...n, say: w.nudges?.[i] ?? n.say }));
+      return { ...t, ...(w.hints ? { hints: w.hints } : {}), ...(w.success ? { success: w.success } : {}), ...(nudges ? { nudges } : {}) };
+    }),
+  };
 }
 
 export function StageSkeleton() {
@@ -201,14 +225,16 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     () =>
       new LabRuntime(gated, built, props.done, {
         onTaskDone: (t) => {
-          useLearner.getState().labEvent({ type: "task", lessonId, taskId: t.id });
+          if (!props.trial) useLearner.getState().labEvent({ type: "task", lessonId, taskId: t.id });
           cb.current.onTaskDone(t.id);
         },
         onFried: (card) => {
-          useLearner.getState().recordFried(card.kind, card.shownLabel, lessonId, { silent: true });
+          if (!props.trial) useLearner.getState().recordFried(card.kind, card.shownLabel, lessonId, { silent: true });
           cb.current.onFried(card);
         },
-        onTrigger: (name) => useLearner.getState().labEvent({ type: "trigger", name, lessonId }),
+        onTrigger: (name) => {
+          if (!props.trial) useLearner.getState().labEvent({ type: "trigger", name, lessonId });
+        },
         onTick: () => tickNudges(),
         labelFor: (rec, bench) => friedLabel(rec, bench),
         sound: (kind) => audio.cue(kind),
@@ -431,6 +457,8 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   }, [tool, benchReady, trayKey]);
   /** Where the hands last worked on a phone: a beat that names no parts picks up there. */
   const lastHands = useRef<string[] | null>(null);
+  // With the coach mark, a phone frames the beat's first move (where the ghost draws) rather than the task's highlight.
+  const coachAt = useMemo(() => (props.coach ? coachAnchors(firstMove(runtime.lab, props.coach, runtime.store.getState().bench)) : []), [props.coach, runtime]);
   useEffect(() => {
     const c = controllerRef.current;
     const stage = stageRef.current;
@@ -451,7 +479,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     const working = !!props.hands && !!props.gate;
     const phoneHands = w < 640 && working;
     const read = working && framed.length ? (w < 640 ? READ_PHONE : READ_DESK) : phoneHands ? READ_PHONE : undefined;
-    if (phoneHands && !framed.length && props.hands === "beat") framed = resolve(lab.tasks.find((t) => t.id === props.gate)?.highlight);
+    if (phoneHands && !framed.length && props.hands === "beat") framed = resolve(coachAt.length ? coachAt : lab.tasks.find((t) => t.id === props.gate)?.highlight);
     if (phoneHands && !framed.length && props.hands === "beat" && lastHands.current?.length) {
       c.focus(lastHands.current, { inset, read: READ_PHONE });
       return;
@@ -470,7 +498,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     if (phoneHands && framed.length) lastHands.current = framed;
     c.focus(framed, framed.length ? { padding, inset, ...(read ? { read, ...zoom } : {}) } : { inset });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spotKey, frameKey, runtime, benchReady, dockKey, quietPins, props.hands, props.gate]);
+  }, [spotKey, frameKey, runtime, benchReady, dockKey, quietPins, props.hands, props.gate, coachAt]);
 
   return (
     <div
@@ -506,6 +534,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
       {benchReady && (
         <div className="bl-overlay">
           <Annotations controllerRef={controllerRef} bench={bench} marks={props.marks} />
+          {props.coach && !readOnly && <CoachMark controllerRef={controllerRef} runtime={runtime} bench={bench} task={props.coach} />}
           {/* The meter's fuse has its own Replace on the docked meter. */}
           <ReplaceLayer controllerRef={controllerRef} bench={bench} items={props.replace.filter((r) => !(r.card.kind === "meter-fuse" && tool === "meter"))} onReplace={(c) => cb.current.onReplace(c)} />
           <TapLayer controllerRef={controllerRef} bench={bench} check={props.check} labelOf={api.labelOf} onTap={(a) => cb.current.onTap(a)} />
