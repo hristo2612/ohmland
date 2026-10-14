@@ -282,7 +282,7 @@
   animation: bl-float calc(var(--bl-dur-draw) * 2) var(--bl-ease-out) forwards;
 }
 
-/* The rule stamped into the margin. It collapses into the notebook when the lesson moves on. */
+/* The rule stamped right under the robot's line. It slides into the notebook button when the lesson moves on. */
 .bl-stamped {
   display: flex;
   align-items: center;
@@ -297,6 +297,9 @@
   animation: bl-fade var(--bl-dur-write) var(--bl-ease-out) backwards;
 }
 .bl-stamped__text { font-weight: 600; }
+/* The copy that slides into the notebook button as the beat ends. */
+.bl-stamped--flying { position: fixed; z-index: var(--z-menu); margin: 0; pointer-events: none; animation: none; transform-origin: center; }
+.bl-stamped--flying .bl-stamp { animation: none; }
 .bl-stamp {
   display: inline-grid;
   flex: none;

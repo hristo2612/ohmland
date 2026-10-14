@@ -2,8 +2,8 @@
 
 A bench lesson keeps the learner at the bench the whole time. There is no hook page, no explain cards and no quiz
 page: the robot says one short line, the learner does one thing on the bench, and the bench answers. Discoveries are
-drawn onto the parts, rules are stamped quietly into the margin, and checks are taps and picks on the bench. At the end
-the notebook page fills itself in and is signed off.
+drawn onto the parts, rules are stamped quietly under the robot's line (and slide into the notebook as the beat ends),
+and checks are taps and picks on the bench. At the end the notebook page fills itself in and is signed off.
 
 Read `docs/DESIGN-PRINCIPLES.md` first: it decides how much goes on a screen and how much we say. Wording rules are in
 `docs/CONTENT.md`, the lab file in `docs/LABS.md`. The reference lessons are
@@ -49,7 +49,7 @@ beats:
     tap: { answer: D1.anode, among: [D1.anode, D1.cathode] }   # a check on the bench, graded on the first try
     wrong: { D1.cathode: "That's the short leg. Try the other." }
     note: { at: D1.anode, text: "long leg: anode, toward plus" }
-    rule: "LED: long leg to plus."        # stamped into the margin and the notebook (8 words)
+    rule: "LED: long leg to plus."        # stamped under the line, then into the notebook (8 words)
   - say: Swap the LED's legs. Guess first.
     guess: { options: [It still glows, It goes dark, It burns out], answer: It goes dark }   # before the action
     do: flip-led

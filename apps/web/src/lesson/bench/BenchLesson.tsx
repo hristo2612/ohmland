@@ -1,7 +1,7 @@
 /**
  * The bench lesson player (format: bench, docs/LESSONS.md). The learner sits at the bench the whole time. The margin
  * holds the robot (its eyes are the progress), its one short line and the one thing to do now; discoveries are drawn
- * onto the parts, rules are stamped quietly into the margin and collected in the notebook, and checks happen on the
+ * onto the parts, rules are stamped quietly under its line and slide into the notebook, and checks happen on the
  * bench. At the end the notebook page is signed off and the island grows.
  *
  * The shell (this file) is light: the bench, the simulator and three.js arrive in the Stage chunk, warmed on the
@@ -89,6 +89,39 @@ const stepsOf = (mo: Moment): SolutionStep[] => (mo.beat?.then ?? []) as Solutio
 /** The notebook boxes a lab task asks for (a number read off the bench, judged by the task's goal). */
 const notesOf = (note: NoteSpec | NoteSpec[] | undefined): NoteSpec[] => (note ? (Array.isArray(note) ? note : [note]) : []);
 
+/**
+ * A rule stamp, as its beat ends, slides into the notebook button (the motion says where rules live). A copy flies so
+ * the margin can move on at once. Nothing moves under reduced motion.
+ */
+function flyToNotebook(from: HTMLElement | null): void {
+  const host = from?.closest<HTMLElement>(".bl");
+  const to = host?.querySelector<HTMLElement>("[data-notebook-button]");
+  if (!from || !host || !to || prefersReducedMotion() || typeof from.animate !== "function") return;
+  const a = from.getBoundingClientRect();
+  const b = to.getBoundingClientRect();
+  if (!a.width || !b.width) return;
+  const ghost = from.cloneNode(true) as HTMLElement;
+  ghost.removeAttribute("id");
+  ghost.setAttribute("aria-hidden", "true");
+  ghost.classList.add("bl-stamped--flying");
+  Object.assign(ghost.style, { left: `${a.left}px`, top: `${a.top}px`, width: `${a.width}px` });
+  host.appendChild(ghost);
+  const css = getComputedStyle(host);
+  // A CSS time ("320ms", or ".32s" once minified) in ms.
+  const raw = css.getPropertyValue("--dur-write").trim();
+  const duration = (parseFloat(raw) || 0) * (/ms$/.test(raw) ? 1 : /s$/.test(raw) ? 1000 : 1);
+  const dx = b.left + b.width / 2 - (a.left + a.width / 2);
+  const dy = b.top + b.height / 2 - (a.top + a.height / 2);
+  const flight = ghost.animate(
+    [
+      { transform: "none", opacity: 1 },
+      { transform: `translate(${dx}px, ${dy}px) scale(0.15)`, opacity: 0 },
+    ],
+    { duration, easing: css.getPropertyValue("--ease-in-out").trim() || "ease-in-out" },
+  );
+  flight.onfinish = flight.oncancel = () => ghost.remove();
+}
+
 /** Where a fried part's note and Replace control go: the part, or for the meter's own fuse its mA socket. */
 const friedAt = (card: FriedCard): string => (card.kind === "meter-fuse" ? `part:${card.partId.replace(/:fuse$/, "")}/ma` : card.partId);
 
@@ -155,6 +188,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const state = useRef({ moment, phase, answers, index, tasks, api });
   state.current = { moment, phase, answers, index, tasks, api };
   const lineRef = useRef<HTMLParagraphElement>(null);
+  const stampRef = useRef<HTMLParagraphElement>(null);
   const pendingSetup = useRef<string | null>(null);
   const pendingTrace = useRef<string | null>(null);
   const pendingThen = useRef<SolutionStep[]>([]);
@@ -238,6 +272,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       setHints(0);
       setLine(null);
       setNotice(null);
+      // The rule found in the last beat goes where rules live: it slides into the notebook.
+      if (last !== mo) flyToNotebook(stampRef.current);
       setStamp(null);
       setTried([]);
       setNumberText("");
@@ -966,6 +1002,16 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               )}
               {shownLine}
             </p>
+            {/* The rule is the beat's headline: stamped right under the line that found it. */}
+            {stamp && (
+              <p className="bl-stamped" key={stamp} ref={stampRef}>
+                <span className="bl-stamp" aria-hidden="true">
+                  <span>{m.lessonBench.ruleWord}</span>
+                  <b>{rules.length}</b>
+                </span>
+                <span className="bl-stamped__text">{stamp}</span>
+              </p>
+            )}
             {guessPicked !== undefined && phase !== "done" && (
               <p className="bl-guess">
                 <span className="bl-guess__k">{m.lessonBench.guessLabel}</span> <span className="bl-hand bl-hand--blue">{guessPicked}</span>
@@ -988,15 +1034,6 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
             </div>
           </div>
           <div className="bl-margin__foot">
-            {stamp && (
-              <p className="bl-stamped" key={stamp}>
-                <span className="bl-stamp" aria-hidden="true">
-                  <span>{m.lessonBench.ruleWord}</span>
-                  <b>{rules.length}</b>
-                </span>
-                <span className="bl-stamped__text">{stamp}</span>
-              </p>
-            )}
             <button type="button" className="bl-keyboard-btn" aria-expanded={keyboard} onClick={() => setKeyboard((k) => !k)}>
               {m.lessonBench.keyboard}
             </button>
