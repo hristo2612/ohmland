@@ -6,7 +6,7 @@
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CABLE_STYLES, isCableStyle, type CableStyle } from "@ohmland/bench/core";
-import { BenchView } from "@ohmland/bench/view";
+import { BenchView, CABLE_STYLE_KEY } from "@ohmland/bench/view";
 import { buildModel, inkClutter } from "@ohmland/bench/ink";
 import { m } from "../../i18n";
 import { loadLab } from "../../lab/labs";
@@ -108,6 +108,40 @@ function Mini({ children, scaled }: { children: ReactNode; scaled: boolean }) {
   );
 }
 
+/** Which style bench lessons draw their cables in on this device (kept in this browser only). */
+function TryInLessons() {
+  const read = (): CableStyle => {
+    try {
+      const v = localStorage.getItem(CABLE_STYLE_KEY);
+      return isCableStyle(v) ? v : "classic";
+    } catch {
+      return "classic";
+    }
+  };
+  const [picked, setPicked] = useState<CableStyle>(read);
+  const pick = (s: CableStyle) => {
+    try {
+      if (s === "classic") localStorage.removeItem(CABLE_STYLE_KEY);
+      else localStorage.setItem(CABLE_STYLE_KEY, s);
+    } catch {
+      // Private mode: the page still works, lessons keep the current look.
+    }
+    setPicked(s);
+  };
+  return (
+    <div className="cv-try">
+      <span>{t.tryInLessons}</span>
+      <div className="cv-toggle" role="group" aria-label={t.tryInLessons}>
+        {CABLE_STYLES.map((s) => (
+          <button key={s} type="button" aria-pressed={picked === s} onClick={() => pick(s)}>
+            {t.short[s]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Grid({ labs, view, row }: { labs: Map<string, LabDefinition>; view: View; row: string | null }) {
   const cells = useMemo(() => {
     const out = new Map<string, Cell>();
@@ -122,6 +156,7 @@ function Grid({ labs, view, row }: { labs: Map<string, LabDefinition>; view: Vie
         <div>
           <h1 className="cv-title">{t.title}</h1>
           <p className="cv-lead">{t.lead}</p>
+          <TryInLessons />
         </div>
         <nav className="cv-toggle" aria-label={t.view}>
           <a href={href({ view: null })} aria-current={view === "ink" ? "true" : undefined}>

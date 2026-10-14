@@ -199,14 +199,15 @@ export function clipHeadings(style: Exclude<CableStyle, "classic">, sites: reado
     const sum = g.reduce<Vec2>((acc, s) => add(acc, base.get(s.key)!), [0, 0]);
     const m = Math.hypot(sum[0], sum[1]) > 0.01 ? norm(sum) : base.get(g[0]!.key)!;
     const c = g.reduce<Vec2>((acc, s) => add(acc, scale(s.at, 1 / g.length)), [0, 0]);
-    // Left to right across the fan: by where each clip bites, then by where its cable goes.
+    // Across the fan in the order the cables leave (the jaws are a few millimetres apart at most; the cables would
+    // otherwise cross further out), then by where each clip bites.
     const ordered = [...g].sort((p, q) => {
-      const sp = Math.round(cross(m, sub(p.at, c)));
-      const sq = Math.round(cross(m, sub(q.at, c)));
-      if (sp !== sq) return sp - sq;
       const ap = wrap(angleOf(toOf(p)) - angleOf(m));
       const aq = wrap(angleOf(toOf(q)) - angleOf(m));
-      return ap - aq || (p.key < q.key ? -1 : 1);
+      if (Math.abs(ap - aq) > 0.05) return ap - aq;
+      const sp = cross(m, sub(p.at, c));
+      const sq = cross(m, sub(q.at, c));
+      return sp - sq || (p.key < q.key ? -1 : 1);
     });
     const outs = g.map((s) => s.out).filter((o): o is Vec2 => !!o);
     const mo = outs.length ? norm(outs.reduce<Vec2>((acc, o) => add(acc, o), [0, 0])) : null;
@@ -416,20 +417,27 @@ function keepApart(cables: readonly RouteCable[], routes: Map<string, Vec2[]>) {
   if (ids.length < 2) return;
   const ends = new Map(cables.map((c) => [c.id, [c.a.tip, c.b.tip, c.a.tail, c.b.tail]]));
   const pts = new Map(ids.map((id) => [id, resample(routes.get(id)!, 2.5)]));
-  for (let it = 0; it < 8; it++) {
+  for (let it = 0; it < 6; it++) {
     const pushes = new Map(ids.map((id) => [id, pts.get(id)!.map(() => [0, 0] as Vec2)]));
+    const boxes = new Map(ids.map((id) => [id, boundsOf(pts.get(id)!, GAP)]));
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
+        const bi = boxes.get(ids[i]!)!;
+        const bj = boxes.get(ids[j]!)!;
+        if (bi[0] > bj[2] || bj[0] > bi[2] || bi[1] > bj[3] || bj[1] > bi[3]) continue;
         const P = pts.get(ids[i]!)!;
         const Q = pts.get(ids[j]!)!;
         const shared = ends.get(ids[i]!)!.filter((e) => ends.get(ids[j]!)!.some((f) => dist(e, f) < 3));
         for (let k = 1; k < P.length - 1; k++) {
           const p = P[k]!;
+          if (p[0] < bj[0] || p[0] > bj[2] || p[1] < bj[1] || p[1] > bj[3]) continue;
           if (shared.some((s) => dist(s, p) < 14)) continue;
           let bq = -1;
           let bd = GAP;
           for (let m = 1; m < Q.length - 1; m++) {
-            const d = dist(p, Q[m]!);
+            const q = Q[m]!;
+            if (Math.abs(q[0] - p[0]) > GAP || Math.abs(q[1] - p[1]) > GAP) continue;
+            const d = dist(p, q);
             if (d < bd) {
               bd = d;
               bq = m;
@@ -511,7 +519,8 @@ type Grid = { xs: number[]; zs: number[]; blocked: Uint8Array; soft: Map<number,
 function routeTaped(cables: readonly RouteCable[], obs: readonly Prepared[]): Map<string, Vec2[]> {
   const out = new Map<string, Vec2[]>();
   if (!cables.length) return out;
-  const exits = new Map(cables.map((c) => [c.id, { a: exitOf(c.a, obs), b: exitOf(c.b, obs) }]));
+  const own = (c: RouteCable) => (c.pass?.length ? obs.filter((o) => !c.pass!.includes(o.id)) : obs);
+  const exits = new Map(cables.map((c) => [c.id, { a: exitOf(c.a, own(c)), b: exitOf(c.b, own(c)) }]));
   const special: Vec2[] = [];
   for (const c of cables) special.push(c.a.tail, c.b.tail, exits.get(c.id)!.a.at, exits.get(c.id)!.b.at);
   const pts: Vec2[] = [...special];
@@ -620,35 +629,55 @@ function gridPath(g: Grid, p: Vec2, q: Vec2, startDir: number, endDir: number, s
   const N = W * H * 4;
   const cost = new Float64Array(N).fill(Infinity);
   const prev = new Int32Array(N).fill(-1);
-  const heap: [number, number][] = [];
-  const pushH = (f: number, s: number) => {
-    heap.push([f, s]);
-    let i = heap.length - 1;
+  // A binary heap of states by estimated cost, in typed arrays (no garbage per step).
+  let cap = 1024;
+  let hf = new Float64Array(cap);
+  let hs = new Int32Array(cap);
+  let size = 0;
+  const pushH = (f: number, st: number) => {
+    if (size === cap) {
+      cap *= 2;
+      const nf = new Float64Array(cap);
+      nf.set(hf);
+      hf = nf;
+      const ns = new Int32Array(cap);
+      ns.set(hs);
+      hs = ns;
+    }
+    let i = size++;
     while (i > 0) {
       const pi = (i - 1) >> 1;
-      if (heap[pi]![0] <= heap[i]![0]) break;
-      [heap[pi], heap[i]] = [heap[i]!, heap[pi]!];
+      if (hf[pi]! <= f) break;
+      hf[i] = hf[pi]!;
+      hs[i] = hs[pi]!;
       i = pi;
     }
+    hf[i] = f;
+    hs[i] = st;
   };
-  const popH = () => {
-    const top = heap[0]!;
-    const last = heap.pop()!;
-    if (heap.length) {
-      heap[0] = last;
+  let topF = 0;
+  const popH = (): number => {
+    const st = hs[0]!;
+    topF = hf[0]!;
+    size--;
+    if (size > 0) {
+      const f = hf[size]!;
+      const x = hs[size]!;
       let i = 0;
       for (;;) {
         const l = 2 * i + 1;
+        if (l >= size) break;
         const r = l + 1;
-        let m = i;
-        if (l < heap.length && heap[l]![0] < heap[m]![0]) m = l;
-        if (r < heap.length && heap[r]![0] < heap[m]![0]) m = r;
-        if (m === i) break;
-        [heap[m], heap[i]] = [heap[i]!, heap[m]!];
+        const m = r < size && hf[r]! < hf[l]! ? r : l;
+        if (hf[m]! >= f) break;
+        hf[i] = hf[m]!;
+        hs[i] = hs[m]!;
         i = m;
       }
+      hf[i] = f;
+      hs[i] = x;
     }
-    return top;
+    return st;
   };
   const h = (i: number, j: number) => Math.abs(g.xs[i]! - g.xs[ti]!) + Math.abs(g.zs[j]! - g.zs[tj]!);
   for (const d of startDir < 0 ? [0, 1, 2, 3] : [startDir]) {
@@ -659,8 +688,9 @@ function gridPath(g: Grid, p: Vec2, q: Vec2, startDir: number, endDir: number, s
   const BEND = 7;
   let goal = -1;
   let iter = 0;
-  while (heap.length && iter++ < 400000) {
-    const [f, s] = popH();
+  while (size > 0 && iter++ < 400000) {
+    const s = popH();
+    const f = topF;
     const c0 = cost[s]!;
     if (f - h(((s >> 2) % W), Math.floor((s >> 2) / W)) > c0 + 1e-6) continue;
     const node = s >> 2;

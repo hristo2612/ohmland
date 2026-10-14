@@ -1438,6 +1438,8 @@ export const en = {
     detail: (c: { crossings: number; overParts: number; overClips: number; overlaps: number; outside: number }) =>
       `${c.crossings} crossings, ${c.overParts} over parts, ${c.overClips} over clips, ${c.overlaps} overlaps, ${c.outside} out of frame`,
     only3d: "3D draws one bench at a time. Pick a bench:",
+    tryInLessons: "Cables in lessons on this device:",
+    short: { classic: "Current", drape: "A", taped: "B", tidy: "C (arcs only)" } as Record<string, string>,
   },
 };
 

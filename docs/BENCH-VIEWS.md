@@ -118,6 +118,27 @@ Teaching overlays draw over the bench in both views, from one state in the bench
 Parts shut in a sealed box are drawn in neither view and no pointer, clip or probe can reach them; the box's own
 terminals and knob stand for them. Open, the box shows them and the wires inside.
 
+## Cable styles
+
+How clip leads and probe cords run between their clips is a style, `cableStyle` on `<BenchView>` (or either
+renderer; it lives in the bench store), shared by both views (`src/cables`):
+
+- `classic` (the default): each view's original look, a loose curve out of each clip (in 3D a hanging rope).
+- `drape`: smooth curves with slack that grows with distance, routed round part bodies; clips on one terminal (or on
+  terminals side by side) fan out evenly, and parallel runs keep a constant gap.
+- `taped`: straight runs with rounded right-angle corners on an invisible grid; later runs keep off earlier ones.
+- `tidy`: short gentle arcs bowing away from the middle of the work, for benches laid out by the tidy pass
+  (`tidyBench`, `@ohmland/bench/core`), which nudges desk parts and loose clips so the loop reads clockwise from the
+  battery at the left. It never changes what is clipped to what, and keeps furniture and parts a lab marks `stay`.
+
+Every style keeps the anchors, clip points, `project()` and the netlist exactly as they are: only the drawn path
+between the clips changes (and, in the three new styles, which way a clip lies). Each view works the routes out when
+the bench changes, never per frame: ink from its drawn outlines (`buildModel(bench, style)`), 3D from the outlines
+its part models measure as they render, the cable then lifted off the desk (it leaves the clip, falls to whatever is
+under it and lies there). Flow dots, gates, the push hatching and the loop tracer ride the routes as drawn.
+`/variants/cables` (hidden) compares the styles on the most cluttered benches with a clutter score
+(`inkClutter`), and lets a device try a style in bench lessons (`CABLE_STYLE_KEY` in local storage).
+
 ## Interaction parity
 
 Everything a learner can do in one view works in the other: take parts from the tray, place and move them, stretch

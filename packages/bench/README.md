@@ -55,6 +55,12 @@ the current one stays on screen. Its `controllerRef` receives a hub that stays t
 overlays subscribe to `onViewChange` once, and the last `focus` and `spotlight` carry over to the new view.
 `hub.inner()` is the active view's own controller (in 3D, a `Bench3DController`).
 
+`cableStyle: "classic" | "drape" | "taped" | "tidy"` picks how clip leads and probe cords run between their clips in
+both views (default `classic`; without the prop, a style picked on the device under `CABLE_STYLE_KEY` applies). The
+routes (`src/cables/route.ts`) are pure and worked out once per bench change; `tidyBench` (`@ohmland/bench/core`)
+is the tidy style's layout pass and `inkClutter` (`@ohmland/bench/ink`) scores a drawing's clutter. See
+`docs/BENCH-VIEWS.md`, "Cable styles".
+
 ### `BenchController`
 
 | Method | |
