@@ -6,5 +6,6 @@ landmark:
   id: dice-arcade
   name: The Dice Arcade
 lessons:
+  - first-buzzer-wins
   - count-in-binary
   - roll-a-six
