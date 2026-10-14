@@ -1,63 +1,59 @@
-# Blueprint: docs/curriculum/unit-1.md, L7. A bench lesson (docs/LESSONS.md), and the reference for the format.
-# One idea: an LED works one way round, and it needs a resistor. Lab: content/labs/first-glow.ts.
+# Start here, case 12 (docs/curriculum/start-here.md, SH12). A bench lesson (docs/LESSONS.md).
+# One idea: a drawing shows connections, not places. The old "flip the LED" is the fix-it now.
+# Lab: content/labs/first-glow.ts (a half board with two jumpers, a torn drawing, the parts in the tray).
 format: bench
 id: first-glow
-version: 2
-title: Your first glow
-summary: Wire a battery, a resistor and an LED into a loop, and find out which way an LED goes.
+version: 3
+title: The torn blueprint
+summary: Mend a torn circuit drawing, build it on the breadboard, and find out what a drawing really shows.
 minutes: 8
 lab: first-glow
 unlocks:
   parts: [led-red]
-  isle: led-lamp
+  isle: jumper-arch
 
 start:
-  title: Wake the robot's face
-  say: My face is one LED. Dark for weeks. Wire me a glow?
-  go: Let's wire it
+  title: The torn blueprint
+  say: Half my blueprint tore off. The LED's missing.
+  go: Mend it
 
 beats:
-  - say: This is an LED. Tap it.
-    objective: Make it glow
-    meet: D1
-    note: { at: D1, text: LED }
+  - say: Drag the torn piece into the gap. Turn it right.
+    objective: Mend the blueprint
+    spot: [CARD, PC]
+    do: mend-blueprint
+    note: { at: CARD, text: the triangle points away from plus }
 
-  - say: Clip a loop. Plus, resistor, LED, minus.
+  - say: Build it on the board. Follow the lines.
+    objective: Build it
     do: build-loop
-    done: It glows! First light on this island in ages.
-    note: { at: R1, text: holds it to about 5 mA }
+    done: It glows! Built from a drawing.
+    note: { at: CARD, text: "each line: a connection" }
 
-  - say: Want me brighter? Try another resistor.
-    popup: { widget: resistor-slider, at: R1, props: { part: R1, led: D1, values: [470, 1000, 1500, 4700, 10000] } }
+  - say: Show me the part for the zigzag.
+    objective: Read the drawing
+    tap: { answer: R1, among: [B1, R1, D1] }
+    wrong: { D1: "That's the LED: the triangle.", B1: "That's the battery: long and short lines." }
 
-  - say: Quick one. Tap the long leg.
-    objective: The one-way rule
-    tap: { answer: D1.anode, among: [D1.anode, D1.cathode] }
-    wrong: { D1.cathode: "That's the short leg. Try the other." }
-    note: { at: D1.anode, text: "long leg: anode, toward plus" }
-    rule: "LED: long leg to plus."
+  - say: Move the LED up a row. Will the drawing change?
+    spot: [D1, CARD]
+    guess: { options: [It changes, It stays the same], answer: It stays the same }
+    do: move-it
+    note: { at: CARD, text: "parts moved, drawing stayed" }
+    rule: A drawing shows connections, not places.
 
-  - say: Swap the LED's legs. Guess first.
-    guess: { options: [It still glows, It goes dark, It burns out], answer: It goes dark }
-    do: flip-led
-    done: Dark. And not broken.
-    note: { at: D1, text: "backwards: blocked" }
-    rule: LEDs work one way only.
-
-  - say: Now make it glow again.
-    do: flip-back
+  - say: So what does a drawing show?
+    pick: { on: CARD, options: [Connections, Where parts sit], answer: Connections }
 
 secret:
-  task: no-resistor
-  say: Curious? Leave the resistor out. It's free here.
-  done: Pop. That LED gave its life for science.
-  note: { at: D1, text: about 1 A for a blink }
-  rule: Every LED needs a resistor.
+  task: swap-order
+  say: "Secret: put the resistor after the LED."
+  note: { at: R1, text: "one loop: order doesn't matter" }
 
 fixit:
-  say: Fix-it time. No glow here. Why?
+  say: Last case. This board's lamp won't light.
   tasks:
-    - task: fix-reversed
+    - task: flip-led
 
 end:
-  say: You built that from scratch. My face approves.
+  say: Case closed. You built that from a drawing!
