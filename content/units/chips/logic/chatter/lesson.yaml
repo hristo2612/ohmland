@@ -1,0 +1,66 @@
+# Blueprint: docs/curriculum/unit-4.md, CH22. A bench lesson (docs/LESSONS.md).
+# One idea: contacts bounce, and a latch takes only the first touch. New: the word "bounce" (a note as the replay
+# shows it, then "What were they?"). The timing diagram's slow-motion replay shows the chatter (the blueprint's
+# scope single shot cannot run in the solution replay). Bare chips at 5 V until the digit modules exist.
+# Lab: content/labs/chatter.ts.
+format: bench
+id: chatter
+version: 1
+title: One press, many counts
+summary: Watch one press of a button count several times, see its contacts chatter in slow motion, then let a latch count cleanly.
+minutes: 7
+lab: chatter
+unlocks:
+  parts: []
+  isle: pushbutton
+
+start:
+  title: One press, many counts
+  say: Count my castle's visitors. One press, one visitor.
+  go: Let one in
+
+beats:
+  - say: Press the button once.
+    objective: Extra counts
+    spot: [S1, DS1]
+    do: bouncy
+    note: { at: DS1, text: "one press, several counts" }
+
+  - say: Press again, then replay it in slow motion.
+    tool: td
+    spot: [S1]
+    do: catch-bounce
+    note: { at: S1, text: "bounce: the contacts chatter" }
+
+  - say: Move the clock wire to the latch's pin 1.
+    objective: Clean counts
+    spot: [W1, U2]
+    do: latch-wire
+
+  - say: Flip the latch's switch on and off, five times.
+    spot: [SW2, DS1]
+    do: latch-count
+    note: { at: U2, text: "the latch takes the first touch" }
+    rule: A latch ignores the bounce.
+
+  - say: Those quick spikes in slow motion. What were they?
+    pick: { options: [Bounce, A clock, Hum], answer: Bounce }
+    wrong:
+      A clock: A clock ticks steadily. These came from one press.
+      Hum: Hum is slow and steady. These came in a burst.
+
+secret:
+  task: let-go
+  spot: [S1]
+  say: "Secret: replay a let-go in slow motion."
+  tool: td
+  done: Letting go chatters too.
+  note: { at: S1, text: "let go: a few rebounds" }
+
+fixit:
+  say: My latch counts once, then never again. Fix it.
+  tasks:
+    - task: fix-it
+
+end:
+  say: One visitor, one count. My castle can count guests.

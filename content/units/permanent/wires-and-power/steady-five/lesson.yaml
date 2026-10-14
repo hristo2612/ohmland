@@ -1,0 +1,64 @@
+# Blueprint: docs/curriculum/unit-3.md, MP9. A bench lesson (docs/LESSONS.md).
+# One idea: a regulator turns a higher, lumpy push into a steady 5 V. New part: the regulator (three periods: beats 2,
+# 3, 5; its legs named in beat 3). Every number matches the simulator's regulator7805 and supply (see the lab).
+# Lab: content/labs/steady-five.ts.
+format: bench
+id: steady-five
+version: 1
+title: Five, exactly
+summary: Turn an adapter's lumpy 13 V into a steady 5 V with a 7805, and find how much push it needs.
+minutes: 8
+lab: steady-five
+unlocks:
+  parts: [regulator-7805]
+  isle: regulator
+
+start:
+  title: Five, exactly
+  say: Chips on the next island want exactly 5 V.
+  go: Let's power up
+
+beats:
+  - say: Plug the adapter into the jack. Watch the scope.
+    objective: Lumps in, flat out
+    do: power-up
+    tool: scope
+    note: { at: AD4, text: "lumpy push, about 13 V" }
+
+  - say: This is a regulator. Lumps in, steady 5 V out.
+    meet: U1
+    tool: scope
+    note: { at: U1, text: "regulator" }
+
+  - say: Its legs are in, ground and out. Tap out.
+    tap: { answer: U1.out, among: [U1.in, U1.gnd, U1.out] }
+    wrong:
+      U1.in: "That's in, where the lumps arrive."
+      U1.gnd: "That's ground, the middle leg."
+    note: { at: U1.out, text: "out: a steady 5.0 V" }
+
+  - say: Now a tired battery. Speed up time. Guess first.
+    objective: Needs headroom
+    guess: { options: [Sinks at once, Holds 5 V forever, "Holds, then sinks"], answer: "Holds, then sinks" }
+    do: battery-sag
+    tool: controls
+    note: { at: U1, text: "under 7 V in: it sags" }
+    rule: A 7805 needs about 7 V in.
+
+  - say: What is this?
+    pick: { on: U1, options: [A regulator, A transistor, A heat sink], answer: A regulator }
+
+secret:
+  task: spare-heat
+  say: Curious? Hang the big 47 Ω load on its output.
+  tool: controls
+  done: Over 50 °C! Spare volts turn into heat.
+  note: { at: U1, text: "too hot to touch" }
+
+fixit:
+  say: Fix-it time. My 5 V lamp sees about 10 V.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. Five, exactly.

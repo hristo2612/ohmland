@@ -1,0 +1,61 @@
+# Blueprint: docs/curriculum/unit-3.md, MP7. A bench lesson (docs/LESSONS.md).
+# One idea: heat-shrink goes on the wire before the joint is made. New part: heat-shrink (three periods: beats 2, 6,
+# 7). The robot forgets the tube on the red pair, so the bench shows why the rule exists. Lab:
+# content/labs/splice-and-shrink.ts.
+format: bench
+id: splice-and-shrink
+version: 1
+title: The short snap
+summary: Splice two pairs of wire, find out why heat-shrink goes on first, and shrink a tube over a joint.
+minutes: 7
+lab: splice-and-shrink
+unlocks:
+  parts: [heat-shrink]
+  isle: battery
+
+start:
+  title: The short snap
+  say: My battery leads are too short. Let's splice on more.
+  go: Let's splice
+
+beats:
+  - say: Solder the red ends together.
+    objective: Splice
+    do: red-splice
+    note: { at: HW1.b, text: "a slim, smooth splice" }
+
+  - say: This is heat-shrink. Slide a tube over that joint.
+    do: tube-blocked
+    done: It won't go on. Both ends are held!
+    note: { at: T2, text: "both ends held: no way on" }
+    rule: Tube on first. Then solder.
+
+  - say: Black pair now. Slide a tube on first.
+    objective: Tube first
+    do: black-tube
+
+  - say: Now solder the black ends.
+    do: black-splice
+
+  - say: Slide the tube over the joint. Heat gun on.
+    do: shrink-black
+    note: { at: HW3.b, text: "hot air: shrinks to half" }
+
+  - say: Show me the heat-shrink.
+    tap: { answer: T4, among: [T4, HG1, HW4] }
+
+  - say: What is this?
+    pick: { on: HW3.b, options: [Heat-shrink, A jumper, The jacket], answer: Heat-shrink }
+
+secret:
+  task: too-big
+  say: Curious? Shrink the big tube over the spare splice.
+  note: { at: HW5.b, text: "too big: shrunk, still loose" }
+
+fixit:
+  say: Fix-it time. This tube split. Redo it, gently.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. My leads reach now.

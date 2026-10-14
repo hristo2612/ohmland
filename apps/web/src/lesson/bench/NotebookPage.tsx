@@ -3,6 +3,7 @@
  * against results, checks and how they went, the fix-it round, parts that went to the Hall. Opened from the margin
  * at any time; at the end it is the signed-off summary with a "checked" stamp.
  */
+import type { ReactNode } from "react";
 import type { BenchLessonData } from "../../content/load";
 import { m } from "../../i18n";
 import { answerKeys, checkOf, isGraded, type Answers, type Moment } from "./flow";
@@ -18,11 +19,13 @@ type Props = {
   signed?: boolean;
   /** The fix-it benches fixed. */
   fixed: number;
+  /** What the lab's panels write onto the signed-off page (NotebookFigures: the 555 map so far). */
+  figures?: ReactNode;
 };
 
 const today = () => new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
-export function NotebookPage({ lesson, moments, answers, reached, rules, fried, signed, fixed }: Props) {
+export function NotebookPage({ lesson, moments, answers, reached, rules, fried, signed, fixed, figures }: Props) {
   const t = m.lessonBench.page;
   const guesses = moments
     .slice(0, reached)
@@ -37,6 +40,8 @@ export function NotebookPage({ lesson, moments, answers, reached, rules, fried, 
     .map((mo) => ({ key: mo.key, say: mo.say, rec: checkOf(answers, mo.key) }))
     .filter((c) => c.rec?.done);
   const fixCount = lesson.fixit?.tasks.length ?? 0;
+  // The same part fried three times is one line with a count, not three lines.
+  const hall = [...fried.reduce((acc, f) => acc.set(f, (acc.get(f) ?? 0) + 1), new Map<string, number>())];
   const clock = answers[answerKeys.clock];
 
   return (
@@ -61,6 +66,8 @@ export function NotebookPage({ lesson, moments, answers, reached, rules, fried, 
           <p className="bl-page__empty">{t.noRules}</p>
         )}
       </section>
+
+      {figures}
 
       {guesses.length > 0 && (
         <section className="bl-page__sec">
@@ -94,7 +101,7 @@ export function NotebookPage({ lesson, moments, answers, reached, rules, fried, 
             {checks.map((c) => (
               <li key={c.key}>
                 <span>{c.say}</span>
-                <span className={`bl-hand ${c.rec?.first ? "bl-hand--blue" : "bl-hand--muted"}`}>{c.rec?.first ? t.firstTry : t.later}</span>
+                <span className={`bl-hand ${c.rec?.first ? "bl-hand--blue" : "bl-hand--muted"}`}>{c.rec?.first ? t.firstTry : t.tries(c.rec?.tries)}</span>
               </li>
             ))}
           </ul>
@@ -115,8 +122,8 @@ export function NotebookPage({ lesson, moments, answers, reached, rules, fried, 
         <section className="bl-page__sec">
           <h3 className="bl-kicker bl-kicker--red">{t.hall}</h3>
           <ul className="bl-page__hall">
-            {fried.map((f, i) => (
-              <li key={`${f}-${i}`}>{f}</li>
+            {hall.map(([label, n]) => (
+              <li key={label}>{t.hallTimes(label, n)}</li>
             ))}
           </ul>
         </section>

@@ -34,7 +34,8 @@ export type RuntimeUi = {
   readings: Reading[];
   fried: FriedCard[];
   mascot: { line: string; mood: MascotMood } | null;
-  notice: { key: number; message: string } | null;
+  /** The latest simulator warning: its words (the sandbox shows them), and what and where it was (a lesson draws it). */
+  notice: { key: number; message: string; type: string; partId: string; cause?: string } | null;
   /** A task being shown by "Show me". */
   showing: string | null;
   spareFuses: number | null;
@@ -91,6 +92,8 @@ export class LabRuntime {
   private noteSpecs = new Map<string, { unit?: string }>();
   /** Simulated seconds per real second (1, or more for a time-lapse). */
   private speed = 1;
+  /** Settles in progress (the lab's `settle`): their snapshots are not shown or judged. */
+  private settling = 0;
   /** Buttons held from the keys panel or the keyboard: by a key, a finger on the on-screen key, or pinned down. */
   private held = new Map<string, "key" | "touch" | "pin">();
   /** A histogram the fast roller is working on. */
@@ -172,7 +175,9 @@ export class LabRuntime {
     client.load(this.session.net.netlist);
     for (const i of this.startInputs) client.setInput(i.id, i.key, i.value);
     this.syncAudio(this.session.bench);
-    client.run({ speed: this.speed });
+    if (this.lab.settle) await this.settle();
+    else client.run({ speed: this.speed });
+    if (this.disposed) return;
     this.ui.setState({ ready: true });
     const onVis = () => {
       if (!this.sim) return;
@@ -366,6 +371,7 @@ export class LabRuntime {
   }
 
   private tick(s: Parameters<LabSession["ingest"]>[0]): void {
+    if (this.settling) return;
     this.store.setState({ snapshot: s });
     // The solder overlay runs the station on the simulator's clock; goals read it through lab.solder.
     this.session.station = this.store.getState().station;
@@ -406,7 +412,7 @@ export class LabRuntime {
     }
     if (u.captured.length) patch.readings = [...this.session.readings];
     if (this.session.mcu.version !== this.ui.getState().code) patch.code = this.session.mcu.version;
-    if (u.notices.length) patch.notice = { key: this.cardKey++, message: noticeText(u.notices[u.notices.length - 1]!) };
+    if (u.notices.length) patch.notice = noticeOf(u.notices[u.notices.length - 1]!, this.cardKey++);
     for (const name of u.triggers) this.hooks.onTrigger?.(name);
     if (Object.keys(patch).length) this.ui.setState(patch);
     this.hooks.onTick?.();
@@ -663,22 +669,45 @@ export class LabRuntime {
 
   /** Puts a whole bench on the table with fresh parts (the sandbox's clear and open). */
   loadBench(bench: BenchState): void {
-    this.loadFresh(bench, []);
+    void this.loadFresh(bench, []);
     this.ui.setState({ fried: [], notice: null, readings: [] });
   }
 
   /** Back to the lab's starting bench with fresh parts. Task progress stays. */
   reset(): void {
-    this.loadFresh(this.built.bench, this.built.inputs);
+    void this.loadFresh(this.built.bench, this.built.inputs);
     this.ui.setState({ fried: [], notice: null });
   }
 
-  private loadFresh(bench: BenchState, inputs: SimInput[]): void {
+  /** Resolves once the fresh circuit has settled (the lab's `settle`; at once without one). */
+  private loadFresh(bench: BenchState, inputs: SimInput[]): Promise<void> {
     this.fresh = true;
     this.store.getState().load(bench);
     // load() does not count as a change when the bench is the same object; force the rebuild.
     if (this.fresh) this.benchChanged(bench);
     for (const i of inputs) this.sim?.setInput(i.id, i.key, i.value);
+    return this.settle();
+  }
+
+  /**
+   * Runs the circuit unseen for the lab's `settle` seconds, then on in real time: a 555 that woke with its latch set
+   * has finished its glow before the learner sees the bench. Starts after the caller's own inputs (a setup's), so
+   * they settle too. Nothing it passes through is shown or judged.
+   */
+  private async settle(): Promise<void> {
+    const secs = this.lab.settle;
+    const sim = this.sim;
+    if (!secs || !sim) return;
+    this.settling++;
+    try {
+      await Promise.resolve();
+      if (this.disposed) return;
+      sim.pause();
+      await sim.step(secs);
+    } finally {
+      this.settling--;
+      if (!this.disposed && !this.settling && !document.hidden) sim.run({ speed: this.speed });
+    }
   }
 
   /** The bench (and inputs) after replaying the solution up to where `taskId`'s own steps begin. */
@@ -707,7 +736,7 @@ export class LabRuntime {
     const start = this.checkpoint(taskId);
     if (!seg || !start || this.ui.getState().showing) return;
     this.ui.setState({ showing: taskId, fried: [] });
-    this.loadFresh(start.bench, [...this.built.inputs, ...start.inputs]);
+    await this.loadFresh(start.bench, [...this.built.inputs, ...start.inputs]);
     await sleep(700);
     for (let i = seg.start; i < seg.end && !this.disposed; i++) {
       const step = this.lab.solution[i]!;
@@ -739,6 +768,7 @@ export class LabRuntime {
   }
 }
 
-function noticeText(e: SimEvent): string {
-  return e.message;
+function noticeOf(e: SimEvent, key: number): NonNullable<RuntimeUi["notice"]> {
+  const cause = e.data?.["cause"];
+  return { key, message: e.message, type: e.type, partId: e.partId, ...(typeof cause === "string" ? { cause } : {}) };
 }

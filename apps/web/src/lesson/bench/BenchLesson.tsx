@@ -1,22 +1,21 @@
 /**
  * The bench lesson player (format: bench, docs/LESSONS.md). The learner sits at the bench the whole time. The margin
  * holds the robot (its eyes are the progress), its one short line and the one thing to do now; discoveries are drawn
- * onto the parts, rules are stamped quietly into the margin and collected in the notebook, and checks happen on the
+ * onto the parts, rules are stamped quietly under its line and slide into the notebook, and checks happen on the
  * bench. At the end the notebook page is signed off and the island grows.
  *
  * The shell (this file) is light: the bench, the simulator and three.js arrive in the Stage chunk, warmed on the
  * learner's first gesture or once the loaded page goes idle, never in the page's first load.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { BenchLessonData } from "../../content/load";
 import { m } from "../../i18n";
 import { Dialog } from "../../components/Dialog";
 import { Icon } from "../../components/Icon";
 import { IconButton } from "../../components/IconButton";
-import { toast } from "../../components/toast-store";
 import { BenchSurfaceChunk, INK_RENDERER, readViewPref, resolveView, storeViewPref, type BenchViewKind, type BenchViewPref } from "../../lab/bench-view";
 import type { NoteSpec, SolutionStep } from "../../lab/define";
-import { loadLab } from "../../lab/labs";
+import { loadedLab, loadLab } from "../../lab/labs";
 import { preloadable, warmSimulator, whenIdle } from "../../lab/prefetch";
 import type { FriedCard } from "../../lab/runtime";
 import { prefersReducedMotion } from "../../progress/prefs";
@@ -46,7 +45,7 @@ import {
 import { judgeJoined, type Mark } from "./marks";
 import { NotebookPage } from "./NotebookPage";
 import { Robot, type RobotMood } from "./Robot";
-import type { StageApi, StageCheck, StageProps } from "./Stage";
+import type { StageApi, StageCheck, StageNotice, StageProps } from "./Stage";
 import "@fontsource/kalam/400.css";
 import "@fontsource/kalam/700.css";
 import "./bench-lesson.css";
@@ -74,6 +73,9 @@ function warmBench(labId: string): void {
   warmSimulator();
 }
 
+/** The lab panels' figures on the signed-off page (the 555 map so far): a chunk of their own, loaded at the sign-off. */
+const NotebookFigures = lazy(() => import("./NotebookFigures"));
+
 type Phase = "guess" | "act" | "done";
 
 /**
@@ -99,6 +101,51 @@ const stepsOf = (mo: Moment): SolutionStep[] => (mo.beat?.then ?? []) as Solutio
 /** The notebook boxes a lab task asks for (a number read off the bench, judged by the task's goal). */
 const notesOf = (note: NoteSpec | NoteSpec[] | undefined): NoteSpec[] => (note ? (Array.isArray(note) ? note : [note]) : []);
 
+/**
+ * A rule stamp, as its beat ends, slides into the notebook button (the motion says where rules live). A copy flies so
+ * the margin can move on at once. Nothing moves under reduced motion.
+ */
+function flyToNotebook(from: HTMLElement | null): void {
+  const host = from?.closest<HTMLElement>(".bl");
+  const to = host?.querySelector<HTMLElement>("[data-notebook-button]");
+  if (!from || !host || !to || prefersReducedMotion() || typeof from.animate !== "function") return;
+  const a = from.getBoundingClientRect();
+  const b = to.getBoundingClientRect();
+  if (!a.width || !b.width) return;
+  const ghost = from.cloneNode(true) as HTMLElement;
+  ghost.removeAttribute("id");
+  ghost.setAttribute("aria-hidden", "true");
+  ghost.classList.add("bl-stamped--flying");
+  Object.assign(ghost.style, { left: `${a.left}px`, top: `${a.top}px`, width: `${a.width}px` });
+  host.appendChild(ghost);
+  const css = getComputedStyle(host);
+  // A CSS time ("320ms", or ".32s" once minified) in ms.
+  const raw = css.getPropertyValue("--dur-write").trim();
+  const duration = (parseFloat(raw) || 0) * (/ms$/.test(raw) ? 1 : /s$/.test(raw) ? 1000 : 1);
+  const dx = b.left + b.width / 2 - (a.left + a.width / 2);
+  const dy = b.top + b.height / 2 - (a.top + a.height / 2);
+  const flight = ghost.animate(
+    [
+      { transform: "none", opacity: 1 },
+      { transform: `translate(${dx}px, ${dy}px) scale(0.15)`, opacity: 0 },
+    ],
+    { duration, easing: css.getPropertyValue("--ease-in-out").trim() || "ease-in-out" },
+  );
+  flight.onfinish = flight.oncancel = () => ghost.remove();
+}
+
+/** Where a fried part's note and Replace control go: the part, or for the meter's own fuse its mA socket. */
+const friedAt = (card: FriedCard): string => (card.kind === "meter-fuse" ? `part:${card.partId.replace(/:fuse$/, "")}/ma` : card.partId);
+
+/** A guess against what happened, once a moment is done: folded into the robot's line, never a block of its own. */
+function verdictOf(mo: Moment, answers: Answers): { right: boolean; guess: string } | null {
+  const g = mo.beat?.guess;
+  const i = answers[answerKeys.guess(mo.key)];
+  if (!g || g.answer === undefined || typeof i !== "number" || g.options[i] === undefined) return null;
+  // Quoted mid-sentence: an ordinary first word loses its capital ("It goes dark" -> "it goes dark").
+  return { right: g.options[i] === g.answer, guess: g.options[i]!.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase()) };
+}
+
 type Line = { text: string; mood: RobotMood; key: number };
 
 const INTERACTIVE = "input, textarea, select, button, a[href], [role=radio], [role=button], [role=application], [contenteditable=true], summary";
@@ -118,7 +165,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const [answers, setAnswers] = useState<Answers>({});
   const [marks, setMarks] = useState<Mark[]>([]);
   const [line, setLine] = useState<Line | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  /** When the last bench warning was drawn (its note leaves a few seconds later). */
+  const [notice, setNotice] = useState<number | null>(null);
   const [fried, setFried] = useState<FriedCard[]>([]);
   const [hints, setHints] = useState(0);
   const [stamp, setStamp] = useState<string | null>(null);
@@ -129,6 +177,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   clockRef.current = clock;
   const [warm, setWarm] = useState(false);
   const [api, setApi] = useState<StageApi | null>(null);
+  // The last stage's lab session outlives the stage, so the signed-off page can still show what the bench recorded.
+  const [lastApi, setLastApi] = useState<StageApi | null>(null);
   const [benchReady, setBenchReady] = useState(false);
   const [benchFailed, setBenchFailed] = useState(false);
   const [notebook, setNotebook] = useState(false);
@@ -152,11 +202,14 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const state = useRef({ moment, phase, answers, index, tasks, api });
   state.current = { moment, phase, answers, index, tasks, api };
   const lineRef = useRef<HTMLParagraphElement>(null);
+  const stampRef = useRef<HTMLParagraphElement>(null);
   const pendingSetup = useRef<string | null>(null);
   const pendingTrace = useRef<string | null>(null);
   const pendingThen = useRef<SolutionStep[]>([]);
   const pendingSkips = useRef<string[]>([]);
   const lastSecret = useRef(0);
+  /** The moment last finished, set at once (a fry reported in the same bench tick as the task sees it before React does). */
+  const finished = useRef<Moment | null>(null);
   const prefetchedIsle = useRef(false);
 
   const announce = useCallback((text: string) => {
@@ -240,14 +293,26 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       setHints(0);
       setLine(null);
       setNotice(null);
+      // The rule found in the last beat goes where rules live: it slides into the notebook.
+      if (last !== mo) flyToNotebook(stampRef.current);
       setStamp(null);
       setTried([]);
       setNumberText("");
       setHoleText("");
       setNotebookText({});
-      // The last moment's notes fade to small marks; pencil rings go.
-      setMarks((ms) => ms.filter((k) => k.kind !== "ring" && k.kind !== "strip").map((k) => (k.kind === "note" || k.kind === "label" ? { ...k, faded: true } : k)));
       const done = isMomentDone(mo, a, t);
+      // A setup puts a fresh bench down: ticks and names from earlier checks would read as hints about it. A fix-it
+      // bench starts clean of every mark (even the dots of earlier finds): the learner reads the bench, not the ink.
+      const setup = !!mo.task && !done && !!state.current.api?.task(mo.task)?.setup?.length;
+      // The last moment's notes fade to small marks; pencil rings, warnings and the Hall's notes go.
+      setMarks((ms) =>
+        mo.kind === "fix" && !done
+          ? []
+          : ms
+              .filter((k) => k.kind !== "ring" && k.kind !== "strip" && !k.id.startsWith("notice-") && !k.id.startsWith("hall-"))
+              .filter((k) => !setup || (k.kind !== "tick" && k.kind !== "label"))
+              .map((k) => (k.kind === "note" || k.kind === "label" ? { ...k, faded: true } : k)),
+      );
       if (done) setPhase("done");
       else if (mo.beat?.guess && typeof a[answerKeys.guess(mo.key)] !== "number") setPhase("guess");
       else setPhase("act");
@@ -255,8 +320,9 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       if (mo.beat?.tap?.joinedTo) addMark({ id: `marker-${mo.key}`, kind: "ring", at: mo.beat.tap.joinedTo, tone: "red" });
       if (mo.beat?.pick?.on) addMark({ id: `on-${mo.key}`, kind: "ring", at: mo.beat.pick.on, tone: "ink" });
       state.current.api?.calm();
-      // A setup puts fresh parts on the bench: nothing is left to replace.
-      if (mo.task && !done && state.current.api?.task(mo.task)?.setup?.length) setFried([]);
+      // A part fried in the last beat is part of what happened there (a fuse blown on purpose stays blown for the
+      // next beat to probe): its Replace control leaves with that beat.
+      setFried([]);
       if (mo.task && !done) {
         pendingSetup.current = mo.task;
         if (state.current.api) {
@@ -305,9 +371,13 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const complete = useCallback(
     (mo: Moment, opts: { tapped?: string; mood?: RobotMood } = {}) => {
       setPhase("done");
-      // What a wrong try wrote on the bench has done its job: the discovery takes its place.
-      setMarks((ms) => ms.filter((k) => !k.id.startsWith("miss-")));
+      finished.current = mo;
+      // What a wrong try wrote on the bench has done its job: the discovery takes its place (and the Hall's note, when
+      // the fry was the point of the beat).
+      setMarks((ms) => ms.filter((k) => !k.id.startsWith("miss-") && !(mo.note && k.id.startsWith("hall-"))));
       const lines: string[] = [];
+      const said = verdictOf(mo, state.current.answers);
+      if (said) lines.push(said.right ? m.lessonBench.called : m.lessonBench.guessed(said.guess));
       if (mo.done) {
         say(mo.done, opts.mood ?? "happy");
         lines.push(mo.done);
@@ -365,10 +435,18 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       });
       pendingThen.current = moments.slice(lastTask + 1, at).flatMap((mo) => (checkOf(a, mo.key)?.done ? stepsOf(mo) : []));
       enter(at, a);
-      toast({ title: m.lesson.resumed, icon: "play", duration: 3500 });
+      // No toast over the bench: the bench and the robot's line show where the learner is.
+      window.setTimeout(() => announce(`${m.lesson.resumed} ${moments[at]!.say}`), 0);
     }
     setRestored(true);
-  }, [ready, restored, lesson.id, lesson.version, lesson.lab, moments, enter]);
+  }, [ready, restored, lesson.id, lesson.version, lesson.lab, moments, enter, announce]);
+
+  // Achievements earned on the way wait for the finale's tally: nothing toasts over the bench mid-discovery.
+  useEffect(() => {
+    const store = useLearner.getState();
+    store.holdAchievements(true);
+    return () => store.holdAchievements(false);
+  }, []);
 
   useEffect(() => {
     if (!restored || completion) return;
@@ -432,13 +510,18 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
 
   const onFried = useCallback(
     (card: FriedCard) => {
+      const mo = state.current.moment;
+      // The fry that finished this beat (a fuse blown on purpose) is its result: the beat's own line and note say it.
+      const result = finished.current === mo;
       setFried((f) => [...f.filter((c) => c.partId !== card.partId), card]);
-      // The secret's own line stays (a fry for science), but the robot looks sorry for the part either way.
-      if (Date.now() - lastSecret.current > 600 && state.current.moment.kind !== "secret") say(state.current.api?.lab.mascot?.fried ?? m.lessonBench.friedLine, "sad");
+      // Written on the part itself, in red pencil: off it goes to the Hall of Fried Parts.
+      if (!(result && mo.note)) addMark({ id: `hall-${card.partId}`, kind: "note", at: friedAt(card), text: m.lessonBench.hallNote, tone: "red" });
+      // The secret's own line and a beat's result line stay (a fry for science), but the robot looks sorry either way.
+      if (Date.now() - lastSecret.current > 600 && mo.kind !== "secret" && !(result && mo.done)) say(state.current.api?.lab.mascot?.fried ?? m.lessonBench.friedLine, "sad");
       else setLine((l) => (l ? { ...l, mood: "sad" } : l));
       announce(m.lab.fried.title(card.shownLabel));
     },
-    [say, announce],
+    [say, announce, addMark],
   );
 
   const onNudge = useCallback(
@@ -448,10 +531,36 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
     [say],
   );
 
-  const onNotice = useCallback((text: string) => setNotice(text), []);
+  /**
+   * A bench warning (a short, a part running hot) is never printed in the margin. Known ones write a short note in red
+   * pencil on the part that raised it and the robot says a kind line; in a fix-it round they say nothing at all (the
+   * warning would name the fault the learner is there to find).
+   */
+  const onNotice = useCallback(
+    (n: StageNotice) => {
+      const { moment: mo, phase: ph } = state.current;
+      if (mo.kind === "fix") return;
+      const spec = m.lessonBench.notices[n.type === "shorted" ? "shorted" : (n.cause ?? "")] ?? m.lessonBench.notices["other"]!;
+      const id = `notice-${n.partId}`;
+      setMarks((ms) => {
+        // The discovery of the moment wins when it is already written on that part.
+        const taken = ms.some((k) => k.kind === "note" && !k.faded && !k.id.startsWith("notice-") && k.at.replace(/^(pin|part):/, "").split(/[./]/)[0] === n.partId);
+        return taken ? ms : [...ms.filter((k) => k.id !== id), { id, kind: "note", at: n.partId, text: spec.note, tone: "red" }];
+      });
+      setNotice(Date.now());
+      // The beat's own result line (and a secret just found) keeps the margin; otherwise the robot says it kindly.
+      if (ph === "act" && Date.now() - lastSecret.current > 1500) say(spec.line, "thinking");
+      announce(spec.line);
+    },
+    [say, announce],
+  );
+  // The note has had its moment after a few seconds: the bench shows the rest.
   useEffect(() => {
     if (!notice) return;
-    const t = window.setTimeout(() => setNotice(null), 6000);
+    const t = window.setTimeout(() => {
+      setMarks((ms) => ms.filter((k) => !k.id.startsWith("notice-")));
+      setNotice(null);
+    }, 8000);
     return () => window.clearTimeout(t);
   }, [notice]);
 
@@ -666,6 +775,12 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const kept = !!moment.tool && moments[index - 1]?.tool === moment.tool;
   const tool = started && (phase !== "guess" || kept) ? (moment.tool ?? null) : null;
   const friedHere = friedAll.filter((f) => f.lessonId === lesson.id).map((f) => f.label);
+  const figLab = lastApi?.lab ?? loadedLab(lesson.lab);
+  const figures = figLab?.panels?.length ? (
+    <Suspense fallback={null}>
+      <NotebookFigures lab={figLab} session={lastApi ? lastApi.runtime.session : null} />
+    </Suspense>
+  ) : null;
   const fixedCount = moments.filter((mo) => mo.kind === "fix" && mo.task && tasks.includes(mo.task)).length;
 
   if (completion) {
@@ -680,7 +795,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
         isle={isle}
         firstTry={scoreOf(lesson, moments, answers).firstTry}
         items={scoreOf(lesson, moments, answers).items}
-        page={<NotebookPage lesson={lesson} moments={moments} answers={answers} reached={moments.length} rules={rulesFound(moments, moments.length, tasks, true)} fried={friedHere} fixed={fixedCount} signed />}
+        page={<NotebookPage lesson={lesson} moments={moments} answers={answers} reached={moments.length} rules={rulesFound(moments, moments.length, tasks, true)} fried={friedHere} fixed={fixedCount} figures={figures} signed />}
       />
     );
   }
@@ -690,6 +805,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const mood: RobotMood = !started ? "idle" : (line?.mood ?? (phase === "done" ? "happy" : "idle"));
   const guess = moment.beat?.guess;
   const guessPicked = typeof answers[answerKeys.guess(moment.key)] === "number" ? guess?.options[answers[answerKeys.guess(moment.key)] as number] : undefined;
+  const verdict = started && phase === "done" ? verdictOf(moment, answers) : null;
   const hintsLeft = hintLines().length > hints;
   const canShow = !!moment.task && hints >= hintLines().length && hintLines().length > 0 && !!api?.runtime.canShow(moment.task);
 
@@ -782,6 +898,13 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   } else if (moment.action === "task" || moment.action === "meet") {
     action = (
       <div className="bl-help">
+        {/* The fix-it clock is the learner's choice: a quiet link beside Hint, never a button that looks like the task. */}
+        {moment.fix && moment.fix.index === 0 && (
+          <button type="button" className="bl-link bl-clock" aria-pressed={!!clock} onClick={() => setClock((c) => (c ? null : { end: Date.now() + moment.fix!.timer * 1000, left: moment.fix!.timer }))}>
+            <Icon name="clock" size={18} />
+            {clock ? m.lessonBench.fixit.raceOn : m.lessonBench.fixit.race}
+          </button>
+        )}
         {hintsLeft && (
           <button type="button" className="bl-link" onClick={onHint}>
             <Icon name="hint" size={18} />
@@ -799,11 +922,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
             {m.lessonBench.skip}
           </button>
         )}
-        {moment.action === "meet" && (
-          <button type="button" className="bl-link" onClick={() => onTap(moment.part ?? "")}>
-            {m.lessonBench.next}
-          </button>
-        )}
+        {/* A meet beat is done by touching the part: its target on the bench is a button (Enter or Space taps it). */}
         {benchFailed && moment.kind !== "secret" && (
           <button type="button" className="bl-link" onClick={skipTask}>
             {m.lessonBench.skipTask}
@@ -836,6 +955,24 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   // The current objective's name, as a quiet kicker: one thing at a time, never the whole list.
   const objective = moment.kind === "beat" ? moments.slice(0, index + 1).reverse().find((mo) => mo.beat?.objective)?.beat?.objective : undefined;
   const stepsDone = Math.min(moments.length, index + 1);
+  /** The 3D / Ink switch: in the bar on wide screens, in the notebook sheet on phones (CSS shows one of the two). */
+  const viewSwitch = (where: string) => (
+    <div className={`bl-views ${where}`} role="radiogroup" aria-label={m.lessonBench.view}>
+      {(["3d", "ink"] as const).map((v) => (
+        <button
+          key={v}
+          type="button"
+          role="radio"
+          aria-checked={view === v}
+          className="bl-views__opt"
+          title={v === "ink" && !INK_RENDERER ? m.lessonBench.viewInkStandIn : undefined}
+          onClick={() => chooseView(v)}
+        >
+          {v === "3d" ? m.lessonBench.view3d : m.lessonBench.viewInk}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div
@@ -851,21 +988,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
         <IconButton label={m.lesson.close} icon="close" href={mapHref} />
         <p className="bl-bar__title">{lesson.title}</p>
         <div className="bl-bar__tools">
-          <div className="bl-views" role="radiogroup" aria-label={m.lessonBench.view}>
-            {(["3d", "ink"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                role="radio"
-                aria-checked={view === v}
-                className="bl-views__opt"
-                title={v === "ink" && !INK_RENDERER ? m.lessonBench.viewInkStandIn : undefined}
-                onClick={() => chooseView(v)}
-              >
-                {v === "3d" ? m.lessonBench.view3d : m.lessonBench.viewInk}
-              </button>
-            ))}
-          </div>
+          {/* A setting, not a lesson action: on a phone it lives in the notebook sheet, and the title takes the bar. */}
+          {viewSwitch("bl-views--bar")}
           <button type="button" className="bl-nb-btn" aria-haspopup="dialog" aria-label={m.lessonBench.notebookOpen(rules.length)} onClick={() => setNotebook(true)} data-notebook-button>
             <Icon name="book" size={20} />
             <span className="bl-nb-btn__text">{m.lessonBench.notebook}</span>
@@ -908,22 +1032,35 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               </p>
             )}
             <p className="bl-line" ref={lineRef} tabIndex={-1} data-step-heading key={`${moment.key}-${line?.key ?? 0}-${started}`}>
+              {verdict && (
+                <span className="bl-said" data-said={verdict.right ? "right" : "wrong"}>
+                  {verdict.right ? (
+                    m.lessonBench.called
+                  ) : (
+                    <>
+                      {m.lessonBench.guessedBefore}
+                      <span className="bl-said__guess">{verdict.guess}</span>
+                      {m.lessonBench.guessedAfter}
+                    </>
+                  )}{" "}
+                </span>
+              )}
               {shownLine}
             </p>
-            {guessPicked !== undefined && (
-              <p className="bl-guess">
-                <span className="bl-guess__k">{m.lessonBench.guessLabel}</span> <span className="bl-hand bl-hand--blue">{guessPicked}</span>
-                {phase === "done" && guess?.answer !== undefined && (
-                  <span className="bl-guess__verdict">{guess.answer === guessPicked ? m.lessonBench.called : m.lessonBench.missed}</span>
-                )}
+            {/* The rule is the beat's headline: stamped right under the line that found it. */}
+            {stamp && (
+              <p className="bl-stamped" key={stamp} ref={stampRef}>
+                <span className="bl-stamp" aria-hidden="true">
+                  <span>{m.lessonBench.ruleWord}</span>
+                  <b>{rules.length}</b>
+                </span>
+                <span className="bl-stamped__text">{stamp}</span>
               </p>
             )}
-            {notice && <p className="bl-notice">{notice}</p>}
-            {fix && phase === "act" && fix.index === 0 && (
-              <button type="button" className="bl-clock" aria-pressed={!!clock} onClick={() => setClock((c) => (c ? null : { end: Date.now() + fix.timer * 1000, left: fix.timer }))}>
-                <Icon name="clock" size={18} />
-                {clock ? m.lessonBench.fixit.raceOn : m.lessonBench.fixit.race}
-              </button>
+            {guessPicked !== undefined && phase !== "done" && (
+              <p className="bl-guess">
+                <span className="bl-guess__k">{m.lessonBench.guessLabel}</span> <span className="bl-hand bl-hand--blue">{guessPicked}</span>
+              </p>
             )}
             {clock && (
               <p className="bl-clock__left" role="timer" aria-live="off">
@@ -934,37 +1071,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               {noteBoxes}
               {action}
             </div>
-            {fried.length > 0 && (
-              <div className="bl-fried">
-                {fried.map((c) => (
-                  <button
-                    key={c.key}
-                    type="button"
-                    className="btn btn--secondary btn--small"
-                    data-replace
-                    onClick={() => {
-                      api?.replace(c);
-                      setFried((f) => f.filter((x) => x.key !== c.key));
-                    }}
-                  >
-                    <Icon name="retry" size={16} />
-                    {c.kind === "meter-fuse" ? m.lab.meter.replaceFuse : m.lessonBench.replace}
-                  </button>
-                ))}
-                <span className="bl-fried__hall">{m.lessonBench.hall}</span>
-              </div>
-            )}
           </div>
           <div className="bl-margin__foot">
-            {stamp && (
-              <p className="bl-stamped" key={stamp}>
-                <span className="bl-stamp" aria-hidden="true">
-                  <span>{m.lessonBench.ruleWord}</span>
-                  <b>{rules.length}</b>
-                </span>
-                <span className="bl-stamped__text">{stamp}</span>
-              </p>
-            )}
             <button type="button" className="bl-keyboard-btn" aria-expanded={keyboard} onClick={() => setKeyboard((k) => !k)}>
               {m.lessonBench.keyboard}
             </button>
@@ -987,12 +1095,21 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               xray={started && !!moment.beat?.xray}
               hintHighlight={hintHighlight}
               marks={marks}
+              replace={started && phase === "act" ? fried.map((c) => ({ card: c, at: friedAt(c) })) : []}
+              onReplace={(c) => {
+                api?.replace(c);
+                setFried((f) => f.filter((x) => x.key !== c.key));
+                setMarks((ms) => ms.filter((k) => k.id !== `hall-${c.partId}`));
+              }}
               check={check}
               popup={popup}
               tool={tool}
               code={started ? { key: moment.key, ...moment.code } : null}
               keyboardOpen={keyboard}
-              onApi={setApi}
+              onApi={(a) => {
+                setApi(a);
+                if (a) setLastApi(a);
+              }}
               onBenchReady={() => setBenchReady(true)}
               onBenchFailed={() => setBenchFailed(true)}
               onTaskDone={onTaskDone}
@@ -1015,6 +1132,10 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       </main>
 
       <Dialog open={notebook} onClose={() => setNotebook(false)} title={m.lessonBench.notebook} variant="sheet" className="bl-notebook">
+        <div className="bl-notebook__view">
+          <span className="bl-kicker">{m.lessonBench.view}</span>
+          {viewSwitch("bl-views--sheet")}
+        </div>
         <NotebookPage lesson={lesson} moments={moments} answers={answers} reached={index + (phase === "done" ? 1 : 0)} rules={rules} fried={friedHere} fixed={fixedCount} />
       </Dialog>
 
