@@ -1,161 +1,54 @@
-# Blueprint: docs/curriculum/unit-1.md, L18.
+# Blueprint: docs/curriculum/unit-1.md, L18, the kept half after the split (docs/curriculum/conversion-guide.md, B3 18).
+# A bench lesson (docs/LESSONS.md). One idea: some batteries hold their push under load and some sag, so match the
+# battery to the job. Run time moved to how-long. Lab: content/labs/battery-field-guide.ts.
+format: bench
 id: battery-field-guide
-version: 1
+version: 2
 title: A field guide to batteries
-summary: Measure four kinds of battery at rest and under load, estimate run time, and learn which ones need care.
-minutes: 10
+summary: Test four batteries at rest and under load, find the sippers and the gulpers, and match each to its job.
+minutes: 6
+lab: battery-field-guide
 unlocks:
   parts: [coin-cell]
   isle: cell-jar
-steps:
-  - type: hook
-    body: |
-      Batteries come in a whole zoo of shapes and chemistries: the chunky 9 V, the AA in a remote, the coin cell in a
-      watch, the rechargeable pack in a phone. They differ in voltage, in how much charge they hold, in how much
-      current they can deliver, and in how carefully they must be treated. Time to test a few and learn which battery
-      suits which job.
-    visual: { kind: part, part: coin-cell }
-    predict:
-      prompt: "Which can deliver the most current: a coin cell, an AA cell or a 9 V battery?"
-      options:
-        - The coin cell
-        - The AA cell
-        - The 9 V battery
-    mascot: So many batteries. Let's meet the whole family.
 
-  - type: lab
-    lab: battery-field-guide
+start:
+  title: Sippers and gulpers
+  say: Four batteries, four personalities. Let's test them.
+  go: Let's test
 
-  - type: explain
-    cards:
-      - title: Single-use or rechargeable
-        body: |
-          **Primary** batteries are single-use: their chemistry runs one way, and once it's spent they're done.
-          Alkaline AA, AAA and 9 V batteries are primary, and so is your lemon cell. **Secondary** batteries are
-          rechargeable: a charger drives the reaction backwards. NiMH AAs and the lithium-ion packs in phones are
-          secondary. Never try to recharge a primary battery.
-      - title: "Capacity: how long it lasts"
-        body: |
-          Capacity is how much charge a battery can deliver, in milliamp-hours (mAh). Divide it by the current and you
-          get a rough run time: 500 mAh at 15 mA lasts about 33 hours. Real capacity shrinks at high currents and in
-          the cold. Rough figures: a 9 V alkaline about 500 mAh, an AA alkaline 2,000 to 2,800 mAh, a coin cell about
-          220 mAh.
-        # widget (planned): run-time. Pick a battery and a load, see the estimated hours and a discharge curve.
-      - title: Match the battery to the job
-        body: |
-          Voltage isn't everything. A coin cell's high internal resistance suits gentle jobs, like a watch sipping
-          microamps. AA cells have low internal resistance and big capacity, good for torches and toys. A 9 V battery
-          is handy for small electronics but holds little charge. For a big current, you need a battery built to
-          deliver one.
-      - title: Batteries that deserve respect
-        body: |
-          A car battery is only 12 V, but it can push hundreds of amps through a short, enough to melt a spanner.
-          Lithium-ion packs can overheat and catch fire if shorted, punctured or crushed. Keep a 9 V battery away from
-          coins and keys in your pocket. Keep coin cells away from small children: a swallowed one can cause serious
-          internal burns.
+beats:
+  - say: Load off. Drop each battery in the tester.
+    objective: At rest
+    do: survey
+    tool: meter
+    done: Four pushes. All healthy, at rest.
+    note: { at: X2, text: "rechargeable: lower push, by design" }
 
-  - type: quiz
-    items:
-      # Blueprint item was a two-category match, which the match format cannot hold (its right-hand sides must
-      # differ), so it is a multi-answer choice.
-      - id: primary-or-secondary
-        type: choice
-        multi: true
-        prompt: Which of these are rechargeable (secondary) batteries?
-        options:
-          - text: A NiMH AA cell
-            correct: true
-            why: NiMH cells are made to be recharged hundreds of times.
-          - text: A phone's lithium-ion pack
-            correct: true
-            why: Phones recharge their lithium-ion packs every day.
-          - text: A 9 V alkaline battery
-            why: Alkaline batteries are primary. Their chemistry runs once.
-          - text: A lemon cell
-            why: Once the zinc is used up, the cell is done. It is primary.
-        explain: Primaries run their chemistry once. Secondaries can be driven backwards by a charger.
+  - say: Flip the load on. Test all four again.
+    objective: Under load
+    do: load-test
+    tool: meter
+    done: The AAs shrug. The coin cell wilts.
+    note: { at: X3, text: "sags under load: a sipper" }
+    rule: Big flow needs a gulper.
 
-      # Blueprint item was numeric with a unit of hours, which the answer box does not support yet, so it is a choice.
-      - id: aa-hours
-        type: choice
-        prompt: A 2,000 mAh AA cell powers a gadget drawing 20 mA. Roughly how long will it run?
-        options:
-          - text: About 100 hours
-            correct: true
-            why: 2,000 mAh ÷ 20 mA = 100 hours.
-          - text: About 10 hours
-            why: That divides by 200 mA instead of 20 mA.
-          - text: About 1,000 hours
-            why: That is ten times too long. Check the division again.
-          - text: About 40,000 hours
-            why: That multiplies capacity by current. Divide instead.
-        explain: Capacity in mAh divided by current in mA gives a rough run time in hours. 2,000 ÷ 20 = 100 hours.
+  - say: What job suits this one best?
+    objective: Match the job
+    pick: { on: X3, options: [A watch, A torch, A toy motor], answer: A watch }
+    wrong:
+      A torch: "A torch gulps flow. This one would sag."
+      A toy motor: "Motors gulp. This one sips."
 
-      - id: pocket-9v
-        type: choice
-        prompt: Why shouldn't a 9 V battery ride loose in a pocket with coins?
-        options:
-          - text: Coins can bridge its terminals and short it, making it hot
-            correct: true
-            why: The two terminals sit side by side, so one coin can short them.
-          - text: Coins drain it by magnetism
-            why: Magnetism has nothing to do with it. A short circuit does.
-          - text: It's perfectly fine
-            why: A shorted 9 V battery can get hot enough to burn.
-        explain: Keep battery terminals covered, or keep them away from loose metal.
+  - say: These two need respect. Look, never touch.
+    spot: [SC1]
+    note: { at: SC1, text: "huge flow, or fire: hands off" }
 
-      - id: coin-job
-        type: choice
-        prompt: Which job suits a coin cell best?
-        options:
-          - text: A watch drawing a few microamps
-            correct: true
-            why: Tiny currents barely dent its voltage, and its charge lasts for years.
-          - text: A small motor drawing 1 A
-            why: With about 15 Ω inside, its voltage would collapse.
-          - text: A bright torch drawing 300 mA
-            why: Far too much current for its high internal resistance.
-        explain: Coin cells are sippers. Choose them for tiny currents.
+fixit:
+  say: Fix-it time. My load drags the coin cell down.
+  tool: meter
+  tasks:
+    - task: pick-a-gulper
 
-      - id: two-aa
-        type: choice
-        prompt: Two 2,000 mAh AA cells in series. What do you get?
-        options:
-          - text: About 3 V, still about 2,000 mAh
-            correct: true
-            why: Series adds voltage. The same current flows through both, so the capacity doesn't add.
-          - text: About 1.5 V and 4,000 mAh
-            why: That is what two cells in parallel would give.
-          - text: About 3 V and 4,000 mAh
-            why: Series doubles the voltage, not the capacity.
-        explain: Series adds voltage. Parallel adds capacity.
-
-      - id: car-battery
-        type: choice
-        prompt: A car battery is only 12 V. Why is it treated with so much care?
-        options:
-          - text: It can deliver hundreds of amps into a short circuit
-            correct: true
-            why: That much current melts metal and causes burns and fires.
-          - text: 12 V gives a dangerous shock through dry skin
-            why: 12 V is usually too low to push much current through dry skin. The danger is a short circuit.
-          - text: It contains mains electricity
-            why: It's a DC battery with no connection to the mains.
-        explain: Danger depends on how much current a source can deliver, not only on its voltage.
-
-  - type: wrap
-    rules:
-      - Primary batteries are single-use. Secondary batteries are rechargeable.
-      - Run time is roughly capacity (mAh) divided by current (mA).
-      - Series adds voltage. Parallel adds capacity.
-      - Never short, puncture or crush lithium packs, and never recharge a primary battery.
-    realWorld:
-      parts:
-        - A 9 V battery
-        - Alkaline and rechargeable AA cells
-        - A 3 V coin cell
-        - A 100 Ω resistor
-        - A multimeter
-      safety:
-        - Never puncture, crush or short a lithium battery.
-        - Take used batteries to a recycling point instead of the bin.
+end:
+  say: Sippers for watches, gulpers for torches. Field guide done.
