@@ -109,6 +109,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const [tried, setTried] = useState<string[]>([]);
   const [xpFloat, setXpFloat] = useState<{ n: number; key: number } | null>(null);
   const [clock, setClock] = useState<{ end: number; left: number } | null>(null);
+  const clockRef = useRef(clock);
+  clockRef.current = clock;
   const [warm, setWarm] = useState(false);
   const [api, setApi] = useState<StageApi | null>(null);
   const [benchReady, setBenchReady] = useState(false);
@@ -333,12 +335,12 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
         // Without a line of its own, the robot says the lab task's success line while the lesson moves on.
         const success = state.current.api?.task(id)?.success;
         if (!mo.done && success) say(success, "happy");
-        complete(mo, { mood: mo.kind === "secret" && lesson.secret?.task === id ? "sad" : "happy" });
+        if (mo.kind === "secret") lastSecret.current = Date.now();
+        complete(mo, { mood: "happy" });
         if (mo.kind === "fix" && mo.fix && mo.fix.index === mo.fix.count - 1) {
-          setClock((c) => {
-            if (c && c.left > 0) setAnswer(answerKeys.clock, c.left);
-            return null;
-          });
+          const c = clockRef.current;
+          if (c && c.left > 0) setAnswer(answerKeys.clock, c.left);
+          setClock(null);
         }
         return;
       }
@@ -347,7 +349,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
         // Found by experimenting, mid-lesson: the secret's discovery, without leaving the current beat.
         lastSecret.current = Date.now();
         floatXp(XP.task);
-        say(s.done ?? m.lessonBench.secret, "sad");
+        say(s.done ?? m.lessonBench.secret, "happy");
         if (s.note) addMark({ id: "note-secret", kind: "note", at: s.note.at === "tap" ? "" : s.note.at, text: s.note.text, tone: "blue" });
         if (s.rule) setStamp(s.rule);
         announce([m.lessonBench.secret, s.done, s.rule && m.lessonBench.stamped(s.rule)].filter(Boolean).join(". "));
@@ -359,7 +361,9 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const onFried = useCallback(
     (card: FriedCard) => {
       setFried((f) => [...f.filter((c) => c.partId !== card.partId), card]);
+      // The secret's own line stays (a fry for science), but the robot looks sorry for the part either way.
       if (Date.now() - lastSecret.current > 600 && state.current.moment.kind !== "secret") say(state.current.api?.lab.mascot?.fried ?? m.lessonBench.friedLine, "sad");
+      else setLine((l) => (l ? { ...l, mood: "sad" } : l));
       announce(m.lab.fried.title(card.shownLabel));
     },
     [say, announce],
