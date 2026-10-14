@@ -58,6 +58,11 @@ export type LearnerStoreState = {
   recordFried(kind: string, label: string, lessonId: string | null, opts?: { silent?: boolean }): { earned: EarnedAchievement[] };
   /** A lab event (task done, achievement trigger): evaluates achievements against it and toasts what unlocks. */
   labEvent(event: LabEvent): { earned: EarnedAchievement[] };
+  /**
+   * While a lesson is open (`true`), achievements it earns on the way (a fry, a trigger) are not toasted over the bench:
+   * they wait for its finale, where `completeLesson` lists them with the rest. `false` lets go of them.
+   */
+  holdAchievements(on: boolean): void;
   setSettings(patch: Partial<Settings>): void;
   /** Saves a free-build bench under a new id (or replaces `id`). Returns the id. */
   saveBench(name: string, bench: unknown, id?: string): string;
@@ -84,7 +89,18 @@ let saving: Promise<unknown> = Promise.resolve();
 let channel: BroadcastChannel | null = null;
 let activeSync: ProgressSync | null = null;
 let syncStops: (() => void)[] = [];
+/** Achievements a lesson earned on the way, kept for its finale (null: no lesson holds them, so they toast). */
+let held: EarnedAchievement[] | null = null;
 const TAB_ID = Math.random().toString(36).slice(2);
+
+/** Toasts what unlocked, or keeps it for the open lesson's finale. */
+function announceEarned(earned: readonly EarnedAchievement[]) {
+  if (held) {
+    held.push(...earned);
+    return;
+  }
+  for (const a of earned) toast({ title: m.achievements.toast(a.title), body: a.description, tone: "good", icon: a.icon });
+}
 
 /** Saves on the device, tells other tabs, and (unless `push` is false) hands the record to the cloud sync. */
 function persist(state: LearnerState, push = true) {
@@ -199,7 +215,9 @@ export const useLearner = create<LearnerStoreState>((set, get) => {
       const evaluated = evaluateAchievements({ state: after, outline, events }, at);
       after = commit(evaluated.state);
 
-      const xpBefore = totalXp(before, outline);
+      // What the lesson earned on the way (held for this moment) counts as this lesson's, as if it had come just now.
+      const earlier = held ? held.splice(0) : [];
+      const xpBefore = totalXp(before, outline) - earlier.reduce((n, a) => n + a.xp, 0);
       const xpAfter = totalXp(after, outline);
       const modulesBefore = new Set(completedModules(before, outline));
       const partsBefore = new Set(partsBin(before, outline));
@@ -216,7 +234,7 @@ export const useLearner = create<LearnerStoreState>((set, get) => {
           firstTry: XP.firstTry * (record.firstTry - (prev?.firstTry ?? 0)),
           tasks: XP.task * (record.tasks.length - (prev?.tasks.length ?? 0)),
           modules: completedModules(after, outline).filter((id) => !modulesBefore.has(id)),
-          achievements: evaluated.earned,
+          achievements: [...earlier, ...evaluated.earned],
           total: xpAfter - xpBefore,
         },
         newParts: partsBin(after, outline).filter((p) => !partsBefore.has(p)),
@@ -232,7 +250,7 @@ export const useLearner = create<LearnerStoreState>((set, get) => {
       const evaluated = evaluateAchievements({ state: { ...learner, fried }, outline, events }, at);
       commit(evaluated.state);
       if (!opts?.silent) toast({ title: m.fried.toastTitle(label), body: m.fried.toastBody, tone: "fried", mascot: "oops" });
-      for (const a of evaluated.earned) toast({ title: m.achievements.toast(a.title), body: a.description, tone: "good", icon: a.icon });
+      announceEarned(evaluated.earned);
       return { earned: evaluated.earned };
     },
 
@@ -241,8 +259,12 @@ export const useLearner = create<LearnerStoreState>((set, get) => {
       const evaluated = evaluateAchievements({ state: learner, outline, events: [event] }, nowIso());
       if (!evaluated.earned.length) return { earned: [] };
       commit(evaluated.state);
-      for (const a of evaluated.earned) toast({ title: m.achievements.toast(a.title), body: a.description, tone: "good", icon: a.icon });
+      announceEarned(evaluated.earned);
       return { earned: evaluated.earned };
+    },
+
+    holdAchievements(on) {
+      held = on ? (held ?? []) : null;
     },
 
     saveBench(name, bench, id) {

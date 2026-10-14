@@ -24,12 +24,15 @@ function ToastItem({ t }: { t: Toast }) {
   );
 }
 
-/** Live region for toasts. One per page, in the layout. */
+/**
+ * Live region for toasts. One per page, in the layout. One toast at a time: the next waits until this one leaves (its
+ * timer starts when it shows), so they never stack over the page.
+ */
 export default function ToastRegion() {
   const toasts = useToasts((s) => s.toasts);
   return (
     <section className="toasts" aria-label={m.toast.region} aria-live="polite" aria-relevant="additions">
-      {toasts.map((t) => (
+      {toasts.slice(0, 1).map((t) => (
         <ToastItem key={t.id} t={t} />
       ))}
     </section>

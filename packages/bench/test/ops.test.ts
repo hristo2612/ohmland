@@ -91,3 +91,27 @@ describe("wires, clips and removal", () => {
     expect(b.meter!.probes.black.socket).toBeNull();
   });
 });
+
+describe("setting a replaced part aside", () => {
+  it("puts a part replaced on the far side of the board on the desk in front of it, clear of other parts", () => {
+    let b = ops.emptyBench(board);
+    let c1: string;
+    [b, c1] = ops.addPart(b, "ceramic-cap", {}, { pos: [0, 0] });
+    b = ops.movePart(b, c1, mid("j20", "j22"));
+    let r1: string;
+    [b, r1] = ops.addPart(b, "resistor", {}, { pos: [at("a20")[0], 40] });
+    const old = b.parts.find((p) => p.id === c1)!;
+    const near: [number, number] = [old.pos[0], old.pos[1] + 34];
+    const spot = ops.asideSpot(b, old, near);
+    // Off the board (its near edge is at half its depth) and not on the resistor lying in front of it.
+    expect(spot[1]).toBeGreaterThan(54.6 / 2);
+    const res = b.parts.find((p) => p.id === r1)!;
+    expect(Math.abs(spot[0] - res.pos[0]) >= 12 || Math.abs(spot[1] - res.pos[1]) >= 12).toBe(true);
+  });
+
+  it("keeps the spot asked for when the desk is clear there", () => {
+    const [b, id] = ops.addPart(ops.emptyBench(board), "led", {}, { pos: [0, 80] });
+    const led = b.parts.find((p) => p.id === id)!;
+    expect(ops.asideSpot(b, led, [0, 114])).toEqual([0, 114]);
+  });
+});
