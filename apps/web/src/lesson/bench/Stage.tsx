@@ -8,7 +8,7 @@
  */
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useStore } from "zustand";
-import { boardGeometry, trayLeft } from "@ohmland/bench/core";
+import { boardGeometry, trayLeft, type BenchState } from "@ohmland/bench/core";
 import { isOptional, type LabDefinition, type LabTask } from "../../lab/define";
 import { m } from "../../i18n";
 import { useLearner } from "../../progress/store";
@@ -279,7 +279,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         const [id = "", leg] = rest.split(".");
         const name = built.labels[id] ?? b.parts.find((p) => p.id === id)?.kind ?? id;
         if (kind === "part") return name;
-        const legName = leg ? (m.lessonBench.legs[leg] ?? leg) : "";
+        const legName = leg ? legNameOf(b, id, leg) : "";
         return legName ? `${name}: ${legName}` : name;
       },
       calm() {
@@ -292,7 +292,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         const [kind, rest = ""] = raw.split(":") as [string, string?];
         if (kind === "hole") return holeName(rest);
         const [id = "", leg] = rest.split(".");
-        if (leg) return m.lessonBench.legs[leg] ?? leg;
+        if (leg) return legNameOf(b, id, leg);
         return (built.labels[id] ?? id).toLowerCase();
       },
       holeFor(text) {
@@ -387,6 +387,12 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
       )}
     </div>
   );
+}
+
+/** A leg's name for the learner, by the kind of part it belongs to (a diode's band end, a transistor's base). */
+function legNameOf(bench: BenchState, partId: string, leg: string): string {
+  const kind = bench.parts.find((p) => p.id === partId)?.kind;
+  return (kind ? m.lessonBench.legsByKind[kind]?.[leg] : undefined) ?? m.lessonBench.legs[leg] ?? leg;
 }
 
 /** A seed that is the same for a learner every visit (their first finished lesson), for shuffled mystery parts. */

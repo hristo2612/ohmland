@@ -255,6 +255,13 @@ export const en = {
     failed: "This bench could not be loaded. You can still skip ahead.",
     tapHere: (label: string) => `Tap: ${label}`,
     legs: { anode: "anode, the long leg", cathode: "cathode, the short leg", pos: "plus terminal", neg: "minus terminal", a: "one end", b: "other end", com: "middle terminal" } as Record<string, string>,
+    /** Leg names that depend on the kind of part (a diode's band, an electrolytic's stripe); other parts use `legs`. */
+    legsByKind: {
+      diode: { anode: "anode, the plain end", cathode: "cathode, the band end" },
+      npn: { c: "collector", b: "base", e: "emitter" },
+      phototransistor: { c: "collector", e: "emitter" },
+      "electrolytic-cap": { pos: "plus, the long leg", neg: "minus, the stripe side" },
+    } as Record<string, Record<string, string>>,
     wrongTap: "Not that one. Look again.",
     right: ["Yep.", "Spot on.", "Right.", "That's it."],
     wrongPick: "Not quite. Try another.",
