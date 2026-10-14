@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CourseOutline } from "../content/outline";
-import { achievementXp, evaluateAchievements } from "./achievements";
-import { lessonStates, totalXp } from "./derive";
+import { achievementById, achievementXp, describeAchievement, evaluateAchievements, type LabEvent } from "./achievements";
+import { lessonStates, resumeTarget, totalXp } from "./derive";
 import { levelForXp, levelProgress, levelTitle, xpForLevel } from "./levels";
 import { emptyLearner } from "./state";
 import type { LearnerState } from "./types";
@@ -126,21 +126,27 @@ describe("achievements", () => {
     expect(earned(s)).not.toContain("island-founder");
     s = done(s, "lemon-cell", 3, 6, ["one-lemon-led"]);
     expect(earned(s)).toContain("island-founder");
+    // The lesson count comes from the outline, not from the copy.
+    expect(describeAchievement(achievementById("island-founder")!, basics)).toContain("all 3 lessons");
 
-    // Eight of the ten bonus tasks unlock "curious-mind"; seven do not.
-    const bonus: [string, string][] = [
-      ["welcome-to-the-bench", "swap-battery-leads"],
-      ["meet-the-meter", "tired-battery"],
-      ["what-resists", "extremes"],
-      ["draw-a-resistor", "slide-along"],
-      ["first-glow", "no-resistor"],
-      ["watts-and-heat", "one-watt-too"],
-      ["fuse-guard", "battery-check"],
-      ["inside-the-battery", "watch-it-sag"],
-    ];
-    const withBonus = (n: number) => bonus.slice(0, n).reduce((acc, [lesson, task]) => done(acc, lesson, 1, 1, [task]), emptyLearner());
-    expect(earned(withBonus(7))).not.toContain("curious-mind");
-    expect(earned(withBonus(8))).toContain("curious-mind");
+    // About half of the Basics secrets unlock "curious-mind" (the list itself is checked in achievements.test.ts).
+    const curious = achievementById("curious-mind")!;
+    const secrets = curious.refs!.bonus!;
+    const goal = Math.ceil(secrets.length / 2);
+    expect(curious.description).toContain(`Find ${goal} secrets`);
+    const withSecrets = (n: number) => secrets.slice(0, n).reduce((acc, [lesson, task]) => done(acc, lesson, 1, 1, [...(acc.lessons[lesson]?.tasks ?? []), task]), emptyLearner());
+    expect(earned(withSecrets(goal - 1))).not.toContain("curious-mind");
+    expect(earned(withSecrets(goal))).toContain("curious-mind");
+  });
+
+  it("brackets the current across two lessons: the 1 A fuse blown first, then the 3 A fuse's trigger", () => {
+    const now = "2026-02-02T00:00:00.000Z";
+    const trigger = { type: "trigger" as const, name: "bracketed", lessonId: "big-current" };
+    const earned = (s: LearnerState, events: LabEvent[]) => evaluateAchievements({ state: s, outline, events }, now).earned.map((a) => a.id);
+    const blown = done(emptyLearner(), "fuse-guard", 1, 1, ["blow-1a"]);
+    expect(earned(emptyLearner(), [trigger])).not.toContain("bracketed");
+    expect(earned(blown, [])).not.toContain("bracketed");
+    expect(earned(blown, [trigger])).toContain("bracketed");
   });
 });
 
@@ -151,5 +157,32 @@ describe("course map states", () => {
     expect(lessonStates(s, outline)).toEqual({ a: "done", b: "current", c: "locked" });
     const skipped = done(emptyLearner(), "b", 1, 1);
     expect(lessonStates(skipped, outline)).toEqual({ a: "current", b: "done", c: "open" });
+  });
+
+  it("never makes Start here current for a learner already past it", () => {
+    const course: CourseOutline = {
+      units: [
+        { id: "start-here", number: 1, title: "Start here", modules: ["sh"] },
+        { id: "basics", number: 2, title: "Basics", modules: ["b"] },
+      ],
+      modules: [
+        { id: "sh", unit: "start-here", title: "SH", landmark: { id: "l1", name: "L1" }, lessons: ["s1", "s2"] },
+        { id: "b", unit: "basics", title: "B", landmark: { id: "l2", name: "L2" }, lessons: ["b1", "b2"] },
+      ],
+      lessons: {
+        s1: { ...lesson("s1", "sh"), unit: "start-here" },
+        s2: { ...lesson("s2", "sh"), unit: "start-here" },
+        b1: { ...lesson("b1", "b"), unit: "basics" },
+        b2: { ...lesson("b2", "b"), unit: "basics" },
+      },
+      order: ["s1", "s2", "b1", "b2"],
+    };
+    // A new learner starts at the start; one who finished a Start here lesson stays in Start here.
+    expect(lessonStates(emptyLearner(), course)).toEqual({ s1: "current", s2: "locked", b1: "locked", b2: "locked" });
+    expect(lessonStates(done(emptyLearner(), "s1", 1, 1), course)).toEqual({ s1: "done", s2: "current", b1: "locked", b2: "locked" });
+    // A learner already in Basics: Start here's undone lessons are open, the next Basics lesson is current.
+    const inBasics = done(done(emptyLearner(), "s1", 1, 1), "b1", 1, 1);
+    expect(lessonStates(inBasics, course)).toEqual({ s1: "done", s2: "open", b1: "done", b2: "current" });
+    expect(resumeTarget(inBasics, course)).toBe("b2");
   });
 });

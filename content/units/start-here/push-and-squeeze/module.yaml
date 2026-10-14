@@ -1,0 +1,14 @@
+# Start here, module 2 (blueprint: docs/curriculum/start-here.md, section 4).
+id: push-and-squeeze
+title: Push and squeeze
+summary: Two sealed boxes, a stubborn knob and a battery that ran down.
+landmark:
+  id: pump-house
+  name: the Pump House
+  # The module schema has no fields for these yet:
+  # caption: A battery lift raises glowing marbles round a loop of track.
+  # mascot: Push, squeeze, and a pump that runs down.
+lessons:
+  - the-push
+  - the-squeeze
+  - pocket-power

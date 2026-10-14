@@ -1,46 +1,11 @@
 import { expect, type Page } from "@playwright/test";
-import { atMoment, benchReady, drag, project, taskDone, tapHole } from "./lab";
+import { atMoment, benchReady, clipTo, flipBlockSwitch, taskDone, unclip } from "./lab";
 
-/** The first lesson of the course: a bench lesson (format: bench). */
-export const FIRST_LESSON = "how-a-breadboard-works";
-export const FIRST_LESSON_URL = `/learn/basics/${FIRST_LESSON}`;
+/** The first lesson of the course, Start here's first case: a bench lesson (format: bench). */
+export const FIRST_LESSON = "welcome-to-the-bench";
+export const FIRST_LESSON_URL = `/learn/start-here/${FIRST_LESSON}`;
 
 const primary = (page: Page) => page.locator("[data-primary]").first();
-const narrow = (page: Page) => (page.viewportSize()?.width ?? 1000) < 600;
-
-/** Turns the breadboard's LED a quarter turn: pick it up by its dome, then the bench's Rotate button. */
-async function rotateLed(page: Page) {
-  if (narrow(page)) {
-    await page.evaluate(() => window.ohmlandLab!.step!({ do: "rotate", part: "D1" }));
-    return;
-  }
-  // Look up the screen from the legs for the LED's dome (what the bench would grab there), then tap it.
-  const a = await project(page, "pin:D1.anode");
-  const k = await project(page, "pin:D1.cathode");
-  const x = (a.x + k.x) / 2;
-  let y = (a.y + k.y) / 2;
-  for (let dy = 0; dy <= 90; dy += 3) {
-    const hit = await page.evaluate(([px, py]) => JSON.stringify(window.ohmlandLab!.pickAt(px!, py!) ?? null), [x, y - dy]);
-    if (hit.includes('"D1"')) {
-      y -= dy;
-      break;
-    }
-  }
-  await page.mouse.click(x, y);
-  await page.getByRole("button", { name: "Rotate" }).first().click();
-}
-
-/** Slides the black jumper's rail end far along the minus rail. */
-async function slideRailEnd(page: Page) {
-  if (narrow(page)) {
-    await page.evaluate(() => {
-      window.ohmlandLab!.step!({ do: "unwire", wire: "W1" });
-      window.ohmlandLab!.step!({ do: "wire", id: "W1", from: "a11", to: "rail-:26", color: "black" });
-    });
-    return;
-  }
-  await drag(page, await project(page, "wire:W1.b"), await project(page, "hole:bn26"));
-}
 
 /**
  * Plays the first lesson from its start screen to the finale, every check right on the first try. A first completion
@@ -52,41 +17,46 @@ export async function playFirstLesson(page: Page, opts: { expectReveal?: boolean
   await primary(page).click();
   await benchReady(page);
 
-  // Meet the board: any hole has a name. Then the x-ray.
+  // Switch on: still dark (the red clip bites the battery's plastic wrapper).
   await atMoment(page, "b0", "act");
-  await tapHole(page, "c7");
-  await atMoment(page, "b0", "done");
-  await primary(page).click();
+  await flipBlockSwitch(page, "S1");
+  await taskDone(page, "close-the-switch");
+
+  // Tap the minus snap: the tracer inks the loop and stops at the wrapper. Then move that clip onto the metal snap.
   await atMoment(page, "b1", "act");
-  await tapHole(page, "h9");
+  await page.locator('[data-tap="B1.neg"]').click();
   await atMoment(page, "b1", "done");
   await primary(page).click();
-
-  // The game: three holes, each joined to the marked one, right the first time.
   await atMoment(page, "b2", "act");
-  await tapHole(page, "d14");
-  await atMoment(page, "b3", "act");
-  await tapHole(page, "a18");
+  await clipTo(page, "TL1", "a", "pin:B1.pos");
+  await taskDone(page, "find-the-gap");
+  await atMoment(page, "b2", "done");
+  await primary(page).click();
+
+  // Guess, then break the loop; mend it.
+  await atMoment(page, "b3", "guess");
+  await page.locator("[data-guess='2']").click();
+  await unclip(page, "TL2", "a");
+  await taskDone(page, "break-the-loop");
+  await atMoment(page, "b3", "done");
+  await primary(page).click();
   await atMoment(page, "b4", "act");
-  await tapHole(page, "bp27");
-  await atMoment(page, "b4", "done");
-  await primary(page).click();
+  await clipTo(page, "TL2", "a", "pin:S1.b");
+  await taskDone(page, "mend-the-loop");
 
-  // The LED with both legs in one strip, then the rail.
+  // What is this, all the way round? A loop.
   await atMoment(page, "b5", "act");
-  await rotateLed(page);
-  await taskDone(page, "fix-led");
-  await atMoment(page, "b5", "done");
-  await primary(page).click();
-  await atMoment(page, "b6", "act");
-  await slideRailEnd(page);
-  await taskDone(page, "rail-slide");
-  await atMoment(page, "b6", "done");
-  await primary(page).click();
+  await page.locator("[data-pick]", { hasText: "a loop" }).click();
 
-  // The secret is optional: skip it. Then sign the page.
+  // The secret is optional: skip it. The fix-it: the switch is on, the lamp dark (a clip on the wooden block).
   await atMoment(page, "secret", "act");
   await page.locator(".bl-link", { hasText: "Skip" }).click();
+  await atMoment(page, "fix0", "act");
+  await expect.poll(() => page.evaluate(() => (window.ohmlandLab!.part("D1") as { glow?: number } | null)?.glow ?? 0)).toBeLessThan(0.01);
+  await clipTo(page, "TL2", "a", "pin:S1.b");
+  await taskDone(page, "fix-it");
+
+  // Sign the page.
   await atMoment(page, "end", "act");
   await primary(page).click();
 

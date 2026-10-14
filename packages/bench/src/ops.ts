@@ -403,6 +403,8 @@ export function swapTarget(bench: BenchState, id: string, reach = 9): PlacedPart
   let bestD = reach;
   for (const p of bench.parts) {
     if (p.id === id || p.kind !== part.kind || isOnBoard(bench, p)) continue;
+    // A part filed in a bin, tray or drawer is not swapped out: the dropped one goes into a free seat beside it.
+    if (holderOf(bench, p.id)?.holder.kind === "bin") continue;
     const d = Math.hypot(p.pos[0] - part.pos[0], p.pos[1] - part.pos[1]);
     if (d < bestD) {
       bestD = d;
