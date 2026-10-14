@@ -11,7 +11,7 @@ export type { IsleEvent } from "./events";
 export { madeUp, seedFrom } from "./events";
 export type { IsleItem, IslePlan, IslandPlan, LandCell, Plaza, Story, Trace } from "./plan";
 export { makeIsle, planHash, tierAt } from "./plan";
-export { DECK, LANDMARKS, LANDMARKS_BY_UNIT, PIECES, UNITS, isLandmark, isPiece } from "./catalog";
+export { DECK, LANDMARKS, LANDMARKS_BY_UNIT, PIECES, THEMES, UNITS, isLandmark, isPiece, themeOf, type ThemeId } from "./catalog";
 export type { IsleMessages } from "./messages";
 export { EN as ISLE_EN } from "./messages";
 export type { IsleInset, IsleLabel, IsleStats, IsleView, Look, MountOptions, Paper, RevealInfo } from "./render/view";

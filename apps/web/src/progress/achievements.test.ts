@@ -11,7 +11,7 @@ import { replayLab } from "../lab/replay";
 import { sandboxKit } from "../lab/sandbox-parts";
 import { BUILT_IN_TRIGGERS } from "../lab/session";
 import { isGraded, momentsOf } from "../lesson/bench/flow";
-import { ACHIEVEMENTS, achievementById, newlyEarned, type LabEvent } from "./achievements";
+import { ACHIEVEMENTS, achievementById, describeAchievement, newlyEarned, type LabEvent } from "./achievements";
 import { emptyLearner } from "./state";
 import type { LearnerState } from "./types";
 
@@ -91,7 +91,7 @@ describe("achievement references", () => {
         return t;
       };
 
-      for (const unit of refs.units ?? [])
+      for (const unit of [...(refs.units ?? []), ...(a.unit ? [a.unit] : [])])
         if (!course.lessons.some((l) => l.unit === unit)) problems.push(`unit "${unit}" has no lessons`);
       for (const id of refs.lessons ?? []) {
         const l = lesson(id, `lesson ${id}`);
@@ -118,6 +118,13 @@ describe("achievement references", () => {
       expect(problems).toEqual([]);
     });
   }
+});
+
+describe("achievement copy", () => {
+  it("says how to earn each one in 8 words or fewer", () => {
+    const long = ACHIEVEMENTS.map((a) => describeAchievement(a, course.outline)).filter((d) => d.split(/\s+/).length > 8);
+    expect(long).toEqual([]);
+  });
 });
 
 describe("earning every achievement", () => {

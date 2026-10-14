@@ -38,6 +38,19 @@ describe("holders", () => {
     expect(Math.hypot(b.parts.find((p) => p.id === "R1")!.pos[1], 0)).toBeGreaterThan(20);
   });
 
+  it("lines up batteries pushed out of the tester in a row in front of it", () => {
+    const cells = [part("B1", "battery", {}, [-100, -60]), part("X1", "battery", { size: "aa" }, [-100, -20]), part("X2", "battery", { size: "aa" }, [-100, 20]), part("X3", "battery", { size: "coin" }, [-100, 60])];
+    let b: BenchState = { ...emptyBench(null), parts: [part("T1", "station", {}, [0, 0]), ...cells] };
+    for (const c of cells) b = seatPart(b, c.id, "T1");
+    expect(holderOf(b, "X3")?.holder.id).toBe("T1");
+    const out = ["B1", "X1", "X2"].map((id) => b.parts.find((p) => p.id === id)!.pos);
+    // One row in front of the tester, side by side, none on another.
+    expect(out.map((p) => p[1])).toEqual([34, 34, 34]);
+    const xs = out.map((p) => p[0]).sort((a, c) => a - c);
+    expect(xs[1]! - xs[0]!).toBeGreaterThan(40);
+    expect(xs[2]! - xs[1]!).toBeGreaterThan(40);
+  });
+
   it("swaps two batteries with their clips and probe tips", () => {
     let b: BenchState = {
       ...emptyBench(null),

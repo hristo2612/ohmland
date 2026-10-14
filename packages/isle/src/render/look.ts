@@ -27,6 +27,8 @@ export const NOTEBOOK = {
   shadeNight: "#0B0A09",
   amber: "#F2A531",
   red: "#B23A1C",
+  /** Red pencil on the night page. */
+  redNight: "#F2906F",
   /** The grid cell and line, in CSS pixels. */
   cell: 24,
 } as const;

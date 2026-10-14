@@ -299,16 +299,19 @@ export function BenchInk(props: BenchInkProps) {
 
   // Spotlight: dim everything but the targets (a generated CSS rule, so nothing re-renders).
   const [spot, setSpot] = useState<string[] | null>(null);
+  const [quietPins, setQuietPins] = useState(false);
   const spotCss = useMemo(() => {
     if (!spot) return "";
     const owners = [...targetOwners(model, spot)];
     const not = owners.map((o) => `:not([data-own="${o.replace(/"/g, "")}"])`).join("");
     // Parts fade almost away; the board stays as quiet context.
     const dim = `#${defsId}-svg [data-own]${not}{opacity:.26}`;
-    // A spotlit chip or display shows its pin numbers.
-    const pins = owners.map((o) => `#${defsId}-svg.is-spot [data-own="${o.replace(/"/g, "")}"] .pinno{display:inline}`).join("");
+    // A spotlit chip or display shows its pin numbers, unless a pin check hushes them (even up close).
+    const pins = owners
+      .map((o) => `#${defsId}-svg.is-spot [data-own="${o.replace(/"/g, "")}"] .pinno{display:${quietPins ? "none !important" : "inline"}}`)
+      .join("");
     return (owners.includes("board") ? dim : `${dim}#${defsId}-svg.is-spot [data-own="board"]{opacity:.32 !important}`) + pins;
-  }, [spot, model, defsId]);
+  }, [spot, quietPins, model, defsId]);
 
   // Announcements for screen readers.
   const [said, setSaid] = useState("");
@@ -398,7 +401,10 @@ export function BenchInk(props: BenchInkProps) {
         // Before the view has a size this waits; the first sizing frames it.
         applyFraming(!!opts?.instant);
       },
-      spotlight: (targets) => setSpot(targets && targets.length ? [...targets] : null),
+      spotlight: (targets, opts) => {
+        setSpot(targets && targets.length ? [...targets] : null);
+        setQuietPins(opts?.pins === false);
+      },
       atHome: () => !view.moved && !framing.current,
       resetView: () => fitHome(false),
       pickAt: (cx, cy) => api.current?.pickAt(cx, cy) ?? null,
