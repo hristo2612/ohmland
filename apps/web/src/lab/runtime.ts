@@ -142,6 +142,7 @@ export class LabRuntime {
     this.store.subscribe((s, prev) => {
       if (s.overlay === prev.overlay && s.ui.xray === prev.ui.xray) return;
       this.session.views = { flow: s.overlay.flow, push: s.overlay.push, xray: s.ui.xray, trace: s.overlay.trace?.from ?? null };
+      this.session.flowStyle = s.overlay.flowStyle;
       this.ui.setState({ views: { ...this.session.views } });
     });
     this.startInputs = start ? [...built.inputs, ...start.inputs] : built.inputs;

@@ -4,7 +4,7 @@
 import { useContext } from "react";
 import { useStore } from "zustand";
 import { BOX, CABINET, GATE, PADLOCK, SCHEM, STATIC } from "../../dims";
-import { dotRate, formatGate, gateAmps, tagText } from "../../flow";
+import { formatGate, gateAmps, tagText, unitRate } from "../../flow";
 import { lifting } from "../../static";
 import { useLabels } from "../../labels";
 import { padlockFaces, schematicSlot } from "../../parts";
@@ -43,13 +43,15 @@ function GateFlag({ id, params, store }: { id: string; params: PartParamsMap["ga
   // Whole ticks only, so the flag redraws as each dot goes by and not 30 times a second.
   const ticks = useStore(store ?? NULL_STORE, (s: Partial<BenchStoreState>) => Math.floor(s.gates?.[id] ?? 0));
   const amps = useStore(store ?? NULL_STORE, (s: Partial<BenchStoreState>) => (s.bench ? Math.round(Math.abs(gateAmps(s.bench, s.snapshot ?? null, id)) * 1e6) / 1e6 : 0));
+  // The rate bar counts the units the flow is drawn in (dots, stripes, dashes, bands, arrowheads).
+  const style = useStore(store ?? NULL_STORE, (s: Partial<BenchStoreState>) => s.overlay?.flowStyle ?? "dots");
   const W = GATE.flagW;
   const H = GATE.flagH;
   const z0 = -GATE.lift - H / 2;
   const number = params.mode === "number";
   const unit = params.unit === "mA" ? "mA" : "A";
   // The rate bar: dots per second, full at 4 a second.
-  const rate = Math.min(1, dotRate(amps) / 4);
+  const rate = Math.min(1, unitRate(amps, style) / 4);
   const reading = formatGate(amps, unit);
   const value = reading.slice(0, reading.lastIndexOf(" "));
   return (

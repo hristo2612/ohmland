@@ -19,9 +19,11 @@ import type { BenchState, Vec3 } from "../types";
 import { bentTube, smoothTube, type FloorFn } from "../three/geometry";
 import { WIRE_HEX, mat } from "../three/materials";
 import { makeCanvas } from "../three/canvas";
-import { prefersReducedMotion, useAnimating } from "../three/anim";
+import { useAnimating } from "../three/anim";
 import { leadCable } from "./views";
 import { usePaperPalette } from "./palette";
+import { FlowStripes3D, TraceRun3D } from "./FlowStripes3D";
+import { stillMotion } from "../motion";
 
 /** Overlays sit just above what they ride, and never count as part of a model's size or shadow. */
 const OVERLAY = { fx: true };
@@ -110,7 +112,7 @@ const FlowDots3D = memo(function FlowDots3D({ bench, store, floor, electrons }: 
     update(store.getState().snapshot);
     return store.subscribe((s, prev) => s.snapshot !== prev.snapshot && update(s.snapshot));
   }, [bench, lines, store]);
-  const reduced = useMemo(() => prefersReducedMotion(), []);
+  const reduced = useMemo(() => stillMotion(), []);
   const pal = usePaperPalette();
   const geo = useMemo(() => (electrons ? new THREE.CapsuleGeometry(0.28, 1.2, 3, 8).rotateZ(Math.PI / 2) : new THREE.SphereGeometry(0.85, 12, 8)), [electrons]);
   const material = useMemo(() => new THREE.MeshBasicMaterial({ color: electrons ? "#24221E" : pal.paper, toneMapped: false }), [electrons, pal.paper]);
@@ -319,7 +321,7 @@ const Tracer3D = memo(function Tracer3D({ bench, store, floor, from, at }: { ben
   const pal = usePaperPalette();
   const material = useMemo(() => new THREE.MeshBasicMaterial({ color: pal.red, toneMapped: false }), [pal.red]);
   useLayoutEffect(() => () => material.dispose(), [material]);
-  const reduced = useMemo(() => prefersReducedMotion(), []);
+  const reduced = useMemo(() => stillMotion(), []);
   const dur = Math.max(1200, Math.min(3600, trace.steps.length * 320));
   const done = useRef(false);
   const mark = useRef<THREE.Group>(null);
@@ -387,13 +389,24 @@ export const BoxWires3D = memo(function BoxWires3D({ bench }: { bench: BenchStat
 /** The overlays that are switched on. */
 export function Overlays3D({ bench, store, floor }: { bench: BenchState; store: BenchStore; floor: FloorFn }) {
   const flow = useStore(store, (s) => s.overlay.flow);
+  const style = useStore(store, (s) => s.overlay.flowStyle);
   const push = useStore(store, (s) => s.overlay.push);
   const trace = useStore(store, (s) => s.overlay.trace);
   return (
     <group>
       {push && <Push3D bench={bench} store={store} floor={floor} />}
-      {flow !== "off" && <FlowDots3D bench={bench} store={store} floor={floor} electrons={flow === "electrons"} />}
-      {trace && <Tracer3D bench={bench} store={store} floor={floor} from={trace.from} at={trace.at} />}
+      {flow !== "off" &&
+        (style === "dots" ? (
+          <FlowDots3D bench={bench} store={store} floor={floor} electrons={flow === "electrons"} />
+        ) : (
+          <FlowStripes3D bench={bench} store={store} floor={floor} electrons={flow === "electrons"} style={style} />
+        ))}
+      {trace &&
+        (style === "dots" ? (
+          <Tracer3D bench={bench} store={store} floor={floor} from={trace.from} at={trace.at} />
+        ) : (
+          <TraceRun3D key={`${trace.from}@${trace.at}`} bench={bench} store={store} floor={floor} from={trace.from} at={trace.at} style={style} />
+        ))}
     </group>
   );
 }

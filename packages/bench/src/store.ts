@@ -5,7 +5,7 @@ import { createContext, useContext } from "react";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
 import type { Snapshot } from "@ohmland/sim";
-import { advanceGates, type GateCounts } from "./flow";
+import { advanceGates, type FlowStyle, type GateCounts } from "./flow";
 import * as ops from "./ops";
 import type { StationState } from "./solder/station";
 import type {
@@ -55,10 +55,12 @@ export type BenchUi = {
  * - `flow`: dots riding every lead and part at a speed from its current ("current", plus to minus), or electrons
  *   drifting the other way, slowly ("electrons");
  * - `push`: ink hatching along every lead by its voltage, and a hill on every battery and sealed box;
- * - `trace`: the loop tracer inking the path from a terminal (`at` is when it started, performance.now() ms).
+ * - `trace`: the loop tracer inking the path from a terminal (`at` is when it started, performance.now() ms);
+ * - `flowStyle`: how the flow and the tracer are drawn ("dots", the default, or a striped style: see `FlowStyle`).
  */
 export type BenchOverlay = {
   flow: "off" | "current" | "electrons";
+  flowStyle: FlowStyle;
   push: boolean;
   trace: { from: Anchor; at: number } | null;
 };
@@ -126,7 +128,7 @@ export type BenchStoreState = {
   deleteSelected: () => void;
   /** Momentary input (pushbutton), not stored in the bench. */
   press: (id: string, pressed: boolean) => void;
-  /** Switch overlays on or off (flow dots, the push view). */
+  /** Switch overlays on or off (flow dots, the push view), or change how the flow is drawn. */
   setOverlay: (patch: Partial<Omit<BenchOverlay, "trace">>) => void;
   /** Start the loop tracer from an anchor ("pin:B1.neg"), or clear it with null. */
   trace: (from: Anchor | null) => void;
@@ -182,7 +184,7 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
       ambient: 1,
       station: null,
       stationClock: "auto",
-      overlay: { flow: "off", push: false, trace: null },
+      overlay: { flow: "off", flowStyle: "dots", push: false, trace: null },
       gates: {},
       ui: initialUi(),
       emit: () => {},
@@ -302,7 +304,7 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
   store.subscribe((s, prev) => {
     if (s.snapshot === prev.snapshot || !s.bench.parts.some((p) => p.kind === "gate")) return;
     const dt = s.snapshot && prev.snapshot ? s.snapshot.t - prev.snapshot.t : 0;
-    store.setState({ gates: advanceGates(s.gates, s.bench, s.snapshot, dt) });
+    store.setState({ gates: advanceGates(s.gates, s.bench, s.snapshot, dt, s.overlay.flowStyle) });
   });
   return store;
 }

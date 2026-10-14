@@ -3,7 +3,7 @@
  * snapshot, keeps the event log, the recent history and the notebook, checks task goals in order (optional tasks all
  * the time), spots fried parts and fires achievement triggers. The lab step and the headless replay both drive one.
  */
-import { advanceGates, benchToNetlist, type BenchNetlist, type BenchState, type GateCounts, type StationState } from "@ohmland/bench/core";
+import { advanceGates, benchToNetlist, type BenchNetlist, type BenchState, type FlowStyle, type GateCounts, type StationState } from "@ohmland/bench/core";
 import type { SimEvent, Snapshot, WatchSpec } from "@ohmland/sim";
 import type { Diagnostic } from "@ohmland/code";
 import type { BuiltBench, SimInput } from "./build";
@@ -115,8 +115,10 @@ export class LabSession {
   private trig = new Map<string, boolean>();
   /** The views and overlays that are on (the runtime mirrors the bench store's here). */
   views: LabViews = { flow: "off", push: false, xray: false, trace: null };
-  /** Dots each gate has counted. */
+  /** Dots (or the flow style's units) each gate has counted. */
   gates: GateCounts = {};
+  /** How the flow is drawn (the runtime mirrors the bench store's), so a gate counts the units the learner sees. */
+  flowStyle: FlowStyle = "dots";
   /** When each task was done in this visit, with the meter as it read then (LabView.doneAt). */
   doneAt: Record<string, { t: number; meter: LabView["meter"] }> = {};
   private memory = new Map<string, Record<string, unknown>>();
@@ -411,7 +413,7 @@ export class LabSession {
     // Serial lines and clock wraps (the code tools re-render on `mcu.version`).
     this.mcu.ingest(s);
     // Gates count the dots that ride past them.
-    if (this.bench.parts.some((p) => p.kind === "gate")) this.gates = advanceGates(this.gates, this.bench, s, prevT === undefined ? 0 : s.t - prevT);
+    if (this.bench.parts.some((p) => p.kind === "gate")) this.gates = advanceGates(this.gates, this.bench, s, prevT === undefined ? 0 : s.t - prevT, this.flowStyle);
 
     // Fried parts.
     for (const e of s.events) {

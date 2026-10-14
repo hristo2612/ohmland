@@ -19,6 +19,8 @@ export type PaperPalette = {
   red: string;
   /** Contact shadow tint. */
   shadow: string;
+  /** The flow: a light electric tint riding inside the cables (the same on both pages, like the cables). */
+  flow: string;
 };
 
 export const PAPER_LIGHT: PaperPalette = {
@@ -30,6 +32,7 @@ export const PAPER_LIGHT: PaperPalette = {
   blue: "#1F3C9A",
   red: "#B23A1C",
   shadow: "#3A3226",
+  flow: "#E2F6FF",
 };
 
 export const PAPER_DARK: PaperPalette = {
@@ -41,6 +44,7 @@ export const PAPER_DARK: PaperPalette = {
   blue: "#9AB3F4",
   red: "#F2906F",
   shadow: "#000000",
+  flow: "#E2F6FF",
 };
 
 const CSS_VARS: [keyof PaperPalette, string][] = [
@@ -50,6 +54,7 @@ const CSS_VARS: [keyof PaperPalette, string][] = [
   ["ink", "--ink"],
   ["blue", "--blue"],
   ["red", "--red"],
+  ["flow", "--flow"],
 ];
 
 /** The palette under `el`: the page's notebook tokens if it defines them, else light or dark fallbacks. */
@@ -70,7 +75,7 @@ export function readPalette(el: Element | null, theme?: "light" | "dark"): Paper
 }
 
 export function paletteKey(p: PaperPalette): string {
-  return `${p.paper}|${p.grid}|${p.margin}|${p.ink}|${p.blue}|${p.red}`;
+  return `${p.paper}|${p.grid}|${p.margin}|${p.ink}|${p.blue}|${p.red}|${p.flow}`;
 }
 
 // ---------------------------------------------------------------------------------------------------------------

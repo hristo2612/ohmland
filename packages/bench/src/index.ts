@@ -10,7 +10,7 @@ export { PartGallery, DEFAULT_GALLERY, type GalleryItem, type PartGalleryProps }
 
 export { benchToNetlist, connectivity, type BenchNetlist, type BenchNetlistOptions, type Connectivity } from "./netlist";
 export { createBenchStore, useBench, useBenchStore, BenchStoreContext, type BenchStore, type BenchStoreState, type BenchUi, type BenchMode, type InspectSpec, type BenchOverlay } from "./store";
-export { dotSpeed, dotRate, flowMap, gateAmps, advanceGates, formatGate, expandPrefix, tagText, pushMap, traceLoop, boxNets, type FlowMap, type GateCounts, type PushMap, type Trace, type TraceStep } from "./flow";
+export { dotSpeed, dotRate, unitRate, unitSpacing, FLOW_STYLES, flowMap, gateAmps, advanceGates, formatGate, expandPrefix, tagText, pushMap, traceLoop, boxNets, type FlowMap, type FlowStyle, type GateCounts, type PushMap, type Trace, type TraceStep } from "./flow";
 export { symbolInk, slotTurn, tornOutline, type SymbolInk } from "./symbols";
 export { hiddenParts } from "./seats";
 export { chargeable, charge as staticCharge, stuckTo, lifting, apart } from "./static";
