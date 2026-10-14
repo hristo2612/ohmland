@@ -384,6 +384,7 @@ export function ViewRig({
       read: number,
       padding: number,
       turn: boolean,
+      zoom?: number,
     ): { position: THREE.Vector3; target: THREE.Vector3 } | null => {
       const { width, height } = get().size;
       const cam = (get().camera as THREE.PerspectiveCamera).clone();
@@ -394,6 +395,7 @@ export function ViewRig({
       const a = pose.target.clone().project(cam);
       const b = pose.target.clone().addScaledVector(right, PITCH).project(cam);
       const pitch = Math.hypot(((b.x - a.x) / 2) * width, ((b.y - a.y) / 2) * height);
+      read = Math.min(read, zoom ? pitch * zoom : Infinity);
       if (pitch >= read) return null;
       // The desk the free part of the view shows at that scale (depth foreshortened by the camera's tilt).
       const rect = viewRect(padding);
@@ -404,7 +406,7 @@ export function ViewRig({
       const all = new THREE.Box3();
       for (const bx of boxes) all.union(bx);
       const focal = new THREE.Box3();
-      for (const t of focalTargets(targets)) {
+      for (const t of focalTargets(bench(), targets)) {
         const fb = targetBox(t);
         if (fb && !fb.isEmpty()) focal.union(fb);
       }
@@ -522,7 +524,7 @@ export function ViewRig({
         const turn = !printed && shouldTurn(boxes);
         // Hands-on work (`read`) comes as close as aiming needs; a look at a part keeps the camera back.
         let pose = frame(boxes, { padding, turn, minSize: MIN_FRAME, maxFill: opts.read ? undefined : MAX_FILL });
-        if (opts.read && needsReading(bench(), targets)) pose = readingPose(pose, boxes, targets, opts.read, padding, turn) ?? pose;
+        if (opts.read && needsReading(bench(), targets)) pose = readingPose(pose, boxes, targets, opts.read, padding, turn, opts.readZoom) ?? pose;
         home.current = null;
         move(pose, !opts.instant);
       },

@@ -162,6 +162,7 @@ const NUDGE_HOLD = 0.8;
 /** Reading scales for hands-on framing: CSS px between neighbouring breadboard holes on a phone and on a desktop. */
 const READ_PHONE = 20;
 const READ_DESK = 32;
+const READ_DESK_ZOOM = 2;
 
 function StageRunner(props: StageProps & { lab: LabDefinition }) {
   const { lab, lessonId } = props;
@@ -438,8 +439,10 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     const close = phone && !!one && PRINTED_KINDS.has(one.kind) && one.kind !== "tag";
     // Several parts in play are their own context: a modest margin keeps them close.
     const padding = close ? 8 : Math.round(free * (framed.length > 1 ? 0.06 : phone ? 0.12 : 0.3));
+    // A desktop pointer aims well: there the reading scale only nudges the view closer, never far past a fit.
+    const zoom = read && w >= 640 ? { readZoom: READ_DESK_ZOOM } : {};
     lastFocus.current = { targets: framed, ...(read && framed.length ? { read } : {}) };
-    c.focus(framed, framed.length ? { padding, inset, ...(read ? { read } : {}) } : { inset });
+    c.focus(framed, framed.length ? { padding, inset, ...(read ? { read, ...zoom } : {}) } : { inset });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spotKey, frameKey, runtime, benchReady, dockKey, quietPins, props.hands, props.gate]);
 

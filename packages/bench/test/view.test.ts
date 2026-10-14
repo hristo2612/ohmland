@@ -114,9 +114,12 @@ describe("reading-scale framing", () => {
     // A chart among the targets is meant to be seen whole.
     expect(needsReading(b, ["part:R1", "part:CH1"])).toBe(false);
     expect(needsReading(b, [])).toBe(false);
-    expect(focalTargets(["part:R1", "pin:R1.a", "hole:e3"])).toEqual(["pin:R1.a", "hole:e3"]);
+    expect(focalTargets(b, ["part:R1", "pin:R1.a", "hole:e3"])).toEqual(["pin:R1.a", "hole:e3"]);
     // A whole lead or wire is aimed at by its first end.
-    expect(focalTargets(["lead:TL4", "part:R1"])).toEqual(["lead:TL4.a"]);
-    expect(focalTargets(["part:R1", "part:CH1"])).toEqual(["part:R1"]);
+    expect(focalTargets(b, ["lead:TL4", "part:R1"])).toEqual(["lead:TL4.a"]);
+    expect(focalTargets(b, ["part:R1", "part:CH1"])).toEqual(["part:R1"]);
+    // A probe pen is aimed by its tip.
+    [b] = addPart(b, "logic-probe", {}, { pos: [60, 40] }, "LP1");
+    expect(focalTargets(b, ["part:LP1"])).toEqual(["pin:LP1.tip"]);
   });
 });

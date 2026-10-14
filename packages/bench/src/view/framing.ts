@@ -1,7 +1,7 @@
 // Framing rules both views share: what of the bench a lab's frame brings into view, and what a reading-scale focus
 // centres on. Pure, no renderer.
 
-import { partLegs } from "../parts";
+import { partDef, partLegs } from "../parts";
 import type { BenchState } from "../types";
 import { parseTarget } from "./targets";
 
@@ -43,13 +43,16 @@ export function needsReading(bench: Pick<BenchState, "parts" | "board">, targets
 
 /**
  * What a reading-scale framing centres on when the targets do not all fit at that scale: the anchors among them (a
- * pin, a hole, a clip), else the first target, a whole lead or wire by its first end.
+ * pin, a hole, a clip), else the first target: a whole lead or wire by its first end, a probe pen by its tip.
  */
-export function focalTargets(targets: readonly string[]): string[] {
+export function focalTargets(bench: Pick<BenchState, "parts">, targets: readonly string[]): string[] {
   const anchors = targets.filter((t) => parseTarget(t)?.type === "anchor");
   if (anchors.length) return anchors;
   const first = targets[0];
   if (!first) return [];
   const p = parseTarget(first);
-  return [p?.type === "lead" || p?.type === "wire" ? `${p.type}:${p.id}.a` : first];
+  if (p?.type === "lead" || p?.type === "wire") return [`${p.type}:${p.id}.a`];
+  const part = p?.type === "part" && !p.sub ? bench.parts.find((x) => x.id === p.id) : undefined;
+  const nose = part ? partDef(part.kind).nose : undefined;
+  return [part && nose ? `pin:${part.id}.${nose}` : first];
 }
