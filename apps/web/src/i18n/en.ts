@@ -1463,6 +1463,36 @@ export const en = {
     finish: "Back to the variants",
   },
 
+  /** The hidden flow try-out (/variants/flow): the same benches with each way of drawing the flow, side by side. */
+  flowVariants: {
+    title: "How the flow looks",
+    lead: "Five ways to draw current inside the wires, on the same four benches. The first is how it looks today.",
+    note: "Tap a bench to see it large. Nothing here is saved.",
+    controls: "Show",
+    view: { label: "View", "3d": "3D", ink: "Ink" },
+    flow: { label: "Flow", current: "Current", electrons: "Electrons" },
+    motion: { label: "Motion", moving: "Moving", still: "Still" },
+    framing: { label: "Framing", close: "Close up", whole: "Whole bench" },
+    cables: { label: "Cables", classic: "Today", drape: "Drape" },
+    trace: "Run the tracer again",
+    pick: "Style",
+    enlarge: (style: string, row: string) => `${style}, ${row}: see it large`,
+    shut: "Back to the grid",
+    styles: {
+      dots: { name: "Dots (today)", line: "Paper dots ringed in ink ride every lead." },
+      barber: { name: "Barber pole", line: "Light stripes wound round the cable, turning with the current." },
+      dashes: { name: "Marching dashes", line: "Short bright dashes glide down the cable's core." },
+      pulses: { name: "Pulse train", line: "Soft bands round the cable, closer and faster with more current." },
+      chevrons: { name: "Chevrons", line: "Small arrowheads inside the cable point the way and move." },
+    },
+    rows: {
+      flow: { name: "The flow", line: "One loop, a gate on each side of the lamp." },
+      gap: { name: "Find the gap", line: "The tracer runs from the minus snap and stops at the gap." },
+      board: { name: "On the breadboard", line: "Four jumpers carry the loop." },
+      branches: { name: "Two branches", line: "More current through the yellow side; the red and black leads carry both." },
+    },
+  },
+
   /** Hidden comparison pages (/variants/...): not linked from the site. */
   cableVariants: {
     title: "Cable variants",

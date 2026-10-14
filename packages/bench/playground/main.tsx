@@ -237,8 +237,9 @@ type Shown = BenchViewKind | "split";
 
 /**
  * `sim=1`: run the real simulator in this thread instead of the mock snapshot (flow dots, gates and push need real
- * currents). `speed=` runs it faster. Overlays: `flow=current|electrons`, `push=1`, `trace=pin:B1.neg`. `simAt=4.3` runs
- * that many simulated seconds before the first frame (instead of half a second); `simrun=0` then holds it there.
+ * currents). `speed=` runs it faster. Overlays: `flow=current|electrons`, `flowStyle=barber|dashes|pulses|chevrons`,
+ * `push=1`, `trace=pin:B1.neg`. `simAt=4.3` runs that many simulated seconds before the first frame (instead of half a
+ * second); `simrun=0` then holds it there.
  */
 function useLiveSim(store: ReturnType<typeof createBenchStore>, on: boolean) {
   useEffect(() => {
@@ -290,6 +291,8 @@ function BenchApp() {
   useEffect(() => {
     const flow = q.get("flow");
     if (flow === "current" || flow === "electrons") store.getState().setOverlay({ flow });
+    const style = q.get("flowStyle");
+    if (style === "barber" || style === "dashes" || style === "pulses" || style === "chevrons") store.getState().setOverlay({ flowStyle: style });
     if (q.get("push") === "1") store.getState().setOverlay({ push: true });
     const trace = q.get("trace");
     if (trace) setTimeout(() => store.getState().trace(trace), Number(q.get("traceAt") ?? 300));

@@ -133,6 +133,10 @@
   --wire-black: #2B2B2E;
   --char: #3A2E26;
 
+  /* Flow: current riding inside a wire, a light electric tint (one meaning: charge on the move). The views ring it in a
+     dark rim where it must read on a yellow or white lead. Same in both themes, like the cables it rides. */
+  --flow: #E2F6FF;
+
 
   /* Type: two families. Literata typesets, Kalam writes in the margin (marginalia only: the robot, annotations).
      Kalam has no Greek, so Ω falls back to Literata glyph by glyph. */

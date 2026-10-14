@@ -60,6 +60,9 @@ export {
   DOT_SPACING,
   dotSpeed,
   dotRate,
+  unitRate,
+  unitSpacing,
+  FLOW_STYLES,
   flowMap,
   gateAmps,
   advanceGates,
@@ -71,6 +74,7 @@ export {
   traceLoop,
   boxNets,
   type FlowMap,
+  type FlowStyle,
   type GateCounts,
   type PushMap,
   type Trace,
@@ -80,6 +84,7 @@ export { symbolInk, slotTurn, tornOutline, type SymbolInk } from "./symbols";
 export { hiddenParts } from "./seats";
 export { materialOhms, conducts, schematicSlot, partSpots, partMarks, padlockFaces, padlockOpen, CLIP_PATH } from "./parts";
 export { gateSpot } from "./layout";
+export { previewStill, stillMotion } from "./motion";
 export { chargeable, charge as staticCharge, stuckTo, lifting, apart, MAX_MARKS, PULL_MARKS, APART_MM } from "./static";
 // The store needs React and zustand but not three.js, so a host can own it before the 3D view loads.
 export { createBenchStore, type BenchStore, type BenchStoreState, type BenchUi, type InspectSpec, type BenchOverlay } from "./store";

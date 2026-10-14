@@ -1,0 +1,73 @@
+/* The flow try-out (/variants/flow): a bar of switches, a column per flow style, a row per bench. */
+.fv { display: grid; gap: var(--s-4); padding: 0 var(--gutter) var(--s-12); }
+
+.fv-bar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) var(--s-6);
+  padding: var(--s-3) 0;
+  background: var(--paper);
+  border-bottom: var(--border-1) solid var(--rule-soft);
+}
+.fv-seg { display: inline-flex; align-items: center; }
+.fv-seg__label { margin-right: var(--s-2); color: var(--ink-2); font-size: var(--text-xs); }
+.fv-seg button,
+.fv-pick button {
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border: var(--border-1) solid var(--rule-soft);
+  background: var(--paper-slip);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.fv-seg button + button { border-left: 0; }
+.fv-seg button[aria-pressed="true"],
+.fv-pick button[aria-pressed="true"] { background: var(--paper-sunk); border-color: var(--rule); color: var(--ink); font-weight: var(--weight-strong); }
+
+.fv-heads,
+.fv-row__cells { display: grid; grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr)); gap: var(--s-2); }
+.fv-head { display: grid; gap: var(--s-1); align-content: start; }
+.fv-head h2 { margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); }
+.fv-head p { margin: 0; color: var(--ink-2); font-size: var(--text-xs); line-height: var(--lh-xs); }
+
+.fv-rows { display: grid; gap: var(--s-6); }
+.fv-row { display: grid; gap: var(--s-2); }
+.fv-row__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-3); }
+.fv-row__head h2 { margin: 0; font-size: var(--text-md); line-height: var(--lh-md); }
+.fv-row__head p { margin: 0; color: var(--ink-2); font-size: var(--text-xs); line-height: var(--lh-xs); }
+
+.fv-cell { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border: var(--border-1) solid var(--rule-soft); background: var(--paper); }
+.fv-cell__open { position: absolute; inset: 0; z-index: 1; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
+/* The grid is for looking: the benches' own view buttons wait for the large view. */
+.fv-row .ohb-panel,
+.fv-row .ohi-ui { display: none; }
+.fv-cell__open:focus-visible { outline: var(--focus-ring) solid var(--focus); outline-offset: calc(-1 * var(--focus-ring)); }
+
+/* One style: its four benches large, two by two. */
+.fv[data-only] .fv-heads { display: none; }
+.fv[data-only] .fv-rows { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.fv-big { position: fixed; inset: 0; z-index: var(--z-dialog); display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--paper); }
+.fv-big__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); padding: var(--s-3) var(--gutter); border-bottom: var(--border-1) solid var(--rule-soft); font-weight: var(--weight-strong); }
+.fv-big .fv-cell { aspect-ratio: auto; border: 0; }
+
+.fv-pick { display: flex; gap: var(--s-2); overflow-x: auto; padding-bottom: var(--s-1); }
+.fv-pick button { display: grid; justify-items: center; gap: var(--s-1); flex: none; padding: var(--s-2) var(--s-3); }
+
+.fv-spec { display: block; width: calc(var(--cell) * 2.5); height: auto; overflow: visible; }
+.fv-spec__cable { fill: none; stroke: var(--sk-wire-black); stroke-width: 5; stroke-linecap: round; }
+.fv-spec__unit { fill: var(--flow); }
+.fv-spec__dot { fill: var(--paper-slip); stroke: var(--ink); stroke-width: 0.6; }
+.fv-spec__dash { fill: none; stroke: var(--flow); stroke-width: 1.8; }
+.fv-spec__chev { fill: none; stroke: var(--flow); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+
+@media (max-width: 720px) {
+  .fv-heads { display: none; }
+  .fv[data-only] .fv-rows { grid-template-columns: minmax(0, 1fr); }
+}

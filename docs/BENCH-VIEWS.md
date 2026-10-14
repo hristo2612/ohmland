@@ -97,16 +97,27 @@ Implementation notes (both views):
 ## Overlays
 
 Teaching overlays draw over the bench in both views, from one state in the bench store (`overlay`, set with
-`setOverlay({ flow, push })` and `trace(anchor | null)`) and the same pure data (`packages/bench/src/flow.ts`):
+`setOverlay({ flow, flowStyle, push })` and `trace(anchor | null)`) and the same pure data
+(`packages/bench/src/flow.ts`):
 
 - **Flow dots** (`flow: "current" | "electrons"`): paper dots ringed in ink ride every clip lead, jumper and part, at a
   speed from its current (a gentle power law: about 8 mm/s at 0.7 mA, 20 mm/s at the lamp's 7.5 mA, capped at
   40 mm/s; nothing moves below 1 µA), plus to minus. `"electrons"` draws them as short ink dashes going the other way
   at an eighth of the speed. A jumper's current comes from the parts on one side of it (the current law). Dots stop
   under reduced motion. Calm and optional: off unless a lab or lesson turns them on.
-- **Gates** (a `gate` part clipped round a lead) count the dots that pass them (`DOT_SPACING` apart, so a gate ticks at
-  speed / 8 mm), from the simulator's snapshots: the store keeps the counts (`gates`), so both views show the same
-  number. Clipping a gate on, moving one or taking one off starts every gate's count again, so gates clipped at
+- **Flow styles** (`flowStyle`, `"dots"` by default): the flow can instead ride inside the cables in the flow tint
+  (`--flow`, a light electric tint with a dark rim so it reads on a yellow or white lead), at the same speeds and
+  directions: `"barber"` (diagonal stripes wound round the cable, 6 mm apart), `"dashes"` (short bright dashes down the
+  cable's core with a faint tail, 8 mm apart), `"pulses"` (soft bands round the cable, closer together with more
+  current: about 17 mm at 0.7 mA, 10 mm at 7.5 mA, 7.5 mm at 16 mA) and `"chevrons"` (arrowheads across the cable, 6 mm
+  apart). They follow each lead's cable as drawn, in every cable style. In 3D a thin sleeve over each cable, jumper and
+  part lead carries one shader per style (`scene/FlowStripes3D.tsx`) whose pattern moves by a uniform; in ink the
+  stripes and chevrons are shapes laid along the cable's points and the dashes and pulses are dash patterns on its
+  path (`ink/draw/FlowStripes.tsx`). Under reduced motion they stand still, each unit brighter or pointed toward where
+  it goes, spaced closer the more current flows. The hidden page `/variants/flow` shows them side by side.
+- **Gates** (a `gate` part clipped round a lead) count the units that pass them (a dot, a stripe, a dash, a band or an
+  arrowhead: `unitSpacing(style, amps)` apart, so a gate ticks at speed / spacing, `unitRate`), from the simulator's
+  snapshots: the store keeps the counts (`gates`), so both views show the same number. Clipping a gate on, moving one or taking one off starts every gate's count again, so gates clipped at
   different moments count side by side from the same zero. In number mode the flag reads the lead's current
   ("0.0075 A") with a unit button.
 - **Push** (`push: true`): red pencil hatching across every lead, denser the higher its voltage above the battery's
@@ -114,7 +125,9 @@ Teaching overlays draw over the bench in both views, from one state in the bench
 - **The loop tracer** (`trace: { from }`): a red pencil line runs from the terminal, lead by lead and part by part along
   the metal (`traceLoop`), offset beside the cables so it reads on a red lead, over about a third of a second per
   step, and ends in a ring where it closed or a ring and a cross at the gap (an insulated spot, a loose clip, an open
-  switch). Instant under reduced motion.
+  switch). Instant under reduced motion. With a striped flow style the tracer is a run instead: the style's units in
+  red with a light rim, laid inside the cables (through the clips) up to a head that travels the loop, ending in a red
+  disc with a light cross at the gap or a red ring where it closed.
 
 Parts shut in a sealed box are drawn in neither view and no pointer, clip or probe can reach them; the box's own
 terminals and knob stand for them. Open, the box shows them and the wires inside.
