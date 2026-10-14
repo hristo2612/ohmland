@@ -236,6 +236,16 @@ function deskLeadHeading(parts: Map<string, PartInk>, anchor: Anchor): Vec2 | nu
   const cx = (pi.box[0] + pi.box[2]) / 2;
   const cz = (pi.box[1] + pi.box[3]) / 2;
   if (Math.hypot(local[0] - cx, local[1] - cz) < 1) return null;
+  // Leads that leave the body side by side (an LED, a transistor): fan their clips apart so they do not stack.
+  const legs = Object.values(pi.legs).map(([x, z]) => toLocal(pi.f, x, z));
+  const mx = legs.reduce((a, l) => a + l[0], 0) / legs.length - cx;
+  const mz = legs.reduce((a, l) => a + l[1], 0) / legs.length - cz;
+  if (legs.length >= 2 && Math.hypot(mx, mz) > 3) {
+    const axis = norm(mx, mz);
+    const side = axis[0] * (local[1] - cz) - axis[1] * (local[0] - cx);
+    const turn = Math.abs(side) < 0.6 ? 0 : Math.sign(side) * 0.42;
+    return norm(...rotateXZ(...rot2(axis, turn), pi.f.rot));
+  }
   return norm(...rotateXZ(local[0] - cx, local[1] - cz, pi.f.rot));
 }
 
