@@ -3,6 +3,7 @@
 
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useStore } from "zustand";
+import { CHIP_PRINT, supplyVolts } from "../chips";
 import { formatFarads, formatOhms } from "../colorCode";
 import { DIAL_MODES } from "../layout";
 import * as ops from "../ops";
@@ -41,6 +42,10 @@ export function partDetail(part: PlacedPart): string | undefined {
   if ((part.kind === "resistor" || part.kind === "trimmer") && typeof p.ohms === "number") return formatOhms(p.ohms);
   if ((part.kind === "ceramic-cap" || part.kind === "electrolytic-cap") && typeof p.farads === "number") return formatFarads(p.farads);
   if (part.kind === "fuse" && typeof p.amps === "number") return `${p.amps} A`;
+  // A chip is named by what is printed on it (a taped one by its tape).
+  if (part.kind === "chip") return part.params.hidden ? (part.params.label ?? "?") : CHIP_PRINT[part.params.model];
+  if (part.kind === "bench-supply") return `${supplyVolts(part.params)} V`;
+  if (part.kind === "battery-pack") return `${part.params.cells * 1.5} V`;
   return undefined;
 }
 
@@ -175,7 +180,8 @@ export function InkOverlay({ store, labels, tray, readOnly, compact, api, size, 
         out.push(<Btn key="press" label={labels.press} icon="press" showLabel={label} onPointerDown={() => s.press(selPart.id, true)} onPointerUp={() => s.press(selPart.id, false)} />);
       }
       const def = partDef(selPart.kind);
-      for (const st of def.settings ?? []) {
+      // Settings a part shows only in some labs (contact bounce) say so with `when`.
+      for (const st of (def.settings ?? []).filter((x) => !x.when || x.when(selPart.params as Record<string, unknown>))) {
         const text = labels.settings[`${selPart.kind}.${st.key}`];
         const cur = (selPart.params as Record<string, unknown>)[st.key];
         const name = (v: string | number | boolean) => text?.values?.[String(v)] ?? `${v}${text?.unit ? ` ${text.unit}` : ""}`;

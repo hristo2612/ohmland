@@ -1,6 +1,7 @@
 // Holders and their seats: which part sits in which holder, where it sits, and finding a free seat near a point.
 // Pure: shared by ops (seating on drop), layout (poses) and the netlist (contacts).
 
+import { boardGeometry, holeWorld } from "./board";
 import { partDef, rotateXZ, type SeatDef } from "./parts";
 import type { BenchState, Held, PlacedPart, Vec2, Vec3 } from "./types";
 
@@ -32,11 +33,43 @@ export function holderOf(bench: BenchState, partId: string): { holder: PlacedPar
   return null;
 }
 
-/** World position (mm, y up) and turn of a part in a seat. */
-export function seatPose(holder: PlacedPart, seat: SeatDef, held: PlacedPart): { origin: Vec3; rot: number } {
-  const p = seat.place(held);
+/** Whether a part fits a seat (its kind, then the seat's own test). */
+export function seatFits(seat: SeatDef, part: PlacedPart): boolean {
+  return seat.accepts.includes(part.kind) && (!seat.fits || seat.fits(part));
+}
+
+/**
+ * Centre of a holder that stands in the board (an IC socket): the middle of the holes its leads are in. Null for a
+ * holder on the desk.
+ */
+function boardCentre(bench: BenchState | undefined, holder: PlacedPart): Vec2 | null {
+  if (!bench?.board || !holder.holes) return null;
+  const geom = boardGeometry(bench.board);
+  const pts = Object.values(holder.holes)
+    .filter((h): h is string => !!h && geom.holes.has(h))
+    .map((h) => holeWorld(bench.board!, h)!);
+  if (!pts.length) return null;
+  const xs = pts.map((p) => p[0]);
+  const zs = pts.map((p) => p[1]);
+  return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...zs) + Math.max(...zs)) / 2];
+}
+
+/**
+ * World position (mm, y up) and turn of a part in a seat. Pass the bench for holders that can stand in the board, so
+ * the seat follows the holes rather than the holder's stored position.
+ */
+export function seatPose(holder: PlacedPart, seat: SeatDef, held: PlacedPart, bench?: BenchState): { origin: Vec3; rot: number } {
+  const centre = boardCentre(bench, holder);
+  const p = seat.place(held, { board: !!centre });
   const [rx, rz] = rotateXZ(p.at[0], p.at[2], holder.rot);
-  return { origin: [holder.pos[0] + rx, p.at[1], holder.pos[1] + rz], rot: (((holder.rot + (p.rot ?? 0)) % 360) + 360) % 360 };
+  const base = centre ?? holder.pos;
+  return { origin: [base[0] + rx, p.at[1], base[1] + rz], rot: (((holder.rot + (p.rot ?? 0)) % 360) + 360) % 360 };
+}
+
+/** The leads a seat joins: a held part's lead -> the holder's lead it touches. */
+export function seatJoins(seat: SeatDef, held: PlacedPart): Readonly<Record<string, string>> {
+  const j = seat.joins;
+  return typeof j === "function" ? j(held) : (j ?? {});
 }
 
 /** The nearest seat that accepts `part` within `reach` mm of a desk point (a full seat only when nothing else is free). */
@@ -48,8 +81,8 @@ export function seatNear(bench: BenchState, part: PlacedPart, to: Vec2, reach = 
     if (Object.values(heldOf(part)).includes(h.id)) continue;
     const held = heldOf(h);
     for (const seat of seatsOf(h)) {
-      if (!seat.accepts.includes(part.kind)) continue;
-      const pose = seatPose(h, seat, part);
+      if (!seatFits(seat, part)) continue;
+      const pose = seatPose(h, seat, part, bench);
       const taken = held[seat.name] && held[seat.name] !== part.id;
       const d = Math.hypot(pose.origin[0] - to[0], pose.origin[2] - to[1]) + (taken ? reach * 0.75 : 0);
       if (d <= reach * (taken ? 1.75 : 1) && (!best || d < best.d)) best = { holder: h, seat, d };

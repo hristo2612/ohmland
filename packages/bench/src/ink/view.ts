@@ -11,6 +11,9 @@ export function lodFor(s: number): Lod {
   return s < 2.2 ? 0 : s < 5 ? 1 : 2;
 }
 
+/** Scale (px per mm) from which pin numbers show on chips and displays: about 11 px per 1 mm of print. */
+export const NEAR_SCALE = 11;
+
 /** Grid paper cell in mm for a scale: 5 mm times a power of two, kept between 14 and 28 px. */
 export function gridCell(s: number): number {
   let c = 5;
@@ -151,6 +154,9 @@ export class InkView {
         this.lastLod = lod;
         root.dataset.lod = String(lod);
       }
+      // Up close (a focused chip): pin numbers and names appear.
+      const near = cam.s >= NEAR_SCALE ? "1" : "0";
+      if (root.dataset.near !== near) root.dataset.near = near;
     }
     for (const cb of this.listeners) cb();
   }

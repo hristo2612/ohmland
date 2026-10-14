@@ -180,9 +180,9 @@ export function actuatorFrame(pi: PartInk): Vec2 {
 }
 
 /** Clickable spots of a part (settings, the card's drawing strip), in its frame. */
-export function hotspotsOf(part: PlacedPart): Hotspot[] {
-  const d = partDef(part.kind) as { hotspots?: (p: unknown) => Hotspot[] };
-  return d.hotspots ? d.hotspots(part.params) : [];
+export function hotspotsOf(part: PlacedPart, mount: "board" | "desk" = "desk"): Hotspot[] {
+  const d = partDef(part.kind) as { hotspots?: (p: unknown, m: "board" | "desk") => Hotspot[] };
+  return d.hotspots ? d.hotspots(part.params, mount) : [];
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -392,7 +392,7 @@ export function buildModel(bench: BenchState): InkModel {
     const id = pi.part.id;
     const kind = inkKind(pi.part.kind);
     push({ type: "part", id }, { t: "box", f: pi.f, b: pi.box });
-    for (const h of hotspotsOf(pi.part)) {
+    for (const h of hotspotsOf(pi.part, pi.mount)) {
       const box: Box = [h.at[0] - h.size[0] / 2, h.at[2] - h.size[2] / 2, h.at[0] + h.size[0] / 2, h.at[2] + h.size[2] / 2];
       push(h.pick.type === "draw" ? { type: "draw", id } : { type: "setting", id, key: h.pick.key, value: h.pick.value }, { t: "box", f: pi.f, b: box });
     }
@@ -409,7 +409,9 @@ export function buildModel(bench: BenchState): InkModel {
       }
     }
     if (pi.ends) {
-      for (const [leg, e] of Object.entries(pi.ends)) push({ type: "leg", id, leg, flying: true }, { t: "circle", x: e.pos[0], z: e.pos[1], r: 2.2 });
+      // A part's own tip (the logic probe's) moves with the part, not on its own.
+      const nose = (def as { nose?: string }).nose;
+      for (const [leg, e] of Object.entries(pi.ends)) if (leg !== nose) push({ type: "leg", id, leg, flying: true }, { t: "circle", x: e.pos[0], z: e.pos[1], r: 2.2 });
     }
   }
   for (const wi of wires.values()) {

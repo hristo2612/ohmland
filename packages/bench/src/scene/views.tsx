@@ -18,6 +18,8 @@ import { Proxy, localBox } from "./pick";
 import { prefersReducedMotion, useAnimating } from "../three/anim";
 import { useFrame } from "@react-three/fiber";
 import { usePaperPalette } from "./palette";
+import { extraLookKey, useProbeState } from "../probe";
+import { SUPPLY } from "../chips";
 
 /** Red pencil: the teacher's hints. */
 export const ACCENT = "#B23A1C";
@@ -107,6 +109,7 @@ const ACTUATOR: Partial<Record<PlacedPart["kind"], "press" | "flip" | "rotor">> 
   "toggle-switch": "flip",
   "dpdt-switch": "flip",
   trimmer: "rotor",
+  "bench-supply": "rotor",
 };
 
 /**
@@ -117,7 +120,10 @@ const LivePartModel = memo(function LivePartModel(props: Omit<PartModelProps, "s
   const store = useBenchStore();
   // Re-render only when something visible changed, not on every snapshot.
   const key = useBench((s) => visualKey(s.snapshot?.parts[props.id]));
-  const state = useMemo(() => (store.getState().snapshot?.parts[props.id] as PartState | undefined) ?? null, [store, props.id, key]);
+  const own = useMemo(() => (store.getState().snapshot?.parts[props.id] as PartState | undefined) ?? null, [store, props.id, key]);
+  // The logic probe has no simulator part: its lamps read the nodes under its tip and leads.
+  const probe = useProbeState(store, props.id, props.kind === "logic-probe");
+  const state = probe ?? own;
   // The desk clock shows simulated time.
   const minutes = useBench((s) => (props.kind === "clock" ? Math.floor((s.snapshot?.t ?? 0) / 60) : 0));
   const { id: _id, ...rest } = props;
@@ -128,7 +134,7 @@ const LivePartModel = memo(function LivePartModel(props: Omit<PartModelProps, "s
 export function visualKey(p: PartState | undefined): string {
   if (!p) return "";
   const arm = typeof p.extra?.["armature"] === "number" ? Math.round((p.extra["armature"] as number) * 20) : "";
-  return `${p.health}|${Math.round((p.glow ?? 0) * 50)}|${p.closed ? 1 : 0}|${p.display ?? ""}|${p.unit ?? ""}|${arm}`;
+  return `${p.health}|${Math.round((p.glow ?? 0) * 50)}|${p.closed ? 1 : 0}|${p.display ?? ""}|${p.unit ?? ""}|${arm}|${extraLookKey(p)}`;
 }
 
 /** The visual keys of every part in a snapshot, joined: unchanged means the bench looks the same. */
@@ -142,9 +148,9 @@ export function snapshotKey(s: { parts: Record<string, PartState> } | null): str
 function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality, floor }: PartViewProps) {
   const pose = useMemo(() => partPose({ v: 1, board, parts: holder ? [holder, part] : [part], wires: [], leads: [], meter: null }, part), [part, holder, board]);
   const hotspots = useMemo(() => {
-    const d = partDef(part.kind) as { hotspots?: (p: unknown) => Hotspot[] };
-    return d.hotspots ? d.hotspots(part.params) : [];
-  }, [part.kind, part.params]);
+    const d = partDef(part.kind) as { hotspots?: (p: unknown, m: "board" | "desk") => Hotspot[] };
+    return d.hotspots ? d.hotspots(part.params, pose.mount) : [];
+  }, [part.kind, part.params, pose.mount]);
   const model = useRef<THREE.Group>(null);
   const [box, setBox] = useState<THREE.Box3 | null>(null);
   const def = partDef(part.kind);
@@ -155,12 +161,13 @@ function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality,
     setBox((prev) => (prev && prev.equals(b) ? prev : b));
   }, [part.kind, paramsKey, pose.mount, pose.span]);
   const rotY = (pose.rot * Math.PI) / 180;
-  const flying = useMemo(() => flyingLeads(part.kind, part.params as Record<string, unknown>), [part.kind, paramsKey]);
+  const probing = !!pose.ends?.["tip"]?.inHole;
+  const flying = useMemo(() => flyingLeads(part.kind, part.params as Record<string, unknown>, probing), [part.kind, paramsKey, probing]);
   const actuator = ACTUATOR[part.kind];
   const pal = usePaperPalette();
   const body = (
     <group ref={model}>
-      <LivePartModel id={part.id} kind={part.kind} params={part.params} mount={pose.mount} span={pose.span} quality={quality} pressed={pressed} held={!!pose.heldBy} />
+      <LivePartModel id={part.id} kind={part.kind} params={part.params} mount={pose.mount} span={pose.span} quality={quality} pressed={pressed} held={!!pose.heldBy} perched={pose.origin[1] > 0 && pose.mount === "desk" && !pose.heldBy} probing={probing} />
     </group>
   );
   return (
@@ -175,7 +182,10 @@ function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality,
               position={[(box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, (box.min.z + box.max.z) / 2]}
             />
             {actuator &&
-              (((part.params as { base?: boolean }).base || part.kind === "dpdt-switch") && pose.mount === "desk" ? (
+              (part.kind === "bench-supply" ? (
+                // The supply's knob, in the middle of its top.
+                <Proxy pick={{ type: "rotor", id: part.id }} size={[20, 10, 20]} position={[0, SUPPLY.h + 4, 0]} />
+              ) : ((part.params as { base?: boolean }).base || part.kind === "dpdt-switch") && pose.mount === "desk" ? (
                 // The lever, slider, button or knob on its wooden block: a generous target, since it is the one thing to press.
                 <Proxy pick={{ type: actuator, id: part.id }} size={part.kind === "pushbutton" ? [16, 10, 16] : [24, 20, 16]} position={[0, part.kind === "toggle-switch" ? box.max.y - 8 : TOGGLE_BASE.h + 5, TOGGLE_BASE.switchZ]} />
               ) : (

@@ -76,9 +76,52 @@ export const DEFAULT_GALLERY: GalleryItem[][] = [
     { kind: "test-lead", label: "Test lead", color: "black" },
     { kind: "probe", label: "Probe", color: "red" },
   ],
+  ...unit4Gallery(),
 ];
 
+/** Unit 4 parts: chips, a socket, displays, the regulator, DIP switches, the logic probe, packs and the supply. */
+function unit4Gallery(): GalleryItem[][] {
+  return [
+    [
+      { kind: "chip", params: { model: "555" }, label: "NE555" },
+      { kind: "chip", params: { model: "555-cmos" }, label: "7555" },
+      { kind: "chip", params: { model: "74HC00" }, label: "74HC00" },
+      { kind: "chip", params: { model: "4026B" }, label: "CD4026B" },
+      { kind: "chip", params: { model: "74HC86", hidden: true, label: "?1" }, label: "Mystery" },
+      { kind: "chip", params: { model: "74HC04" }, label: "Hot", state: { ...ok(), temp: 120, health: "hot" } },
+      { kind: "chip", params: { model: "74HC32" }, label: "Burnt", state: { ...ok(), temp: 160, health: "dead" } },
+      { kind: "chip", params: { model: "74HC08", package: "soic" }, label: "SOIC" },
+    ],
+    [
+      { kind: "ic-socket", params: { pins: 8 }, label: "8-pin socket" },
+      { kind: "ic-socket", params: { pins: 16 }, label: "16-pin socket" },
+      { kind: "sevenseg", params: { common: "cathode" }, label: "7-segment" },
+      { kind: "sevenseg", params: { common: "cathode" }, label: "Showing 4", state: { ...ok(0.8), extra: { a: 0, b: 0.8, c: 0.8, d: 0, e: 0, f: 0.8, g: 0.8, dp: 0, lit: "bcfg" } } },
+      { kind: "sevenseg", params: { common: "cathode", carrier: true }, label: "On its carrier", state: { ...ok(0.7), extra: { a: 0.7, b: 0.7, c: 0.7, d: 0, e: 0, f: 0, g: 0, dp: 0.7, lit: "abc" } } },
+      { kind: "dip-switch", params: { positions: 8, s1: true, s4: true, s5: true }, label: "DIP switch" },
+      { kind: "dip-switch", params: { positions: 4, s2: true }, label: "4-way" },
+    ],
+    [
+      { kind: "regulator7805", label: "7805" },
+      { kind: "regulator7805", params: { heatsink: true }, label: "Heat sink", state: { ...ok(), temp: 90, extra: { caseTemp: 85 } } },
+      { kind: "diode", params: { model: "1N4148" }, label: "1N4148" },
+      { kind: "logic-probe", label: "Logic probe", state: { ...ok(), extra: { powered: true, level: "H", pulse: true } } },
+    ],
+    [
+      { kind: "battery-pack", params: { cells: 3 }, label: "4.5 V pack" },
+      { kind: "battery-pack", params: { cells: 4 }, label: "6 V pack" },
+      { kind: "bench-supply", params: { position: 0.75 }, label: "Bench supply" },
+    ],
+  ];
+}
+
+/** The Unit 4 rows of the gallery (the last four of `DEFAULT_GALLERY`). */
+export const UNIT4_GALLERY: GalleryItem[][] = unit4Gallery();
+
 const FOV = 22;
+
+/** Kinds shown lying on the desk rather than standing on their legs. */
+const DESK_KINDS = new Set<string>(["battery", "speaker", "cup", "lemon", "logic-probe", "battery-pack", "bench-supply"]);
 
 
 const SERIF = `"Literata", Georgia, "Times New Roman", serif`;
@@ -128,6 +171,17 @@ function cellWidth(item: GalleryItem): number {
     case "relay":
     case "fuse":
       return 36;
+    case "bench-supply":
+      return 70;
+    case "battery-pack":
+      return 66;
+    case "logic-probe":
+      return 112;
+    case "chip":
+    case "ic-socket":
+    case "dip-switch":
+    case "sevenseg":
+      return 28;
     default:
       return 24;
   }
@@ -148,6 +202,13 @@ function cellDepth(item: GalleryItem): number {
       return 40;
     case "probe":
       return 120;
+    case "logic-probe":
+      return 14;
+    case "battery-pack":
+    case "bench-supply":
+      return 74;
+    case "sevenseg":
+      return 26;
     default:
       return 14;
   }
@@ -172,15 +233,18 @@ function ItemModel({ item, quality }: { item: GalleryItem; quality: Quality }) {
         </group>
       </group>
     );
-  return (
+  const model = (
     <PartModel
       kind={item.kind}
       params={{ ...defaultParams(item.kind), ...(item.params ?? {}) } as never}
-      mount={item.pose === "desk" ? "desk" : item.kind === "battery" || item.kind === "speaker" || item.kind === "cup" || item.kind === "lemon" ? "desk" : "preview"}
+      mount={item.pose === "desk" || DESK_KINDS.has(item.kind) ? "desk" : "preview"}
       state={item.state ?? null}
       quality={quality}
     />
   );
+  // The logic probe's origin is its tip: lay the pen across its cell, centred.
+  if (item.kind === "logic-probe") return <group position={[-54, 0, 0]} rotation={[0, Math.PI / 2, 0]}>{model}</group>;
+  return model;
 }
 
 /** Lay rows out front to back, each row centred, cells sized by the part. */

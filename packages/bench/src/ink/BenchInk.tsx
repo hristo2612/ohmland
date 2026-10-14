@@ -245,7 +245,9 @@ export function BenchInk(props: BenchInkProps) {
     const not = owners.map((o) => `:not([data-own="${o.replace(/"/g, "")}"])`).join("");
     // Parts fade almost away; the board stays as quiet context.
     const dim = `#${defsId}-svg [data-own]${not}{opacity:.26}`;
-    return owners.includes("board") ? dim : `${dim}#${defsId}-svg.is-spot [data-own="board"]{opacity:.32 !important}`;
+    // A spotlit chip or display shows its pin numbers.
+    const pins = owners.map((o) => `#${defsId}-svg.is-spot [data-own="${o.replace(/"/g, "")}"] .pinno{display:inline}`).join("");
+    return (owners.includes("board") ? dim : `${dim}#${defsId}-svg.is-spot [data-own="board"]{opacity:.32 !important}`) + pins;
   }, [spot, model, defsId]);
 
   // Announcements for screen readers.

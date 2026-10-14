@@ -214,7 +214,8 @@ export function Overlay({
       }
       // Prop settings (moisture, a test load, a pencil line) and one-shot actions (erase).
       const def = partDef(selPart.kind);
-      for (const st of def.settings ?? []) {
+      // Settings a part shows only in some labs (contact bounce) say so with `when`.
+      for (const st of (def.settings ?? []).filter((x) => !x.when || x.when(selPart.params as Record<string, unknown>))) {
         const text = labels.settings[`${selPart.kind}.${st.key}`];
         const cur = (selPart.params as Record<string, unknown>)[st.key];
         const name = (v: string | number | boolean) => text?.values?.[String(v)] ?? `${v}${text?.unit ? ` ${text.unit}` : ""}`;

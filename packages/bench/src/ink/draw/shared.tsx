@@ -4,6 +4,7 @@ import { createContext, useContext, useMemo } from "react";
 import { useStore } from "zustand";
 import type { PartState } from "@ohmland/sim";
 import type { BenchStore } from "../../store";
+import { extraLookKey } from "../../probe";
 
 export { n3 } from "../frame";
 
@@ -22,7 +23,7 @@ export function visualKey(p: PartState | undefined): string {
   const arm = typeof p.extra?.["armature"] === "number" ? Math.round((p.extra["armature"] as number) * 20) : "";
   const blown = p.extra?.["blown"] === true ? 1 : 0;
   const beep = p.extra?.["beep"] === true ? 1 : 0;
-  return `${p.health}|${Math.round((p.glow ?? 0) * 50)}|${p.closed ? 1 : 0}|${p.display ?? ""}|${p.unit ?? ""}|${arm}|${blown}|${beep}`;
+  return `${p.health}|${Math.round((p.glow ?? 0) * 50)}|${p.closed ? 1 : 0}|${p.display ?? ""}|${p.unit ?? ""}|${arm}|${blown}|${beep}|${extraLookKey(p)}`;
 }
 
 /** A part's simulator state, re-rendering only when something visible changes (not 30 times a second). */

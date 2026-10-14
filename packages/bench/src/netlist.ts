@@ -4,8 +4,9 @@
 import type { Netlist, NodeId, PartSpec } from "@ohmland/sim";
 import { holeAnchor, leadAnchor, parseAnchor, pinAnchor, probeAnchor, socketAnchor, wireAnchor } from "./anchors";
 import { RAILS, boardGeometry } from "./board";
-import { partDef, partLegs, physicalLeg, type NetContext } from "./parts";
-import { heldOf, seatsOf } from "./seats";
+import { SOURCE_KINDS } from "./chips";
+import { canonicalAnchor, partDef, partLegs, physicalLeg, type NetContext } from "./parts";
+import { heldOf, seatJoins, seatsOf } from "./seats";
 import type { Anchor, BenchState, MeterSocket, PartParamsMap, PlacedPart } from "./types";
 
 export class UnionFind {
@@ -124,7 +125,7 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; sp
       const part = id ? bench.parts.find((p) => p.id === id) : undefined;
       if (!part || !s.joins) continue;
       const legs = partDef(part.kind).legs;
-      for (const [leg, own] of Object.entries(s.joins)) if (legs.includes(leg)) uf.union(pinAnchor(part.id, leg), pinAnchor(holder.id, own));
+      for (const [leg, own] of Object.entries(seatJoins(s, part))) if (legs.includes(leg)) uf.union(pinAnchor(part.id, leg), pinAnchor(holder.id, own));
     }
   }
 
@@ -158,11 +159,13 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; sp
   }
   const attach = (from: Anchor, to: Anchor | null) => {
     if (!to) return;
-    if (!known.has(to)) {
+    // A pin may be named by its function ("pin:U1.trig").
+    const at = known.has(to) ? to : canonicalAnchor(bench.parts, to);
+    if (!known.has(at)) {
       warnings.push(`clip-missing: ${from} -> ${to}`);
       return;
     }
-    uf.union(from, to);
+    uf.union(from, at);
   };
   for (const l of bench.leads) {
     attach(leadAnchor(l.id, "a"), l.a.to);
@@ -174,7 +177,9 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; sp
 
   const groups = new Map<string, Anchor[]>();
   let grouped = false;
-  const members = (anchor: Anchor): Anchor[] => {
+  const canon = (a: Anchor): Anchor => (uf.has(a) ? a : canonicalAnchor(bench.parts, a));
+  const members = (named: Anchor): Anchor[] => {
+    const anchor = canon(named);
     if (!uf.has(anchor)) return [anchor];
     if (!grouped) {
       for (const k of uf.keys()) {
@@ -188,7 +193,12 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; sp
     return groups.get(uf.find(anchor)) ?? [anchor];
   };
 
-  return { uf, known, warnings, members, same: (a, b) => uf.has(a) && uf.has(b) && uf.find(a) === uf.find(b) };
+  const same = (x: Anchor, y: Anchor) => {
+    const a = canon(x);
+    const b = canon(y);
+    return uf.has(a) && uf.has(b) && uf.find(a) === uf.find(b);
+  };
+  return { uf, known, warnings, members, same };
 }
 
 export type BenchNetlist = {
@@ -212,7 +222,15 @@ export type BenchNetlistOptions = {
    * probe becomes a `wire` part "<meter>:red" / "<meter>:black", so touching the tips together reads about 0.2 Ω.
    */
   probeOhms?: number;
+  /**
+   * Contact bounce for every switch, pushbutton and DIP switch that has none of its own (a global "bounce on"
+   * setting): true chatters for 1 to 5 ms, a number is the longest chatter in ms.
+   */
+  bounce?: boolean | number;
 };
+
+/** Simulator kinds whose contacts can bounce. */
+const BOUNCY = new Set(["switch", "pushbutton", "spdt", "dpdt"]);
 
 const railOrder = (strip: string) => {
   const i = RAILS.findIndex((r) => strip.startsWith(r));
@@ -232,8 +250,9 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
   const warnings = [...conn.warnings];
   const geom = bench.board ? boardGeometry(bench.board) : null;
 
-  // Reference node.
-  const groundPart = bench.parts.find((p) => p.kind === "battery") ?? bench.parts.find((p) => p.kind === "lemon");
+  // Reference node: the first 9 V battery's minus, else an AA pack's or a bench supply's, else a lemon cell's.
+  const groundPart =
+    SOURCE_KINDS.map((k) => bench.parts.find((p) => p.kind === k)).find((p) => !!p) ?? bench.parts.find((p) => p.kind === "lemon");
   const groundRoot = groundPart ? uf.find(pinAnchor(groundPart.id, "neg")) : null;
   if (!groundPart) warnings.push("no-ground: no battery or cell on the bench");
 
@@ -270,7 +289,9 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
     }
     return n;
   };
-  const nodeOf = (anchor: Anchor): NodeId => {
+  const nodeOf = (named: Anchor): NodeId => {
+    // A pin may be named by its function ("pin:U1.trig").
+    const anchor = uf.has(named) ? named : canonicalAnchor(bench.parts, named);
     if (!uf.has(anchor)) return `float-${anchor.replace(":", "-")}`;
     return nodeOfRoot(uf.find(anchor));
   };
@@ -282,6 +303,12 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
     // Mystery parts are wired inside in a shuffled order: leg `fn` of the model is whichever terminal carries it.
     const node = (leg: string) => nodeOf(pinAnchor(part.id, physicalLeg(part, leg)));
     specs.push(...(def.toSpecs as (p: PlacedPart, n: (leg: string) => NodeId, c: NetContext) => PartSpec[])(part, node, ctx));
+  }
+  if (opts.bounce !== undefined && opts.bounce !== false) {
+    for (const s of specs) {
+      const c = s as PartSpec & { bounce?: boolean | number };
+      if (BOUNCY.has(s.kind) && c.bounce === undefined) c.bounce = opts.bounce;
+    }
   }
 
   if (leadOhms > 0) {

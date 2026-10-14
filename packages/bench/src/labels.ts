@@ -56,6 +56,10 @@ export type BenchLabels = {
     phonePack: string;
     carBattery: string;
     used: string;
+    /** The logic probe's lamps. */
+    hi?: string;
+    lo?: string;
+    pulse?: string;
   };
 };
 
@@ -112,6 +116,14 @@ export const DEFAULT_LABELS: BenchLabels = {
     chart: "Colour chart",
     clock: "Clock",
     showcase: "Display case",
+    chip: "Chip",
+    sevenseg: "7-segment display",
+    regulator7805: "5 V regulator",
+    "ic-socket": "Chip socket",
+    "dip-switch": "DIP switch",
+    "logic-probe": "Logic probe",
+    "battery-pack": "Battery pack",
+    "bench-supply": "Bench supply",
   },
   colors: {
     red: "Red",
@@ -143,6 +155,11 @@ export const DEFAULT_LABELS: BenchLabels = {
     "card.length": { label: "Line", unit: "cm" },
     "card.layers": { label: "Layers" },
     "card.wide": { label: "Width", values: { false: "Narrow", true: "Wide" } },
+    "pushbutton.bounce": { label: "Bounce", values: { false: "Off", true: "On" } },
+    "slide-switch.bounce": { label: "Bounce", values: { false: "Off", true: "On" } },
+    "toggle-switch.bounce": { label: "Bounce", values: { false: "Off", true: "On" } },
+    "dpdt-switch.bounce": { label: "Bounce", values: { false: "Off", true: "On" } },
+    "regulator7805.heatsink": { label: "Heat sink", values: { false: "Off", true: "On" } },
   },
   actions: { "card.erase": "Erase" },
   heat: { cool: "cool", warm: "warm", hot: "hot", ouch: "ouch" },
@@ -177,6 +194,9 @@ export const DEFAULT_LABELS: BenchLabels = {
     phonePack: "Phone Li-ion pack. Never puncture, crush or short it.",
     carBattery: "Car battery, 12 V. Hundreds of amps into a short.",
     used: "USED",
+    hi: "HI",
+    lo: "LO",
+    pulse: "PULSE",
   },
 };
 
