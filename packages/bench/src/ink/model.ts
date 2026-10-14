@@ -8,7 +8,8 @@
 import { parseAnchor } from "../anchors";
 import { boardGeometry, boardOrigin, holeWorld } from "../board";
 import { DIAL_MODES, METER, anchorPosition, partPose, probeTip, socketWorld, workCenter, type PartPose } from "../layout";
-import { partDef, rotateXZ, type Hotspot } from "../parts";
+import { partDef, partMarks, rotateXZ, type Hotspot } from "../parts";
+import { GATE } from "../dims";
 import { hiddenParts } from "../seats";
 import type { Anchor, BenchState, MeterMode, MeterSocket, MeterState, PlacedPart, ProbeColor, TestLead, Vec2, Wire } from "../types";
 import { rectOfPoints, unionRect, type Rect } from "./camera";
@@ -554,7 +555,12 @@ export function targetRect(model: InkModel, target: string): Rect | null {
   if (pi) {
     if (!sub) return partBounds(pi);
     const p = pi.legs[sub];
-    return p ? [p[0] - 1.5, p[1] - 1.5, p[0] + 1.5, p[1] + 1.5] : null;
+    if (p) return [p[0] - 1.5, p[1] - 1.5, p[0] + 1.5, p[1] + 1.5];
+    // A named mark: a drawing's symbol, a box's lid or knob, a gate's flag (in the drawing's own frame).
+    const m = partMarks(pi.part)[sub];
+    if (!m) return null;
+    const [x, z] = toWorld(pi.f, m[0], pi.part.kind === "gate" ? -GATE.lift : m[2]);
+    return [x - 3, z - 3, x + 3, z + 3];
   }
   // A bare id may also name a jumper or a test lead.
   if (!t.includes(":")) {

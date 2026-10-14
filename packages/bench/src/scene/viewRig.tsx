@@ -181,6 +181,10 @@ export function ViewRig({
           }
           return meterBox(b);
         }
+        if (parsed.sub) {
+          const p = targetPoint(b, t);
+          return p ? pointBox(p, 10) : null;
+        }
         const obj = scene.getObjectByName(`part:${parsed.id}`);
         const box = obj ? contentBox(obj) : new THREE.Box3();
         if (box.isEmpty()) {
@@ -357,7 +361,7 @@ export function ViewRig({
       if (c.points.has(t)) return c.points.get(t)!;
       const parsed = parseTarget(t);
       let p: Vec3 | null = null;
-      if (parsed?.type === "part" && !(b.meter && parsed.id === b.meter.id)) {
+      if (parsed?.type === "part" && !parsed.sub && !(b.meter && parsed.id === b.meter.id)) {
         const obj = get().scene.getObjectByName(`part:${parsed.id}`);
         const box = obj ? contentBox(obj) : null;
         if (box && !box.isEmpty()) {

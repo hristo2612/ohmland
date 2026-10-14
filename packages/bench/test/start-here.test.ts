@@ -10,6 +10,9 @@ import { conducts, materialOhms, partDef } from "../src/parts";
 import { hiddenParts, holderOf } from "../src/seats";
 import { APART_MM, MAX_MARKS, apart, lifting, stuckTo } from "../src/static";
 import { STATIC } from "../src/dims";
+import { targetPoint } from "../src/view/targets";
+import { buildModel, targetPoint as inkPoint } from "../src/ink/model";
+import { schematicSlot } from "../src/parts";
 import { createBenchStore } from "../src/store";
 import type { BenchState, PlacedPart, SampleMaterial } from "../src/types";
 
@@ -364,5 +367,28 @@ describe("the static toy", () => {
       b = movePart(b, id, id === "BL1" ? [-100, 0] : [-90, 0]);
     }
     expect(apart(b, "BL1", "BL2")).toBeGreaterThanOrEqual(APART_MM);
+  });
+});
+
+describe("marks: named spots on a part, for taps and notes in both views", () => {
+  it("a drawing's symbols, a box's lid and knob, a lead of a part", () => {
+    const b: BenchState = {
+      ...emptyBench(null),
+      parts: [
+        part("SD1", "schematic", { symbols: [{ kind: "battery", part: "B1" }, { kind: "resistor", part: "R1" }, { kind: "led", part: "D1" }] }, [40, 60]),
+        part("KB", "box", { knob: true }, [-100, 0]),
+        part("R1", "resistor", { ohms: 1000 }, [100, -50]),
+      ],
+    };
+    const [x, z] = schematicSlot(3, 1);
+    const p = targetPoint(b, "part:SD1/R1")!;
+    expect([p[0], p[2]]).toEqual([40 + x, 60 + z]);
+    // The ink view puts the mark at the same desk point.
+    const q = inkPoint(buildModel(b), "part:SD1/R1")!;
+    expect(q[0]).toBeCloseTo(p[0], 6);
+    expect(q[1]).toBeCloseTo(p[2], 6);
+    expect(targetPoint(b, "part:KB/knob")).not.toBeNull();
+    expect(targetPoint(b, "part:KB/nothing")).toBeNull();
+    expect(targetPoint(b, "part:R1/a")).toEqual(anchorPosition(b, "pin:R1.a"));
   });
 });
