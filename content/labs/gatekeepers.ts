@@ -22,7 +22,7 @@ function rows(lab: LabView, lit: string[]): boolean {
 /** Chip `id` sits in U1's holes, wired as U1 was. */
 const inPlace = (lab: LabView, id: string) =>
   lab.connected(`${id}.1`, "S1.com") && lab.connected(`${id}.2`, "S2.com") && lab.connected(`${id}.14`, "VR1.out") && lab.connected(`${id}.7`, "VR1.gnd");
-const up = (lab: LabView, id: string) => lab.prop(id)?.["to"] === "b";
+const isOn = (lab: LabView, id: string) => lab.prop(id)?.["to"] === "b";
 
 /** The fix-it bench: the OR chip in, both keys on, but R3's leg on pin 6 (gate 2's answer, its inputs tied low). */
 const WRONG_PIN: SolutionStep[] = [
@@ -86,7 +86,7 @@ export default defineLab({
     {
       id: "key-a",
       prompt: "Turn key **A** on.",
-      goal: (lab) => up(lab, "S1") && !up(lab, "S2") && lab.heldFor(0.5, !lab.isLit("D1")),
+      goal: (lab) => isOn(lab, "S1") && !isOn(lab, "S2") && lab.heldFor(0.5, !lab.isLit("D1")),
       hints: ["Key A is the switch by the A tag. Slide it toward its red wire."],
       highlight: ["S1"],
       success: "Still shut.",
@@ -94,7 +94,7 @@ export default defineLab({
     {
       id: "and-both",
       prompt: "Now turn key **B** on too.",
-      goal: (lab) => up(lab, "S1") && up(lab, "S2") && lab.isLit("D1"),
+      goal: (lab) => isOn(lab, "S1") && isOn(lab, "S2") && lab.isLit("D1"),
       hints: ["Both keys slid toward their red wires."],
       highlight: ["S2"],
       success: "Both keys: open.",
@@ -105,7 +105,7 @@ export default defineLab({
       goal: (lab) => inPlace(lab, "U1") && rows(lab, ["b,b"]),
       hints: ["Off-off, on-off, off-on, on-on. One flip at a time."],
       highlight: ["S1", "S2"],
-      success: "Lit for one row only: both up.",
+      success: "Lit for one row only: both on.",
     },
     {
       id: "or-chip",
