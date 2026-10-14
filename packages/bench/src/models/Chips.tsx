@@ -850,11 +850,11 @@ export function LogicProbeModel({ state, probing }: ModelProps<PartParamsMap["lo
     g.rotateX(Math.PI / 2);
     return g;
   });
-  // Lying on the desk the lamps face up; standing in a hole the pen leans back toward you, rolled so they face you.
-  const lean = probing ? PROBE.lean : 0;
+  // Lying on the desk the lamps face up. Standing in a hole the pen is turned round and stands nearly upright, leaning
+  // a little away from you, so it never swells toward the camera over what it probes; its lamps still face you.
   return (
-    <group position={[0, probing ? BOARD_TOP - 1 : PR, 0]} rotation={[-lean, 0, 0]}>
-      <group rotation={[0, 0, probing ? Math.PI : 0]}>
+    <group position={[0, probing ? BOARD_TOP - 1 : PR, 0]} rotation={probing ? [STAND_LEAN, Math.PI, 0] : [0, 0, 0]}>
+      <group>
         <mesh geometry={needle} material={mat.chrome()} castShadow />
         <mesh geometry={body} material={mat.plastic("#e9e4d8", 0.45)} castShadow receiveShadow />
         <mesh geometry={nose} material={mat.rubber("#2c2d31")} castShadow />
@@ -870,15 +870,20 @@ export function LogicProbeModel({ state, probing }: ModelProps<PartParamsMap["lo
   );
 }
 
-/** Where the logic probe's leads leave its tail (local, with the pen lying or leaning in a hole). */
+/** How far from flat a logic probe standing on its tip in a hole rises (radians): nearly upright, leaning away. */
+const STAND_LEAN = 1.3;
+
+/** Where the logic probe's leads leave its tail (local, with the pen lying, or standing turned round in a hole). */
 export function probeExits(probing: boolean): Record<"vcc" | "gnd", { pos: [number, number, number]; dir: [number, number, number] }> {
   const L = PROBE.len + 8;
-  const a = probing ? PROBE.lean : 0;
+  const a = probing ? STAND_LEAN : 0;
   const y0 = probing ? BOARD_TOP - 1 : PROBE.dia / 2;
   const y = y0 + Math.sin(a) * L;
-  const z = Math.cos(a) * L;
-  const dir: [number, number, number] = [0, Math.sin(a) * 0.4 - 0.2, 1];
-  return { vcc: { pos: [-0.8, y, z], dir: [-0.15, dir[1], 1] }, gnd: { pos: [0.8, y, z], dir: [0.15, dir[1], 1] } };
+  // Standing, the pen is turned round: its tail leans away from you (-z), and left and right swap.
+  const k = probing ? -1 : 1;
+  const z = k * Math.cos(a) * L;
+  const dy = Math.sin(a) * 0.4 - 0.2;
+  return { vcc: { pos: [-0.8 * k, y, z], dir: [-0.15 * k, dy, k] }, gnd: { pos: [0.8 * k, y, z], dir: [0.15 * k, dy, k] } };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
