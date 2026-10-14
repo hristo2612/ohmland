@@ -45,7 +45,7 @@ export function ChartPanel({ cfg }: { cfg: Extract<PanelConfig, { kind: "chart" 
               {mt.third}
             </span>
             <span className="slip-chart__name" aria-hidden="true">
-              {t.bands[mt.color] ?? mt.color} {mt.right}
+              {t.bands[mt.color] ?? mt.color}
             </span>
           </li>
         ))}

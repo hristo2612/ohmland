@@ -35,6 +35,7 @@ beats:
 
   - say: Multiply each row on the slip. What keeps turning up?
     objective: Spot the pattern
+    tool: data
     do: spot-the-pattern
     done: Your battery's push. Every single row!
     note: { at: B1, text: "every row: about 9.4" }
@@ -42,6 +43,7 @@ beats:
 
   - say: Predict the flow through 4.7 kΩ. Type it first.
     objective: Prove it
+    tool: data
     do: predict-4k7
 
   - say: Now drop it in. Were you right?

@@ -2,7 +2,8 @@
 
 .slip-chart__grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  /* The digits in rows of five (0 to 4, 5 to 9), then gold and silver. */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--space-1);
   margin: 0;
   padding: 0;
@@ -58,3 +59,14 @@
 .slip-readings__n { color: var(--blue); font-variant-numeric: tabular-nums; }
 .slip-readings__product { font-weight: var(--weight-display); }
 .slip-readings__times { min-height: var(--tap); }
+
+/* On a phone the slips dock along the bench's foot: no heading (the robot names them), the bench keeps its room. */
+@media (max-width: 720px) {
+  .slip-readings .instrument__head,
+  .slip-chart .instrument__head { display: none; }
+  .slip-readings__table th,
+  .slip-readings__table td { padding-block: 0; }
+  .slip-chart__key { display: none; }
+  /* Two short rows, so the bench keeps its height. */
+  .slip-chart__grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}

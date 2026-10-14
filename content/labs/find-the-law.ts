@@ -70,13 +70,14 @@ export default defineLab({
     tray: ROWS.map(([id, k]) => ({ id, kind: "resistor" as const, params: PARTS[id]!, label: `${k} kΩ resistor`, count: 1 })),
     instruments: [{ kind: "meter", at: "desk:4,84", rot: 0, mode: "off" }],
   },
-  // The readings slip, docked from the first row on: each current the learner types lands in its row, and on the
-  // pattern beat a third column grows for multiplying. The law is never written down before the learner finds it.
+  // The readings slip: each current the learner types lands in its row. The lesson docks it on the pattern beat, where
+  // a third column grows for multiplying, and keeps it for the prediction (on a phone the tray needs the room while
+  // the rows are measured). The law is never written down before the learner finds it.
   panels: [
     {
       kind: "readings",
       id: "data",
-      show: ["first-row", "fill-the-table", "spot-the-pattern", "predict-4k7"],
+      show: ["spot-the-pattern"],
       rows: ROWS.map(([, k], i) => ({ label: `${k} kΩ`, note: `i${i + 1}`, by: k })),
       heads: ["Resistor", "mA", "mA × kΩ"],
       multiply: "spot-the-pattern",
