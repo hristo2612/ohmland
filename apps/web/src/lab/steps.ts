@@ -18,6 +18,10 @@ export type StepEffect = {
   panel?: { id: string; value: unknown };
   /** Switch the auto-tapper on or off. */
   tapper?: boolean;
+  /** Turn a view on or off ("xray:U1"). */
+  view?: { name: string; on: boolean };
+  /** Let a histogram's auto-roller roll. */
+  roll?: { id: string; times?: number };
   /** A task that must be done by now. */
   check?: string;
   /** Something did not apply (for test messages). */
@@ -161,6 +165,10 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
       return { bench, inputs: [], wait: SETTLE, panel: { id: step.id, value: step.value } };
     case "tapper":
       return { bench, inputs: [], wait: SETTLE, tapper: step.on };
+    case "view":
+      return { bench, inputs: [], wait: SETTLE, view: { name: step.name, on: step.on !== false } };
+    case "roll":
+      return { bench, inputs: [], wait: SETTLE, roll: { id: step.id, ...(step.times !== undefined ? { times: step.times } : {}) } };
     case "wait":
       return { bench, inputs: [], wait: step.seconds };
     case "check":

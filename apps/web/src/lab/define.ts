@@ -11,8 +11,11 @@
  */
 import type { BenchPartKind, BenchState, LeadColor, MeterSocket, PartParamsMap, PlacedPart, WireColor } from "@ohmland/bench/core";
 import type { InputKey, InputValue, MeterMode, NodeId, PartKind, PartState, SimEvent, SimEventType, Snapshot } from "@ohmland/sim";
+import type { ChipSeat, Level } from "./chips";
+import type { Burst, Duty, Spell, Tally } from "./signals";
 
 export type { BenchPartKind, BenchState, InputKey, InputValue, LeadColor, MeterMode, MeterSocket, NodeId, PartKind, PartState, PlacedPart, SimEvent, SimEventType, Snapshot, WireColor };
+export type { Burst, ChipSeat, Duty, Level, Spell, Tally };
 export { createLabView } from "./view";
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -105,10 +108,23 @@ export type ScopeTrace =
   | { label: string; amps: string }
   | { label: string; glow: string };
 
+/**
+ * A dashed reference line across the scope: a share of a node's voltage (`{ of: "U1.8", fraction: 2 / 3 }`, which
+ * follows the supply as it sags) or a fixed level (`{ volts: 3 }`). Drawn on the first trace's scale.
+ */
+export type ScopeLevel = { of: string; fraction: number; label?: string; ref?: string } | { volts: number; label?: string };
+
 export type ScopeConfig = {
   kind: "scope";
   /** One or two traces. */
   traces: ScopeTrace[];
+  /** Reference lines (the 555's 1/3 and 2/3 lines). */
+  levels?: ScopeLevel[];
+  /**
+   * A duty readout under the traces: high time, low time and the share spent high, for trace 0 (`true`) or the trace
+   * with this index. A volts trace's node is watched for exact edges, so a kilohertz signal reads true.
+   */
+  duty?: boolean | number;
   /** Seconds across the screen (default 5). */
   window?: number;
   /** Fixed vertical range; auto when absent. */
@@ -123,11 +139,18 @@ export type ScopeConfig = {
   pitch?: string;
 };
 
-/** What starts or stops the stopwatch or the logger: a switch thrown, a button pressed, or a relay contact moving. */
+/**
+ * What starts or stops the stopwatch or the logger: a switch thrown, a button pressed, a relay contact moving, an LED
+ * lighting or going dark (`lit`), or a node rising above or falling below a level in volts (the node is watched, so
+ * the time is exact).
+ */
 export type TriggerSpec =
   | { part: string; to: "a" | "b" }
   | { part: string; pressed: boolean }
-  | { part: string; contact: "no" | "nc" };
+  | { part: string; contact: "no" | "nc" }
+  | { part: string; lit: boolean }
+  | { node: string; above: number }
+  | { node: string; below: number };
 
 /**
  * A data logger: plots node voltages against time from the moment a run starts (the `start` trigger, or the Start
@@ -155,16 +178,61 @@ export type PanelConfig = PanelShow &
   (
   /** A continuity table: every pair of a part's legs in each switch position (or released and held), filled in as the meter probes them. */
   | { kind: "continuity"; id: string; part: string; title?: string }
-  /** A truth table: the switches' positions and whether the LED is lit, logged for every combination tried. Clears when the wiring changes. */
+  /**
+   * A truth table: every combination of the inputs tried, with what the outputs did, logged once steady. Clears when
+   * the wiring changes. Inputs are switches by position (`a`, `b`: the names of the two throws), buttons, switches or
+   * DIP-switch positions by closed or open (`low`, `high`: names for 0 and 1), or nodes by logic level. Outputs are
+   * LEDs (lit) or nodes (high). `mystery` keeps `name` (the gate) hidden until every row is filled.
+   */
   | {
       kind: "truth-table";
       id: string;
-      /** Each switch, with names for its two positions (thrown to a and to b), as the lesson calls them. */
-      inputs: { part: string; label: string; a: string; b: string }[];
-      /** The LED that is the output. */
-      output: { part: string; label?: string };
+      inputs: TruthInput[];
+      /** The output (the single-output form). */
+      output?: TruthOutput;
+      /** Several outputs, each a column. */
+      outputs?: TruthOutput[];
+      mystery?: boolean;
+      /** What the table turns out to be ("AND"), shown once it is complete (at once without `mystery`). */
+      name?: string;
       title?: string;
     }
+  /**
+   * The chip x-ray: a 555's insides drawn live (the ladder, the 1/3 and 2/3 lines, the two watchers, the latch, the
+   * output stage, the drain switch, the reset line), only the blocks of the `pins` the lessons have named so far; or,
+   * for a gate chip, which gate is which, with each pin's level. Open, it turns `lab.view("xray:<part>")` on.
+   */
+  | { kind: "xray"; id: string; part: string; pins?: number[]; title?: string }
+  /**
+   * A timing diagram: up to 8 channels as high and low lines over the last `window` seconds (default 2), every edge
+   * exact (node channels are watched). It keeps the latest burst of edges (a press's bounce, a counter's ripple: edges
+   * closer together than `quiet` seconds, default 0.02) for a slow-motion replay, and marks states under 1 µs.
+   * Goals read `lab.timing(id)`.
+   */
+  | { kind: "timing"; id: string; channels: TimingChannel[]; window?: number; quiet?: number; title?: string }
+  /**
+   * A histogram of dice rolls. Every roll of the `button` (pressed, let go, then `settle` seconds) is read from the
+   * dice's pip LEDs (the face is the number of pips lit; two lists for two dice) or from `read`, and tallied. The
+   * auto-roller presses it `rolls` times (default 100) with human-like holds (`hold`, default 0.15 to 0.6 s); a band
+   * shows where a fair die's counts fall. Goals read `lab.rolls(id)`.
+   */
+  | {
+      kind: "histogram";
+      id: string;
+      button: string;
+      dice: string[][];
+      read?: (lab: LabView) => number[] | null;
+      rolls?: number;
+      hold?: [number, number];
+      settle?: number;
+      title?: string;
+    }
+  /**
+   * Keys for buttons: each pushbutton gets a big on-screen key and a keyboard key (`key`, as KeyboardEvent.key: "a",
+   * "l", " "), held while pressed, so two players can share one keyboard. A key can also be held down by a tap (a pin
+   * marks it), for touch screens. The keyboard keys work all through the lab, shown or not.
+   */
+  | { kind: "keys"; id: string; buttons: { part: string; key: string; label: string }[]; title?: string }
   /**
    * Name every leg of a (mystery) part. Submissions are counted, wrong ones too. `swap` lists two groups of roles
    * that may be exchanged (which pole is "A" is up to the learner). `peek` lets the learner look inside once right.
@@ -179,6 +247,25 @@ export type PanelConfig = PanelShow &
 
 /** Panels show all the time, or only while one of `show`'s tasks is the current one (and after it is done). */
 export type PanelShow = { show?: string[] };
+
+/** A truth table input: a switch by its throw, a button (or switch, or DIP position) by closed, or a node by level. */
+export type TruthInput =
+  | { part: string; label: string; a: string; b: string }
+  | { part: string; label: string; low?: string; high?: string }
+  | { node: string; label: string; low?: string; high?: string };
+
+/** A truth table output: an LED (lit is 1) or a node (high is 1). */
+export type TruthOutput = { part: string; label?: string } | { node: string; label?: string };
+
+/**
+ * A timing diagram channel: a node (watched for exact edges; `level` volts, else half its chip's supply), or a part
+ * (an LED lit, a button or switch closed) sampled with the snapshots. `burst: false` leaves a free-running clock out
+ * of burst finding.
+ */
+export type TimingChannel = { label: string; burst?: boolean } & ({ node: string; level?: number } | { part: string });
+
+/** A node to watch for exact edges between snapshots: an attach point or named node, at `level` volts if given. */
+export type WatchConfig = string | { node: string; level?: number };
 
 /** A role a leg can have in a pin map, and the legs (as wired inside the part) that truly have it. */
 export type PinRole = { id: string; label: string; legs: string[] };
@@ -236,7 +323,7 @@ type ControlCommon = {
  * to 0.1, so faint glows show). Goals read it with `lab.control(id)`.
  */
 export type ControlConfig =
-  | (ControlCommon & { part: string; key: Extract<InputKey, "light" | "ohms" | "position"> })
+  | (ControlCommon & { part: string; key: Extract<InputKey, "light" | "ohms" | "position" | "proximity"> })
   | (ControlCommon & { key: "speed" | "room"; part?: undefined });
 
 export type BenchConfig = {
@@ -257,6 +344,8 @@ export type BenchConfig = {
   controls?: ControlConfig[];
   /** Names for nodes, so goals and scope traces can say "c" instead of an anchor: { c: "C1.pos" }. */
   nodes?: Record<string, Attach>;
+  /** Nodes to watch for exact edges between snapshots (`lab.edges(node)`, exact `lab.widths`). Timing diagram channels are watched anyway. */
+  watch?: WatchConfig[];
 };
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -355,6 +444,10 @@ export type SolutionStep =
   | { do: "panel"; id: string; value: unknown }
   /** Switch the auto-tapper on or off. */
   | { do: "tapper"; on: boolean }
+  /** Turn a view on or off as the learner would ("xray:U1" opens the chip x-ray). */
+  | { do: "view"; name: string; on?: boolean }
+  /** Let a histogram's auto-roller roll `times` (default its `rolls`); the next step waits for it. */
+  | { do: "roll"; id: string; times?: number }
   | { do: "wait"; seconds: number }
   /** Checkpoint: by here this task must be done. Splits the solution for "Show me". */
   | { do: "check"; task: string };
@@ -378,7 +471,10 @@ export type LabDefinition = {
   notebook?: { tags?: Record<string, (lab: LabView) => boolean> };
   /** Achievement triggers checked on every snapshot; each fires once per visit. */
   triggers?: Record<string, (lab: LabView) => boolean>;
-  /** Worksheets beside the tasks: continuity and truth tables, pin maps, tags, a hole hunt, a symbol builder. */
+  /**
+   * Worksheets beside the tasks: continuity and truth tables, pin maps, tags, a hole hunt, a symbol builder, the chip
+   * x-ray, a timing diagram, a dice histogram and keys for two players.
+   */
   panels?: PanelConfig[];
   /** Simulation speed (1 is real time). */
   speed?: number;
@@ -440,6 +536,8 @@ export type LabView = {
   readonly bench: Readonly<BenchState> & {
     /** Clip-lead ends (and probe tips) not attached to anything. */
     readonly detachedLeadEnds: number;
+    /** Parts the board refused to seat in this visit (a surface-mount chip dropped on holes), by id. */
+    readonly rejected: readonly string[];
   };
   readonly snapshot: Readonly<Snapshot> | null;
   /** Every simulator event since the lab started (or the bench was reset). */
@@ -512,7 +610,11 @@ export type LabView = {
 
   /** `cond` has stayed true for `seconds` of simulated time (per task, per `key`). */
   heldFor(seconds: number, cond: boolean, key?: string): boolean;
-  /** Recent samples of "glow:D1", "i:R1", "v:R1", "volts:<node>" or "temp:R1" over the last `seconds` (default 10). */
+  /**
+   * Recent samples of "glow:D1", "i:R1", "v:R1", "volts:<node>", "temp:R1", "closed:S1" (1 closed, 0 open),
+   * "count:U2" (a counter's count), "logic:<node>" (1 high, 0 low) or "extra:U1.<key>" over the last `seconds`
+   * (default 10).
+   */
   history(source: string, seconds?: number): [number, number][];
   /** Seconds between an LED's flashes over the last few cycles, or null when it is not blinking. */
   blinkPeriod(ledId: string): number | null;
@@ -560,7 +662,64 @@ export type LabView = {
   task(id: string): TaskStatus;
   /** Fire an achievement trigger (once per visit). */
   trigger(name: string): void;
+
+  /** Whether a view or overlay is on: "xray:U1" while U1's chip x-ray is open (the lesson player may set others). */
+  view(name: string): boolean;
+  /** A chip's pin by number or name (`lab.pin("U1", 6)`, `lab.pin("U1", "threshold")`): its node, volts and level. */
+  pin(chip: string, pin: number | string): ChipPin | null;
+  /** How a chip sits on the board (straddling the channel, which way its notch points), or null when it is not on it. */
+  chipSeat(id: string): ChipSeat | null;
+  /**
+   * A node's logic level: a logic chip's pin as the chip reads it (`L`, `H`, `X` undefined, `Z` unpowered), any other
+   * node by 30% and 70% of the supply of a chip on it (or of the highest voltage on the bench).
+   */
+  logic(node: string): Level;
+  /**
+   * The lengths of a source's complete high stretches, oldest first, crossing `level` (default halfway): exact from
+   * the edge log when the node is watched ("volts:U1.3" with U1.3 in `watch`), else from the snapshots.
+   */
+  widths(source: string, level?: number, seconds?: number): number[];
+  /** High time, low time, period and duty (share of the period spent high) of the latest whole cycles, or null. */
+  duty(source: string, level?: number, seconds?: number): Duty | null;
+  /** The values a source went through, repeats removed ("count:U2": the counts in order), over `seconds` (default 10). */
+  values(source: string, seconds?: number): number[];
+  /** A button's or switch's presses (closed spells) over the last `seconds` (default 10); the last may still be on. */
+  presses(id: string, seconds?: number): Spell[];
+  /** Crossings of a watched node over the last `seconds` (default all kept): counts, times and whether they are exact. */
+  edges(node: string, seconds?: number): EdgeCount;
+  /** A timing diagram's state: its latest burst, how often the learner replayed it. */
+  timing(id: string): TimingView;
+  /** A histogram's rolls and tallies. */
+  rolls(id: string): RollsView;
+  /** The scope's last single-shot capture (times in seconds from the trigger), or null. */
+  capture(): CaptureView | null;
 };
+
+/** A chip pin as `lab.pin` reads it. */
+export type ChipPin = { n: number; name: string; node: NodeId | null; volts: number | undefined; level: Level };
+
+/** Crossings of a node. `exact` is false when the node is not watched (counted from the snapshots, which miss fast edges). */
+export type EdgeCount = { rises: number; falls: number; times: [number, 0 | 1][]; exact: boolean; high: boolean };
+
+export type TimingView = {
+  /** The latest burst of edges (null before any), with its glitches and the channels' combined states. */
+  burst: Burst | null;
+  /** How many slow-motion replays the learner started, and the start time of the burst replayed last. */
+  replays: number;
+  replayed: number | null;
+};
+
+export type RollsView = {
+  /** Every roll, oldest first: one face per die (0 a blank face). */
+  list: number[][];
+  tally: Tally;
+  /** The auto-roller is rolling. */
+  rolling: boolean;
+  /** Rolls drawn from a recorded lap (the fast roller) rather than pressed one by one. */
+  sampled: number;
+};
+
+export type CaptureView = { at: number; series: { label: string; points: [number, number][] }[] };
 
 // ---------------------------------------------------------------------------------------------------------------
 
@@ -590,7 +749,12 @@ export function defineLab(def: LabDefinition): LabDefinition {
     if (panels.has(p.id)) fail(`two panels have the id "${p.id}"`);
     panels.add(p.id);
     for (const t of p.show ?? []) if (!tasks.has(t)) fail(`panel "${p.id}" shows with unknown task "${t}"`);
+    if (p.kind === "timing" && (!p.channels.length || p.channels.length > 8)) fail(`timing panel "${p.id}" needs 1 to 8 channels`);
+    if (p.kind === "histogram" && (!p.dice.length || p.dice.length > 2 || p.dice.some((d) => !d.length))) fail(`histogram "${p.id}" needs one or two dice, each with its pip LEDs`);
+    if (p.kind === "keys" && new Set(p.buttons.map((b) => b.key.toLowerCase())).size !== p.buttons.length) fail(`keys panel "${p.id}" binds one key twice`);
+    if (p.kind === "truth-table" && !p.output && !p.outputs?.length) fail(`truth table "${p.id}" has no output`);
   }
+  for (const s of def.solution) if (s.do === "roll" && !def.panels?.some((p) => p.id === s.id && p.kind === "histogram")) fail(`solution rolls unknown histogram "${s.id}"`);
   for (const s of def.solution) if (s.do === "panel" && !panels.has(s.id)) fail(`solution answers unknown panel "${s.id}"`);
   return def;
 }

@@ -29,6 +29,7 @@ import {
 } from "@ohmland/bench/core";
 import type { InputKey, InputValue } from "@ohmland/sim";
 import { deskSpot, resolveAttach, resolveHole, splitHoles } from "./anchors";
+import { partChip } from "./chips";
 import type { BenchConfig, ControlConfig, LabPart, LabTrayItem, LeadSpec, LoggerConfig, MeterConfig, ScopeConfig, StopwatchConfig, TapperConfig, WireSpec } from "./define";
 
 export type SimInput = { id: string; key: InputKey; value: InputValue };
@@ -497,10 +498,14 @@ function frameOf(bench: BenchState, spots: string[] | undefined, warnings: strin
 
 const CONTROL_KINDS: Record<string, BenchPartKind[]> = { light: ["phototransistor"], ohms: ["touch-pads", "cup"], position: ["trimmer"] };
 
-/** The parts a control drives: its part, with part "*" every part on the bench that takes its input, or none (speed, room). */
+/**
+ * The parts a control drives: its part, with part "*" every part on the bench that takes its input (for the hand,
+ * `proximity`, every chip: a part with a 555 or logic `model`), or none (speed, room).
+ */
 export function controlTargets(bench: BenchState, c: ControlConfig): string[] {
   if (c.part === undefined) return [];
   if (c.part !== "*") return [c.part];
+  if (c.key === "proximity") return bench.parts.filter((p) => partChip(p)).map((p) => p.id);
   const kinds = CONTROL_KINDS[c.key] ?? [];
   return bench.parts.filter((p) => kinds.includes(p.kind)).map((p) => p.id);
 }
