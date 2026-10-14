@@ -1,0 +1,64 @@
+# Blueprint: docs/curriculum/unit-4.md, CH4. A bench lesson (docs/LESSONS.md).
+# One idea: the glow ends when the capacitor fills to two thirds of the supply; pin 6 watches, pin 7 empties.
+# New: pin 6 (threshold) and pin 7 (discharge), a pair. Lab: content/labs/two-thirds-full.ts.
+format: bench
+id: two-thirds-full
+version: 1
+title: Two thirds full
+summary: Watch a 555's capacitor climb on the scope, and meet pin 6, the watcher, and pin 7, the drain.
+minutes: 7
+lab: two-thirds-full
+unlocks:
+  parts: []
+  isle: header-fence
+
+start:
+  title: Two thirds full
+  say: Why three seconds? The scope knows.
+  go: Let's look
+
+beats:
+  - say: Tap the button. Watch the scope.
+    objective: Watch the climb
+    tool: scope
+    do: watch-climb
+    note: { at: C1, text: "climbs to 6.3 V, then empties" }
+
+  - say: The supply is 9.4 V. Where did the climb stop?
+    pick: { options: [3.1 V, 4.7 V, 6.3 V], answer: 6.3 V }
+    hint: Look where the trace turned, on the top dashed line.
+    rule: The glow ends at two thirds full.
+
+  - say: Look inside, then tap once more.
+    objective: Meet pins 6 and 7
+    tool: xray
+    do: xray-threshold
+    note: { at: U1.6, text: "pin 6: threshold, watches the climb" }
+
+  - say: And then pin 7 will...
+    tool: xray
+    guess: { options: [Empty the capacitor, Fill it more], answer: Empty the capacitor }
+    do: xray-discharge
+    note: { at: U1.7, text: "pin 7: discharge, empties it" }
+
+  - say: Show me the pin that empties it.
+    tap: { answer: U1.7, among: [U1.1, U1.2, U1.3, U1.4, U1.5, U1.6, U1.7, U1.8] }
+    hint: It's the drain, right beside pin 8.
+
+  - say: What is pin 6?
+    pick: { on: U1.6, options: [Threshold, Discharge, Trigger], answer: Threshold }
+
+secret:
+  task: hold-to-stretch
+  tool: scope
+  say: Curious? Hold the button through the whole climb.
+  done: Held low, the trigger wins.
+  note: { at: S1, text: "a held trigger beats pin 6" }
+
+fixit:
+  say: My glow never ends. Fix it.
+  tasks:
+    - task: fix-pin6
+
+end:
+  say: Two thirds full, every time. Pins 6 and 7 mapped.

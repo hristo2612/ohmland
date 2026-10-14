@@ -6,6 +6,7 @@ import { useLabels } from "../../labels";
 import type { BenchPartKind, PlacedPart, Vec2 } from "../../types";
 import { INK, toWorld } from "../frame";
 import type { PartInk } from "../model";
+import { ALARM_INK } from "./alarm";
 import { AXIAL } from "./axial";
 import { CHIPS, packInkExits, probeInkExits } from "./chips";
 import { HoleDot, Upright, localLegs, n3 } from "./common";
@@ -18,7 +19,7 @@ import { SOLDER_INK } from "./solder";
 import { START } from "./start";
 import type { DrawProps, InkKind, InkRegistry } from "./types";
 
-export const INK_KINDS: InkRegistry = { ...AXIAL, ...RADIAL, ...CONTROLS, ...POWER, ...PROPS, ...START, ...MCU, ...CHIPS, ...SOLDER_INK };
+export const INK_KINDS: InkRegistry = { ...AXIAL, ...RADIAL, ...CONTROLS, ...POWER, ...PROPS, ...START, ...MCU, ...CHIPS, ...ALARM_INK, ...SOLDER_INK };
 
 function Fallback({ pi }: DrawProps) {
   const labels = useLabels();

@@ -1,0 +1,14 @@
+id: timer-555
+title: The 555 timer
+summary: One black chip, eight pins, and what each one does.
+# Reveal caption: Eight legs, endless timing. The factory never misses a beat.
+landmark:
+  id: timer-factory
+  name: the Timer Factory
+lessons:
+  - meet-the-chips
+  - one-shot
+  - ghost-press
+  - two-thirds-full
+  - dial-a-delay
+  - set-and-clear

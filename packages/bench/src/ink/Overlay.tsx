@@ -34,8 +34,10 @@ export function itemLabel(item: TrayItem, labels: InkLabels): { name: string; de
   else if (item.kind === "led" && typeof p.color === "string") detail = labels.colors[p.color as WireColor] ?? String(p.color);
   else if (item.kind === "fuse" && typeof p.amps === "number") detail = `${p.amps} A`;
   else if (item.kind === "cup" && typeof p.water === "string") detail = labels.water[p.water as "tap"];
+  else if ((item.kind === "npn" || item.kind === "diode") && typeof p.model === "string") detail = p.model;
   else detail = chipDetail(item.kind, p);
-  if (item.label) return { name: item.label };
+  // A lab's own name for the item; a part number printed on the part still shows under it ("Transistor", "2N3904").
+  if (item.label) return { name: item.label, detail: (item.kind === "npn" || item.kind === "diode") && typeof p.model === "string" ? p.model : undefined };
   return { name: labels.partName[item.kind] ?? item.kind, detail };
 }
 

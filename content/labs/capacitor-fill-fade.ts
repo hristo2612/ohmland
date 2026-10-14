@@ -95,13 +95,15 @@ export default defineLab({
       id: "dump",
       prompt: "Fill it again, then press the black button.",
       goal: (lab) => {
-        const m = lab.memory as { at?: number; dark?: number };
+        const m = lab.memory as { before?: number; at?: number; dark?: number };
         if (!lab.closed("S2")) {
           if (m.at !== undefined && m.dark === undefined) delete m.at;
+          // How full C1 was just before the press: through 100 Ω it empties in a few snapshots on a slow device.
+          m.before = vc(lab);
           return false;
         }
         if (m.at === undefined) {
-          if (vc(lab) > 3) m.at = lab.t;
+          if ((m.before ?? vc(lab)) > 3) m.at = lab.t;
           return false;
         }
         if (m.dark === undefined && glow(lab) < 0.05) m.dark = lab.t;
@@ -134,7 +136,7 @@ export default defineLab({
         // Still glowing a moment after letting go: the capacitor is feeding it again.
         return lab.t - m.let >= 0.6 && glow(lab) > 0.15;
       },
-      hints: ["Follow the capacitor's striped leg. Where does it go?", "Pick Wire, join row 13 to the minus rail, then refill."],
+      hints: ["Follow the capacitor's striped leg. Where does it go?", "Pick Wire, join strip 13 to the minus rail, then refill."],
       highlight: ["pin:C1.neg", "hole:a13"],
       success: "Fixed.",
     },
@@ -142,6 +144,8 @@ export default defineLab({
   solution: [
     { do: "press", part: "S1", seconds: 5 },
     { do: "check", task: "fill" },
+    // "Show me" starts from an empty capacitor: fill it again, then let go and watch.
+    { do: "press", part: "S1", seconds: 4 },
     { do: "wait", seconds: 5 },
     { do: "check", task: "fade" },
     { do: "press", part: "S1", seconds: 4 },

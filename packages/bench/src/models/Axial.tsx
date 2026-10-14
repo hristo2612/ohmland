@@ -3,7 +3,7 @@
 import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { BAND_HEX, resistorBands, type BandColor } from "../colorCode";
-import { DIODE, LEAD_R, PITCH, RESISTOR, RESISTOR_1W, RESISTOR_5W } from "../dims";
+import { DIODE, LEAD_R, PITCH, RESISTOR, RESISTOR_1W, RESISTOR_5W, RESISTOR_BANDS } from "../dims";
 import type { PartParamsMap } from "../types";
 import { Scorch, Smoke } from "../effects/effects";
 import { FONT, canvasTexture, rng } from "../three/canvas";
@@ -47,8 +47,8 @@ function resistorLathe(y0: number, y1: number, grow: number, n: number): THREE.L
 
 /** Band centres along the body for 4 and 5 band parts; the tolerance band sits alone on the far cap. */
 function bandLayout(n: number): { c: number; w: number }[] {
-  if (n === 5) return [-2.42, -1.55, -0.72, 0.12, 2.42].map((c) => ({ c, w: 0.5 }));
-  return [-2.36, -1.32, -0.42, 2.36].map((c, i) => ({ c, w: i === 3 ? 0.55 : 0.62 }));
+  if (n === 5) return RESISTOR_BANDS[5].map((c) => ({ c, w: 0.5 }));
+  return RESISTOR_BANDS[4].map((c, i) => ({ c, w: i === 3 ? 0.55 : 0.62 }));
 }
 
 function bandMaterial(color: BandColor, burnt: number): THREE.Material {

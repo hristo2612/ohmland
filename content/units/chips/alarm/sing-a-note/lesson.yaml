@@ -1,0 +1,64 @@
+# Blueprint: docs/curriculum/unit-4.md, CH8. A bench lesson (docs/LESSONS.md).
+# One idea: R1, R2 and C set the pitch: about 1.44 ÷ ((R1 + 2 × R2) × C). New: the formula (speaker, Hz and capacitor
+# codes are known from Unit 2). Lab: content/labs/sing-a-note.ts.
+format: bench
+id: sing-a-note
+version: 1
+title: Tune to A
+summary: Give the lighthouse a voice, slide its note with a knob, predict its pitch with a formula, and tune it to A.
+minutes: 7
+lab: sing-a-note
+unlocks:
+  parts: []
+  isle: speaker
+
+start:
+  title: Tune to A
+  say: My lighthouse needs a voice. Let's tune it.
+  go: Let it sing
+
+beats:
+  - say: Turn the knob slowly. Listen.
+    objective: Slide the note
+    tool: scope
+    do: slide-the-note
+    note: { at: RV1, text: "more ohms, lower note" }
+
+  - say: Drop the 4.7 nF onto the 47 nF.
+    tool: scope
+    guess: { options: [It jumps up, It drops down], answer: It jumps up }
+    do: tenth-c
+    note: { at: C4, text: "tenth the C, ten times higher" }
+    rule: "Pitch ≈ 1.44 ÷ ((R1 + 2 × R2) × C)"
+
+  - say: Put the 47 nF back. Knob all the way down.
+    objective: Use the formula
+    tool: scope
+    do: back-to-47
+
+  - say: R1 10 kΩ, R2 10 kΩ, 47 nF. Pitch in Hz?
+    number: { answer: 1021, unit: Hz, tolerance: 5 }
+    hint: 1.44 ÷ (30,000 × 0.000000047)
+    note: { at: C1, text: "the formula lands close" }
+
+  - say: Now tune it to A, 440 Hz.
+    objective: Tune to A
+    tool: scope
+    do: tune-a
+    note: { at: SP1, text: "440 Hz: the note A" }
+
+secret:
+  task: octave
+  tool: scope
+  say: Curious? Find the A one octave up.
+  done: Double the pitch. An octave!
+  note: { at: SP1, text: "880 Hz: A again, higher" }
+
+fixit:
+  say: My lighthouse squeaks like a mouse. Fix it.
+  tool: scope
+  tasks:
+    - task: fix-squeak
+
+end:
+  say: My lighthouse sings A.

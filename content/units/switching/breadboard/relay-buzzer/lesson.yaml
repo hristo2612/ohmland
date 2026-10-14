@@ -24,7 +24,7 @@ beats:
     do: polite-click
     done: Click in, click out. Very polite.
 
-  - say: Now wire NC, row 16, to the coil, row 11.
+  - say: Now wire NC, strip 16, to the coil, strip 11.
     objective: Make it buzz
     guess: { options: [Click and stay, Never click, Click on and off], answer: Click on and off }
     do: move-one-wire

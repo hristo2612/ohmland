@@ -469,6 +469,8 @@ export class LabRuntime {
   setNote(id: string, text: string): number | null {
     const v = text.trim() === "" ? null : parseNote(text, this.noteSpecs.get(id)?.unit);
     this.session.setNote(id, v);
+    // A table of readings writes itself from the notes.
+    this.bumpPanels();
     return v;
   }
 
@@ -746,7 +748,10 @@ export class LabRuntime {
         if (inp.after) setTimeout(() => this.sim?.setInput(inp.id, inp.key, inp.value), inp.after * 1000);
         else this.sim?.setInput(inp.id, inp.key, inp.value);
       }
-      if (e.note) this.session.setNote(e.note.id, parseNote(e.note.value, this.noteSpecs.get(e.note.id)?.unit));
+      if (e.note) {
+        this.session.setNote(e.note.id, parseNote(e.note.value, this.noteSpecs.get(e.note.id)?.unit));
+        this.bumpPanels();
+      }
       if (e.control) this.setControl(e.control.id, e.control.value);
       if (e.panel) {
         this.session.answer(e.panel.id, e.panel.value, true);

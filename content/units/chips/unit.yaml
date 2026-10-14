@@ -1,6 +1,5 @@
 # Unit 4: Chips (blueprint: docs/curriculum/unit-4.md). Its island is Silicon Isle: black chip blocks with silver pin
-# fences, a billboard of glowing digits, a castle of gates and an arcade.
-# The 555 modules (timer-555, alarm) are built on another branch; they join this list when it merges.
+# fences, a timer factory, a lighthouse, a billboard of glowing digits, a castle of gates and an arcade.
 id: chips
 title: Chips
 summary: One black chip that times everything, then digits, counters, logic gates, memory and fair dice on Silicon Isle.
@@ -8,8 +7,8 @@ isle:
   theme: silicon-isle
   seed: 4
 modules:
-  # - timer-555
-  # - alarm
+  - timer-555
+  - alarm
   - counters
   - logic
   - arcade

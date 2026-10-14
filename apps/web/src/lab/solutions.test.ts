@@ -5,8 +5,8 @@
  */
 import { describe, expect, it } from "vitest";
 import { buildBench } from "./build";
-import type { LabDefinition } from "./define";
-import { replayLab } from "./replay";
+import { isOptional, type LabDefinition } from "./define";
+import { replayLab, replayShowMe } from "./replay";
 
 const labs = Object.entries(import.meta.glob<{ default: LabDefinition }>("../../../../content/labs/*.ts", { eager: true }))
   .map(([path, mod]) => ({ file: path.split("/").pop()!, lab: mod.default }))
@@ -50,6 +50,19 @@ describe("lab solutions", () => {
       // An achievement trigger that the lab's own solution never fires may be one no learner can fire either.
       const triggers = [...Object.keys(lab.triggers ?? {}), ...lab.tasks.flatMap((t) => (t.trigger ? [t.trigger] : []))];
       expect(r.triggers, "achievement triggers the solution never fires").toEqual(expect.arrayContaining(triggers));
+    });
+
+    // "Show me" rewinds to a task's checkpoint and plays only that task's steps: they must finish the task on their
+    // own (a fade that needs a fill first, a reading that needs the probes back on), or a stuck learner stays stuck.
+    it(`${lab.id}: Show me finishes every required task from its checkpoint`, { timeout: 180_000 }, () => {
+      const failed: string[] = [];
+      for (const task of lab.tasks.filter((t) => !isOptional(t))) {
+        const r = replayShowMe(lab, task.id);
+        if (r.error) failed.push(`${task.id}: ${r.error}`);
+        else if (r.problems.length) failed.push(`${task.id}: ${r.problems.join("; ")}`);
+        else if (!r.done) failed.push(`${task.id}: still open after its Show me`);
+      }
+      expect(failed, "tasks Show me cannot finish").toEqual([]);
     });
   }
 });

@@ -33,7 +33,7 @@ beats:
     wrong: { Three: "Count again. Light does the base's job." }
     note: { at: PT1, text: "light does the base's job" }
 
-  - say: Plug PT2 into rows 30 and 31, across Q1's base.
+  - say: Plug PT2 into strips 30 and 31, across Q1's base.
     objective: Flip it
     do: plug-pt2
 

@@ -66,7 +66,7 @@ export default defineLab({
     },
     {
       id: "brighter-still",
-      prompt: "Now **150 Ω**. Watch the stress bar.",
+      prompt: "Now **150 Ω**. Watch the stress bar above the LED.",
       goal: (lab) => loopOhms(lab) === 150 && glow(lab, "D1") > 0.8 && lab.part("D1")?.health !== "dead",
       hints: ["Swap the 470 Ω for the 150 Ω, same holes."],
       nudges: [{ when: twoAtOnce, say: "Two side by side. Pull the old one out." }],
@@ -92,6 +92,19 @@ export default defineLab({
       highlight: ["D1"],
       nudges: [{ when: (lab) => loopOhms(lab) === 1500 && leds(lab).some((id) => id !== "D1" && (lab.part(id)?.v ?? 0) < -1), say: "Dark? Turn the new LED around." }],
       success: "Dead LEDs stay dead.",
+    },
+    {
+      id: "brightest-survivor",
+      prompt: "Fit the resistor for the brightest LED that survives.",
+      // The bench answers: 15 Ω cooks the fresh LED, 470 Ω lives but is not the brightest, 150 Ω is.
+      goal: (lab) => loopOhms(lab) === 150 && leds(lab).some((id) => inPlace(lab, id) && lab.isLit(id)),
+      hints: ["Not the one that cooked it.", "Of the two that lived, which was brighter?"],
+      highlight: ["R2", "R3"],
+      nudges: [
+        { when: (lab) => loopOhms(lab) === 470 && leds(lab).some((id) => inPlace(lab, id) && lab.isLit(id)), say: "It lives. Did another one live, brighter?" },
+        { when: twoAtOnce, say: "Two side by side. Pull the old one out." },
+      ],
+      success: "Bright, and alive.",
     },
     {
       id: "fix-hot-lamp",
@@ -127,6 +140,9 @@ export default defineLab({
     { do: "move", part: "D1", at: "desk:52,44" },
     { do: "place", part: "D2", kind: "led", params: { color: "red", maxmA: 50 }, at: "e10" },
     { do: "check", task: "no-comeback" },
+    { do: "move", part: "R1", at: "desk:-30,46" },
+    { do: "move", part: "R3", at: "c6-c10" },
+    { do: "check", task: "brightest-survivor" },
     ...AT_THE_LIMIT,
     { do: "move", part: "R3", at: "desk:10,46" },
     { do: "move", part: "R2", at: "c6-c10" },

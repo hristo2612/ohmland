@@ -86,7 +86,8 @@ export default defineLab({
     {
       id: "predict-mixed",
       prompt: "Swap R2 for the 3.3 kΩ, side by side with R1. Measure.",
-      goal: (lab) => near(lab.note("prediction"), 767, 0.05) && onOhms(lab) && acrossPair(lab, "R1", "R3") && siIn(lab, 730, 800),
+      // The prediction was checked on the beat before (a resumed lesson no longer has it).
+      goal: (lab) => onOhms(lab) && acrossPair(lab, "R1", "R3") && siIn(lab, 730, 800),
       hints: ["Drop the 3.3 kΩ resistor right onto R2.", "It takes R2's two holes."],
       highlight: ["R2"],
       nudges: [{ when: (lab) => lab.parallel("R1", "R2") && lab.parallel("R1", "R3"), say: "Three paths now. Take R2 out." }],

@@ -3,11 +3,11 @@
 
 import { useContext } from "react";
 import { useStore } from "zustand";
-import { BOX, CABINET, GATE, SCHEM, STATIC } from "../../dims";
+import { BOX, CABINET, GATE, PADLOCK, SCHEM, STATIC } from "../../dims";
 import { dotRate, formatGate, gateAmps, tagText } from "../../flow";
 import { lifting } from "../../static";
 import { useLabels } from "../../labels";
-import { schematicSlot } from "../../parts";
+import { padlockFaces, schematicSlot } from "../../parts";
 import { BenchStoreContext, type BenchStore, type BenchStoreState } from "../../store";
 import { slotTurn, symbolInk, tornOutline } from "../../symbols";
 import type { PartParamsMap, SymbolKind } from "../../types";
@@ -175,7 +175,7 @@ function Box({ pi }: DrawProps<"box">) {
       {!cab && L.t1 && <Post at={L.t1} mark={p.marks === "plain" ? null : "+"} />}
       {!cab && L.t2 && <Post at={L.t2} mark={p.marks === "plain" ? null : "−"} />}
       {p.knob && <BoxKnob z={zs + strip / 2} pi={pi} />}
-      {lock && <Padlock z={zs + strip / 2} lock={lock} />}
+      {lock && <Padlock z={zs + strip / 2} shown={padlockFaces(p)} />}
       {p.tag && <BoxTag x={W / 2 + 8} z={D / 2 - 6} text={tagText(p.tag, p.tagAlt)} rot={rot} />}
     </g>
   );
@@ -206,25 +206,26 @@ function BoxKnob({ z, pi }: { z: number; pi: DrawProps<"box">["pi"] }) {
   );
 }
 
-function Padlock({ z, lock }: { z: number; lock: { wheels: string[]; set: boolean[] } }) {
-  const n = lock.wheels.length;
-  const w = 24;
+/** The padlock on the cabinet's front strip: each wheel shows its face (or its answer once set), "?" before. */
+function Padlock({ z, shown }: { z: number; shown: (string | null)[] }) {
+  const n = shown.length;
+  const w = PADLOCK.wheel;
   const h = 12;
   return (
     <g>
       <path d={`M-12 ${n3(z - h / 2)}v-7a12 9 0 0 1 24 0v7`} className="ln" strokeWidth={2.4} />
       <rect x={n3((-n * w) / 2 - 3.5)} y={n3(z - h / 2 - 2)} width={n * w + 7} height={h + 4} rx={2.4} className="f-brass" />
       <rect x={n3((-n * w) / 2 - 3.5)} y={n3(z - h / 2 - 2)} width={n * w + 7} height={h + 4} rx={2.4} className="ln" />
-      {lock.wheels.map((label, i) => {
+      {shown.map((label, i) => {
         const x = (i - (n - 1) / 2) * w;
-        const set = !!lock.set[i];
+        const set = label !== null;
         return (
           <g key={i}>
             <rect x={n3(x - w / 2 + 1)} y={n3(z - h / 2)} width={w - 2} height={h} rx={1.2} className={set ? "f-slip" : "f-sunk"} />
             <path d={`M${n3(x - w / 2 + 1)} ${n3(z - h / 2 + 2)}h${w - 2}M${n3(x - w / 2 + 1)} ${n3(z + h / 2 - 2)}h${w - 2}`} className="ln-soft" />
             <rect x={n3(x - w / 2 + 1)} y={n3(z - h / 2)} width={w - 2} height={h} rx={1.2} className="ln-thin" />
             <text x={n3(x)} y={n3(z + 0.3)} fontSize={set ? 3.6 : 6} fontWeight={700} textAnchor="middle" dominantBaseline="central" className={set ? "f-ink" : "print"}>
-              {set ? label : "?"}
+              {label ?? "?"}
             </text>
           </g>
         );

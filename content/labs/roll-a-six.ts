@@ -168,10 +168,13 @@ export default defineLab({
     { do: "wire", id: "W20", from: "c23", to: "a27", color: "white" },
     { do: "wait", seconds: 2.6 },
     { do: "check", task: "stop-at-8" },
+    // "Show me" starts from the lab's sliders: the time-lapse back on first, so a whole count is seen.
+    { do: "control", id: "speed", value: 8 },
     { do: "unwire", wire: "W20" },
     { do: "wire", id: "W20", from: "c23", to: "a26", color: "white" },
     { do: "wait", seconds: 1.8 },
     { do: "check", task: "stop-at-4" },
+    { do: "control", id: "speed", value: 8 },
     { do: "wire", id: "A1", from: "b26", to: "d14", color: "blue" },
     { do: "wire", id: "A2", from: "c25", to: "c15", color: "blue" },
     { do: "unwire", wire: "W20" },

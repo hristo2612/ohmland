@@ -3,7 +3,7 @@
 # Lab: content/labs/milli-and-kilo.ts (the lamp loop with a gate in number mode, a locked parts cabinet, three tags).
 format: bench
 id: milli-and-kilo
-version: 1
+version: 2
 title: The prefix padlock
 summary: Tap the m and the k off a number, then crack a three-wheel padlock with them.
 minutes: 5
@@ -34,25 +34,19 @@ beats:
     tap: { answer: L2, among: [L1, L2, L3] }
     wrong: { L1: "That's a k, a thousand. Find the m.", L3: No prefix on that one. }
 
-  - say: "Wheel one: 4.7 kΩ is..."
+  # Each wheel turns a face at a tap: the beat ends when it shows the tag's value without its prefix.
+  - say: "Wheel one: tap it to 4.7 kΩ, without the k."
     objective: Open the padlock
     spot: ["part:CAB/wheel1", L1]
-    pick: { on: L1, options: ["47 Ω", "470 Ω", "4,700 Ω"], answer: "4,700 Ω" }
-    hint: k means times a thousand.
-    # Each right answer clicks its wheel (the lab's open-padlock setup sets all three again).
-    then: [{ do: param, part: CAB, params: { lock: { wheels: ["4,700 Ω", "0.02 A", "9,000 mV"], set: [true, false, false] } } }]
+    do: wheel-one
 
-  - say: "Wheel two: 20 mA is..."
+  - say: "Wheel two: 20 mA, without the m."
     spot: ["part:CAB/wheel2", L2]
-    pick: { on: L2, options: ["0.2 A", "0.02 A", "0.002 A"], answer: "0.02 A" }
-    hint: m means a thousandth. Three places left.
-    then: [{ do: param, part: CAB, params: { lock: { wheels: ["4,700 Ω", "0.02 A", "9,000 mV"], set: [true, true, false] } } }]
+    do: wheel-two
 
-  - say: "Wheel three: 9 V is..."
+  - say: "Wheel three: 9 V, in millivolts."
     spot: ["part:CAB/wheel3", L3]
-    pick: { on: L3, options: ["90 mV", "900 mV", "9,000 mV"], answer: "9,000 mV" }
-    hint: A volt is a thousand millivolts.
-    then: [{ do: param, part: CAB, params: { lock: { wheels: ["4,700 Ω", "0.02 A", "9,000 mV"], set: [true, true, true] } } }]
+    do: wheel-three
 
   - say: The padlock clicks open. Lift the lid.
     spot: [CAB]

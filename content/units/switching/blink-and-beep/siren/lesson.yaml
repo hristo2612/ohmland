@@ -24,7 +24,7 @@ beats:
     do: two-voices
     note: { at: SP1, text: "steady: about 1.2 kHz" }
 
-  - say: Bridge with two 100 kΩ, fast bases to row 16. Guess first.
+  - say: Bridge with two 100 kΩ, fast bases to strip 16. Guess first.
     objective: Introduce them
     tool: scope
     guess: { options: [One steady tone, Two tones in turn, Silence], answer: Two tones in turn }

@@ -11,10 +11,11 @@ import { DIAL_MODES, METER, anchorPosition, partPose, probeTip, socketWorld, wor
 import { partDef, partMarks, rotateXZ, type Hotspot } from "../parts";
 import { GATE } from "../dims";
 import { hiddenParts } from "../seats";
-import type { Anchor, BenchState, MeterMode, MeterSocket, MeterState, PlacedPart, ProbeColor, TestLead, Vec2, Wire } from "../types";
+import type { Anchor, BenchState, MeterMode, MeterSocket, MeterState, PartParamsMap, PlacedPart, ProbeColor, TestLead, Vec2, Wire } from "../types";
 import { rectOfPoints, unionRect, type Rect } from "./camera";
 import { INK, boxCorners, toLocal, toWorld, type Box, type Frame } from "./frame";
 import { inkKind } from "./kinds";
+import { resistorBandX } from "./kinds/axial";
 import { STRESS_MARK, parseTarget, stressPoint } from "../view/targets";
 import { perfMount } from "../solder/perfboard";
 
@@ -554,6 +555,13 @@ export const METER_SPOTS: Record<string, Box> = {
   dial: [-METER.dial.knob, METER.dial.z - METER.dial.knob, METER.dial.knob, METER.dial.z + METER.dial.knob],
   dialFace: [-METER.dial.labels - 6, METER.dial.z - METER.dial.labels - 6, METER.dial.labels + 6, METER.dial.z + METER.dial.labels + 6],
   sockets: [METER.sockets.xs.a10 - 6, METER.sockets.z - 6, METER.sockets.xs.vohm + 6, METER.sockets.z + 6],
+  // Each dial position's letter (`dcv`, `ohm`, `dca-ma` ...), where the dial prints it round the knob.
+  ...Object.fromEntries(
+    DIAL_MODES.map((mode, i): [string, Box] => {
+      const [x, z] = dialLabelLocal(i);
+      return [mode, [x - 4.5, z - 3.5, x + 4.5, z + 3.5]];
+    }),
+  ),
 };
 
 /**
@@ -599,8 +607,16 @@ export function targetRect(model: InkModel, target: string): Rect | null {
     }
     const p = pi.legs[sub];
     if (p) return [p[0] - 1.5, p[1] - 1.5, p[0] + 1.5, p[1] + 1.5];
+    // A resistor's band, where this view draws it (desk parts are drawn larger than life).
+    const band = pi.part.kind === "resistor" ? /^band([1-5])$/.exec(sub) : null;
+    if (band) {
+      const x = resistorBandX(pi.part.params as PartParamsMap["resistor"], pi, Number(band[1]) - 1);
+      if (x === null) return null;
+      const [bx, bz] = toWorld(pi.f, x, 0);
+      return [bx - 1, bz - 1.5, bx + 1, bz + 1.5];
+    }
     // A named mark: a drawing's symbol, a box's lid or knob, a gate's flag (in the drawing's own frame).
-    const m = partMarks(pi.part)[sub];
+    const m = partMarks(pi.part, { mount: pi.mount, ...(pi.span !== undefined ? { span: pi.span } : {}) })[sub];
     if (!m) return null;
     const [x, z] = toWorld(pi.f, m[0], pi.part.kind === "gate" ? -GATE.lift : m[2]);
     return [x - 3, z - 3, x + 3, z + 3];

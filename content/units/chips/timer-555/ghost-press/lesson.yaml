@@ -1,0 +1,65 @@
+# Blueprint: docs/curriculum/unit-4.md, CH3. A bench lesson (docs/LESSONS.md).
+# One idea: an input joined to nothing floats and picks up hum; a pull-up holds it high until the button pulls it low.
+# New: the word "pull-up". Lab: content/labs/ghost-press.ts (CH2's one-shot, the pull-up free to lift out).
+format: bench
+id: ghost-press
+version: 1
+title: The ghost press
+summary: Lift a 555's pull-up resistor and watch a floating pin trigger itself, then hold it high again.
+minutes: 6
+lab: ghost-press
+unlocks:
+  parts: []
+  isle: resistor
+
+start:
+  title: The ghost press
+  say: My timer fires when nobody presses. Let's catch the ghost.
+  go: Hunt it
+
+beats:
+  - say: Lift the 10 kΩ off pin 2. Then bring your hand close.
+    objective: Meet the ghost
+    tool: controls
+    do: ghost
+    done: It lit by itself!
+    note: { at: U1.2, text: "nothing holds it: it floats" }
+
+  - say: Watch pin 2 on the scope.
+    tool: scope
+    do: hum
+    note: { at: U1, text: "floating: it picks up hum" }
+
+  - say: Put the 10 kΩ back, pin 2 to plus. Hand still close.
+    objective: Hold it high
+    tool: controls
+    guess: { options: [The ghost stays, The ghost vanishes], answer: The ghost vanishes }
+    do: pull-up-back
+    note: { at: R2, text: "pull-up: holds pin 2 high" }
+    rule: Never leave an input floating.
+
+  - say: Now press the button.
+    tool: stopwatch
+    do: clean-tap
+
+  - say: Show me the pull-up.
+    tap: { answer: R2, among: [R1, R2, R3] }
+    hint: It joins pin 2 to plus.
+
+  - say: What is this?
+    pick: { on: R2, options: [A pull-up, A trigger, A timer], answer: A pull-up }
+
+secret:
+  task: weak-pull
+  tool: controls
+  say: Curious? Swap in the 1 MΩ. Hand close.
+  done: Still steady. Even a weak pull wins.
+  note: { at: R5, text: "1 MΩ still beats the hum" }
+
+fixit:
+  say: My lamp won't go out. Fix it.
+  tasks:
+    - task: fix-pull-up
+
+end:
+  say: No more ghosts in my timer.
