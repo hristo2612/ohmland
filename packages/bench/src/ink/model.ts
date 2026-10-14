@@ -554,6 +554,13 @@ export const METER_SPOTS: Record<string, Box> = {
   dial: [-METER.dial.knob, METER.dial.z - METER.dial.knob, METER.dial.knob, METER.dial.z + METER.dial.knob],
   dialFace: [-METER.dial.labels - 6, METER.dial.z - METER.dial.labels - 6, METER.dial.labels + 6, METER.dial.z + METER.dial.labels + 6],
   sockets: [METER.sockets.xs.a10 - 6, METER.sockets.z - 6, METER.sockets.xs.vohm + 6, METER.sockets.z + 6],
+  // Each dial position's letter (`dcv`, `ohm`, `dca-ma` ...), where the dial prints it round the knob.
+  ...Object.fromEntries(
+    DIAL_MODES.map((mode, i): [string, Box] => {
+      const [x, z] = dialLabelLocal(i);
+      return [mode, [x - 4.5, z - 3.5, x + 4.5, z + 3.5]];
+    }),
+  ),
 };
 
 /**

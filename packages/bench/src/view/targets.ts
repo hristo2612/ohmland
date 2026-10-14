@@ -2,7 +2,7 @@
 // Pure: shared by the 3D and ink views.
 
 import { parseAnchor } from "../anchors";
-import { METER, anchorPosition, lieDown, meterLocalToWorld, partPose, socketWorld } from "../layout";
+import { DIAL_MODES, METER, anchorPosition, lieDown, meterLocalToWorld, partPose, socketWorld } from "../layout";
 import { partMarks, rotateXZ } from "../parts";
 import type { Anchor, BenchState, MeterSocket, Vec3 } from "../types";
 
@@ -20,7 +20,18 @@ export type ParsedTarget =
   | { type: "wire"; id: string }
   | { type: "anchor"; anchor: Anchor };
 
-export const METER_SPOTS = ["display", "dial", "com", "vohm", "ma", "a10"] as const;
+export const METER_SPOTS = ["display", "dial", "com", "vohm", "ma", "a10", ...DIAL_MODES] as const;
+
+/**
+ * Where a dial position's letter sits on the meter face (`part:M1/dca-ma`, `part:M1/ohm`), in the meter's frame: the
+ * same place in both views (the ink drawing and the 3D face print their letters round the knob at `dial.labels`).
+ */
+export function dialLetterLocal(mode: string): Vec3 | null {
+  const i = DIAL_MODES.indexOf(mode as (typeof DIAL_MODES)[number]);
+  if (i < 0) return null;
+  const a = (i * 2 * Math.PI) / DIAL_MODES.length;
+  return [Math.sin(a) * METER.dial.labels, METER.face + 1, METER.dial.z - Math.cos(a) * METER.dial.labels];
+}
 
 export function parseTarget(target: string): ParsedTarget | null {
   if (target.startsWith("part:")) {
@@ -45,7 +56,8 @@ export function meterSpot(bench: BenchState, sub: string): Vec3 | null {
   }
   if (sub === "dial") return meterLocalToWorld(m, [0, METER.face + 4, METER.dial.z]);
   if (sub in METER.sockets.xs) return socketWorld(m, sub as MeterSocket);
-  return null;
+  const letter = dialLetterLocal(sub);
+  return letter ? meterLocalToWorld(m, letter) : null;
 }
 
 /** A part's lead or named mark (`part:R1/a`, `part:SD1/R1`) in world coordinates, or null. */
