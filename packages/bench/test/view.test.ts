@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createControllerHub, type BenchController } from "../src/view/controller";
 import { meterSpot, parseTarget, targetPoint } from "../src/view/targets";
-import { frameWithParts } from "../src/view/framing";
+import { focalTargets, frameWithParts, needsReading } from "../src/view/framing";
 import { addLead, addPart, clipLead, defaultMeter, emptyBench } from "../src/ops";
 import { anchorPosition } from "../src/layout";
 
@@ -102,5 +102,21 @@ describe("home framing", () => {
     expect(frameWithParts(frame, [[80, 40, 260, 200]])).toEqual(frame);
     // Nothing outside the frame changes it.
     expect(frameWithParts(frame, [[200, 0, 260, 40]])).toEqual(frame);
+  });
+});
+
+describe("reading-scale framing", () => {
+  it("comes close only when every target has leads or clip points, and centres on the anchors among them", () => {
+    let b = emptyBench({ kind: "bb830" });
+    [b] = addPart(b, "resistor", { ohms: 470 }, { pos: [0, 0], holes: { a: "e10", b: "e14" } }, "R1");
+    [b] = addPart(b, "chart", {}, { pos: [0, -80] }, "CH1");
+    expect(needsReading(b, ["part:R1", "hole:a3", "lead:TL1"])).toBe(true);
+    // A chart among the targets is meant to be seen whole.
+    expect(needsReading(b, ["part:R1", "part:CH1"])).toBe(false);
+    expect(needsReading(b, [])).toBe(false);
+    expect(focalTargets(["part:R1", "pin:R1.a", "hole:e3"])).toEqual(["pin:R1.a", "hole:e3"]);
+    // A whole lead or wire is aimed at by its first end.
+    expect(focalTargets(["lead:TL4", "part:R1"])).toEqual(["lead:TL4.a"]);
+    expect(focalTargets(["part:R1", "part:CH1"])).toEqual(["part:R1"]);
   });
 });

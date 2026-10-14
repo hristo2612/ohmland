@@ -9,9 +9,11 @@ export type Inset = { top?: number; right?: number; bottom?: number; left?: numb
 /**
  * `padding`: room round the targets (px). `instant`: no glide. `inset`: the part of the view a docked panel covers; the
  * targets (or the home view) are framed in what is left, the selection bar keeps clear of it, and it holds (a resize,
- * reset view) until the next focus.
+ * reset view) until the next focus. `read`: a reading scale for hands-on work, in CSS px between neighbouring holes
+ * (2.54 mm) at the targets; when the targets have leads or clip points and do not fit at it, the view comes that
+ * close anyway, centred on their anchors (`focalTargets`), and the learner pans for the rest.
  */
-export type FocusOptions = { padding?: number; instant?: boolean; inset?: Inset };
+export type FocusOptions = { padding?: number; instant?: boolean; inset?: Inset; read?: number };
 
 export interface BenchController {
   /** Where an anchor ("pin:R1.a", "part:D1", "hole:e12", "probe:red", "part:M1/display") is on screen right now. */

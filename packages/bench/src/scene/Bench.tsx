@@ -6,7 +6,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { CameraControls } from "@react-three/drei";
 import { boardGeometry, boardOrigin, holeWorld } from "../board";
 import { BOARD_TOP } from "../dims";
-import { LabelsContext, mergeLabels } from "../labels";
+import { LabelsContext, mergeLabels, type BenchLabels } from "../labels";
 import { anchorPosition, benchBounds, fitCamera, workCenter } from "../layout";
 import { connectivity } from "../netlist";
 import { BenchStoreContext, createBenchStore, useBench, type BenchStore } from "../store";
@@ -25,6 +25,7 @@ import { Overlay, trayCover } from "./Overlay";
 import { PaletteContext, useReadPalette } from "./palette";
 import { Readouts, StressTags, inspectKey } from "./Readouts";
 import { TagSlips } from "../view/TagSlips";
+import { LOUPE, Loupe, createLoupeFeed, type LoupeFeed } from "../view/Loupe";
 import type { Pick } from "./pick";
 import { PaperRenderer, PaperUpkeep, SoftShadows, type ShadowArea } from "./Render";
 import { SpotlightRig, ViewRig, type ViewApi } from "./viewRig";
@@ -61,6 +62,11 @@ export function Bench(props: BenchProps) {
   const { tray = [], snapshot = null, quality = "high", readOnly = false, highlight, className, style } = props;
   const [store] = useState(() => props.store ?? createBenchStore(props.initial));
   const labels = useMemo(() => mergeLabels(props.labels), [props.labels]);
+  const labelsNow = useRef(labels);
+  labelsNow.current = labels;
+  // The touch loupe (view/Loupe.tsx): the interaction feeds it, a copy of the canvas fills it.
+  const [loupeFeed] = useState(createLoupeFeed);
+  const loupe = useMemo(() => ({ feed: loupeFeed, labels: () => labelsNow.current }), [loupeFeed]);
   const [element, setElement] = useState<HTMLDivElement | null>(null);
   const elementRef = useRef<HTMLDivElement | null>(null);
   elementRef.current = element;
@@ -233,6 +239,7 @@ export function Bench(props: BenchProps) {
                 setSpotTargets={setSpotTargets}
                 notify={notify}
                 pendingFocus={pendingFocus}
+                loupe={loupe}
               />
               <Warmup held={held} offscreen={quality === "high"} dark={palette.dark} onWarm={release} />
             </Canvas>
@@ -240,6 +247,7 @@ export function Bench(props: BenchProps) {
             <TagSlips store={store} spot={spotTargets} compact={compact} projector={controller} />
             <Overlay tray={tray} readOnly={readOnly} compact={compact} api={api} size={size} controller={controller} />
             <SolderOverlay store={store} view={solderView} compact={compact} readOnly={readOnly} tray={showTray} />
+            <Loupe feed={loupeFeed} size={size} lens={(st, d) => <CanvasLens element={element} controller={controller} x={st.x} y={st.y} d={d} />} />
           </div>
         </PaletteContext.Provider>
       </LabelsContext.Provider>
@@ -302,6 +310,45 @@ function CameraRig({
       }}
     />
   );
+}
+
+/**
+ * The loupe's picture in 3D: the canvas under the finger, copied twice life size after each frame is drawn (the
+ * canvas keeps its drawing buffer for this).
+ */
+function CanvasLens({ element, controller, x, y, d }: { element: HTMLElement | null; controller: BenchController; x: number; y: number; d: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const draw = () => {
+      const out = ref.current;
+      const gl = element?.querySelector<HTMLCanvasElement>("canvas");
+      if (!out || !gl || !element) return;
+      const dpr = window.devicePixelRatio || 1;
+      if (out.width !== Math.round(d * dpr)) {
+        out.width = Math.round(d * dpr);
+        out.height = Math.round(d * dpr);
+      }
+      const k = gl.width / Math.max(1, element.clientWidth);
+      const src = d / LOUPE.zoom;
+      const ctx = out.getContext("2d");
+      if (!ctx) return;
+      ctx.clearRect(0, 0, out.width, out.height);
+      ctx.drawImage(gl, (x - src / 2) * k, (y - src / 2) * k, src * k, src * k, 0, 0, out.width, out.height);
+    };
+    // After the frame that this move asked for has been drawn.
+    const later = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => (raf = requestAnimationFrame(draw)));
+    };
+    later();
+    const off = controller.onViewChange(later);
+    return () => {
+      off();
+      cancelAnimationFrame(raf);
+    };
+  }, [element, controller, x, y, d]);
+  return <canvas ref={ref} />;
 }
 
 /** Calls back once the first frame is on screen (the frame after it has begun). */
@@ -415,7 +462,9 @@ function BenchScene({
   setSpotTargets,
   notify,
   pendingFocus,
+  loupe,
 }: {
+  loupe: { feed: LoupeFeed; labels: () => BenchLabels };
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
   inset: React.MutableRefObject<Required<Inset>>;
   store: BenchStore;
@@ -454,7 +503,7 @@ function BenchScene({
       invalidate();
     });
   }, [store, invalidate]);
-  useInteraction({ store, element, readOnly, api, emit, viewPad, view });
+  useInteraction({ store, element, readOnly, api, emit, viewPad, view, loupe });
   const spot = useMemo(() => new Spotlight({ amount: 0, color: new THREE.Color(palette.paper) }), []);
   useEffect(() => () => spot.dispose(), [spot]);
 

@@ -81,6 +81,11 @@ export type StageProps = {
   spot: string[] | null;
   /** Anchors to frame without a spotlight (a breadboard corner for a hole check). */
   frame: string[] | null;
+  /**
+   * Hands-on work: a beat's bench task ("beat") or a fix-it bench ("fix"). Its parts in play are framed at a reading
+   * scale, and on a phone a beat with no `spot` frames its task's working parts (the lab's `highlight`).
+   */
+  hands?: "beat" | "fix" | null;
   xray: boolean;
   /** Hint highlights of the current task. */
   hintHighlight: string[] | undefined;
@@ -152,6 +157,9 @@ export function StageSkeleton() {
 }
 
 const NUDGE_HOLD = 0.8;
+/** Reading scales for hands-on framing: CSS px between neighbouring breadboard holes on a phone and on a desktop. */
+const READ_PHONE = 20;
+const READ_DESK = 32;
 
 function StageRunner(props: StageProps & { lab: LabDefinition }) {
   const { lab, lessonId } = props;
@@ -393,19 +401,30 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     if (dock) ro.observe(dock);
     return () => ro.disconnect();
   }, [tool, benchReady]);
+  const lastFocus = useRef<{ targets: string[]; read?: number } | null>(null);
   useEffect(() => {
     const c = controllerRef.current;
     const stage = stageRef.current;
     if (!c || !stage || !benchReady) return;
     const b = runtime.store.getState().bench;
-    const resolve = (list: string[] | null) => (list ?? []).map((s) => resolveAnchor(b, s)).filter((x): x is string => !!x);
+    const resolve = (list: readonly string[] | null | undefined) => (list ?? []).map((s) => resolveAnchor(b, s)).filter((x): x is string => !!x);
     const spotted = resolve(props.spot);
-    const framed = [...spotted, ...resolve(props.frame)];
+    let framed = [...spotted, ...resolve(props.frame)];
     c.spotlight(spotted.length ? spotted : null);
     const inset = dockInset(stage);
     const box = stage.getBoundingClientRect();
     const w = box.width - (inset.right ?? 0);
     const free = Math.max(0, Math.min(w, box.height - (inset.bottom ?? 0)));
+    // Hands-on work on a phone: the working parts come close enough to aim a finger at (holes and legs at least
+    // READ_PHONE px apart); a beat that names none keeps the view where the hands already are. On a desktop, parts in
+    // play come to a reading scale (a resistor's body about 80 px long).
+    const phoneHands = w < 640 && !!props.hands;
+    const read = props.hands && framed.length ? (w < 640 ? READ_PHONE : READ_DESK) : phoneHands ? READ_PHONE : undefined;
+    if (phoneHands && !framed.length && props.hands === "beat") framed = resolve(props.gate ? lab.tasks.find((t) => t.id === props.gate)?.highlight : null);
+    if (phoneHands && !framed.length && props.hands === "beat" && lastFocus.current?.targets.length) {
+      c.focus(lastFocus.current.targets, { inset, read: lastFocus.current.read ?? READ_PHONE });
+      return;
+    }
     // A part in play keeps some bench around it: close enough to tell its legs apart and tap them, never a lone
     // close-up (both views frame at least about 24 mm of bench). A phone is narrow, so a smaller share of it goes to
     // the margin, and one big printed prop (a colour chart, a pencil card) fills the bench so its print can be read; a
@@ -415,9 +434,10 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     const close = phone && !!one && PRINTED_KINDS.has(one.kind) && one.kind !== "tag";
     // Several parts in play are their own context: a modest margin keeps them close.
     const padding = close ? 8 : Math.round(free * (framed.length > 1 ? 0.06 : phone ? 0.12 : 0.3));
-    c.focus(framed, framed.length ? { padding, inset } : { inset });
+    lastFocus.current = { targets: framed, ...(read && framed.length ? { read } : {}) };
+    c.focus(framed, framed.length ? { padding, inset, ...(read ? { read } : {}) } : { inset });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spotKey, frameKey, runtime, benchReady, dockKey]);
+  }, [spotKey, frameKey, runtime, benchReady, dockKey, props.hands, props.gate]);
 
   return (
     <div ref={stageRef} className="bl-stage" data-bench-ready={benchReady || undefined} data-lab-ready data-lab={lab.id} onPointerDownCapture={() => audio.unlock()} onKeyDownCapture={() => audio.unlock()}>
