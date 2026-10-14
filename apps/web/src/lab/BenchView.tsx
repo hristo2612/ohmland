@@ -78,6 +78,7 @@ export default function BenchView({ runtime, tray, quality, readOnly, highlight,
       readOnly={!!readOnly}
       highlight={highlight}
       locked={locked}
+      names={runtime.built.labels}
       frame={frame ?? null}
       labels={m.benchUi}
       onAction={runtime.onAction}

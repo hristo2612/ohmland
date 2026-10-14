@@ -28,6 +28,7 @@ import { buildModel, partBounds, targetOwners, targetPoint, targetRect, targetsR
 import { InkOverlay, partDetail, useFollow } from "./Overlay";
 import { INK_CSS } from "./styles";
 import { InkView } from "./view";
+import { TagSlips, type SlipProjector } from "../view/TagSlips";
 import { SolderOverlay, type SolderViewApi } from "../solder/overlay/SolderOverlay";
 import { IronLayer, ScorchLayer } from "./kinds/solder";
 
@@ -102,6 +103,10 @@ export function BenchInk(props: BenchInkProps) {
   useEffect(() => {
     store.setState({ locked: lockedKey ? lockedKey.split(",") : [] });
   }, [store, lockedKey]);
+  const namesKey = JSON.stringify(props.names ?? {});
+  useEffect(() => {
+    store.setState({ names: JSON.parse(namesKey) as Record<string, string> });
+  }, [store, namesKey]);
   const frameKey = props.frame ? props.frame.join(",") : "";
   useLayoutEffect(() => {
     if (props.frame !== undefined) store.setState({ frame: frameKey ? (frameKey.split(",").map(Number) as [number, number, number, number]) : null });
@@ -274,6 +279,20 @@ export function BenchInk(props: BenchInkProps) {
       },
       onViewChange: (cb) => view.onChange(cb),
       desk: (x, y) => view.toWorld(x, y),
+    }),
+    [view],
+  );
+
+  // Readable tags on a phone (view/TagSlips.tsx): where a target is now, and when the view moves.
+  const slipProjector = useMemo<SlipProjector>(
+    () => ({
+      project: (t) => {
+        const p = targetPoint(modelRef.current, t);
+        if (!p) return null;
+        const [x, y] = view.toScreen(p[0], p[1]);
+        return { x, y, visible: x >= 0 && y >= 0 && x <= view.vp.w && y <= view.vp.h };
+      },
+      onViewChange: (cb) => view.onChange(cb),
     }),
     [view],
   );
@@ -514,6 +533,7 @@ export function BenchInk(props: BenchInkProps) {
               {hoverAnchor ? hoverAnchor.slice(5) : ""}
             </div>
             <Readouts store={store} model={model} view={view} labels={labels} />
+            <TagSlips store={store} spot={spot} compact={compact} projector={slipProjector} />
             <InkOverlay
               store={store}
               labels={labels}

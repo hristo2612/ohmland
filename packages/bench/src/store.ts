@@ -71,6 +71,8 @@ export type BenchStoreState = {
   txBase: BenchState | null;
   /** Part ids the learner cannot move, rotate or remove (set by the `locked` prop). */
   locked: readonly string[];
+  /** Names for parts by id (set by the `names` prop), for the selection bar. */
+  names: Readonly<Record<string, string>>;
   /** The desk rectangle the camera frames at the start and on "reset view" (set by the `frame` prop), or null for all. */
   frame: readonly [number, number, number, number] | null;
   snapshot: Snapshot | null;
@@ -173,6 +175,7 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
       future: [],
       txBase: null,
       locked: [],
+      names: {},
       frame: null,
       snapshot: null,
       inspect: [],

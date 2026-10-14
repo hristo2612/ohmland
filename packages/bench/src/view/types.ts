@@ -24,6 +24,8 @@ export type BenchRendererProps = {
   readOnly?: boolean;
   /** Part ids the learner cannot move, rotate or delete (switches still flip and buttons still press). */
   locked?: string[];
+  /** Names for parts by id (a lab's labels: "AA cell", "Mystery switch"): the selection bar shows them. */
+  names?: Record<string, string>;
   /** Part ids or anchors ("hole:e12", "pin:R1.a") to point out, for lab hints. */
   highlight?: string[];
   /** Translated UI strings. */
