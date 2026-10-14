@@ -84,6 +84,7 @@ export default defineLab({
       prompt: "Leave the door open and wait.",
       goal: (lab) => lab.heldFor(6, open(lab, "DR1") && lit(lab)),
       hints: ["Leave it open. Count to six."],
+      highlight: ["D1"],
       nudges: [{ when: (lab) => !open(lab, "DR1"), say: "Leave it open this time." }],
       success: "Still lit. It never ends.",
     },

@@ -4,7 +4,8 @@
 //
 // Full board, the door on the desk to its left (its terminal block toward the board), the battery to its right. Three
 // 555s, left to right:
-// - U1, the exit delay (columns 10 to 13): GO (S1) dips pin 2 against 10 kΩ; 27 kΩ and 100 µF; the green lamp on pin
+// - U1, the exit delay (columns 10 to 13): GO (S1) dips pin 2 against 10 kΩ; 82 kΩ and 100 µF (time to walk to the
+//   door, or on a phone to pan to it); the green lamp on pin
 //   3. A 1N4148 (D9) runs from U1's pin 3 to U2's pin 2 (band toward U2): while green is on it holds U2's trigger high.
 // - U2, the last chance (columns 28 to 31): the door's loop (plus, the reed, the sensor wire TL1, column 22, 10 kΩ to
 //   minus) reaches pin 2 through C2, 0.47 µF, against a 100 kΩ pull-up (CH11's fix); 27 kΩ and 100 µF; the yellow
@@ -15,11 +16,13 @@
 //   by 10 kΩ, with DISARM (S2) to minus and 10 µF to minus (the latch wakes cleared). Pin 3 feeds the voice module's
 //   EN (VM1, CH8's singer on a plug-in board), which drives the speaker.
 // The tray holds a 270 kΩ for the secret. Both timing capacitors' leakage is set low (50 MΩ), so a long delay stays
-// true. U1 and U2 may flash once at switch-on (a 555's latch wakes at random); the goals count from GO.
+// true. U1 and U2 may flash once at switch-on (a 555's latch wakes at random): the lab settles 5 s unseen, and the
+// goals count from GO.
 //
-// Measured in the simulator: green 3.0 s, yellow 3.0 s (1.1 × 27 kΩ × 100 µF is 2.97 s); with green on, D9 holds U2's
-// pin 2 near 7.4 V and an opening does nothing; U2's falling edge dips U3's pin 2 to about 1.4 V for some 11 ms, which
-// sets the latch; the module sings near 440 Hz until DISARM. With 270 kΩ yellow lasts about 30 s.
+// Measured in the simulator: green 8.8 s (1.1 × 82 kΩ × 100 µF is 9.0 s), yellow 2.9 s (1.1 × 27 kΩ × 100 µF is
+// 2.97 s); with green on, D9 holds U2's pin 2 near 7.4 V and an opening does nothing; U2's falling edge dips U3's pin 2
+// to about 1.4 V for some 11 ms, which sets the latch; the module sings near 440 Hz until DISARM. With 270 kΩ yellow
+// lasts 29.6 s.
 import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 import { oneShotT } from "./lib/timer555";
 
@@ -52,7 +55,7 @@ export default defineLab({
       { id: "U1", kind: "chip", at: "e10", params: { model: "555" }, locked: true, label: "555 exit delay U1" },
       { id: "S1", kind: "pushbutton", at: "e6", params: { cap: "black" }, locked: true, label: "GO button S1" },
       { id: "R11", kind: "resistor", at: "b11-rail+:11", params: { ohms: 10_000 }, locked: true, label: "10 kΩ pull-up" },
-      { id: "R12", kind: "resistor", at: "h11-h16", params: { ohms: 27_000 }, locked: true, label: "27 kΩ resistor R12" },
+      { id: "R12", kind: "resistor", at: "h11-h16", params: { ohms: 82_000 }, locked: true, label: "82 kΩ resistor R12" },
       { id: "C11", kind: "electrolytic-cap", at: "j11-top-:12", params: { farads: 100e-6, volts: 16, leakOhms: 5e7, tolerance: 5 }, locked: true, label: "100 µF capacitor C11" },
       { id: "R13", kind: "resistor", at: "b12-b16", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor" },
       { id: "D1", kind: "led", at: "c16", params: { color: "green", maxmA: 20 }, locked: true, label: "Green LED" },
@@ -220,7 +223,7 @@ export default defineLab({
     { do: "wait", seconds: 3.6 },
     { do: "press", part: "S1", seconds: 0.2 },
     { do: "param", part: "DR1", params: { open: true } },
-    { do: "wait", seconds: 3.5 },
+    { do: "wait", seconds: 9.5 },
     { do: "check", task: "exit-delay" },
     { do: "param", part: "DR1", params: { open: false } },
     { do: "wait", seconds: 0.5 },
