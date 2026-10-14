@@ -8,6 +8,7 @@ import {
   BIN,
   BOX,
   CABINET,
+  PADLOCK,
   DRAWER,
   GATE,
   OBJECT,
@@ -190,6 +191,31 @@ export function cupOhms(params: { water: WaterKind; ohms?: number; salt?: number
   const base = params.ohms ?? waterOhms(params.water);
   const salt = Math.max(0, Math.min(SALT_MAX, params.salt ?? 0));
   return 1 / (1 / base + salt / PINCH_OHMS);
+}
+
+type WheelKey = "wheel1" | "wheel2" | "wheel3" | "wheel4";
+
+/**
+ * What each wheel of a cabinet's padlock shows: with `faces`, the face it is turned to (null until first turned);
+ * without, its answer once `set` (null before).
+ */
+export function padlockFaces(pp: PartParamsMap["box"]): (string | null)[] {
+  const lock = pp.lock;
+  if (!lock) return [];
+  return lock.wheels.map((answer, i) => {
+    const faces = lock.faces?.[i];
+    if (!faces) return lock.set[i] ? answer : null;
+    const at = pp[`wheel${i + 1}` as WheelKey];
+    return at === undefined ? null : (faces[at % faces.length] ?? null);
+  });
+}
+
+/** Every wheel of the padlock shows its answer: the lid may be lifted. */
+export function padlockOpen(pp: PartParamsMap["box"]): boolean {
+  const lock = pp.lock;
+  if (!lock) return true;
+  const shown = padlockFaces(pp);
+  return lock.wheels.every((answer, i) => shown[i] === answer);
 }
 
 const line = (...legs: string[]): FootprintLeg[] => legs.map((leg, i) => ({ leg, dx: i, dz: 0 }));
@@ -861,13 +887,23 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
       const D = cab ? CABINET.d : BOX.d;
       const H = cab ? CABINET.h : BOX.h;
       const strip = cab ? CABINET.strip : BOX.strip;
-      const locked = cab && !!pp.lock && pp.lock.set.some((x) => !x) && !pp.lid;
+      const locked = cab && !!pp.lock && !padlockOpen(pp) && !pp.lid;
       const lidD = D - strip;
       // Shut, the whole lid opens it; open, the lid standing up at the back shuts it (the parts inside stay reachable).
       const lid: Hotspot = pp.lid
         ? { pick: { type: "setting", key: "lid", value: false }, at: [0, H + lidD * 0.4, -D / 2 - lidD * 0.16], size: [W - 8, lidD * 0.8, lidD * 0.32], on: true }
         : { pick: { type: "setting", key: "lid", value: true }, at: [0, H, -strip / 2], size: [W - 8, 6, lidD - 6] };
       const out: Hotspot[] = locked ? [] : [lid];
+      // A padlock with faces: tap a wheel to turn it to its next face.
+      const faces = cab && !pp.lid ? pp.lock?.faces : undefined;
+      if (faces) {
+        const n = faces.length;
+        faces.forEach((f, i) => {
+          const at = pp[`wheel${i + 1}` as WheelKey];
+          const next = at === undefined ? 0 : (at + 1) % Math.max(1, f.length);
+          out.push({ pick: { type: "setting", key: `wheel${i + 1}`, value: next }, at: [(i - (n - 1) / 2) * PADLOCK.wheel, H + 3, D / 2 - strip / 2], size: [PADLOCK.wheel - 2, 6, 12] });
+        });
+      }
       if (pp.tag) out.push({ pick: { type: "setting", key: "tagAlt", value: !pp.tagAlt }, at: [W / 2 + 8, H * 0.5, D / 2 - 6], size: [22, 6, 14], on: !!pp.tagAlt });
       return out;
     },
@@ -879,7 +915,7 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
       const out: Record<string, Vec3> = { lid: [0, H, -strip / 2], front: [0, H, D / 2 - strip / 2] };
       if (pp.knob) out.knob = [0, H + 4, D / 2 - strip / 2];
       if (pp.tag) out.tag = [(cab ? CABINET.w : BOX.w) / 2 + 8, H * 0.5, D / 2 - 6];
-      if (pp.lock) pp.lock.wheels.forEach((_, i) => (out[`wheel${i + 1}`] = [(i - (pp.lock!.wheels.length - 1) / 2) * 16, H + 2, D / 2 - strip / 2]));
+      if (pp.lock) pp.lock.wheels.forEach((_, i) => (out[`wheel${i + 1}`] = [(i - (pp.lock!.wheels.length - 1) / 2) * PADLOCK.wheel, H + 2, D / 2 - strip / 2]));
       return out;
     },
     // Pure metal: the seats join the held parts' leads to the terminals and to each other (see `wiring`).

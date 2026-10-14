@@ -140,6 +140,8 @@ export const GATE = { ring: 3.4, len: 7, flagW: 26, flagH: 13, lift: 16 };
 /** A sealed box (front strip with terminals and a knob, lid behind it) and the parts cabinet. */
 export const BOX = { w: 100, d: 74, h: 32, wall: 2.4, strip: 15, termX: 28, knob: 8 };
 export const CABINET = { w: 170, d: 100, h: 34, wall: 2.6, strip: 18 };
+/** The cabinet's padlock: the pitch of its wheels along the front strip (each wheel a little narrower). */
+export const PADLOCK = { wheel: 24 };
 
 /** The big sorting tray (`bin` style "tray") and a parts drawer (`bin` style "drawer"). */
 export const TRAY = { w: 132, h: 14, d: 104 };

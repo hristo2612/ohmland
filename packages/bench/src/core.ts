@@ -78,7 +78,7 @@ export {
 } from "./flow";
 export { symbolInk, slotTurn, tornOutline, type SymbolInk } from "./symbols";
 export { hiddenParts } from "./seats";
-export { materialOhms, conducts, schematicSlot, partSpots, partMarks, CLIP_PATH } from "./parts";
+export { materialOhms, conducts, schematicSlot, partSpots, partMarks, padlockFaces, padlockOpen, CLIP_PATH } from "./parts";
 export { gateSpot } from "./layout";
 export { chargeable, charge as staticCharge, stuckTo, lifting, apart, MAX_MARKS, PULL_MARKS, APART_MM } from "./static";
 // The store needs React and zustand but not three.js, so a host can own it before the 3D view loads.
