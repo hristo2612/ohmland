@@ -66,6 +66,9 @@ describe("bench lesson flow", () => {
     expect(rulesFound(ms, 1, [], false)).toEqual([]);
     expect(rulesFound(ms, 1, [], true)).toEqual(["Loops carry current."]);
     expect(rulesFound(ms, 2, ["fry"], false)).toEqual(["Loops carry current.", "LEDs need resistors."]);
+    // A beat with nothing to do stamps its rule as it begins.
+    const plain = momentsOf(lesson({ beats: [{ say: "Look.", rule: "Loops carry current." }, { say: "Two." }] }));
+    expect(rulesFound(plain, 0, [], false)).toEqual(["Loops carry current."]);
   });
 
   it("fills the robot's eyes in equal steps per objective and the fix-it round, never for the secret", () => {

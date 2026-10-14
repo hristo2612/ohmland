@@ -37,6 +37,12 @@ export interface Ctx {
    */
   markEdge(): void;
   addBreakpoint(t: number): void;
+  /**
+   * The resistance the rest of the circuit presents between two unknowns (-1 for the reference), from the factors of
+   * the step just solved: what a part sees "looking out" of two of its pins. Infinity when nothing joins them. Read
+   * it in accept() to judge a risk (a reversed LED behind a resistor is safe, straight across a battery it is not).
+   */
+  drivingOhms?(i: number, j: number): number;
 }
 
 export interface Binder {
@@ -361,6 +367,13 @@ export abstract class Device {
   /** Sum of reactive states for audio or diagnostics; optional. */
   get audioVolts(): number {
     return 0;
+  }
+  /**
+   * Parts built into this one that the snapshot lists on their own (a board's lamps: "U1:L", "U1:ON"), or null.
+   * They are read-outs only: they have no pins in the netlist.
+   */
+  subStates(_x: Float64Array): Record<string, PartState> | null {
+    return null;
   }
 }
 

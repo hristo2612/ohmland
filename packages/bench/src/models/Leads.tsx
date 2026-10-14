@@ -214,6 +214,7 @@ export function Cable({
   floor,
   bend = 0.18,
   stiff = 2,
+  points,
 }: {
   from: THREE.Vector3;
   fromDir: THREE.Vector3;
@@ -227,12 +228,14 @@ export function Cable({
   bend?: number;
   /** How many segments at each end keep the end direction. */
   stiff?: number;
+  /** The cable's points when the caller already worked them out (the same as these inputs give). */
+  points?: THREE.Vector3[];
 }) {
   const key = `${from.toArray().map((v) => v.toFixed(2))}|${to.toArray().map((v) => v.toFixed(2))}|${fromDir.toArray().map((v) => v.toFixed(2))}|${toDir
     .toArray()
     .map((v) => v.toFixed(2))}|${length}|${radius}`;
   const geometry = useMemo(() => {
-    const pts = ropePoints(from, fromDir, to, toDir, length, radius, floor, stiff, bend);
+    const pts = points ?? ropePoints(from, fromDir, to, toDir, length, radius, floor, stiff, bend);
     return smoothTube(pts, radius, 10, 0.6);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);

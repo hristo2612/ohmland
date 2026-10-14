@@ -8,8 +8,9 @@ import { useStore } from "zustand";
 import { DIAL_MODES, partLegs, terminalNumber, type MeterMode, type MeterSocket } from "@ohmland/bench/core";
 import { Icon } from "../components/Icon";
 import { m } from "../i18n";
-import type { ControlConfig, Reading, ScopeConfig, ScopeTrace } from "./define";
+import type { ControlConfig, OverlayName, Reading, ScopeConfig, ScopeLevel, ScopeTrace } from "./define";
 import type { LabRuntime } from "./runtime";
+import { formatSpan } from "./signals";
 
 const RANGES: Partial<Record<MeterMode, string[]>> = {
   dcv: ["200mV", "2V", "20V", "200V", "600V"],
@@ -163,6 +164,7 @@ export function ScopePanel({ runtime, config }: { runtime: LabRuntime; config: S
   const [paused, setPaused] = useState(false);
   const [latest, setLatest] = useState<string[]>([]);
   const [pitch, setPitch] = useState<string>("");
+  const [duty, setDuty] = useState<string>("");
   const capture = useStore(runtime.ui, (s) => s.capture);
   const seconds = config.window ?? 5;
   const id = useId();
@@ -193,7 +195,13 @@ export function ScopePanel({ runtime, config }: { runtime: LabRuntime; config: S
         return;
       }
       const series = config.traces.slice(0, 2).map((t) => readTrace(runtime, t, seconds));
-      paint(c, series, seconds, config.range);
+      const view = runtime.session.view();
+      paint(c, series, seconds, config.range, levelLines(view, config.levels));
+      if (config.duty !== undefined && config.duty !== false) {
+        const tr = config.traces[config.duty === true ? 0 : config.duty];
+        const d = tr && "volts" in tr ? view.duty(`volts:${tr.volts}`) : null;
+        setDuty(d ? m.lab.chips.duty(formatSpan(d.high), formatSpan(d.low), Math.round(d.duty * 100)) : m.lab.chips.dutyWaiting);
+      }
       setLatest(series.map((s) => {
         const v = s.points[s.points.length - 1]?.[1];
         return v === undefined ? "" : `${v.toFixed(Math.abs(v) < 10 ? 2 : 1)} ${s.unit}`;
@@ -230,7 +238,18 @@ export function ScopePanel({ runtime, config }: { runtime: LabRuntime; config: S
             <span className="mono">{pitch}</span>
           </li>
         )}
+        {config.levels?.length ? (
+          <li data-levels>
+            <span className="scope-panel__swatch scope-panel__swatch--ref" aria-hidden="true" />
+            {config.levels.map((l) => l.label ?? ("fraction" in l ? fractionLabel(l.fraction) : `${l.volts} V`)).join(", ")}
+          </li>
+        ) : null}
       </ul>
+      {config.duty !== undefined && config.duty !== false && (
+        <p className="scope-panel__duty small mono" data-duty>
+          {duty}
+        </p>
+      )}
       {config.capture && (
         <div className="scope-panel__shot">
           {capture?.state === "armed" ? (
@@ -262,7 +281,26 @@ export function ScopePanel({ runtime, config }: { runtime: LabRuntime; config: S
   );
 }
 
-function paint(c: HTMLCanvasElement, series: Series[], seconds: number, fixed?: [number, number]) {
+/** "2/3" for 0.667, "1/3" for 0.333, "1/2" for 0.5, else a percentage. */
+export function fractionLabel(f: number): string {
+  for (const d of [2, 3, 4, 5]) for (let n = 1; n < d; n++) if (Math.abs(f - n / d) < 0.005) return `${n}/${d}`;
+  return `${Math.round(f * 100)}%`;
+}
+
+/** The scope's reference lines now: their volts and labels. */
+export function levelLines(view: { volts(node: string, ref?: string): number | undefined }, levels: ScopeLevel[] | undefined): { v: number; label: string }[] {
+  const out: { v: number; label: string }[] = [];
+  for (const l of levels ?? []) {
+    if ("volts" in l) out.push({ v: l.volts, label: l.label ?? `${l.volts} V` });
+    else {
+      const of = view.volts(l.of, l.ref);
+      if (of !== undefined) out.push({ v: of * l.fraction, label: l.label ?? fractionLabel(l.fraction) });
+    }
+  }
+  return out;
+}
+
+function paint(c: HTMLCanvasElement, series: Series[], seconds: number, fixed?: [number, number], levels: { v: number; label: string }[] = []) {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const w = c.clientWidth;
   const h = c.clientHeight;
@@ -296,6 +334,8 @@ function paint(c: HTMLCanvasElement, series: Series[], seconds: number, fixed?: 
     ctx.stroke();
   }
   const tEnd = Math.max(0, ...series.map((s) => s.points[s.points.length - 1]?.[0] ?? 0));
+  // Set inside the loop below (a callback, so TypeScript cannot follow it).
+  let scale0 = null as [number, number] | null;
   series.forEach((s, i) => {
     if (s.points.length < 2) return;
     let lo = fixed?.[0] ?? Infinity;
@@ -305,12 +345,18 @@ function paint(c: HTMLCanvasElement, series: Series[], seconds: number, fixed?: 
         lo = Math.min(lo, v);
         hi = Math.max(hi, v);
       }
+      // The first trace's scale holds its reference lines too.
+      if (i === 0) for (const l of levels) {
+        lo = Math.min(lo, l.v);
+        hi = Math.max(hi, l.v);
+      }
       if (lo > 0) lo = 0;
       if (hi - lo < 1e-6) hi = lo + 1;
       const pad = (hi - lo) * 0.08;
       hi += pad;
       lo -= pad * (lo < 0 ? 1 : 0);
     }
+    if (i === 0) scale0 = [lo, hi];
     ctx.strokeStyle = color(TRACE_TOKENS[i] ?? "--scope-a");
     ctx.lineWidth = 2;
     ctx.lineJoin = "round";
@@ -323,6 +369,56 @@ function paint(c: HTMLCanvasElement, series: Series[], seconds: number, fixed?: 
     });
     ctx.stroke();
   });
+  if (scale0 && levels.length) {
+    // Dashed reference lines (the 1/3 and 2/3 lines) on the first trace's scale, each labelled at the left on a patch
+    // of screen, over the traces so they never run through the label.
+    const [lo, hi] = scale0;
+    ctx.save();
+    ctx.strokeStyle = color("--scope-b");
+    ctx.setLineDash([5, 4]);
+    ctx.lineWidth = 1;
+    ctx.font = `11px ${css.getPropertyValue("--font-mono").trim() || "monospace"}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    for (const l of levels) {
+      const y = Math.round(h - 4 - ((l.v - lo) / (hi - lo)) * (h - 8)) + 0.5;
+      ctx.globalAlpha = 0.75;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+      const text = `${l.label} ${l.v.toFixed(2)} V`;
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = color("--scope-bg");
+      ctx.fillRect(4, y - 8, ctx.measureText(text).width + 8, 16);
+      ctx.fillStyle = color("--scope-b");
+      ctx.fillText(text, 8, y);
+    }
+    ctx.restore();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Views: the overlays a lab offers (flow dots, electrons, push), as toggles
+
+export function ViewsPanel({ runtime, offer }: { runtime: LabRuntime; offer: readonly OverlayName[] }) {
+  const views = useStore(runtime.ui, (s) => s.views);
+  if (!offer.length) return null;
+  const on = (name: OverlayName) => (name === "push" ? views.push : name === "electrons" ? views.flow === "electrons" : views.flow !== "off");
+  return (
+    <section className="instrument views-panel">
+      <header className="instrument__head">
+        <h3 className="instrument__title">{m.lab.views.title}</h3>
+      </header>
+      <div className="views-panel__row" role="group" aria-label={m.lab.views.title}>
+        {offer.map((name) => (
+          <button key={name} type="button" className="btn btn--small btn--tertiary" aria-pressed={on(name)} onClick={() => runtime.setView(name, !on(name))}>
+            {m.lab.views[name]}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -337,6 +433,7 @@ export function ControlsPanel({ runtime, controls }: { runtime: LabRuntime; cont
         <h3 className="instrument__title">{m.lab.controls.title}</h3>
       </header>
       {controls.map((c) => {
+        if (c.key === "proximity") return <HandControl key={c.id} runtime={runtime} c={c} value={values[c.id] ?? c.value} />;
         const log = c.scale === "log";
         const v = values[c.id] ?? c.value;
         const toSlider = (x: number) => (log ? Math.log10(x) : x);
@@ -359,6 +456,45 @@ export function ControlsPanel({ runtime, controls }: { runtime: LabRuntime; cont
         );
       })}
     </section>
+  );
+}
+
+/**
+ * The hand: a slider drawn as an ink hand moving toward the chip (proximity 0 far, 1 touching close), which makes a
+ * floating input pick up hum. The range input underneath is the real control (keyboard, screen readers).
+ */
+function HandControl({ runtime, c, value }: { runtime: LabRuntime; c: ControlConfig; value: number }) {
+  const span = c.max - c.min || 1;
+  const f = Math.min(1, Math.max(0, (value - c.min) / span));
+  const pct = Math.round(f * 100);
+  const handX = 8 + f * 150;
+  return (
+    <label className="control hand-control" data-control={c.id}>
+      <span className="control__label">
+        {c.label}
+        <span className="small muted">{f < 0.05 ? m.lab.chips.handFar : f > 0.8 ? m.lab.chips.handNear : `${pct}%`}</span>
+      </span>
+      <svg viewBox="0 0 240 64" className="hand-control__art" aria-hidden="true">
+        <path d="M196 14h36v36h-36zM196 32a6 6 0 0 0 0 0" className="hand-control__chip" />
+        <path d="M196 26a6 6 0 0 1 0 12" className="hand-control__notch" />
+        {[0, 1, 2].map((k) => (
+          <path key={k} d={`M${202 + k * 12} 14v-8M${202 + k * 12} 50v8`} className="hand-control__leg" />
+        ))}
+        <g transform={`translate(${handX} 8)`} className="hand-control__hand">
+          <path d="M4 30c0-8 2-14 6-16l1-11c0-3 5-3 5 0v10l1-12c0-3 5-3 5 0v12l1-10c0-3 5-3 5 0v11l1-7c0-3 5-3 5 0l-1 15c0 9-5 17-14 17h-4C8 39 4 36 4 30z" />
+        </g>
+        {f > 0.5 && <path d={`M${handX + 44} 26q6 6 0 12M${handX + 50} 22q9 10 0 20`} className="hand-control__hum" style={{ opacity: (f - 0.5) * 2 }} />}
+      </svg>
+      <input
+        type="range"
+        min={c.min}
+        max={c.max}
+        step={c.step ?? span / 100}
+        value={value}
+        aria-valuetext={m.lab.chips.handSay(pct)}
+        onChange={(e) => runtime.setControl(c.id, Number(e.target.value))}
+      />
+    </label>
   );
 }
 

@@ -1,11 +1,13 @@
 id: switches
 title: Switches
-summary: Poles and throws, mapping a mystery switch by continuity, schematic symbols and a two-way stairway light.
+summary: Poles and throws, buttons that join or break, mapping a mystery switch by continuity, switches in series and a two-way stairway light.
 # Reveal caption: Copper tracks now fork and rejoin across the island. Every route has a choice.
 landmark:
   id: switchyard
   name: the Switchyard
 lessons:
   - switch-anatomy
+  - two-buttons
   - mystery-switch
+  - both-switches
   - stairway-light

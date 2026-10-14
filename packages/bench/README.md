@@ -211,6 +211,77 @@ temperature tag with a touch-feel word over every matching part.
 
 `connectivity(bench)` gives the metal-contact groups without building a netlist (used by the x-ray view).
 
+### Start here props and overlays
+
+Built for the first unit (docs/curriculum/start-here.md, section 6), in both views (`models/StartProps.tsx`,
+`ink/kinds/start.tsx`):
+
+| Kind | Model | Leads | Simulator |
+|---|---|---|---|
+| `sample` (more materials) | A key, a coin, a crinkled foil strip, a pencil lead, a plastic spoon, a metal spoon, a rubber eraser in its sleeve, a glass marble, a craft stick, a piece of string, a coated paper clip (`clip`: bare cut ends `a` and `b`) | `a b` | `probe-resistance` by material (`materialOhms`): metals 0.01 to 0.03 Ω, pencil lead 5 Ω, plastic, rubber and glass 10 TΩ, dry wood and string 1 TΩ |
+| `gate` | A collar round a clip lead's cable (`on`, `at`) with a paper flag on a stem: the dots counted and a rate bar, or the current and a unit button | none | none: reads the lead's own current |
+| `box` | A cardboard box, a fixed front strip with two brass posts (`+`/`−` marks, or `marks: "plain"`), an optional knob (it turns the trimmer inside), a tag; the lid hinges up at the back. `style: "cabinet"`: the parts cabinet with a three-wheel padlock | `t1 t2` (none for the cabinet) | none: its seats join held leads to the terminals and to junctions (`wiring`) |
+| `bin` `style: "tray"` / `"drawer"` | A wooden sorting tray with a label; a parts drawer with a symbol card (`face`) that takes only its kind (`accepts`) | none | none |
+| `schematic`, `piece` | A drawing on a card, symbols round one loop carrying part ids, one torn out (`torn`); the torn piece, turned by `turn` | none | none |
+| `balloon`, `scarf`, `paper`, `comb`, `wall` | The static toy | none | none: `static.ts` |
+
+- **Insulated spots** (`PartDef.spots`): `pin:B1.wrap` (a battery's wrapper), `pin:S1.base` (a desk switch's block),
+  `pin:PC1.coat` (the clip's coating) are clip targets that join nothing. `partSpots(part)`, `partSpotsWorld`.
+- **Marks** (`PartDef.marks`): named points for `part:<id>/<mark>` targets in both views.
+- **Hidden parts**: `hiddenParts(bench)` are the parts in a shut box: neither view draws them, `clipTargets` skips
+  them, they still conduct. A 9 V battery in a box lies on its back (`SeatDef.place` returns `lie`; `PartPose.lie`).
+- **Batteries**: `charge` (starting state of charge, the simulator's `soc`), `xray` (an AA cut open, a cutaway in both
+  views), a `wrap` spot.
+- **Tags**: `alt` writes the value out without its prefix (`expandPrefix`, `tagText`).
+
+The overlays (docs/BENCH-VIEWS.md, "Overlays") live in the store: `overlay: { flow: "off" | "current" | "electrons",
+push, trace: { from, at } | null }` with `setOverlay(patch)` and `trace(anchor | null)`, and `gates` (dots each gate
+has counted, advanced from each snapshot). Their data is pure (`flow.ts`): `flowMap` (amps along every lead, jumper
+and part), `dotSpeed`, `dotRate`, `advanceGates`, `gateAmps`, `formatGate`, `pushMap`, `hatchSpacing`, `hillShare`,
+`traceLoop` (`{ steps, closed, gap, parts, leads }`), `boxNets`. Symbols are SVG path data in `symbols.ts`
+(`symbolInk`, `slotTurn`, `tornOutline`), drawn as they are in ink and stroked onto canvas textures in 3D. The static
+toy's rules are in `static.ts` (`rub`, `settle`, `stuckTo`, `lifting`, `apart`); `movePart` applies them as a part
+is dragged.
+
+![Start here: the lamp loop with flow dots and two gates (ink)](screenshots/start-lamp-ink.png)
+
+![Start here: the lamp loop with flow dots and two gates (3D)](screenshots/start-lamp-3d.png)
+
+![Sealed boxes, shut, with the push view (3D and ink)](screenshots/start-boxes-shut.png)
+
+![The same boxes open: what is inside, and the wires](screenshots/start-boxes.png)
+
+![The junk drawer's objects and sorting trays](screenshots/start-junk.png)
+
+![Drawers, the cabinet's padlock, tags and the torn drawing](screenshots/start-symbols.png)
+### Microcontroller board (Unit 5)
+
+`mcu-board` is an original Uno-sized board (70 x 54 mm, our own layout and art: no logo, no copied artwork), a desk
+part drawn the same in both views from one geometry module, `src/mcuBoard.ts`.
+
+![The board in 3D](screenshots/mcu-3d-close.png)
+
+![The board in ink](screenshots/mcu-ink-close.png)
+
+- **Leads** (header sockets): `d0` to `d13` and `gnd2` on the far edge (GND, 13 down to 0 from left to right as on
+  Uno-style boards; 0 and 1 printed RX and TX, PWM pins with a ~), `5v`, `gnd`, `vin` and `a0` to `a5` on the near
+  edge. Each clip point is the top of its socket (`MCU_PIN_XZ`, `MCU_PIN_Y`); clip leads and probes attach to
+  `pin:U1.d7` and so on. The two GND sockets are joined (`bridges`).
+- **Params**: `program` (bench C source), `upload` (a counter: bump it to upload again), `power` (`"usb"`, `"jack"`,
+  `"off"`), `clockStart` (millis() at reset), `seed`. All plain JSON in BenchState.
+- **Netlist**: one simulator `mcuboard` part with the same pin names (`gnd2` folds into `gnd`) and the params as they
+  are (see packages/sim README, "Microcontroller board"). With no battery or lemon cell on the bench, the board's GND
+  is the reference node `gnd` (it makes its own 5 V from USB).
+- **Look**: a USB-C socket and a barrel jack on the left edge, a reset button, a square chip, a crystal, a regulator,
+  and two lamps: L (pin 13) and ON, lit from the board's snapshot (`extra.L`, `extra.ON`; the simulator also lists
+  them as parts `U1:L` and `U1:ON`). Both views re-render the board when its lamps change.
+- Not yet: a jumper wire from a header socket to a breadboard hole (wires go hole to hole; use a clip lead for now), the
+  USB cable and laptop prop, the 9 V battery with a barrel plug, and a pressable reset button (the simulator has the
+  `reset` input).
+
+`?scene=mcu` in the playground shows lesson 12's bench (`lamp=0.85` sets the L lamp in the mock snapshot);
+`pnpm --filter @ohmland/bench shots:mcu` checks the clip points in both views and writes `mcu-*.png`.
+
 ### `@ohmland/bench/core`
 
 The pure half of the package, with no React Three Fiber and no three.js: `benchOps`, `benchToNetlist`,
@@ -379,9 +450,12 @@ pnpm --filter @ohmland/bench dev     # vite playground, http://localhost:5199
   also lists the live netlist and the action log.
 - `?scene=clips` a section-one bench with no board, everything joined by crocodile leads; `?scene=smoke` a small
   board with an overloaded resistor; `?scene=empty`, `?scene=half` (400-point board); `?scene=props` every lab
-  prop on one desk; `?scene=modules` the desk modules; `?scene=blocks` desk modules, single-pole and mystery relays
+  prop on one desk; `?scene=mcu` the microcontroller board wired to a lamp; `?scene=modules` the desk modules; `?scene=blocks` desk modules, single-pole and mystery relays
   (closed and peeked) and bendable capacitor legs on a half board; `?scene=glow` the first-glow loop (`glow0` before
-  it is wired).
+  it is wired). Start here: `?scene=lamp` (`wrap=1` clips TL1 to the wrapper, `gates=1` adds two gates, `off=1`),
+  `junk`, `boxes` (`open=1`), `tired`, `symbols`, `static`.
+- `sim=1` runs the real simulator in the page instead of the mock snapshot (`speed=600` for a time-lapse); overlays:
+  `flow=current|electrons`, `push=1`, `trace=pin:B1.neg`.
 - A toggle above the bench switches between the 3D and ink views on the same store, or shows both side by side
   (`view=ink` starts in ink, `view=split` side by side, `toggle=0` hides it). `theme=dark` shows the night page. The
   playground loads no three.js until the 3D view or a gallery is shown.
@@ -399,6 +473,7 @@ pnpm --filter @ohmland/bench test        # Vitest: netlist, snapping, colour cod
 pnpm --filter @ohmland/bench typecheck
 pnpm --filter @ohmland/bench shots       # Playwright: interaction, controller and view switch checks + screenshots
 pnpm --filter @ohmland/bench shots:ink   # Playwright: the ink view driven by mouse, touch and keyboard + ink-*.png
+pnpm --filter @ohmland/bench shots:mcu   # Playwright: the microcontroller board in both views + mcu-*.png (port 5363)
 ```
 
 The Playwright run starts the playground itself. On macOS headless Chromium renders WebGL through Metal; elsewhere the

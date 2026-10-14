@@ -32,15 +32,20 @@ export function holderOf(bench: BenchState, partId: string): { holder: PlacedPar
   return null;
 }
 
-/** World position (mm, y up) and turn of a part in a seat. */
-export function seatPose(holder: PlacedPart, seat: SeatDef, held: PlacedPart): { origin: Vec3; rot: number } {
+/** World position (mm, y up) and turn of a part in a seat, and whether it lies on its back (see SeatDef.place). */
+export function seatPose(holder: PlacedPart, seat: SeatDef, held: PlacedPart): { origin: Vec3; rot: number; lie?: boolean } {
   const p = seat.place(held);
   const [rx, rz] = rotateXZ(p.at[0], p.at[2], holder.rot);
-  return { origin: [holder.pos[0] + rx, p.at[1], holder.pos[1] + rz], rot: (((holder.rot + (p.rot ?? 0)) % 360) + 360) % 360 };
+  const out: { origin: Vec3; rot: number; lie?: boolean } = { origin: [holder.pos[0] + rx, p.at[1], holder.pos[1] + rz], rot: (((holder.rot + (p.rot ?? 0)) % 360) + 360) % 360 };
+  if (p.lie) out.lie = true;
+  return out;
 }
 
-/** The nearest seat that accepts `part` within `reach` mm of a desk point (a full seat only when nothing else is free). */
-export function seatNear(bench: BenchState, part: PlacedPart, to: Vec2, reach = SEAT_REACH): { holder: PlacedPart; seat: SeatDef } | null {
+/**
+ * The nearest seat that accepts `part` within `reach` mm of a desk point (a full seat only when nothing else is free).
+ * `freeOnly`: never a seat another part sits in (a drop by hand never pushes a part out).
+ */
+export function seatNear(bench: BenchState, part: PlacedPart, to: Vec2, reach = SEAT_REACH, freeOnly = false): { holder: PlacedPart; seat: SeatDef } | null {
   let best: { holder: PlacedPart; seat: SeatDef; d: number } | null = null;
   for (const h of bench.parts) {
     if (h.id === part.id) continue;
@@ -51,11 +56,25 @@ export function seatNear(bench: BenchState, part: PlacedPart, to: Vec2, reach = 
       if (!seat.accepts.includes(part.kind)) continue;
       const pose = seatPose(h, seat, part);
       const taken = held[seat.name] && held[seat.name] !== part.id;
+      if (taken && freeOnly) continue;
       const d = Math.hypot(pose.origin[0] - to[0], pose.origin[2] - to[1]) + (taken ? reach * 0.75 : 0);
       if (d <= reach * (taken ? 1.75 : 1) && (!best || d < best.d)) best = { holder: h, seat, d };
     }
   }
   return best ? { holder: best.holder, seat: best.seat } : null;
+}
+
+/**
+ * Parts out of sight inside a closed box (the box's lid is shut): the views draw nothing of them and no clip, probe or
+ * pointer can reach them. They still conduct.
+ */
+export function hiddenParts(bench: BenchState): Set<string> {
+  const out = new Set<string>();
+  for (const p of bench.parts) {
+    if (p.kind !== "box" || p.params.lid) continue;
+    for (const id of Object.values(heldOf(p))) if (id) out.add(id);
+  }
+  return out;
 }
 
 /** Desk spot a part is pushed out to when another one takes its seat: in front of the holder. */

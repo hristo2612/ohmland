@@ -4,7 +4,7 @@
 import type { Netlist, NodeId, PartSpec } from "@ohmland/sim";
 import { holeAnchor, leadAnchor, parseAnchor, pinAnchor, probeAnchor, socketAnchor, wireAnchor } from "./anchors";
 import { RAILS, boardGeometry } from "./board";
-import { partDef, partLegs, physicalLeg, type NetContext } from "./parts";
+import { partDef, partLegs, partSpots, physicalLeg, type NetContext } from "./parts";
 import { heldOf, seatsOf } from "./seats";
 import type { Anchor, BenchState, MeterSocket, PartParamsMap, PlacedPart } from "./types";
 
@@ -113,6 +113,8 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; sp
   for (const part of bench.parts) {
     const def = partDef(part.kind);
     for (const leg of partLegs(part)) add(pinAnchor(part.id, leg));
+    // Insulated spots (a battery's wrapper, a switch's wooden block): a clip can bite them, and they join nothing.
+    for (const spot of Object.keys(partSpots(part))) add(pinAnchor(part.id, spot));
     for (const [leg, hole] of Object.entries(part.holes ?? {})) seat(pinAnchor(part.id, leg), hole, `${part.id}.${leg}`);
     for (const [x, y] of def.bridges ?? []) uf.union(pinAnchor(part.id, x), pinAnchor(part.id, y));
   }
@@ -232,10 +234,12 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
   const warnings = [...conn.warnings];
   const geom = bench.board ? boardGeometry(bench.board) : null;
 
-  // Reference node.
+  // Reference node: the first battery's minus, else a lemon cell's, else a microcontroller board's GND (it makes its
+  // own 5 V from USB).
   const groundPart = bench.parts.find((p) => p.kind === "battery") ?? bench.parts.find((p) => p.kind === "lemon");
-  const groundRoot = groundPart ? uf.find(pinAnchor(groundPart.id, "neg")) : null;
-  if (!groundPart) warnings.push("no-ground: no battery or cell on the bench");
+  const boardPart = groundPart ? undefined : bench.parts.find((p) => p.kind === "mcu-board");
+  const groundRoot = groundPart ? uf.find(pinAnchor(groundPart.id, "neg")) : boardPart ? uf.find(pinAnchor(boardPart.id, "gnd")) : null;
+  if (!groundPart && !boardPart) warnings.push("no-ground: no battery or cell on the bench");
 
   // Name each set after the most readable thing in it.
   const names = new Map<string, NodeId>();

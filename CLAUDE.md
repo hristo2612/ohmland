@@ -12,3 +12,5 @@ Read `docs/DESIGN-PRINCIPLES.md` (how Ohmland should feel), `docs/ARCHITECTURE.m
 - Keep tests lean: cover pure logic that is easy to get wrong (simulator, netlists, XP, merge, island determinism)
   and a few end-to-end paths. Do not write tests for trivial UI.
 - Heavy modules (three.js, the simulator worker, Firebase) must stay out of the first load of lesson pages.
+- Vitest keeps a persistent module cache in `node_modules/.vitest-cache`. If a test cannot see a file you just added
+  (for example a new lab under `import.meta.glob`), delete that folder and run again.

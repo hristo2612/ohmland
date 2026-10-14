@@ -1,8 +1,8 @@
 /**
  * Solution steps -> bench changes and simulator inputs. Pure: the headless replay test and "Show me" both use it.
  */
-import { benchOps, defaultParams, isThrowSwitch, type BenchState, type LeadColor, type PlacedPart, type WireColor } from "@ohmland/bench/core";
-import { resolveAttach, resolveHole } from "./anchors";
+import { benchOps, chargeable, defaultParams, isThrowSwitch, type BenchState, type LeadColor, type PlacedPart, type WireColor } from "@ohmland/bench/core";
+import { deskSpot, resolveAttach, resolveHole } from "./anchors";
 import { addLeadBetween, placePart, seatSpot, type SimInput } from "./build";
 import type { SolutionStep } from "./define";
 
@@ -18,6 +18,14 @@ export type StepEffect = {
   panel?: { id: string; value: unknown };
   /** Switch the auto-tapper on or off. */
   tapper?: boolean;
+  /** Switch a view or overlay ("flow", "push", the board's "xray"), or a chip's x-ray panel ("xray:U1"). */
+  view?: { name: "flow" | "electrons" | "push" | "xray"; on: boolean };
+  /** Open or close a chip's x-ray panel ("xray:U1"). */
+  panelView?: { name: `xray:${string}`; on: boolean };
+  /** Run (or clear, with null) the loop tracer from an anchor. */
+  trace?: string | null;
+  /** Let a histogram's auto-roller roll. */
+  roll?: { id: string; times?: number };
   /** A task that must be done by now. */
   check?: string;
   /** Something did not apply (for test messages). */
@@ -59,6 +67,9 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
         if (!bench.parts.some((p) => p.id === step.at.slice(3))) return done(bench, { problem: `move: no part ${step.at.slice(3)}` });
         return done(benchOps.dropOnto(bench, step.part, step.at.slice(3), cur.pos));
       }
+      // The static toy moves as a drag would: over the scarf it rubs, against a wall a balloon sticks or falls.
+      const desk = deskSpot(step.at);
+      if (desk && (chargeable(cur) || cur.kind === "balloon")) return done(benchOps.movePart(bench, step.part, desk));
       // Out of any holder, then where `at` says.
       const free = benchOps.unseat(bench, step.part);
       const others = { ...free, parts: free.parts.filter((p) => p.id !== step.part) };
@@ -161,6 +172,25 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
       return { bench, inputs: [], wait: SETTLE, panel: { id: step.id, value: step.value } };
     case "tapper":
       return { bench, inputs: [], wait: SETTLE, tapper: step.on };
+    case "view": {
+      const name = step.name;
+      if (name.startsWith("xray:")) return { bench, inputs: [], wait: SETTLE, panelView: { name: name as `xray:${string}`, on: step.on } };
+      return { bench, inputs: [], wait: SETTLE, view: { name: name as "flow" | "electrons" | "push" | "xray", on: step.on } };
+    }
+    case "roll":
+      return { bench, inputs: [], wait: SETTLE, roll: { id: step.id, ...(step.times !== undefined ? { times: step.times } : {}) } };
+    case "rub": {
+      const scarf = bench.parts.find((p) => p.id === step.on);
+      const cur = bench.parts.find((p) => p.id === step.part);
+      if (!scarf || !cur) return done(bench, { problem: `rub: no ${!scarf ? step.on : step.part}` });
+      let b = benchOps.movePart(bench, step.part, scarf.pos);
+      for (let k = 0; k < (step.strokes ?? 6); k++) b = benchOps.movePart(b, step.part, [scarf.pos[0] + (k % 2 ? -30 : 30), scarf.pos[1]]);
+      return done(b, { wait: SETTLE + 0.5 });
+    }
+    case "trace": {
+      const from = step.from ? resolveAttach(bench, step.from) : null;
+      return { bench, inputs: [], wait: SETTLE, trace: from, ...(step.from && !from ? { problem: `trace: nothing at ${step.from}` } : {}) };
+    }
     case "wait":
       return { bench, inputs: [], wait: step.seconds };
     case "check":
