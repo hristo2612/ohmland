@@ -142,6 +142,7 @@ export function useInteraction({
       plug: 2,
       probe: 2,
       dialMode: 3,
+      range: 3,
       dial: 2,
       part: 1,
       wire: 1,
@@ -269,6 +270,8 @@ export function useInteraction({
         case "dial":
         case "dialMode":
           return { kind: "dial" };
+        case "range":
+          return null;
       }
     };
 
@@ -596,15 +599,11 @@ export function useInteraction({
         case "probe":
           s.select({ type: "meter", id: s.bench.meter?.id ?? "M1" });
           break;
-        case "dial": {
-          if (readOnly) break;
-          const m = s.bench.meter;
-          if (m) {
-            const i = DIAL_MODES.indexOf(m.mode as (typeof DIAL_MODES)[number]);
-            s.setMeterMode(DIAL_MODES[(i + 1) % DIAL_MODES.length]!);
-          }
+        case "dial":
+        case "range":
+          // A tap steps the dial one detent on, or the range one up (a long press goes back, below).
+          if (!readOnly) s.stepMeter(p.type, 1);
           break;
-        }
         case "dialMode":
           if (!readOnly) s.setMeterMode(p.mode);
           break;
@@ -674,7 +673,9 @@ export function useInteraction({
         }
         g.longPress = window.setTimeout(() => {
           if (gesture.current === g && !g.moved && pick.type !== "press") {
-            openMenu(g, g.x0, g.y0);
+            // Held on the dial or the RANGE key, the meter steps back; anywhere else the menu opens.
+            if (pick.type === "dial" || pick.type === "range") store.getState().stepMeter(pick.type, -1);
+            else openMenu(g, g.x0, g.y0);
             gesture.current = null;
             lockCamera(false);
           }
@@ -772,7 +773,7 @@ export function useInteraction({
         }
         if (hover !== s.ui.hover) setUi({ hover });
         element.style.cursor = p
-          ? p.type === "press" || p.type === "flip" || p.type === "dialMode" || p.type === "setting"
+          ? p.type === "press" || p.type === "flip" || p.type === "dialMode" || p.type === "setting" || p.type === "dial" || p.type === "range"
             ? "pointer"
             : p.type === "draw"
               ? "crosshair"
@@ -1069,9 +1070,9 @@ export function handleBenchKey(e: KeyboardEvent, store: BenchStore, api: Interac
       if (readOnly) return false;
       const dx = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
       const dz = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
-      if (sel?.type === "meter" && s.bench.meter && dz === 0) {
-        const i = DIAL_MODES.indexOf(s.bench.meter.mode as (typeof DIAL_MODES)[number]);
-        s.setMeterMode(DIAL_MODES[(i + dx + DIAL_MODES.length) % DIAL_MODES.length]!);
+      if (sel?.type === "meter" && s.bench.meter) {
+        // Left and right turn the dial; up and down step the range (the RANGE key).
+        s.stepMeter(dz === 0 ? "dial" : "range", dz === 0 ? (dx < 0 ? -1 : 1) : dz < 0 ? 1 : -1);
         return true;
       }
       if (sel?.type !== "part") return false;

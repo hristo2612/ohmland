@@ -41,6 +41,8 @@ export type InkPick =
   | { type: "meter" }
   | { type: "dial" }
   | { type: "dialMode"; mode: MeterMode }
+  /** The meter's RANGE key. */
+  | { type: "range" }
   | { type: "plug"; color: ProbeColor }
   /** `tip`: the probe's metal tip end, which a pencil card's drawing strip under it beats (the grip still wins). */
   | { type: "probe"; color: ProbeColor; tip?: true };
@@ -54,6 +56,7 @@ export const PRIORITY: Record<InkPick["type"], number> = {
   leg: 3,
   wireEnd: 3,
   dialMode: 3,
+  range: 3,
   clip: 2,
   plug: 2,
   probe: 2,
@@ -501,6 +504,9 @@ export function buildModel(bench: BenchState): InkModel {
       const [x, z] = toWorld(f, lx, lz);
       push({ type: "dialMode", mode }, { t: "circle", x, z, r: 4.2 });
     });
+    // The RANGE key, a little larger than drawn so a fingertip finds it.
+    const k = METER.rangeKey;
+    push({ type: "range" }, { t: "box", f, b: [k.x - k.w / 2 - 2, k.z - k.d / 2 - 2.5, k.x + k.w / 2 + 2, k.z + k.d / 2 + 2.5] });
   }
   for (const li of leads.values()) {
     for (const end of ["a", "b"] as const) {
@@ -553,6 +559,7 @@ export const METER_SPOTS: Record<string, Box> = {
   display: [METER.lcd.x0, METER.lcd.z0, METER.lcd.x1, METER.lcd.z1],
   dial: [-METER.dial.knob, METER.dial.z - METER.dial.knob, METER.dial.knob, METER.dial.z + METER.dial.knob],
   dialFace: [-METER.dial.labels - 6, METER.dial.z - METER.dial.labels - 6, METER.dial.labels + 6, METER.dial.z + METER.dial.labels + 6],
+  range: [METER.rangeKey.x - METER.rangeKey.w / 2, METER.rangeKey.z - METER.rangeKey.d / 2, METER.rangeKey.x + METER.rangeKey.w / 2, METER.rangeKey.z + METER.rangeKey.d / 2],
   sockets: [METER.sockets.xs.a10 - 6, METER.sockets.z - 6, METER.sockets.xs.vohm + 6, METER.sockets.z + 6],
 };
 

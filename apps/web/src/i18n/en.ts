@@ -240,6 +240,7 @@ export const en = {
     marks: {
       display: "display",
       dial: "dial",
+      range: "RANGE key",
       com: "COM socket",
       vohm: "V Ω socket",
       ma: "mA socket",
@@ -888,6 +889,8 @@ export const en = {
     wireColor: "Wire colour",
     leadColor: "Lead colour",
     meter: "Multimeter",
+    meterRange: "Range",
+    meterAuto: "auto",
     testLead: "Clip lead",
     hole: (id: string) => `Hole ${id.toUpperCase()}`,
     canvas: "Workbench. Use the arrow keys to move the selected part, R to rotate, Delete to remove, Space to flip a switch.",

@@ -4,7 +4,7 @@
 import { memo } from "react";
 import { useStore } from "zustand";
 import { useLabels, type BenchLabels } from "../../labels";
-import { DIAL_MODES, METER } from "../../layout";
+import { DIAL_MODES, METER, METER_RANGES, meterRange, rangeText } from "../../layout";
 import type { BenchStore } from "../../store";
 import type { MeterMode, MeterSocket, MeterState } from "../../types";
 import { INK, dialLabelLocal, frameTransform, type MeterInk, type ProbeInk } from "../model";
@@ -14,7 +14,7 @@ import { lcdCells, segments } from "./segments";
 
 const LCD = METER.lcd;
 
-function Lcd({ display, unit, mode, on, beep }: { display: string; unit: string; mode: MeterMode; on: boolean; beep: boolean }) {
+function Lcd({ display, unit, mode, on, beep, range }: { display: string; unit: string; mode: MeterMode; on: boolean; beep: boolean; range: string | null }) {
   const cells = lcdCells(display);
   const n = Math.max(4, cells.length);
   const h = 16;
@@ -47,6 +47,11 @@ function Lcd({ display, unit, mode, on, beep }: { display: string; unit: string;
           <text x={LCD.x0 + 2.4} y={LCD.z1 - 2.6} fontSize={3.2} fontWeight={600}>
             {annun}
           </text>
+          {range && (
+            <text x={LCD.x0 + 2.4} y={LCD.z0 + 5.2} fontSize={3.2} fontWeight={600} data-meter-range={range}>
+              {rangeText(range)}
+            </text>
+          )}
           {beep && (
             <path d={`M${LCD.x0 + 12} ${LCD.z1 - 4}a1.6 1.6 0 0 1 0 -2.4M${LCD.x0 + 13.6} ${LCD.z1 - 2.4}a3.2 3.2 0 0 0 0 -5.6`} fill="none" style={{ stroke: "var(--k-lcd-ink)" }} strokeWidth={0.5} />
           )}
@@ -56,12 +61,29 @@ function Lcd({ display, unit, mode, on, beep }: { display: string; unit: string;
   );
 }
 
-const LiveLcd = memo(function LiveLcd({ store, id, mode }: { store: BenchStore; id: string; mode: MeterMode }) {
+const LiveLcd = memo(function LiveLcd({ store, id, mode, range }: { store: BenchStore; id: string; mode: MeterMode; range: string | null }) {
   const display = useStore(store, (s) => (mode === "off" ? "" : (s.snapshot?.parts[id]?.display ?? "")));
   const unit = useStore(store, (s) => (mode === "off" ? "" : (s.snapshot?.parts[id]?.unit ?? "")));
   const beep = useStore(store, (s) => s.snapshot?.parts[id]?.extra?.["beep"] === true);
-  return <Lcd display={display} unit={unit} mode={mode} on={mode !== "off"} beep={beep} />;
+  return <Lcd display={display} unit={unit} mode={mode} on={mode !== "off"} beep={beep} range={range} />;
 });
+
+/** The RANGE key: a tap steps the range up, a long press down (interaction.ts); the display shows where it is. */
+function RangeKey({ range }: { range: string | null }) {
+  const labels = useLabels();
+  const k = METER.rangeKey;
+  const name = `${labels.meterRange}: ${range === null || range === "auto" ? labels.meterAuto : rangeText(range)}`;
+  return (
+    <g data-kb="range" tabIndex={0} role="button" aria-label={name}>
+      <rect x={k.x - k.w / 2 + 0.6} y={k.z - k.d / 2 + 0.8} width={k.w} height={k.d} rx={1.8} className="f-shade" />
+      <rect x={k.x - k.w / 2} y={k.z - k.d / 2} width={k.w} height={k.d} rx={1.8} className="f-slip" />
+      <rect x={k.x - k.w / 2} y={k.z - k.d / 2} width={k.w} height={k.d} rx={1.8} className="ln" />
+      <text x={k.x} y={k.z + 0.1} fontSize={2.7} fontWeight={700} textAnchor="middle" dominantBaseline="central" className="print">
+        RANGE
+      </text>
+    </g>
+  );
+}
 
 // ---------------------------------------------------------------------------------------------------------------
 // Dial.
@@ -222,7 +244,8 @@ export const MeterBody = memo(function MeterBody({ mi, store, name }: { mi: Mete
       <rect x={-W + 3.4} y={-H + 3.4} width={METER.width - 6.8} height={METER.length - 6.8} rx={6.4} className="f-meter" />
       <rect x={-W + 3.4} y={-H + 3.4} width={METER.width - 6.8} height={METER.length - 6.8} rx={6.4} className="ln-thin" />
       <rect x={-W} y={-H} width={METER.width} height={METER.length} rx={9} className="ln" />
-      <LiveLcd store={store} id={m.id} mode={m.mode} />
+      <LiveLcd store={store} id={m.id} mode={m.mode} range={METER_RANGES[m.mode] ? meterRange(m) : null} />
+      <RangeKey range={METER_RANGES[m.mode] ? meterRange(m) : null} />
       <Dial mode={m.mode} name={name} />
       <Sockets />
     </g>

@@ -29,6 +29,9 @@ export type BenchLabels = {
   water: Record<WaterKind, string>;
   /** Names of the meter dial positions (selection bar and screen readers). */
   meterModes: Record<MeterMode, string>;
+  /** The meter's RANGE key, and its automatic setting (screen readers). */
+  meterRange: string;
+  meterAuto: string;
   /** Accessible name of the 3D view. */
   canvas: string;
   /** Part settings on the selection bar, by "<kind>.<key>": a label, value names, and a unit for numbers. */
@@ -164,6 +167,8 @@ export const DEFAULT_LABELS: BenchLabels = {
   wireColor: "Wire colour",
   leadColor: "Lead colour",
   meter: "Multimeter",
+  meterRange: "Range",
+  meterAuto: "auto",
   testLead: "Test lead",
   hole: (id) => `Hole ${id.toUpperCase()}`,
   partName: {

@@ -253,7 +253,7 @@ function socketContact(): THREE.BufferGeometry {
 }
 
 /** The meter body. `mode` turns the dial; `display`/`unit` fill the LCD. */
-export function MultimeterModel({ mode, display, unit }: { mode: MeterMode; display?: string; unit?: string }) {
+export function MultimeterModel({ mode, display, unit, range = null }: { mode: MeterMode; display?: string; unit?: string; range?: string | null }) {
   const face = useMemo(() => new THREE.MeshStandardMaterial({ map: faceTexture(), roughness: 0.62 }), []);
   useLayoutEffect(() => () => face.dispose(), [face]);
 
@@ -268,9 +268,9 @@ export function MultimeterModel({ mode, display, unit }: { mode: MeterMode; disp
   }, []);
   useLayoutEffect(() => {
     const ctx = lcd.canvas.getContext("2d")!;
-    drawLcd(ctx, lcd.canvas.width, lcd.canvas.height, { text: display ?? "", unit, mode, on: mode !== "off" });
+    drawLcd(ctx, lcd.canvas.width, lcd.canvas.height, { text: display ?? "", unit, mode, on: mode !== "off", range });
     lcd.tex.needsUpdate = true;
-  }, [lcd, display, unit, mode]);
+  }, [lcd, display, unit, mode, range]);
   useLayoutEffect(
     () => () => {
       lcd.tex.dispose();
@@ -309,12 +309,13 @@ export function MultimeterModel({ mode, display, unit }: { mode: MeterMode; disp
         <planeGeometry args={[lcdW + 2.4, lcdD + 2.4]} />
       </mesh>
       {/* Buttons. */}
-      {[-17, 17].map((x, i) => (
-        <group key={x} position={[x, faceY, -18.5]}>
+      {/* RANGE (steps the range, interaction in scene/Interaction.tsx) and LIGHT. */}
+      {[METER.rangeKey.x, -METER.rangeKey.x].map((x, i) => (
+        <group key={x} position={[x, faceY, METER.rangeKey.z]}>
           <mesh geometry={memoGeo("meter-btn", () => roundedBox(13, 2.2, 5, 1.1, 3))} material={mat.plastic(i === 0 ? "#454950" : "#f2b53a", 0.5)} position={[0, 1.0, 0]} castShadow />
           <mesh position={[0, 2.12, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[11, 3.6]} />
-            <meshBasicMaterial transparent map={buttonLabel(i === 0 ? "HOLD" : "LIGHT", i === 0 ? "#f3efe6" : "#2a2a2a")} />
+            <meshBasicMaterial transparent map={buttonLabel(i === 0 ? "RANGE" : "LIGHT", i === 0 ? "#f3efe6" : "#2a2a2a")} />
           </mesh>
         </group>
       ))}

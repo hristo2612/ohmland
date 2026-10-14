@@ -163,13 +163,25 @@ async function doneOr(page, task, fallback) {
     await page.waitForFunction((t) => window.ohmlandLab.status()[t] === "done", task, { timeout: 8000 });
   }
 }
-/** Turns the meter's dial on its panel in the tool dock, else through the lab hook. */
-async function dialTo(page, mode, label, range) {
-  const radio = page.locator(".bl-tool").getByRole("radio", { name: label });
-  if (await radio.count()) {
-    await radio.click();
-    if (range) await page.locator(".bl-tool select").selectOption(range);
-  } else await step(page, { do: "dial", mode, ...(range ? { range } : {}) });
+/**
+ * Turns the meter's dial and steps its range on the bench itself, as a learner does: each tap on the dial turns it one
+ * detent, each tap on RANGE steps the range up. When a tap does not land (a probe lying over the dial), the lab hook.
+ */
+async function dialTo(page, mode, range) {
+  const meter = () => page.evaluate(() => window.ohmlandLab.bench().meter);
+  for (let i = 0; i < 8 && (await meter()).mode !== mode; i++) {
+    await clickTarget(page, "part:M1/dial");
+    await page.waitForTimeout(200);
+  }
+  for (let i = 0; range && i < 8 && (await meter()).range !== range; i++) {
+    await clickTarget(page, "part:M1/range");
+    await page.waitForTimeout(200);
+  }
+  const m = await meter();
+  if (m.mode !== mode || (range && m.range !== range)) {
+    console.warn(`  dial ${mode} ${range ?? ""}: the taps did not land, playing it through the lab hook`);
+    await step(page, { do: "dial", mode, ...(range ? { range } : {}) });
+  }
 }
 /** Touches the probe tips to two points (through the lab hook: a tip is a thin target right by its lead's plug). */
 const probe = (page, red, black) => step(page, { do: "probe", red, black });
@@ -189,7 +201,7 @@ async function meetTheMeter(page, shot) {
   await at(page, "b1");
   await settle(page);
   await shot("04-dial");
-  await dialTo(page, "dcv", "DC volts", "20V");
+  await dialTo(page, "dcv", "20V");
   await at(page, "b1", "done");
   await settle(page);
   await shot("05-dial-note");
@@ -251,7 +263,7 @@ async function meetTheMeter(page, shot) {
   await at(page, "fix0");
   await settle(page, 1500);
   await shot("18-fixit");
-  await dialTo(page, "dcv", "DC volts", "20V");
+  await dialTo(page, "dcv", "20V");
   await at(page, "end");
   await settle(page);
   await shot("19-end");

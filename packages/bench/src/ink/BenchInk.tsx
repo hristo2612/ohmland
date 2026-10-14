@@ -60,7 +60,7 @@ function focusTarget(kb: string | null, meter: string | undefined): string | nul
   if (kb.startsWith("clip:")) return `lead:${kb.slice(5)}`;
   if (kb.startsWith("probe:")) return kb;
   if (kb.startsWith("plug:")) return meter ? `part:${meter}/sockets` : null;
-  if (kb === "dial") return meter ? `part:${meter}/dial` : null;
+  if (kb === "dial" || kb === "range") return meter ? `part:${meter}/${kb}` : null;
   if (kb.startsWith("wire:")) return kb.slice(5);
   return null;
 }
@@ -349,7 +349,8 @@ export function BenchInk(props: BenchInkProps) {
     if (kb.startsWith("part:")) s.select({ type: "part", id: kb.slice(5) });
     else if (kb.startsWith("wire:")) s.select({ type: "wire", id: kb.slice(5) });
     else if (kb.startsWith("clip:")) s.select({ type: "lead", id: kb.slice(5).split(".")[0]! });
-    else if (kb === "dial" || kb === "meter" || kb.startsWith("probe:") || kb.startsWith("plug:")) s.select({ type: "meter", id: s.bench.meter?.id ?? "M1" });
+    // A tap on the dial or the RANGE key only turns it (no selection bar over the meter); the keyboard selects it.
+    else if (((kb === "dial" || kb === "range") && visible) || kb === "meter" || kb.startsWith("probe:") || kb.startsWith("plug:")) s.select({ type: "meter", id: s.bench.meter?.id ?? "M1" });
     else if (kb === "cursor") startCursor(keyEnv());
     // Keep what the keyboard focused on screen, whole (a click already shows where it is): glide over, and zoom out
     // if it does not fit, never in.

@@ -5,7 +5,7 @@ import * as THREE from "three";
 import type { PartState } from "@ohmland/sim";
 import { boardGeometry, boardOrigin, holeWorld } from "../board";
 import { BOARD_TOP, BOX, CABINET, PITCH, TOGGLE_BASE } from "../dims";
-import { METER, anchorPosition, isOnBoard, outwardHeading, partPose, probeTip, socketWorld, meterLocalToWorld } from "../layout";
+import { METER, METER_RANGES, anchorPosition, isOnBoard, meterRange, outwardHeading, partPose, probeTip, socketWorld, meterLocalToWorld } from "../layout";
 import { parseAnchor } from "../anchors";
 import { partDef, rotateXZ, type Hotspot } from "../parts";
 import { PartModel, flyingLeads, type PartModelProps } from "../models/PartModel";
@@ -551,10 +551,10 @@ function probePose(bench: BenchState, meter: MeterState, color: ProbeColor): { t
 }
 
 /** The meter body with its LCD, reading its own simulator state from the store (so only it re-renders per snapshot). */
-const LiveMultimeter = memo(function LiveMultimeter({ id, mode }: { id: string; mode: MeterState["mode"] }) {
+const LiveMultimeter = memo(function LiveMultimeter({ id, mode, range }: { id: string; mode: MeterState["mode"]; range: string | null }) {
   const display = useBench((s) => (mode === "off" ? "" : (s.snapshot?.parts[id]?.display ?? "")));
   const unit = useBench((s) => s.snapshot?.parts[id]?.unit);
-  return <MultimeterModel mode={mode} display={display} unit={unit} />;
+  return <MultimeterModel mode={mode} display={display} unit={unit} range={range} />;
 });
 
 export function MeterView({
@@ -578,12 +578,13 @@ export function MeterView({
   return (
     <group name={`part:${meter.id}`}>
       <group position={[meter.pos[0], 0, meter.pos[1]]} rotation={[0, rotY, 0]}>
-        <LiveMultimeter id={meter.id} mode={meter.mode} />
+        <LiveMultimeter id={meter.id} mode={meter.mode} range={METER_RANGES[meter.mode] ? meterRange(meter) : null} />
         <Proxy pick={{ type: "meter" }} size={[METER.width, METER.height, METER.length]} position={[0, METER.height / 2, 0]} />
         <Proxy pick={{ type: "dial" }} size={[METER.dial.knob * 2, 10, METER.dial.knob * 2]} position={[0, METER.face + 4, METER.dial.z]} shape="cylinder" />
         {modes.map((mode, i) => (
           <Proxy key={mode} pick={{ type: "dialMode", mode }} size={[8, 4, 6]} position={dialLabelPos(i)} />
         ))}
+        <Proxy pick={{ type: "range" }} size={[METER.rangeKey.w + 4, 6, METER.rangeKey.d + 5]} position={[METER.rangeKey.x, METER.face + 2, METER.rangeKey.z]} />
         {selected && (
           <SelectionFrame box={new THREE.Box3(new THREE.Vector3(-METER.width / 2, 0, -METER.length / 2), new THREE.Vector3(METER.width / 2, 1, METER.length / 2))} color={pal.blue} />
         )}

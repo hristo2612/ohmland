@@ -7,6 +7,7 @@ import { useStore } from "zustand";
 import type { Snapshot } from "@ohmland/sim";
 import { advanceGates, type GateCounts } from "./flow";
 import * as ops from "./ops";
+import { stepDial, stepRange } from "./layout";
 import type { StationState } from "./solder/station";
 import type {
   Anchor,
@@ -118,6 +119,13 @@ export type BenchStoreState = {
   clipLead: (id: string, end: "a" | "b", to: Anchor | null, pos?: Vec2) => void;
   removeLead: (id: string) => void;
   setMeterMode: (mode: NonNullable<BenchState["meter"]>["mode"]) => void;
+  /** Sets the meter's range: "auto" or a manual range of its dial position ("20V", "2k"). */
+  setMeterRange: (range: string) => void;
+  /**
+   * A tap on the meter's dial (`dir` 1) turns it one detent on, a long press (-1) one back; a tap on its RANGE key
+   * steps the range up (auto, then each range from the smallest), a long press down. Both views call this.
+   */
+  stepMeter: (what: "dial" | "range", dir: 1 | -1) => void;
   plugProbe: (color: ProbeColor, socket: MeterSocket | null, plugPos?: Vec2) => void;
   touchProbe: (color: ProbeColor, to: Anchor | null, pos?: Vec2) => void;
   /** Rotate the selected part, if any. */
@@ -272,6 +280,21 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
         if (!m || m.mode === mode) return;
         record(ops.setMeterMode(get().bench, mode), { type: "meter:mode", mode });
         get().emit({ type: "input", partId: m.id, key: "mode", value: mode });
+      },
+      setMeterRange: (range) => {
+        const m = get().bench.meter;
+        if (!m || (m.range ?? "auto") === range) return;
+        record({ ...get().bench, meter: { ...m, range } }, { type: "meter:range", range });
+        get().emit({ type: "input", partId: m.id, key: "range", value: range });
+      },
+      stepMeter: (what, dir) => {
+        const m = get().bench.meter;
+        if (!m) return;
+        if (what === "dial") get().setMeterMode(stepDial(m.mode, dir));
+        else {
+          const next = stepRange(m, dir);
+          if (next) get().setMeterRange(next);
+        }
       },
       plugProbe: (color, socket, plugPos) => record(ops.plugProbe(get().bench, color, socket, plugPos), { type: "meter:plug", probe: color, socket }),
       touchProbe: (color, to, pos) => record(ops.touchProbe(get().bench, color, to, pos), { type: "meter:probe", probe: color, to }),

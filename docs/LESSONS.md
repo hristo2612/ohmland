@@ -126,15 +126,19 @@ Optional, on any beat:
   `code` (the code drawer), `serial` (the serial monitor) or `millis` (its clock, with the day-49 jump), or a lab
   panel id. Without it, a lab panel tied to the beat's task (its `show`) appears. Never two at once. A tool stays
   open into the next beat that names it too (through that beat's guess), and closes when the next beat does not. The
-  fix-it round and the secret take a `tool` too (`fixit: { tool: meter, ... }`, `secret: { tool: meter, ... }`): the
-  meter's range, for one, can only be changed on its panel.
+  fix-it round and the secret take a `tool` too (`fixit: { tool: meter, ... }`, `secret: { tool: meter, ... }`).
+  `meter` is drawn on the bench instead of docked beside it: the bench meter is the instrument (a tap on its dial
+  turns it one detent, a long press one back; its RANGE key steps the range up, a long press down; the display shows
+  the range); over the bench there is only its reading, large, while the display is off screen or too small to read,
+  and a red pencil ring on the socket the red lead belongs in when it is in the wrong one (none while the probes sit
+  across a voltage on a current position: there the zero is the mistake to see).
 
 Anchors (`at`, `answer`, `among`, `on`, `spot`, `trace`) use the lab's shorthand: a part `D1`, a lead `D1.anode`, a
 hole `e12` or `rail+:21`, a clip lead end `TL1.a`, a jumper end `W1.b`, or a raw bench anchor (`pin:D1.anode`,
-`part:D1`). A named mark on a part is `part:<id>/<mark>`: the meter's `part:M1/dial`, `part:M1/display` and sockets
-(`part:M1/com`), a drawing's symbol `part:SD1/R1`, a box's `lid`, `knob`, `tag` and padlock wheels
-(`part:CAB/wheel1`), a gate's `flag` and `unit`. Taps, notes and the spotlight work on marks in both views; a tapped
-mark that is wrong writes its own name ("dial", "wheel 2").
+`part:D1`). A named mark on a part is `part:<id>/<mark>`: the meter's `part:M1/dial`, `part:M1/range` (its RANGE
+key), `part:M1/display` and sockets (`part:M1/com`), a drawing's symbol `part:SD1/R1`, a box's `lid`, `knob`, `tag`
+and padlock wheels (`part:CAB/wheel1`), a gate's `flag` and `unit`. Taps, notes and the spotlight work on marks in
+both views; a tapped mark that is wrong writes its own name ("dial", "wheel 2").
 
 ## Control of error
 

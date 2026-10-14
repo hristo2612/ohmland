@@ -68,7 +68,7 @@ Implementation notes (both views):
   and `spotlight` are applied to the new view. `hub.inner()` is the active view's own controller, and `hub.refocus()`
   frames the last focus again (the tray came or went, so the room round the bench changed).
 - Targets besides anchors: `part:<id>` (the meter is `part:M1`), `part:M1/display`, `part:M1/dial`,
-  `part:M1/<socket>`, `lead:<id>` and `wire:<id>` for a whole lead or wire, `part:R1/a` for a part's lead and
+  `part:M1/range` (its RANGE key), `part:M1/<socket>`, `lead:<id>` and `wire:<id>` for a whole lead or wire, `part:R1/a` for a part's lead and
   `part:<id>/<mark>` for a named spot on a part (`PartDef.marks`: a drawing's symbol `part:SD1/R1`, a box's `lid`,
   `knob` and `tag`, a padlock's `wheel1`, a gate's `flag` and `unit`, a tag's `text`). Both views place marks at the
   same desk point. `parseTarget` and `targetPoint` (a
@@ -118,8 +118,15 @@ terminals and knob stand for them. Open, the box shows them and the wires inside
 
 Everything a learner can do in one view works in the other: take parts from the tray, place and move them, stretch
 resistor leads, rotate, delete, wire hole to hole, clip and unclip test leads, move meter probes and plugs, turn the
-meter dial, flip switches, press buttons, use sliders such as light and fingertip, x-ray the breadboard, undo and redo.
-Mouse, touch and keyboard in both.
+meter dial, step its range, flip switches, press buttons, use sliders such as light and fingertip, x-ray the
+breadboard, undo and redo. Mouse, touch and keyboard in both.
+
+The meter is worked on the drawing, the same way in both views (the store's `stepMeter`): a tap on the dial turns it
+one detent clockwise, a long press one back, a tap on a position's label goes straight there, and a drag turns it. The
+RANGE key beside it steps the range: a tap goes up (auto, then each range from the smallest, then auto again), a long
+press goes down. The display shows the range (AUTO, or the range such as 20V) where the dial has more than one. Keys:
+on the focused dial (or the selected meter) left and right turn it and up and down step the range; on the focused
+RANGE key Enter, Space or an arrow up steps up and an arrow down steps down.
 
 Soldering (Unit 3) is one DOM overlay (`SolderOverlay`) that both renderers mount over their canvas. It places its
 handles (the iron, the solder's end, every pad, lead and splice) with the view's `project()` on `spot:` anchors, and

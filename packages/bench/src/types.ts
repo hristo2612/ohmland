@@ -486,6 +486,7 @@ export type BenchAction =
   | { type: "lead:remove"; leadId: string }
   | { type: "lead:clip"; leadId: string; end: "a" | "b"; to: Anchor | null }
   | { type: "meter:mode"; mode: MeterMode }
+  | { type: "meter:range"; range: string }
   | { type: "meter:plug"; probe: ProbeColor; socket: MeterSocket | null }
   | { type: "meter:probe"; probe: ProbeColor; to: Anchor | null }
   | { type: "input"; partId: string; key: InputKey; value: number | boolean | string }

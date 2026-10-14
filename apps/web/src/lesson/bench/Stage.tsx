@@ -16,7 +16,7 @@ import { prefersReducedMotion } from "../../progress/prefs";
 import { LabAudio } from "../../lab/audio";
 import { buildBench, type SimInput } from "../../lab/build";
 import { BenchSurfaceChunk, type BenchController, type BenchViewKind } from "../../lab/bench-view";
-import { ConnectionsPanel, ControlsPanel, MeterPanel, ScopePanel, ViewsPanel } from "../../lab/instruments";
+import { ConnectionsPanel, ControlsPanel, ScopePanel, ViewsPanel } from "../../lab/instruments";
 import { LabPanels } from "../../lab/panels-ui";
 import { LoggerPanel, StopwatchPanel, TapperPanel } from "../../lab/timing";
 import { friedLabel } from "../../lab/labels";
@@ -30,6 +30,7 @@ import { Annotations, useSize, useViewTick } from "./Annotations";
 import { holeName } from "./flow";
 import { allHoles, resolveAnchor, type Mark } from "./marks";
 import { ResistorSlider } from "./ResistorSlider";
+import { MeterInk } from "./ToolInk";
 import type { Popup } from "../../content/schema";
 import type { CodeBeat } from "../../lab/code/CodeDrawer";
 import "../../lab/lab.css";
@@ -445,6 +446,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         <div className="bl-overlay">
           <Annotations controllerRef={controllerRef} bench={bench} marks={props.marks} />
           <TapLayer controllerRef={controllerRef} bench={bench} check={props.check} labelOf={api.labelOf} onTap={(a) => cb.current.onTap(a)} />
+          {tool === "meter" && built.bench.meter && <MeterInk runtime={runtime} controllerRef={controllerRef} />}
           {props.popup && (
             <PopupCard controllerRef={controllerRef} bench={bench} at={props.popup.at} title={m.lessonBench.popup.resistorTitle}>
               <ResistorSlider runtime={runtime} props={props.popup.props} onDone={() => cb.current.onPopupDone()} />
@@ -511,12 +513,14 @@ function defaultTool(lab: LabDefinition, task: string | null): string | null {
   return lab.panels?.find((p) => p.show?.includes(task))?.id ?? null;
 }
 
-/** One instrument at a time, only when the beat needs it: a slip on the bench's lower edge. */
+/**
+ * One instrument at a time, only when the beat needs it: a slip on the bench's lower edge. The meter has none: it is
+ * drawn on the bench (ToolInk.tsx).
+ */
 function ToolDock({ runtime, built, tool, code }: { runtime: LabRuntime; built: ReturnType<typeof buildBench>; tool: string | null; code: CodeBeat | null }) {
-  if (!tool) return null;
+  if (!tool || tool === "meter") return null;
   let body: ReactNode = null;
-  if (tool === "meter" && built.bench.meter) body = <MeterPanel runtime={runtime} />;
-  else if (tool === "scope" && built.scope) body = <ScopePanel runtime={runtime} config={built.scope} />;
+  if (tool === "scope" && built.scope) body = <ScopePanel runtime={runtime} config={built.scope} />;
   else if (tool === "logger" && built.logger) body = <LoggerPanel runtime={runtime} config={built.logger} />;
   else if (tool === "stopwatch" && built.stopwatch) body = <StopwatchPanel runtime={runtime} config={built.stopwatch} />;
   else if (tool === "tapper" && built.tapper) body = <TapperPanel runtime={runtime} config={built.tapper} />;
