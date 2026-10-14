@@ -177,6 +177,24 @@ for (const view of ["ink", "3d"] as const) {
       await dropOnDesk(page, view);
     });
 
+    test("braid laid on a joint comes off when its end is dragged away to the desk", async ({ page }) => {
+      await open(page, view, "scene=solder&joints=some");
+      const braid = () => page.evaluate(() => ((window as unknown as SolderWindow).__bench.getState().station as unknown as { braid: string | null } | null)?.braid ?? null);
+      const end = await at(page, view, "spot:BR1.end");
+      const joint = await at(page, view, "spot:PB1.A3");
+      await page.mouse.move(end.x, end.y);
+      await page.mouse.down();
+      await page.mouse.move(joint.x, joint.y, { steps: 12 });
+      await page.mouse.up();
+      expect(await braid()).toBe("PB1.A3");
+      // Picked up again from its end and put down on the bare desk: off the joint.
+      await page.mouse.move(end.x, end.y);
+      await page.mouse.down();
+      await page.mouse.move(end.x + 40, end.y + 60, { steps: 8 });
+      await page.mouse.up();
+      expect(await braid()).toBeNull();
+    });
+
     test("magnifier and tug", async ({ page }) => {
       await open(page, view, "scene=solder&joints=some");
       const p = await at(page, view, "spot:PB1.D3");
@@ -206,6 +224,22 @@ for (const view of ["ink", "3d"] as const) {
       // A phone frames the station, as a lesson about it does.
       await open(page, view, "scene=solder&joints=none&focus=part:ST1");
       await dropOnDesk(page, view, true);
+    });
+
+    test("a finger lifts the braid off a joint by dragging its end away", async ({ page }) => {
+      await open(page, view, "scene=solder&joints=some&focus=part:PB1,part:BR1");
+      const braid = () => page.evaluate(() => ((window as unknown as SolderWindow).__bench.getState().station as unknown as { braid: string | null } | null)?.braid ?? null);
+      const cdp = await page.context().newCDPSession(page);
+      const swipe = async (from: { x: number; y: number }, to: { x: number; y: number }) => {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: from.x, y: from.y }] });
+        for (let i = 1; i <= 10; i++) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: from.x + ((to.x - from.x) * i) / 10, y: from.y + ((to.y - from.y) * i) / 10 }] });
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      };
+      const end = await at(page, view, "spot:BR1.end");
+      await swipe(end, await at(page, view, "spot:PB1.A3"));
+      expect(await braid()).toBe("PB1.A3");
+      await swipe(end, { x: end.x + 30, y: end.y + 80 });
+      expect(await braid()).toBeNull();
     });
 
     test("quick mode: press and hold a joint", async ({ page }) => {
