@@ -139,6 +139,15 @@ export class SimulationImpl implements Simulation {
   private collect(): void {
     const evs = this.engine.drainEvents();
     for (const ev of evs) {
+      if (ev.type === "serial") {
+        // A board's printed lines: one event per board per snapshot, the text joined.
+        const prev = this.pending.find((p) => p.partId === ev.partId && p.type === "serial");
+        if (prev) {
+          prev.message = ev.message;
+          prev.data = { text: `${prev.data?.text ?? ""}\n${ev.data?.text ?? ""}`, lines: Number(prev.data?.lines ?? 0) + Number(ev.data?.lines ?? 0) };
+          continue;
+        }
+      }
       if (COALESCE.has(ev.type)) {
         const prev = this.pending.find((p) => p.partId === ev.partId && p.type === ev.type);
         if (prev) {

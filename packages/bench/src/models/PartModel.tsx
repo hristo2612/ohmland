@@ -13,6 +13,7 @@ import { PushbuttonModel, SlideSwitchModel, ToggleSwitchModel } from "./Switches
 import { ButtonBlock, DpdtBlock, KnobBlock, RelayBlock, SlideBlock } from "./Blocks";
 import { TouchPadsModel } from "./Props";
 import { AaCutawayModel, BalloonModel, BoxModel, CombModel, DrawerModel, EverydayModel, GateModel, PaperBitsModel, PieceModel, ScarfModel, SchematicModel, TrayModel, WallModel } from "./StartProps";
+import { McuBoardModel } from "./McuBoard";
 import type { Mount } from "./common";
 
 export type PartModelProps<K extends BenchPartKind = BenchPartKind> = {
@@ -128,6 +129,8 @@ export function PartModel(props: PartModelProps) {
       return <CombModel params={props.params as never} />;
     case "wall":
       return <WallModel />;
+    case "mcu-board":
+      return <McuBoardModel {...p} />;
   }
 }
 
