@@ -91,6 +91,28 @@ export function momentsOf(lesson: BenchLessonData): Moment[] {
   return out;
 }
 
+/** A chip pin the lesson has put a word to: pin 6 of U1 is "threshold". */
+export type PinName = { part: string; pin: number; word: string };
+
+/**
+ * The chip pins named before moment `index`, by "pin 6: threshold" notes and picks on a pin ("What is pin 6?"
+ * Threshold), in the lesson's own words. Only candidates: the stage keeps the words that really name that pin.
+ */
+export function pinNamesBefore(moments: readonly Moment[], index: number): PinName[] {
+  const out: PinName[] = [];
+  for (const mo of moments.slice(0, Math.max(0, index))) {
+    const note = mo.note;
+    if (note && note.at !== "tap") {
+      const part = note.at.replace(/^(pin|part):/, "").split(/[./]/)[0]!;
+      for (const [, n, word] of note.text.matchAll(/\bpin (\d+):? ([a-z]+)/gi)) out.push({ part, pin: Number(n), word: word!.toLowerCase() });
+    }
+    const pick = mo.beat?.pick;
+    const on = pick?.on ? /^(?:pin:)?([^.:/]+)\.(\d+)$/.exec(pick.on) : null;
+    if (on && pick?.answer) out.push({ part: on[1]!, pin: Number(on[2]), word: pick.answer.toLowerCase() });
+  }
+  return out;
+}
+
 function actionOf(b: Beat): MomentAction {
   if (b.meet) return "meet";
   if (b.do) return "task";
