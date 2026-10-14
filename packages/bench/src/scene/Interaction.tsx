@@ -30,6 +30,8 @@ export type InteractionApi = {
   stats: () => { calls: number; triangles: number; geometries: number; textures: number };
   /** What the pointer would grab at a client point (for tests and tutorials). */
   pickAt: (clientX: number, clientY: number) => Pick | null;
+  /** The desk point (mm) under an element-relative CSS px point. */
+  deskAt: (x: number, y: number) => [number, number] | null;
 };
 
 type Drag =
@@ -834,6 +836,11 @@ export function useInteraction({
         return true;
       },
       pickAt: (x, y) => hit(x, y),
+      deskAt: (x, y) => {
+        const r = element.getBoundingClientRect();
+        const p = planePoint(x + r.left, y + r.top, 0);
+        return p ? [p.x, p.z] : null;
+      },
       stats: () => ({
         calls: gl.info.render.calls,
         triangles: gl.info.render.triangles,

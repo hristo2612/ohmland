@@ -125,6 +125,18 @@ const LIGHT = `
   --k-aa-nimh: #3E8A57;
   --k-aa-lithium: #6A6F78;
   --k-room: #0E0D0C;
+  --k-perf: var(--sk-perf, #E7D7A6);
+  --k-perf-edge: #CDB674;
+  --k-solder: var(--sk-solder, #C9CDD2);
+  --k-solder-hi: #F6F8FA;
+  --k-solder-dull: #A5A9AD;
+  --k-flux: #9A6A33;
+  --k-sponge: #E9C95E;
+  --k-grip: #3E6E57;
+  --k-shrink: #34312C;
+  --k-gun: #D2573A;
+  --k-handle: #C2412B;
+  --k-singe: #8A5A32;
 `;
 
 const DARK = `
@@ -249,6 +261,18 @@ const DARK = `
   --k-aa-nimh: #3A7A50;
   --k-aa-lithium: #5A5F68;
   --k-room: #000000;
+  --k-perf: var(--sk-perf, #6A5B36);
+  --k-perf-edge: #4E4326;
+  --k-solder: var(--sk-solder, #A9AEB4);
+  --k-solder-hi: #E4E8EC;
+  --k-solder-dull: #7D8186;
+  --k-flux: #7A5228;
+  --k-sponge: #B39434;
+  --k-grip: #3A6A52;
+  --k-shrink: #0F0E0D;
+  --k-gun: #C24A30;
+  --k-handle: #E2664C;
+  --k-singe: #5A3A22;
 `;
 
 /** The palette without the host's tokens: for a bench forced to one theme whatever the page does. */
@@ -307,6 +331,19 @@ export const INK_CSS = `
 .ohi-root .t-rail-pos{fill:var(--k-rail-pos)}.ohi-root .t-rail-neg{fill:var(--k-rail-neg)}
 .ohi-root .print{fill:var(--k-ink-3)}
 .ohi-root .print-light{fill:var(--k-print)}
+
+/* Unit 3: the solder station, perfboard and wire. */
+.ohi-root .f-perf{fill:var(--k-perf)}.ohi-root .f-perf-edge{fill:var(--k-perf-edge)}.ohi-root .f-solder{fill:var(--k-solder)}
+.ohi-root .f-solder-hi{fill:var(--k-solder-hi)}.ohi-root .f-solder-dull{fill:var(--k-solder-dull)}.ohi-root .f-flux{fill:var(--k-flux)}
+.ohi-root .f-sponge{fill:var(--k-sponge)}.ohi-root .f-grip{fill:var(--k-grip)}.ohi-root .f-shrink{fill:var(--k-shrink)}
+.ohi-root .f-gun{fill:var(--k-gun)}.ohi-root .f-handle{fill:var(--k-handle)}.ohi-root .f-singe{fill:var(--k-singe)}
+.ohi-root .s-solder{fill:none;stroke:var(--k-solder);stroke-linecap:round}
+.ohi-root .s-copper{fill:none;stroke:var(--k-copper);stroke-linecap:round}
+.ohi-root .bare{fill:none;stroke:var(--k-copper);stroke-width:max(.6px,calc(var(--px,.1) * 2.2px));stroke-linecap:round}
+.ohi-root .air{fill:none;stroke:var(--k-red);stroke-width:var(--lw-thin,1px);vector-effect:non-scaling-stroke;stroke-linecap:round;opacity:.65}
+.ohi-root .ghost{fill:none;stroke:var(--k-red);stroke-width:var(--lw-thin,1px);vector-effect:non-scaling-stroke;stroke-dasharray:3 2.4;opacity:.75}
+.ohi-root .plan-line{fill:none;stroke:var(--k-blue);stroke-width:var(--lw,1.6px);vector-effect:non-scaling-stroke;stroke-linecap:round;opacity:.55}
+.ohi-root .sheen-hi{fill:none;stroke:var(--k-solder-hi);stroke-linecap:round}
 
 /* Breadboard x-ray: the metal clips under the plastic. */
 .ohi-root .strip{fill:var(--k-strip-wash);stroke:var(--k-strip);stroke-width:var(--lw-thin,1px);vector-effect:non-scaling-stroke}

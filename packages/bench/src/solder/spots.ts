@@ -98,6 +98,21 @@ export function clipPose(bench: BenchState, clip: PlacedPart): { origin: Vec3; r
   return { origin: at, rot, part: partId, leg, mm };
 }
 
+/** Where a heat-shrink tube sits on its wire (`at` mm from end a) and which way the wire runs there. */
+export function tubePose(bench: BenchState, tube: PlacedPart): { origin: Vec3; rot: number; wire: string; len: number } | null {
+  if (tube.kind !== "heat-shrink" || !tube.params.on) return null;
+  const wire = bench.parts.find((p) => p.id === tube.params.on);
+  if (!wire || wire.kind !== "hookup-wire") return null;
+  const pose = partPose(bench, wire);
+  const a = pose.ends?.a?.pos ?? pose.legs.a;
+  const b = pose.ends?.b?.pos ?? pose.legs.b;
+  if (!a || !b) return null;
+  const len = Math.max(1, Math.hypot(b[0] - a[0], b[2] - a[2]));
+  const k = Math.max(0, Math.min(1, (tube.params.at ?? len / 2) / len));
+  const rot = (Math.atan2(-(b[2] - a[2]), b[0] - a[0]) * 180) / Math.PI;
+  return { origin: [a[0] + (b[0] - a[0]) * k, 1.2, a[2] + (b[2] - a[2]) * k], rot, wire: wire.id, len };
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Splices: two stripped wire ends lying together.
 

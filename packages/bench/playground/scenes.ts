@@ -197,3 +197,120 @@ export function modulesBench(): BenchState {
   ];
   return b;
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Unit 3: making it permanent.
+
+const GOOD = { kind: "pad", alloy: "lead-free", volume: 1.6, wetted: 0.95, peakC: 270, moved: false, fedAt: "work", bridgeTo: null, lifted: false, coldTouch: false, flux: 0.3, verdict: "good" } as const;
+
+/**
+ * The solder station beside a perfboard lamp (MP10, MP11): the board copper side up with its legs bent along the
+ * plan's lines and a few joints already made (`?scene=solder`; `&top=1` shows the top with the plan's ghosts,
+ * `&joints=all` a finished board, `&joints=none` a bare one).
+ */
+export function solderBench(opts: { top?: boolean; joints?: "some" | "all" | "none"; lead?: "leaded" | "lead-free" } = {}): BenchState {
+  const b = emptyBench(null);
+  const joints: Record<string, unknown> =
+    opts.joints === "none"
+      ? {}
+      : opts.joints === "all"
+        ? { A1: GOOD, A3: GOOD, C7: GOOD, F8: GOOD }
+        : {
+            A1: GOOD,
+            A3: { ...GOOD, volume: 3.1, verdict: "too-much" },
+            F8: { ...GOOD, volume: 0.5, verdict: "too-little" },
+            D3: { ...GOOD, wetted: 0.3, peakC: 190, verdict: "cold" },
+            D5: { ...GOOD, moved: true, verdict: "disturbed" },
+            E3: { ...GOOD, volume: 4.2, bridgeTo: "E4", verdict: "bridge" },
+          };
+  b.parts = [
+    { id: "ST1", kind: "solder-station", params: { on: true, setC: opts.lead === "leaded" ? 330 : 370, iron: "stand", spool: "SD1" }, pos: [-175, -25], rot: 0 },
+    { id: "SD1", kind: "solder-spool", params: { alloy: opts.lead ?? "lead-free" }, pos: [-185, 62], rot: 0 },
+    { id: "SD2", kind: "solder-spool", params: { alloy: opts.lead === "leaded" ? "lead-free" : "leaded" }, pos: [-128, 70], rot: 0 },
+    { id: "BR1", kind: "solder-braid", params: {}, pos: [-80, 78], rot: 0 },
+    {
+      id: "PB1",
+      kind: "perfboard",
+      params: { cols: 10, rows: 6, flipped: !opts.top, plan: "PC1", joints, bends: opts.top ? {} : { "R1.b": "C7", "D1.cathode": "F8" }, links: opts.top ? [] : [{ id: "L1", a: "A1", b: "A3" }] },
+      pos: [-20, -10],
+      rot: 0,
+    },
+    { id: "BS1", kind: "battery", params: { snap: true, emf: 9.4, internalOhms: 1.7 }, pos: [-40, 70], rot: 0, holes: { pos: "PB1:A1", neg: "PB1:F8" } },
+    { id: "R1", kind: "resistor", params: { ohms: 1000 }, pos: [0, 0], rot: 0, holes: { a: "PB1:A3", b: "PB1:A7" } },
+    { id: "D1", kind: "led", params: { color: "red", size: 3 }, pos: [0, 0], rot: 0, holes: { anode: "PB1:C7", cathode: "PB1:C8" } },
+    {
+      id: "PC1",
+      kind: "plan-card",
+      params: {
+        title: "Lamp",
+        cols: 10,
+        rows: 6,
+        ghosts: [
+          { id: "R1", kind: "resistor", legs: { a: "A3", b: "A7" } },
+          { id: "D1", kind: "led", legs: { anode: "C7", cathode: "C8" } },
+          { id: "BS1", kind: "battery", legs: { pos: "A1", neg: "F8" } },
+        ],
+        lines: [
+          ["A1", "A3"],
+          ["A7", "C7"],
+          ["C8", "F8"],
+        ],
+      },
+      pos: [120, -20],
+      rot: 0,
+    },
+  ] as BenchState["parts"];
+  return b;
+}
+
+/** Heat running up a lead into an LED (MP5): a 3 mm LED on the desk, a copper clip on its leg, the iron at the mark. */
+export function heatsinkBench(clip = true): BenchState {
+  const b = emptyBench(null);
+  b.parts = [
+    { id: "ST1", kind: "solder-station", params: { on: true, setC: 330, iron: "D1.anode" }, pos: [-150, -30], rot: 0 },
+    { id: "B1", kind: "battery", params: { emf: 9.4, internalOhms: 1.7 }, pos: [-60, 60], rot: 0 },
+    { id: "R1", kind: "resistor", params: { ohms: 470 }, pos: [0, 70], rot: 0 },
+    { id: "D1", kind: "led", params: { color: "red", size: 3 }, pos: [10, 10], rot: 0 },
+    ...(clip ? [{ id: "HS1", kind: "heat-sink-clip", params: { metal: "copper", on: "D1.anode", mm: 6 }, pos: [0, 0], rot: 0 }] : []),
+    { id: "HS2", kind: "heat-sink-clip", params: { metal: "steel" }, pos: [80, 50], rot: 0 },
+  ] as BenchState["parts"];
+  b.leads = [
+    { id: "TL1", color: "red", a: { to: "pin:B1.pos", pos: [0, 0] }, b: { to: "pin:R1.a", pos: [0, 0] } },
+    { id: "TL2", color: "yellow", a: { to: "pin:R1.b", pos: [0, 0] }, b: { to: "pin:D1.anode", pos: [0, 0] } },
+    { id: "TL3", color: "black", a: { to: "pin:D1.cathode", pos: [0, 0] }, b: { to: "pin:B1.neg", pos: [0, 0] } },
+  ];
+  return b;
+}
+
+/** Wire and power from the wall (MP6 to MP8): hookup wire, the stripper, heat-shrink, a heat gun, a jack and adapters. */
+export function wiresBench(): BenchState {
+  const b = emptyBench({ kind: "bb400", pos: [60, 40] });
+  const clean = { mm: 10, notch: 22, scale: "solid", clean: true, nicked: false, slipped: false, cutStrands: 0, twisted: false };
+  b.parts = [
+    { id: "HW1", kind: "hookup-wire", params: { color: "red", awg: 22, len: 90, ends: { b: clean } }, pos: [-130, -80], rot: 0, ends: { a: [-185, -85], b: [-104, -80] } },
+    { id: "HW2", kind: "hookup-wire", params: { color: "red", awg: 22, len: 90, ends: { a: clean } }, pos: [-60, -80], rot: 0, ends: { a: [-101, -79], b: [-20, -85] } },
+    { id: "HW3", kind: "hookup-wire", params: { color: "black", awg: 22, len: 80, ends: { a: { ...clean, notch: 26, clean: false, nicked: true } } }, pos: [-140, -40], rot: 0, ends: { a: [-180, -40], b: [-100, -38] } },
+    { id: "WS1", kind: "wire-stripper", params: { notch: 22, scale: "solid", stopMm: 10 }, pos: [-150, 20], rot: 0 },
+    { id: "T1", kind: "heat-shrink", params: { size: 3.2, on: "HW1", at: 30, shrink: 0 }, pos: [-150, -82], rot: 0 },
+    { id: "T2", kind: "heat-shrink", params: { size: 3.2, shrink: 1 }, pos: [-60, -45], rot: 0 },
+    { id: "T3", kind: "heat-shrink", params: { size: 6.4, shrink: 0 }, pos: [-60, -30], rot: 0 },
+    { id: "HG1", kind: "heat-gun", params: { on: true }, pos: [-140, 95], rot: 0 },
+    { id: "J1", kind: "barrel-jack", params: {}, pos: [0, 0], rot: 0, holes: { tip: "bp4", sleeve: "bn4" } },
+    { id: "AD1", kind: "wall-adapter", params: { volts: 9, amps: 1, type: "regulated", centre: "plus", into: "J1" }, pos: [10, 160], rot: 0 },
+    { id: "AD2", kind: "wall-adapter", params: { volts: 9, amps: 0.5, type: "regulated", centre: "minus", into: null }, pos: [110, 160], rot: 0, ends: { plug: [150, 125] } },
+    { id: "R1", kind: "resistor", params: { ohms: 1000 }, pos: [0, 0], rot: 0, holes: { a: "bp10", b: "c10" } },
+    { id: "D1", kind: "led", params: { color: "red" }, pos: [0, 0], rot: 0, holes: { anode: "d10", cathode: "d11" } },
+  ] as BenchState["parts"];
+  b.wires = [{ id: "W1", a: "a11", b: "bn11", color: "black" }];
+  return b;
+}
+
+export const SOLDER_TRAY: TrayItem[] = [
+  { kind: "resistor", params: { ohms: 1000 } },
+  { kind: "led", params: { color: "red", size: 3 } },
+  { kind: "npn" },
+  { kind: "electrolytic-cap", params: { farads: 10e-6 } },
+  { kind: "heat-sink-clip", params: { metal: "copper" } },
+  { kind: "hookup-wire", params: { color: "black", awg: 22, len: 80 } },
+  { kind: "heat-shrink", params: { size: 3.2 } },
+];

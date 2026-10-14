@@ -25,6 +25,8 @@ import { buildModel, targetOwners, targetPoint, targetRect, targetsRect, type In
 import { InkOverlay, partDetail, useFollow } from "./Overlay";
 import { INK_CSS } from "./styles";
 import { InkView } from "./view";
+import { SolderOverlay, type SolderViewApi } from "../solder/overlay/SolderOverlay";
+import { IronLayer, ScorchLayer } from "./kinds/solder";
 
 export type BenchInkProps = Omit<BenchRendererProps, "labels"> & {
   /** Translated UI strings (the shared BenchLabels plus the ink view's few, see INK_LABELS). */
@@ -237,6 +239,21 @@ export function BenchInk(props: BenchInkProps) {
     };
   }, [element, store, view, emit]);
 
+  // The solder overlay draws over this view through the same projection.
+  const solderView = useMemo<SolderViewApi>(
+    () => ({
+      project: (t) => {
+        const p = targetPoint(modelRef.current, t);
+        if (!p) return null;
+        const [x, y] = view.toScreen(p[0], p[1]);
+        return { x, y, visible: x >= -20 && y >= -20 && x <= view.vp.w + 20 && y <= view.vp.h + 20 };
+      },
+      onViewChange: (cb) => view.onChange(cb),
+      desk: (x, y) => view.toWorld(x, y),
+    }),
+    [view],
+  );
+
   // Spotlight: dim everything but the targets (a generated CSS rule, so nothing re-renders).
   const [spot, setSpot] = useState<string[] | null>(null);
   const spotCss = useMemo(() => {
@@ -413,6 +430,7 @@ export function BenchInk(props: BenchInkProps) {
                     <BoardHoles spec={bench.board} />
                   </>
                 )}
+                <ScorchLayer store={store} />
                 {parts
                   .filter((p) => p.layer === 0)
                   .map((pi) => (
@@ -433,6 +451,7 @@ export function BenchInk(props: BenchInkProps) {
                 ))}
                 {model.meter && <MeterLeads mi={model.meter} held={keyState.carry?.kind === "probe" ? keyState.carry.color : null} labels={labels} />}
                 <SmokeLayer parts={parts} store={store} />
+                <IronLayer store={store} bench={bench} />
               </g>
               {dimRoom && <rect width="100%" height="100%" className="ohi-room" style={{ opacity: Math.min(0.82, (1 - ambient) * 0.9) }} />}
               <g ref={topRef}>
@@ -470,6 +489,7 @@ export function BenchInk(props: BenchInkProps) {
                 focusCursor();
               }}
             />
+            <SolderOverlay store={store} view={solderView} compact={compact} readOnly={readOnly} tray={showTray} />
             <div className="ohi-sr" aria-live="polite">
               {said}
             </div>

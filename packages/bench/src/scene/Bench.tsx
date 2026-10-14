@@ -27,6 +27,9 @@ import { Readouts, inspectKey } from "./Readouts";
 import type { Pick } from "./pick";
 import { PaperRenderer, PaperUpkeep, SoftShadows, type ShadowArea } from "./Render";
 import { SpotlightRig, ViewRig, type ViewApi } from "./viewRig";
+import { SolderOverlay, type SolderViewApi } from "../solder/overlay/SolderOverlay";
+import { IronModel, ScorchMarks } from "../models/Solder";
+import { perfMount } from "../solder/perfboard";
 import { LeadView, MeterView, PartView, TargetMarker, WireView, makeFloor, snapshotKey } from "./views";
 
 export type BenchProps = BenchRendererProps & {
@@ -100,6 +103,11 @@ export function Bench(props: BenchProps) {
       stats: () => api.current?.stats() ?? { calls: 0, triangles: 0, geometries: 0, textures: 0 },
     }),
     [listeners],
+  );
+  // The solder overlay draws over this view through the same controller.
+  const solderView = useMemo<SolderViewApi>(
+    () => ({ project: (t) => controller.project(t), onViewChange: (cb) => controller.onViewChange(cb), desk: (x, y) => api.current?.deskAt(x, y) ?? null }),
+    [controller],
   );
   const controllerRef = props.controllerRef;
   useEffect(() => {
@@ -204,6 +212,7 @@ export function Bench(props: BenchProps) {
               <Warmup held={held} offscreen={quality === "high"} dark={palette.dark} onWarm={release} />
             </Canvas>
             <Overlay tray={tray} readOnly={readOnly} compact={compact} api={api} size={size} controller={controller} />
+            <SolderOverlay store={store} view={solderView} compact={compact} readOnly={readOnly} tray={showTray} />
           </div>
         </PaletteContext.Provider>
       </LabelsContext.Provider>
@@ -470,10 +479,26 @@ function BenchScene({
   const holders = useMemo(() => {
     const out = new Map<string, PlacedPart>();
     for (const h of bench.parts) for (const id of Object.values(heldOf(h))) if (id) out.set(id, h);
+    // Unit 3: a part through a perfboard follows the board; a clip on a lead and a tube on a wire follow their host.
+    for (const p of bench.parts) {
+      const board = perfMount(bench, p);
+      if (board) out.set(p.id, board);
+      const host =
+        p.kind === "heat-sink-clip" && p.params.on
+          ? p.params.on.slice(0, p.params.on.lastIndexOf("."))
+          : p.kind === "heat-shrink" && p.params.on
+            ? p.params.on
+            : p.kind === "wall-adapter" && p.params.into
+              ? p.params.into
+              : null;
+      const h = host ? bench.parts.find((x) => x.id === host) : undefined;
+      if (h) out.set(p.id, h);
+    }
     return out;
   }, [bench.parts]);
   const ambient = useBench((s) => s.ambient);
   const inspect = useBench((s) => s.inspect);
+  const hasStation = bench.parts.some((p) => p.kind === "solder-station");
   const leadOpen = (id: string) => (ui.dragging && ui.selection?.type === "lead" && ui.selection.id === id ? 0.25 : 0);
 
   // Wire being drawn.
@@ -526,6 +551,8 @@ function BenchScene({
         />
       ))}
       {bench.meter && <MeterView meter={bench.meter} bench={bench} selected={ui.selection?.type === "meter"} floor={floor} />}
+      {hasStation && <IronModel bench={bench} />}
+      {hasStation && <ScorchMarks />}
       </RoomLight.Provider>
       {draftFrom && (
         <>

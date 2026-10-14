@@ -328,20 +328,20 @@ export function JumperWire({ a, b, color }: { a: THREE.Vector3; b: THREE.Vector3
 }
 
 /** Stripped, tinned end of a stranded lead (snap connector, speaker wire) going into a hole or lying on the desk. */
-export function StrippedEnd({ at, dir, inHole }: { at: THREE.Vector3; dir: THREE.Vector3; inHole: boolean }) {
+export function StrippedEnd({ at, dir, inHole, top = BOARD_TOP, len = 5 }: { at: THREE.Vector3; dir: THREE.Vector3; inHole: boolean; /** Surface of the board the hole is in. */ top?: number; /** Bare length on the desk (mm). */ len?: number }) {
   const geo = useMemo(() => {
-    if (inHole) return bentTube([[at.x, BOARD_TOP + IN_HOLE, at.z], [at.x, BOARD_TOP + 1.6, at.z]], 0.42, 0.3, 8);
+    if (inHole) return bentTube([[at.x, top + IN_HOLE, at.z], [at.x, top + 1.6, at.z]], 0.42, 0.3, 8);
     const d = dir.clone().normalize();
     return bentTube(
       [
         [at.x, at.y, at.z],
-        [at.x + d.x * 5, at.y + d.y * 5, at.z + d.z * 5],
+        [at.x + d.x * len, at.y + d.y * len, at.z + d.z * len],
       ],
       0.42,
       0.3,
       8,
     );
-  }, [at.x, at.y, at.z, dir.x, dir.y, dir.z, inHole]);
+  }, [at.x, at.y, at.z, dir.x, dir.y, dir.z, inHole, top, len]);
   useLayoutEffect(() => () => geo.dispose(), [geo]);
   return <mesh geometry={geo} material={mat.lead()} castShadow />;
 }

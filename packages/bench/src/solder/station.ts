@@ -14,7 +14,7 @@ import { AMBIENT_C, BODIES, LeadHeat, type BodySpec, type HeatClip, type HeatSou
 import { GEOM } from "./parts";
 import { padMetal, padNeighbours, parsePerfHole, perfMount, type JointRecord } from "./perfboard";
 import { freshTube, gunAirC, stepTube, type TubeState } from "./shrink";
-import { clipPose, jointRecordAt, leadLine, local, spotById, writeJointRecord, type Spot } from "./spots";
+import { clipPose, jointRecordAt, leadLine, local, spotById, tubePose, writeJointRecord, type Spot } from "./spots";
 import { partPose } from "../layout";
 
 export type SimInput = { id: string; key: InputKey; value: number };
@@ -174,8 +174,8 @@ function heatSources(bench: BenchState, st: StationState, part: PlacedPart, iron
       const q = parsePerfHole(h);
       const j = q ? st.joints[`${board.id}.${q.pad}`] : undefined;
       if (!j || j.tempC < AMBIENT_C + 2) continue;
-      const line = leadLine(bench, part, leg);
-      out.push({ lead: leg, mm: line?.len ?? 3, tempC: j.tempC, g: 0.03 });
+      // The pad's heat enters the leg where it goes through the hole, at the far end of the lead's network.
+      out.push({ lead: leg, mm: boardLeadMm(bench, part, leg), tempC: j.tempC, g: 0.01 });
     }
   }
   return out;
@@ -199,21 +199,22 @@ function leadDefs(bench: BenchState, part: PlacedPart): { name: string; mm: numb
   const pose = partPose(bench, part);
   return Object.keys(pose.legs).map((leg) => {
     const len = leadLine(bench, part, leg)?.len ?? 12;
-    return { name: leg, mm: Math.max(2, Math.round(pose.mount === "board" ? len : Math.max(20, len))) };
+    return { name: leg, mm: pose.mount === "board" ? boardLeadMm(bench, part, leg) : Math.max(2, Math.round(Math.max(20, len))) };
   });
 }
 
-/** Where a tube on a wire is (desk mm). */
+/**
+ * Lead from the body to the pad for a part standing in a board: the standoff, the board's thickness and the bit
+ * under the pad (about 6 mm at least), so a 3 s joint warms an LED and only a joint held far too long cooks it.
+ */
+function boardLeadMm(bench: BenchState, part: PlacedPart, leg: string): number {
+  return Math.max(6, Math.round((leadLine(bench, part, leg)?.len ?? 3) + 3));
+}
+
+/** Where a tube is (desk mm): on its wire, or where it lies. */
 function tubeAt(bench: BenchState, tube: PlacedPartOf<"heat-shrink">): Vec2 {
-  const wire = tube.params.on ? bench.parts.find((p) => p.id === tube.params.on) : undefined;
-  if (!wire || wire.kind !== "hookup-wire") return tube.pos;
-  const pose = partPose(bench, wire);
-  const a = pose.ends?.a?.pos ?? pose.legs.a;
-  const b = pose.ends?.b?.pos ?? pose.legs.b;
-  if (!a || !b) return tube.pos;
-  const len = Math.max(1, Math.hypot(b[0] - a[0], b[2] - a[2]));
-  const k = Math.max(0, Math.min(1, (tube.params.at ?? len / 2) / len));
-  return [a[0] + (b[0] - a[0]) * k, a[2] + (b[2] - a[2]) * k];
+  const p = tubePose(bench, tube);
+  return p ? [p.origin[0], p.origin[2]] : tube.pos;
 }
 
 /** The heat gun's nozzle on the desk. */

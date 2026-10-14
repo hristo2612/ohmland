@@ -6,6 +6,7 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
 import type { Snapshot } from "@ohmland/sim";
 import * as ops from "./ops";
+import type { StationState } from "./solder/station";
 import type {
   Anchor,
   BenchAction,
@@ -63,6 +64,13 @@ export type BenchStoreState = {
   inspect: readonly InspectSpec[];
   /** Room lighting, 1 bright to about 0.1 dim (faint LED glows show up in a dim room). */
   ambient: number;
+  /**
+   * The solder station's live state (tip temperature, molten joints, heat in leads), when the bench has a station
+   * or solder work; null otherwise. The solder overlay runs it (src/solder/station.ts).
+   */
+  station: StationState | null;
+  /** What drives the station's clock: the simulator's time (snapshots) when one runs, else the wall clock. */
+  stationClock: "auto" | "wall" | "sim";
   ui: BenchUi;
   /** Set by <Bench>: receives every BenchAction. */
   emit: (action: BenchAction) => void;
@@ -146,6 +154,8 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
       snapshot: null,
       inspect: [],
       ambient: 1,
+      station: null,
+      stationClock: "auto",
       ui: initialUi(),
       emit: () => {},
 
@@ -272,4 +282,19 @@ export function useBenchStore(): BenchStore {
 /** Select from the nearest <Bench> store. */
 export function useBench<T>(selector: (s: BenchStoreState) => T): T {
   return useStore(useBenchStore(), selector);
+}
+
+const NO_STORE: BenchStore = createBenchStore();
+
+/**
+ * Select from the nearest bench store when there is one; a model drawn alone (a gallery, a preview, a test) reads an
+ * empty bench instead of throwing.
+ */
+export function useBenchMaybe<T>(selector: (s: BenchStoreState) => T): T {
+  return useStore(useContext(BenchStoreContext) ?? NO_STORE, selector);
+}
+
+/** The nearest bench store, or null outside one. */
+export function useBenchStoreMaybe(): BenchStore | null {
+  return useContext(BenchStoreContext);
 }

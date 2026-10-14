@@ -12,6 +12,7 @@ import { BinModel, CardModel, ChartModel, ClockModel, ElectrodeModel, FruitModel
 import { PushbuttonModel, SlideSwitchModel, ToggleSwitchModel } from "./Switches";
 import { ButtonBlock, DpdtBlock, KnobBlock, RelayBlock, SlideBlock } from "./Blocks";
 import { TouchPadsModel } from "./Props";
+import { AdapterModel, BraidModel, ClipModel, GunModel, JackModel, PerfboardModel, PlanCardModel, SolderStationModel, SpoolModel, StripperModel, TubeModel, solderFlying } from "./Solder";
 import type { Mount } from "./common";
 
 export type PartModelProps<K extends BenchPartKind = BenchPartKind> = {
@@ -99,6 +100,31 @@ export function PartModel(props: PartModelProps) {
       return <ClockModel minutes={props.minutes} />;
     case "showcase":
       return <ShowcaseModel quality={props.quality} />;
+    // Unit 3. On the bench the scene draws the perfboard itself (it needs the whole bench and the board's id).
+    case "solder-station":
+      return <SolderStationModel {...p} />;
+    case "solder-spool":
+      return <SpoolModel {...p} />;
+    case "solder-braid":
+      return <BraidModel {...p} />;
+    case "perfboard":
+      return <PerfboardModel part={{ id: "PB", kind: "perfboard", params: props.params as never, pos: [0, 0], rot: 0 }} />;
+    case "plan-card":
+      return <PlanCardModel {...p} />;
+    case "heat-sink-clip":
+      return <ClipModel {...p} />;
+    case "hookup-wire":
+      return null;
+    case "wire-stripper":
+      return <StripperModel {...p} />;
+    case "heat-shrink":
+      return <TubeModel {...p} />;
+    case "heat-gun":
+      return <GunModel {...p} />;
+    case "barrel-jack":
+      return <JackModel {...p} />;
+    case "wall-adapter":
+      return <AdapterModel {...p} />;
   }
 }
 
@@ -120,5 +146,5 @@ export function flyingLeads(
       b: { ...ex.b, color: "black", radius: 0.6, length: 130 },
     };
   }
-  return null;
+  return solderFlying(kind, params);
 }

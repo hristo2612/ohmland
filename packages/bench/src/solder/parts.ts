@@ -16,7 +16,7 @@ import type { SolderKind } from "../types";
 export const GEOM = {
   station: {
     /** The base unit (dial, display, switch) and the stand beside it. */
-    base: { x: -34, z: 0, w: 66, d: 60, h: 52 },
+    base: { x: -34, z: 0, w: 66, d: 60, h: 34 },
     display: { x: -34, z: 8, w: 34, d: 13 },
     dial: { x: -34, z: 21, r: 8 },
     power: { x: -9, z: 23 },

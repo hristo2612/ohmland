@@ -6,7 +6,7 @@ import { BOARD_TOP, BOARD_CLIP_LIFT, LED, NPN, CERAMIC, electrolyticSize, RESIST
 import { canMountOnBoard, footprintOf, isFlying, partDef, partLegs, rotateXZ } from "./parts";
 import { holderOf, seatPose } from "./seats";
 import { PERF, padWorld, parsePerfHole, perfMount } from "./solder/perfboard";
-import { clipPose, spotPosition } from "./solder/spots";
+import { clipPose, jackSocket, spotPosition, tubePose } from "./solder/spots";
 import type { Anchor, BenchState, MeterSocket, MeterState, PlacedPart, ProbeColor, Vec2, Vec3 } from "./types";
 
 export type PartPose = {
@@ -115,6 +115,10 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
     const c = clipPose(bench, part);
     if (c) return { mount: "desk", origin: c.origin, rot: c.rot, legs: {} };
   }
+  if (part.kind === "heat-shrink" && part.params.on) {
+    const t = tubePose(bench, part);
+    if (t) return { mount: "desk", origin: t.origin, rot: t.rot, legs: {} };
+  }
   if (bench.board && isOnBoard(bench, part)) {
     const board = bench.board;
     const legs: Record<string, Vec3> = {};
@@ -172,6 +176,14 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
       if (pp) {
         ends[leg] = { pos: [pp[0], PERF.top, pp[2]], inHole: true };
         legs[leg] = [pp[0], PERF.top + 1.6, pp[2]];
+        continue;
+      }
+      // A wall adapter's barrel plug sits in the jack it is plugged into.
+      const jack = part.kind === "wall-adapter" && part.params.into ? bench.parts.find((p) => p.id === part.params.into && p.kind === "barrel-jack") : undefined;
+      if (jack) {
+        const s = jackSocket(bench, jack);
+        ends[leg] = { pos: [s[0], 0.7, s[2] + 4], inHole: false };
+        legs[leg] = [s[0], s[1], s[2]];
         continue;
       }
       const free = part.ends?.[leg];

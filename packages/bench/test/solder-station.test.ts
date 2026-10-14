@@ -116,6 +116,27 @@ describe("the station", () => {
     expect(t.station.tugs["PB1.C4"]).toBe("loose");
   });
 
+  it("a 3 s joint at an LED's leg only warms it; held far too long it cooks the LED (MP11)", () => {
+    const peak = (seconds: number) => {
+      const r = new Run(solderBench());
+      r.do((b, s) => placeIron(b, s, "PB1.C4")).step(1.5).set((s) => feedAt(s, "PB1.C4")).step(1).set((s) => feedAt(s, null)).step(seconds);
+      let max = 0;
+      r.do((b, s) => placeIron(b, s, "stand"));
+      for (let k = 0; k < 20 / 0.5; k++) {
+        r.step(0.5);
+        max = Math.max(max, r.st.heat.D1?.bodyC ?? 25);
+      }
+      return { max, inputs: r.inputs.filter((i) => i.id === "D1") };
+    };
+    const quick = peak(0.5);
+    expect(quick.max).toBeGreaterThan(30);
+    expect(quick.max).toBeLessThan(85);
+    expect(quick.inputs.length).toBeGreaterThan(0);
+    const long = peak(25);
+    // Above the die's damage threshold (105 °C) for many seconds: it dies.
+    expect(long.max).toBeGreaterThan(115);
+  });
+
   it("the iron dropped on the desk scorches the paper, then slides home", () => {
     const r = new Run(solderBench());
     r.do((b, s) => placeIron(b, s, "desk", [-80, 70])).step(3);
@@ -162,7 +183,7 @@ describe("heat up a lead into an LED (MP5), through the simulator", () => {
     sim.load(benchToNetlist(bench).netlist);
     const g0 = sim.step(0.5).parts.D1!.glow!;
     const st0 = createStation(bench);
-    let { bench: b, station: st } = placeIron(bench, { ...st0, iron: { ...st0.iron, tipC: bench.parts[0]!.params.setC as number } }, "D1.anode");
+    let { bench: b, station: st } = placeIron(bench, { ...st0, iron: { ...st0.iron, tipC: (bench.parts[0]!.params as { setC: number }).setC } }, "D1.anode");
     let dim: number | null = null;
     let died: number | null = null;
     let last = g0;
