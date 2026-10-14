@@ -1,0 +1,60 @@
+/* The colour code slip and the readings slip (slips.tsx). Design values come from tokens.css. */
+
+.slip-chart__grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.slip-chart__cell {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-1) 2px;
+  border: var(--border) solid var(--line);
+  background: var(--surface);
+}
+.slip-chart__swatch {
+  width: 100%;
+  height: var(--space-3);
+  border: var(--border) solid var(--line-strong);
+}
+.slip-chart__n {
+  font-size: var(--text-body);
+  font-weight: var(--weight-display);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.slip-chart__name {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slip-chart__cell--metal .slip-chart__n { font-size: var(--text-small); }
+.slip-chart__key { margin: 0; }
+
+.slip-chart__swatch[data-band="black"] { background: var(--sk-band-black); }
+.slip-chart__swatch[data-band="brown"] { background: var(--sk-band-brown); }
+.slip-chart__swatch[data-band="red"] { background: var(--sk-band-red); }
+.slip-chart__swatch[data-band="orange"] { background: var(--sk-band-orange); }
+.slip-chart__swatch[data-band="yellow"] { background: var(--sk-band-yellow); }
+.slip-chart__swatch[data-band="green"] { background: var(--sk-band-green); }
+.slip-chart__swatch[data-band="blue"] { background: var(--sk-band-blue); }
+.slip-chart__swatch[data-band="violet"] { background: var(--sk-band-violet); }
+.slip-chart__swatch[data-band="grey"] { background: var(--sk-band-grey); }
+.slip-chart__swatch[data-band="white"] { background: var(--sk-band-white); }
+.slip-chart__swatch[data-band="gold"] { background: var(--sk-band-gold); }
+.slip-chart__swatch[data-band="silver"] { background: var(--sk-band-silver); }
+
+.slip-readings__table td,
+.slip-readings__table th { vertical-align: middle; }
+.slip-readings__n { color: var(--blue); font-variant-numeric: tabular-nums; }
+.slip-readings__product { font-weight: var(--weight-display); }
+.slip-readings__times { min-height: var(--tap); }

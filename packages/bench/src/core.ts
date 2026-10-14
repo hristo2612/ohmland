@@ -55,7 +55,7 @@ export {
 } from "./chips";
 export { resolveLeg, canonicalAnchor, perches } from "./parts";
 export { logicProbeReading, useProbeState, PULSE_HOLD, type ProbeLevel, type ProbeReading } from "./probe";
-export { resistorBands, formatOhms, formatFarads } from "./colorCode";
+export { resistorBands, formatOhms, formatFarads, DIGIT_COLORS, type BandColor } from "./colorCode";
 export {
   DOT_SPACING,
   dotSpeed,

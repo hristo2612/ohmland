@@ -12,6 +12,7 @@ import type { PanelConfig, PanelState, SymbolKind } from "./define";
 import { cellKey, holeNet, isThrowInput, legPairs, partStates, truthCell, truthComplete, truthInput, truthOutputs, truthRows } from "./panels";
 import { HistogramPanel } from "./histogram";
 import { KeysPanel } from "./keys";
+import { ChartPanel, ReadingsPanel } from "./slips";
 import { TimingPanel } from "./timing-diagram";
 import { XrayPanel } from "./xray";
 import type { LabRuntime } from "./runtime";
@@ -530,6 +531,10 @@ export function LabPanels({ runtime, only }: { runtime: LabRuntime; only?: strin
             return <HistogramPanel key={cfg.id} runtime={runtime} cfg={cfg} />;
           case "keys":
             return <KeysPanel key={cfg.id} runtime={runtime} cfg={cfg} />;
+          case "chart":
+            return <ChartPanel key={cfg.id} cfg={cfg} />;
+          case "readings":
+            return <ReadingsPanel key={cfg.id} runtime={runtime} cfg={cfg} />;
         }
       })}
     </>

@@ -61,6 +61,15 @@
   --sk-band-violet: #7D4FA6;
   --sk-band-brown: #7A4A2B;
   --sk-band-gold: #B99437;
+  /* The rest of the colour code, for the docked chart (the ink view falls back to the same values) */
+  --sk-band-black: #2B2925;
+  --sk-band-red: #C9372A;
+  --sk-band-orange: #E07B24;
+  --sk-band-green: #3C8B4A;
+  --sk-band-blue: #2F55B8;
+  --sk-band-grey: #8F8A80;
+  --sk-band-white: #F6F3EC;
+  --sk-band-silver: #B8B6B0;
   --sk-board: #FBF8F1;
   --sk-hole: #B4AC9C;
   --sk-meter: #EFE6D2;
@@ -358,6 +367,14 @@
     --sk-band-violet: #A47BD0;
     --sk-band-brown: #A0683E;
     --sk-band-gold: #CDA74A;
+    --sk-band-black: #0B0A09;
+    --sk-band-red: #E0584A;
+    --sk-band-orange: #EB8F3A;
+    --sk-band-green: #4FA35D;
+    --sk-band-blue: #6F8FE0;
+    --sk-band-grey: #9A9488;
+    --sk-band-white: #E8E3D8;
+    --sk-band-silver: #B8B4AC;
     --sk-board: #2A2926;
     --sk-hole: #5C5850;
     --sk-meter: #2E2B25;
@@ -418,6 +435,14 @@
   --sk-band-violet: #A47BD0;
   --sk-band-brown: #A0683E;
   --sk-band-gold: #CDA74A;
+  --sk-band-black: #0B0A09;
+  --sk-band-red: #E0584A;
+  --sk-band-orange: #EB8F3A;
+  --sk-band-green: #4FA35D;
+  --sk-band-blue: #6F8FE0;
+  --sk-band-grey: #9A9488;
+  --sk-band-white: #E8E3D8;
+  --sk-band-silver: #B8B4AC;
   --sk-board: #2A2926;
   --sk-hole: #5C5850;
   --sk-meter: #2E2B25;
