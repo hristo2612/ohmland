@@ -372,8 +372,8 @@ export function ViewRig({
       return solveFrame(pts, angles(opts.turn, !!opts.top), cam.fov ?? FOV, rect.aspect, rect, 45);
     };
 
-    /** `pose` pulled back along its view until neighbouring holes at its target are no more than `read` px apart. */
-    const noCloser = (pose: { position: THREE.Vector3; target: THREE.Vector3 }, read: number) => {
+    /** CSS px per mm across the view at a pose's target. */
+    const scaleAt = (pose: { position: THREE.Vector3; target: THREE.Vector3 }) => {
       const { width, height } = get().size;
       const cam = (get().camera as THREE.PerspectiveCamera).clone();
       cam.position.copy(pose.position);
@@ -381,8 +381,12 @@ export function ViewRig({
       cam.updateMatrixWorld(true);
       const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
       const a = pose.target.clone().project(cam);
-      const b = pose.target.clone().addScaledVector(right, PITCH).project(cam);
-      const pitch = Math.hypot(((b.x - a.x) / 2) * width, ((b.y - a.y) / 2) * height);
+      const b = pose.target.clone().addScaledVector(right, 10).project(cam);
+      return Math.hypot(((b.x - a.x) / 2) * width, ((b.y - a.y) / 2) * height) / 10;
+    };
+    /** `pose` pulled back along its view until neighbouring holes at its target are no more than `read` px apart. */
+    const noCloser = (pose: { position: THREE.Vector3; target: THREE.Vector3 }, read: number) => {
+      const pitch = scaleAt(pose) * PITCH;
       if (pitch <= read) return pose;
       const back = pose.position.clone().sub(pose.target).multiplyScalar(pitch / read);
       return { position: pose.target.clone().add(back), target: pose.target };
@@ -488,6 +492,13 @@ export function ViewRig({
         const turn = !printed && shouldTurn(boxes);
         // Hands-on work (`read`) comes as close as aiming needs; a look at a part keeps the camera back.
         let pose = frame(boxes, { padding, turn, minSize: MIN_FRAME, maxFill: opts.read ? undefined : MAX_FILL });
+        if (opts.withHome && opts.near !== undefined) {
+          // The home view too, while it still shows the work close enough to aim at; else that close round the work.
+          const all = [...boxes, ...workBoxes(isPortrait())];
+          const wide = frame(all, { padding, turn: !printed && shouldTurn(all), minSize: MIN_FRAME });
+          if (scaleAt(wide) >= opts.near) pose = wide;
+          else if (scaleAt(pose) > opts.near) pose = noCloser(pose, opts.near * PITCH);
+        }
         if (opts.read) pose = noCloser(pose, opts.read);
         home.current = null;
         move(pose, !opts.instant);

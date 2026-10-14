@@ -2,7 +2,7 @@
  * Ink marks the lesson draws over the bench (Annotations.tsx renders them through BenchController.project, so they
  * look the same over the 3D and the ink view). Pure helpers: anchor resolution and hole judging for tap checks.
  */
-import { boardGeometry, hiddenParts, type BenchState } from "@ohmland/bench/core";
+import { boardGeometry, hiddenParts, isOnBoard, partPose, type BenchState } from "@ohmland/bench/core";
 import { resolveAttach } from "../../lab/anchors";
 
 export type MarkKind =
@@ -71,11 +71,11 @@ export function allHoles(bench: BenchState): string[] {
 }
 
 /** Words that name a kind of part at the end of a label ("1 kΩ resistor", "9 V battery"): either half names it. */
-const KIND_WORDS = new Set(["resistor", "battery", "switch", "led", "lamp", "fuse", "capacitor", "transistor", "relay", "diode", "button", "pushbutton", "cell", "chip", "probe", "trimmer", "speaker", "box"]);
+const KIND_WORDS = new Set(["resistor", "battery", "switch", "led", "lamp", "fuse", "capacitor", "transistor", "relay", "diode", "button", "pushbutton", "cell", "chip", "probe", "trimmer", "speaker", "box", "gate"]);
 
 /**
- * The parts on the bench a robot line names: by id ("R1"), by label ("Lamp", "Switch"), or by either half of a label
- * that ends in a kind ("the 1.5 kΩ", "the battery's snap").
+ * The parts on the bench a robot line names: by id ("R1"), by label ("Lamp", "Switch"), by either half of a label that
+ * ends in a kind ("the 1.5 kΩ", "the battery's snap"), or by the word for its kind ("which gate", "the gates").
  */
 export function namedParts(line: string, bench: BenchState, labels: Record<string, string>): string[] {
   const text = ` ${line
@@ -83,6 +83,10 @@ export function namedParts(line: string, bench: BenchState, labels: Record<strin
     .replace(/['’]s\b/g, " ")
     .replace(/[,!?;:()"]|\.(?=\s|$)/g, " ")
     .replace(/\s+/g, " ")} `;
+  const said = (n: string) => n.length >= 2 && (text.includes(` ${n} `) || text.includes(` ${n}s `));
+  // A kind's word names the parts of that kind on the bench ("the gates", "which resistor"), unless it is introduced
+  // as one of a kind ("This is a resistor": the part being met, named on its own).
+  const saidKind = (k: string) => said(k) && !text.includes(` a ${k} `) && !text.includes(` an ${k} `);
   const hidden = new Set(hiddenParts(bench));
   return bench.parts
     .filter((p) => !hidden.has(p.id))
@@ -90,22 +94,26 @@ export function namedParts(line: string, bench: BenchState, labels: Record<strin
       const label = (labels[p.id] ?? "").toLowerCase().trim();
       const names = new Set<string>([p.id.toLowerCase()]);
       if (label.length >= 3) names.add(label);
+      // The kind's own word ("toggle-switch": switch), when it is one a line would use.
+      const kind = p.kind.split("-").pop() ?? "";
+      if (KIND_WORDS.has(kind) && saidKind(kind)) return true;
       const words = label.split(/\s+/);
       const last = words[words.length - 1] ?? "";
       if (words.length > 1 && KIND_WORDS.has(last)) {
-        names.add(last);
+        if (saidKind(last)) return true;
         // A value names one part ("the 1.5 kΩ"); a colour ("red") is not a name, it is how a line describes things.
         const value = words.slice(0, -1).join(" ");
         if (/\d/.test(value)) names.add(value);
       }
-      return [...names].some((n) => n.length >= 2 && text.includes(` ${n} `));
+      return [...names].some(said);
     })
     .map((p) => p.id);
 }
 
 /**
  * Lab shorthand as framing targets, each taken whole: a lead named by its id with the parts its clips bite, a jumper
- * named by its id, and a part's lead or terminal with the part it belongs to (a battery's snap brings the battery).
+ * named by its id, and a part's lead, terminal or mark with the part it belongs to (a battery's snap brings the
+ * battery, a meter socket the meter).
  */
 export function wholeTargets(bench: BenchState, list: readonly string[] | undefined): string[] {
   const partOf = (anchor: string | null) => {
@@ -118,6 +126,46 @@ export function wholeTargets(bench: BenchState, list: readonly string[] | undefi
     if (bench.wires.some((x) => x.id === s)) return [`wire:${s}`];
     const a = resolveAnchor(bench, s);
     if (!a) return [];
+    // A meter socket or a mark on a part (part:M1/dial) brings the part it is on.
+    if (a.startsWith("socket:") && bench.meter) return [a, `part:${bench.meter.id}`];
+    const mark = /^part:([^/]+)\/./.exec(a);
+    if (mark) return [a, `part:${mark[1]}`];
     return [a, ...partOf(a)];
   });
+}
+
+/** The board's hole pitch (mm). */
+const PITCH = 2.54;
+
+/**
+ * How close (CSS px per mm) a view must come for the choices among these targets to be `px` apart: neighbouring holes
+ * when any target is on the board, else the closest pair of terminals of two different parts (a clip and the terminal
+ * it bites are one contact, and two legs of one part are told apart by the loupe). 0 when nothing needs choosing.
+ */
+export function choiceScale(bench: BenchState, targets: readonly string[], px: number): number {
+  const onBoard = (id: string) => {
+    const p = bench.parts.find((x) => x.id === id);
+    return !!p && isOnBoard(bench, p);
+  };
+  const ids = new Set<string>();
+  for (const t of targets) {
+    if (t.startsWith("hole:") || t.startsWith("wire:")) return px / PITCH;
+    const m = /^(?:part|pin):([^/.]+)/.exec(t);
+    if (!m) continue;
+    if (onBoard(m[1]!)) return px / PITCH;
+    ids.add(m[1]!);
+  }
+  const pins: { part: string; at: [number, number] }[] = [];
+  for (const id of ids) {
+    const part = bench.parts.find((x) => x.id === id);
+    if (!part) continue;
+    for (const p of Object.values(partPose(bench, part).legs)) pins.push({ part: id, at: [p[0], p[2]] });
+  }
+  let min = Infinity;
+  for (let i = 0; i < pins.length; i++)
+    for (let j = i + 1; j < pins.length; j++) {
+      if (pins[i]!.part === pins[j]!.part) continue;
+      min = Math.min(min, Math.hypot(pins[i]!.at[0] - pins[j]!.at[0], pins[i]!.at[1] - pins[j]!.at[1]));
+    }
+  return Number.isFinite(min) && min > 0.1 ? px / min : 0;
 }

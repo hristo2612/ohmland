@@ -100,11 +100,13 @@ Optional, on any beat:
 
 - `objective`: starts an objective (a few words). The robot's eyes fill in equal steps as each objective (and the
   fix-it round) finishes, and the current objective's name shows as a quiet kicker. Objectives are never listed.
-- `spot: [parts]`: the parts in play. The bench frames and spotlights them. While a beat's task is open, the parts its
-  line names stay in view too, and the view comes no closer than a reading scale (holes about 20 px apart on a
-  phone). On a phone a work beat without a `spot` frames its task's `highlight` (a lead whole, a terminal with its
-  part), else where the hands last worked, else the circuit on the board; a drawing on the bench (`schematic`) is
-  docked as a slip above it while the board is framed. Meet, tap and pick beats spot their part by
+- `spot: [parts]`: the parts in play. The bench frames and spotlights them. While a beat's task is open (and its tool,
+  if any, is the meter), the parts its line names stay in view too, the meter's probe tips with them, and the view
+  comes no closer than a reading scale (holes about 20 px apart on a phone). On a phone a work beat also frames its
+  task's `highlight` (a lead with the parts it bites, a terminal or mark with its part), else where the hands last
+  worked, else the circuit on the board; it comes only as close as its choices need (neighbouring holes, or the
+  closest terminals of two different parts) and shows the lab's whole view when that is close enough. A drawing on
+  the bench (`schematic`) is docked as a slip above it while the work is framed. Meet, tap and pick beats spot their part by
   themselves; leave `spot` out when the result shows somewhere else (a switch that lights a lamp). The secret and the fix-it
   take a `spot` too (`secret: { spot: [R1, D1], ... }`, `fixit: { spot: [R3, D1], ... }`, framed through every fix-it
   task).

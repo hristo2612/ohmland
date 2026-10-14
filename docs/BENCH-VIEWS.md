@@ -52,8 +52,10 @@ interface BenchController {
    * `inset`: CSS px of the view a docked panel covers at each edge; the framing keeps clear of it, and it holds (a
    * resize, reset view) until the next focus. `read`: hands-on work, framed no closer than this many CSS px between
    * neighbouring holes (2.54 mm); targets that do not fit at that scale are fitted whole, and the touch loupe aims.
+   * `near`: CSS px per mm the work needs; with `withHome` the home view is taken in too while it still shows the work
+   * that close, else the view comes that close round the targets.
    */
-  focus(targets: string[], opts?: { padding?: number; instant?: boolean; inset?: { top?: number; right?: number; bottom?: number; left?: number }; read?: number }): void;
+  focus(targets: string[], opts?: { padding?: number; instant?: boolean; inset?: { top?: number; right?: number; bottom?: number; left?: number }; read?: number; near?: number; withHome?: boolean }): void;
   /** Temporarily emphasise parts (glow ring, dim the rest). */
   spotlight(targets: string[] | null): void;
 }

@@ -23,11 +23,12 @@ export interface BenchController {
   /**
    * Frames these parts or anchors (smooth unless reduced motion). Empty: frame the whole work area. `inset`: CSS px of
    * the bench a docked panel covers at each edge; the framing (and the selection bar) keeps clear of it until the next
-   * focus. `read`: hands-on work, framed no closer than this many CSS px between neighbouring holes.
+   * focus. `read`: hands-on work, framed no closer than this many CSS px between neighbouring holes. `near`: CSS px
+   * per mm the work needs; with `withHome` the lab's whole view is taken in while it is that close.
    */
   focus(
     targets: string[],
-    opts?: { padding?: number; instant?: boolean; inset?: { top?: number; right?: number; bottom?: number; left?: number }; read?: number },
+    opts?: { padding?: number; instant?: boolean; inset?: { top?: number; right?: number; bottom?: number; left?: number }; read?: number; near?: number; withHome?: boolean },
   ): void;
   /** Emphasises parts or anchors for a while; null clears it. `pins: false`: the spotlit chips print no pin numbers. */
   spotlight(targets: string[] | null, opts?: { pins?: boolean }): void;

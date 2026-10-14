@@ -31,7 +31,7 @@ import { legPin, partChip, pinNumber } from "../../lab/chips";
 import { resolveAttach } from "../../lab/anchors";
 import { Annotations, useSize, useViewTick } from "./Annotations";
 import { holeName, type PinName } from "./flow";
-import { allHoles, namedParts, resolveAnchor, wholeTargets, type Mark } from "./marks";
+import { allHoles, choiceScale, namedParts, resolveAnchor, wholeTargets, type Mark } from "./marks";
 import { ResistorSlider } from "./ResistorSlider";
 import type { Popup } from "../../content/schema";
 import type { CodeBeat } from "../../lab/code/CodeDrawer";
@@ -450,21 +450,24 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
       // A fix-it's hint highlight is its answer, and its line names the symptom: they never steer the view.
       if (phone && beat) framed = [...framed, ...wholeTargets(b, lab.tasks.find((t) => t.id === props.gate)?.highlight)];
       if ((phone && beat) || framed.length) framed = [...framed, ...named];
+      // Probing: the probes' tips are what the hands move, so they stay in view with what they will touch.
+      if (framed.length && tool === "meter" && b.meter) framed = [...framed, "probe:red", "probe:black"];
       framed = [...new Set(framed)];
       read = phone ? READ_PHONE : READ_DESK;
       if (phone && !framed.length && beat && lastHands.current?.length) framed = lastHands.current;
       // Nothing named on a phone: the circuit on the board, whole (a whole breadboard would be too small to touch).
       if (phone && !framed.length && b.board) framed = [...b.parts.filter((p) => isOnBoard(b, p)).map((p) => `part:${p.id}`), ...b.wires.map((x) => `wire:${x.id}`)];
-      // Building from a drawing: on a phone the drawing does not fit beside the board at a working scale, so it is
-      // docked as a slip above the bench (framing keeps clear of it). A beat about the drawing alone frames it.
-      const card = phone ? b.parts.find((p) => p.kind === "schematic") : undefined;
-      const onCard = (t: string) => t === `part:${card?.id}` || b.parts.some((p) => p.kind === "piece" && t === `part:${p.id}`);
-      if (card && framed.some((t) => !onCard(t))) {
-        framed = framed.filter((t) => !onCard(t));
-        slip = card.id;
-        inset.top = SLIP_TOP;
-      }
       if (phone && beat && framed.length) lastHands.current = framed;
+    }
+    // Working from a drawing: on a phone the drawing does not fit beside the parts at a usable scale, so while other
+    // parts are framed it is docked as a slip above the bench (framing keeps clear of it). A beat about the drawing
+    // alone frames the drawing itself.
+    const card = phone ? b.parts.find((p) => p.kind === "schematic") : undefined;
+    const onCard = (t: string) => t === `part:${card?.id}` || b.parts.some((p) => p.kind === "piece" && t === `part:${p.id}`);
+    if (card && framed.some((t) => !onCard(t))) {
+      framed = framed.filter((t) => !onCard(t));
+      slip = card.id;
+      inset.top = SLIP_TOP;
     }
     setDrawing(slip);
     // A part in play keeps some bench around it: close enough to tell its legs apart and tap them, never a lone
@@ -475,12 +478,16 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     const close = phone && !!one && PRINTED_KINDS.has(one.kind) && one.kind !== "tag";
     // Several parts in play are their own context: a modest margin keeps them close.
     const padding = close ? 8 : Math.round(free * (framed.length > 1 ? 0.06 : phone ? 0.12 : 0.3));
-    c.focus(framed, framed.length ? { padding, inset, ...(read ? { read } : {}) } : { inset });
+    // On a phone, work across several parts comes only as close as its choices need (neighbouring holes, or the
+    // closest terminals of two different parts, about READ_PHONE px apart), and takes in the lab's whole view when
+    // that is close enough. Work on one part (a gate's button, a box's lid) is simply framed.
+    const near = phone && working && framed.length ? choiceScale(b, framed, READ_PHONE) : 0;
+    c.focus(framed, framed.length ? { padding, inset, ...(read ? { read } : {}), ...(near > 0 ? { near, withHome: true } : {}) } : { inset });
     // What the bench frames and what the line names, for tests and screenshot checks.
     stage.dataset.framed = framed.join(" ");
     stage.dataset.named = namedParts(props.line ?? "", b, built.labels).join(" ");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spotKey, frameKey, runtime, benchReady, dockKey, quietPins, props.hands, props.gate, props.line]);
+  }, [spotKey, frameKey, runtime, benchReady, dockKey, quietPins, props.hands, props.gate, props.line, tool]);
 
   return (
     <div ref={stageRef} className="bl-stage" data-bench-ready={benchReady || undefined} data-lab-ready data-lab={lab.id} onPointerDownCapture={() => audio.unlock()} onKeyDownCapture={() => audio.unlock()}>

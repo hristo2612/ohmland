@@ -5,7 +5,7 @@ import type { BenchLessonData } from "../../content/load";
 import { benchLessonSchema } from "../../content/schema";
 import { answerKeys, holeName, isMomentDone, momentsOf, notesToSave, noteText, pinNamesBefore, progressOf, recordTry, rulesFound, savedNotes, scoreOf } from "./flow";
 import { parseNote } from "../../lab/notes";
-import { judgeJoined, namedParts, resolveAnchor } from "./marks";
+import { choiceScale, judgeJoined, namedParts, resolveAnchor } from "./marks";
 
 const lesson = (extra: Record<string, unknown> = {}): BenchLessonData =>
   ({
@@ -184,5 +184,28 @@ describe("parts a robot line names", () => {
     expect(named("Flip its switch, then check D1.")).toEqual(["D1", "S1"]);
     expect(named("Clip it back.")).toEqual([]);
     expect(named("My stress bar is red.")).toEqual([]);
+    expect(named("Put the old one back. Then a fresh LED.")).toEqual(["D1", "D2"]);
+    expect(named("Clip the leads on both resistors.")).toEqual(["R1"]);
+    expect(named("This is a resistor. It squeezes the flow.")).toEqual([]);
+  });
+});
+
+describe("how close hands-on work must come", () => {
+  it("needs neighbouring holes on a board, the closest terminals of two parts on the desk, and nothing for one part", () => {
+    const board = buildBench({ board: "half", parts: [{ id: "R1", kind: "resistor", at: "c6-c10", params: { ohms: 470 } }], tray: [], instruments: [] }).bench;
+    expect(choiceScale(board, ["part:R1"], 20)).toBeCloseTo(20 / 2.54);
+    expect(choiceScale(board, ["hole:a3"], 20)).toBeCloseTo(20 / 2.54);
+    const desk = buildBench({
+      board: "none",
+      parts: [
+        { id: "B1", kind: "battery", at: "desk:-60,0" },
+        { id: "D1", kind: "led", at: "desk:60,0" },
+      ],
+      tray: [],
+      instruments: [],
+    }).bench;
+    // Two legs of one LED are the loupe's to tell apart; the battery and the LED are far apart.
+    expect(choiceScale(desk, ["part:D1"], 20)).toBe(0);
+    expect(choiceScale(desk, ["part:B1", "part:D1"], 20)).toBeLessThan(0.5);
   });
 });

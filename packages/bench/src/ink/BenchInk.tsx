@@ -11,7 +11,7 @@ import { BenchStoreContext, createBenchStore } from "../store";
 import type { BenchAction } from "../types";
 import type { BenchController, ScreenPoint } from "../view/controller";
 import type { BenchRendererProps } from "../view/types";
-import { NO_PAD, fitRect, growRect, rectOfPoints, type Pad, type Rect } from "./camera";
+import { NO_PAD, fitRect, growRect, rectOfPoints, unionRect, type Pad, type Rect } from "./camera";
 import { BoardBase, BoardHoles, BoardXray } from "./draw/Board";
 import { GlowLayer, LeadView, PartView, SmokeLayer, WireView } from "./draw/layers";
 import { Marks } from "./draw/Marks";
@@ -250,7 +250,7 @@ export function BenchInk(props: BenchInkProps) {
     [view, homeRect, compact, store, padNow],
   );
   /** What the view frames: home, or what focus() asked for. A resize frames it again (unless the learner moved). */
-  const framing = useRef<{ targets: string[]; padding?: number; read?: number } | null>(null);
+  const framing = useRef<{ targets: string[]; padding?: number; read?: number; near?: number; withHome?: boolean } | null>(null);
   const applyFraming = useCallback(
     (instant: boolean) => {
       if (!view.sized) return;
@@ -275,9 +275,21 @@ export function BenchInk(props: BenchInkProps) {
       const pad = { top: base.top + py, right: base.right + px, bottom: base.bottom + py, left: base.left + px };
       const rect = growRect([cx - hw, cz - hh, cx + hw, cz + hh], 3);
       // Hands-on work comes no closer than its reading scale: the whole job stays in view (the loupe aims).
-      view.fit(rect, pad, { instant, max: f.read ? Math.min(18, f.read / PITCH) : 18 });
+      const cap = f.read ? Math.min(18, f.read / PITCH) : 18;
+      if (f.withHome && f.near !== undefined) {
+        // The home view too, while it still shows the work close enough to aim at; else that close round the work.
+        const home = homeRect();
+        const ctx = unionRect(rect, growRect(home, Math.max(4, Math.max(home[2] - home[0], home[3] - home[1]) * 0.06)))!;
+        if (fitRect(ctx, view.vp, pad, cap).s >= f.near) {
+          view.fit(ctx, pad, { instant, max: cap });
+          return;
+        }
+        view.fit(rect, pad, { instant, max: Math.min(cap, Math.max(f.near, 0.6)) });
+        return;
+      }
+      view.fit(rect, pad, { instant, max: cap });
     },
-    [view, fitHomeNow, padNow],
+    [view, fitHomeNow, padNow, homeRect],
   );
   const fitHome = useCallback(
     (instant = false) => {
@@ -460,6 +472,8 @@ export function BenchInk(props: BenchInkProps) {
               targets: [...targets],
               ...(opts?.padding !== undefined ? { padding: opts.padding } : {}),
               ...(opts?.read ? { read: opts.read } : {}),
+              ...(opts?.near !== undefined ? { near: opts.near } : {}),
+              ...(opts?.withHome ? { withHome: true } : {}),
             }
           : null;
         const i = opts?.inset ?? {};

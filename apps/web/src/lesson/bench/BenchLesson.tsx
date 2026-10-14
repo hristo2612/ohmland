@@ -99,6 +99,15 @@ function spotOf(mo: Moment): string[] | null {
   // A pop-up card leaves the whole bench in view: what it changes shows somewhere else (the LED).
   return null;
 }
+/**
+ * Hands-on work on the bench: a beat's task or a fix-it bench, unless the beat's tool is where the work is done (a
+ * time slider, a stopwatch, the code drawer: then the bench is watched, not aimed at). The meter's probes are aimed.
+ */
+function handsOf(mo: Moment, tool: string | null): "beat" | "fix" | null {
+  if (tool && tool !== "meter") return null;
+  return mo.kind === "fix" ? "fix" : mo.kind === "beat" && mo.action === "task" ? "beat" : null;
+}
+
 /** The bench steps a right check applies (`then`), as the lab's solution steps. */
 const stepsOf = (mo: Moment): SolutionStep[] => (mo.beat?.then ?? []) as SolutionStep[];
 /** The notebook boxes a lab task asks for (a number read off the bench, judged by the task's goal). */
@@ -1119,7 +1128,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               trayOpen={!!gate}
               spot={spot}
               frame={frame}
-              hands={started ? (moment.kind === "fix" ? "fix" : moment.kind === "beat" && moment.action === "task" ? "beat" : null) : null}
+              hands={started ? handsOf(moment, moment.tool ?? null) : null}
               line={started ? moment.say : undefined}
               xray={started && !!moment.beat?.xray}
               hintHighlight={hintHighlight}
