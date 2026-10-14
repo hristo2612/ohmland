@@ -2,12 +2,15 @@
 // Pure: shared by the 3D and ink views.
 
 import { parseAnchor } from "../anchors";
-import { METER, anchorPosition, meterLocalToWorld, partPose, socketWorld } from "../layout";
+import { METER, anchorPosition, lieDown, meterLocalToWorld, partPose, socketWorld } from "../layout";
+import { partMarks, rotateXZ } from "../parts";
 import type { Anchor, BenchState, MeterSocket, Vec3 } from "../types";
 
 /**
  * - `part:D1`: a whole part (or the meter, `part:M1`).
  * - `part:M1/display`, `part:M1/dial`, `part:M1/com` (any socket): spots on the meter.
+ * - `part:R1/a`: a part's lead; `part:SD1/R1`, `part:BX/lid`, `part:G1/unit`: a named mark on a part (PartDef.marks:
+ *   a drawing's symbols, a box's lid, knob and padlock wheels, a gate's flag and unit button, a tag's text).
  * - `lead:TL1`, `wire:W1`: a whole test lead or jumper wire.
  * - Any bench anchor: `hole:e12`, `pin:R1.a`, `wire:W1.a`, `lead:TL1.b`, `probe:red`, `socket:com`.
  */
@@ -45,9 +48,21 @@ export function meterSpot(bench: BenchState, sub: string): Vec3 | null {
   return null;
 }
 
+/** A part's lead or named mark (`part:R1/a`, `part:SD1/R1`) in world coordinates, or null. */
+export function partSpot(bench: BenchState, part: BenchState["parts"][number], sub: string): Vec3 | null {
+  const pose = partPose(bench, part);
+  const leg = pose.legs[sub];
+  if (leg) return leg;
+  const local0 = partMarks(part)[sub];
+  if (!local0) return null;
+  const local = pose.lie ? lieDown(local0) : local0;
+  const [rx, rz] = rotateXZ(local[0], local[2], pose.rot);
+  return [pose.origin[0] + rx, pose.origin[1] + local[1], pose.origin[2] + rz];
+}
+
 /**
  * A representative world point for a target without looking at any model: the anchor itself, the middle of a
- * part's leads (a little above them), the middle of a lead or wire, or a meter spot.
+ * part's leads (a little above them), a part's lead or mark, the middle of a lead or wire, or a meter spot.
  */
 export function targetPoint(bench: BenchState, target: string): Vec3 | null {
   const t = parseTarget(target);
@@ -69,6 +84,7 @@ export function targetPoint(bench: BenchState, target: string): Vec3 | null {
       }
       const part = bench.parts.find((p) => p.id === t.id);
       if (!part) return null;
+      if (t.sub) return partSpot(bench, part, t.sub);
       const legs = Object.values(partPose(bench, part).legs);
       if (!legs.length) return [part.pos[0], 4, part.pos[1]];
       const n = legs.length;

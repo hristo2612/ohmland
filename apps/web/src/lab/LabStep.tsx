@@ -12,7 +12,7 @@ import { useLearner } from "../progress/store";
 import { LabAudio } from "./audio";
 import { buildBench } from "./build";
 import { isOptional, type LabDefinition, type LabTask } from "./define";
-import { ConnectionsPanel, ControlsPanel, MeterPanel, Notebook, ScopePanel } from "./instruments";
+import { ConnectionsPanel, ControlsPanel, MeterPanel, Notebook, ScopePanel, ViewsPanel } from "./instruments";
 import { LabPanels } from "./panels-ui";
 import { LoggerPanel, StopwatchPanel, TapperPanel } from "./timing";
 import { friedLabel } from "./labels";
@@ -217,6 +217,7 @@ function LabRunner({ lab, lessonId, intro, done, onTaskDone }: LabStepProps & { 
           {allDone && <p className="lab__alldone small">{m.lab.allDone}</p>}
           <TaskList runtime={runtime} hints={hints} onHint={onHint} />
           <LabPanels runtime={runtime} />
+          <ViewsPanel runtime={runtime} offer={built.overlays?.offer ?? []} />
           <ControlsPanel runtime={runtime} controls={built.controls} />
           {hasMeter && <Notebook runtime={runtime} />}
           <ConnectionsPanel runtime={runtime} />

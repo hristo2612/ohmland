@@ -3,10 +3,10 @@
  * snapshot, keeps the event log, the recent history and the notebook, checks task goals in order (optional tasks all
  * the time), spots fried parts and fires achievement triggers. The lab step and the headless replay both drive one.
  */
-import { benchToNetlist, type BenchNetlist, type BenchState } from "@ohmland/bench/core";
+import { advanceGates, benchToNetlist, type BenchNetlist, type BenchState, type GateCounts } from "@ohmland/bench/core";
 import type { SimEvent, Snapshot } from "@ohmland/sim";
 import type { BuiltBench, SimInput } from "./build";
-import { isOptional, type LabDefinition, type LabTask, type LabView, type PanelState, type Reading, type StopwatchRun, type TaskStatus, type TriggerSpec } from "./define";
+import { isOptional, type LabDefinition, type LabTask, type LabView, type LabViews, type OverlayName, type PanelState, type Reading, type StopwatchRun, type TaskStatus, type TriggerSpec } from "./define";
 import { emptyPanel, panelSize, solutionAnswer, submitPanel, updateAutoPanel, wiringKey, type AutoMemory } from "./panels";
 import { createLabView, hallKind, readingTags } from "./view";
 
@@ -80,6 +80,10 @@ export class LabSession {
   private wiring = "";
   private timing: { start: number; watch?: number } | null = null;
   private trig = new Map<string, boolean>();
+  /** The views and overlays that are on (the runtime mirrors the bench store's here). */
+  views: LabViews = { flow: "off", push: false, xray: false, trace: null };
+  /** Dots each gate has counted. */
+  gates: GateCounts = {};
   /** When each task was done in this visit, with the meter as it read then (LabView.doneAt). */
   doneAt: Record<string, { t: number; meter: LabView["meter"] }> = {};
   private memory = new Map<string, Record<string, unknown>>();
@@ -101,6 +105,22 @@ export class LabSession {
     this.wiring = wiringKey(this.bench);
     for (const p of lab.panels ?? []) this.panels[p.id] = emptyPanel(panelSize(p, this.bench));
     if (built.tapper) this.tapper = { part: built.tapper.part, hz: built.tapper.hz ?? 4, on: false, next: 0, pressed: false };
+    const o = lab.bench.overlays;
+    if (o) this.views = { ...this.views, flow: o.flow ?? "off", push: !!o.push };
+  }
+
+  /** Switches a view or overlay on or off (from a toggle, the store, or a solution step). */
+  setView(name: OverlayName | "xray", on: boolean): void {
+    const v = this.views;
+    if (name === "push") this.views = { ...v, push: on };
+    else if (name === "xray") this.views = { ...v, xray: on };
+    else if (name === "electrons") this.views = { ...v, flow: on ? "electrons" : v.flow === "electrons" ? "current" : v.flow };
+    else this.views = { ...v, flow: on ? (v.flow === "off" ? "current" : v.flow) : "off" };
+  }
+
+  /** The loop tracer started from a terminal (or was cleared). */
+  setTrace(from: string | null): void {
+    this.views = { ...this.views, trace: from };
   }
 
   /** The bench changed: rebuild the netlists. Returns the netlist for the simulator. */
@@ -174,6 +194,7 @@ export class LabSession {
     this.toneLog = [];
     this.timing = null;
     this.loggerT0 = null;
+    this.gates = {};
     this.trig.clear();
     if (this.tapper) this.tapper = { ...this.tapper, on: false, pressed: false };
   }
@@ -202,6 +223,8 @@ export class LabSession {
       tapping: this.tapper?.on ? this.tapper.part : null,
       onTrigger: (name) => this.pendingTriggers.push(name),
       doneAt: this.doneAt,
+      views: this.views,
+      gates: this.gates,
     });
   }
 
@@ -227,8 +250,11 @@ export class LabSession {
       this.events.push(...s.events);
       if (this.events.length > MAX_EVENTS) this.events.splice(0, this.events.length - MAX_EVENTS);
     }
+    const prevT = this.history[this.history.length - 1]?.t;
     this.history.push(s);
     while (this.history.length && this.history[0]!.t < s.t - HISTORY_SECONDS) this.history.shift();
+    // Gates count the dots that ride past them.
+    if (this.bench.parts.some((p) => p.kind === "gate")) this.gates = advanceGates(this.gates, this.bench, s, prevT === undefined ? 0 : s.t - prevT);
 
     // Fried parts.
     for (const e of s.events) {

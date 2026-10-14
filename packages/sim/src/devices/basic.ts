@@ -320,8 +320,10 @@ export class SourceDevice extends Device {
     this.r0 = Math.max(1e-3, finiteOr(spec.internalOhms, spec.kind === "cell" ? 1000 : 1.7));
     this.mAh = spec.kind === "battery" ? Math.max(0, finiteOr(spec.mAh, 0)) : 0;
     this.polarizes = spec.kind === "battery";
-    this.rEff = this.r0;
-    this.emfEff = this.emf;
+    // A battery can start part used (a lab's tired battery); a rebuild restores the charge it already has instead.
+    if (spec.kind === "battery" && this.mAh > 0 && spec.soc !== undefined) this.soc = clamp(finiteOr(spec.soc, 1), 0, 1);
+    this.rEff = this.mAh > 0 ? this.computeR() : this.r0;
+    this.emfEff = this.emf * this.socFactor();
   }
   bind(b: Binder): void {
     this.p = b.node(this.pin("pos"));

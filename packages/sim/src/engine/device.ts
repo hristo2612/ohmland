@@ -37,6 +37,12 @@ export interface Ctx {
    */
   markEdge(): void;
   addBreakpoint(t: number): void;
+  /**
+   * The resistance the rest of the circuit presents between two unknowns (-1 for the reference), from the factors of
+   * the step just solved: what a part sees "looking out" of two of its pins. Infinity when nothing joins them. Read
+   * it in accept() to judge a risk (a reversed LED behind a resistor is safe, straight across a battery it is not).
+   */
+  drivingOhms?(i: number, j: number): number;
 }
 
 export interface Binder {

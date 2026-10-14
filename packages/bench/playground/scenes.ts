@@ -197,3 +197,146 @@ export function modulesBench(): BenchState {
   ];
   return b;
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Start here (docs/curriculum/start-here.md). Run them with `sim=1` for live flow dots, gates and push.
+
+type P = BenchState["parts"][number];
+const q = (k: string) => (typeof location !== "undefined" ? new URLSearchParams(location.search).get(k) : null);
+const pp = (id: string, kind: P["kind"], params: Record<string, unknown>, pos: [number, number], rot = 0): P => ({ id, kind, params, pos, rot }) as P;
+const clip = (id: string, color: BenchState["leads"][number]["color"], a: string | null, b: string | null, apos: [number, number] = [0, 0], bpos: [number, number] = [0, 0]) => ({
+  id,
+  color,
+  a: { to: a, pos: apos },
+  b: { to: b, pos: bpos },
+});
+
+/** Seats `id` in a holder's seat (sets the holder's `held`; the bench places it from there). */
+function held(b: BenchState, holder: string, seat: string, id: string): BenchState {
+  return { ...b, parts: b.parts.map((p) => (p.id === holder ? ({ ...p, params: { ...p.params, held: { ...((p.params as { held?: object }).held ?? {}), [seat]: id } } } as P) : p)) };
+}
+
+/**
+ * The lamp loop on the desk (SH1, SH4): the bench battery, the switch on its block, 1 kΩ and the red lamp, four clip
+ * leads. `wrap` puts TL1's clip on the battery's wrapper (the case's gap); `gates` clips G1 and G2 either side of the
+ * lamp; `off` leaves the switch off.
+ */
+export function lampBench(opts: { wrap?: boolean; gates?: boolean; off?: boolean; charge?: number } = {}): BenchState {
+  const b = emptyBench(null);
+  b.parts = [
+    pp("B1", "battery", { emf: 9.4, internalOhms: 1.7, mAh: 500, ...(opts.charge !== undefined ? { charge: opts.charge } : {}) }, [-92, -12]),
+    pp("S1", "toggle-switch", { base: true, to: opts.off ? "a" : "b", tag: "S1" }, [-18, -66]),
+    pp("R1", "resistor", { ohms: 1000 }, [58, -48]),
+    pp("D1", "led", { color: "red", maxmA: 50 }, [62, 30], 180),
+  ];
+  b.leads = [
+    clip("TL1", "red", opts.wrap ? "pin:B1.wrap" : "pin:B1.pos", "pin:S1.com"),
+    clip("TL2", "yellow", "pin:S1.b", "pin:R1.a"),
+    clip("TL3", "green", "pin:R1.b", "pin:D1.anode"),
+    clip("TL4", "black", "pin:D1.cathode", "pin:B1.neg"),
+  ];
+  if (opts.gates) b.parts.push(pp("G1", "gate", { on: "TL3", at: 0.45 }, [0, 0]), pp("G2", "gate", { on: "TL4", at: 0.5 }, [0, 0]));
+  return b;
+}
+
+/** The junk drawer (SH2): the lamp with its gap bridged by the key, the other objects lying by two sorting trays. */
+export function drawerBench(): BenchState {
+  const b = emptyBench(null);
+  b.parts = [
+    pp("B1", "battery", { emf: 9.4, internalOhms: 1.7 }, [-150, -40]),
+    pp("R1", "resistor", { ohms: 1000 }, [-80, -70]),
+    pp("D1", "led", { color: "red", maxmA: 50 }, [-20, -60], 180),
+    pp("K1", "sample", { material: "key" }, [-70, 10]),
+    pp("YES", "bin", { style: "tray", label: "LETS FLOW THROUGH" }, [110, -70]),
+    pp("NO", "bin", { style: "tray", label: "STOPS FLOW" }, [110, 60]),
+    pp("CN1", "sample", { material: "coin" }, [-150, 60]),
+    pp("SP1", "sample", { material: "spoon" }, [-50, 70]),
+    pp("E1", "sample", { material: "eraser" }, [-140, 105]),
+    pp("F1", "sample", { material: "foil" }, [-60, 120]),
+    pp("MB1", "sample", { material: "marble" }, [-100, 60]),
+    pp("WS1", "sample", { material: "wood" }, [10, 125]),
+    pp("P1", "sample", { material: "pencil" }, [20, 80]),
+    pp("ST1", "sample", { material: "string" }, [-130, 150]),
+    pp("PC1", "sample", { material: "clip" }, [20, 40]),
+  ];
+  b.leads = [
+    clip("TL1", "red", "pin:B1.pos", "pin:R1.a"),
+    clip("TL2", "yellow", "pin:R1.b", "pin:K1.a"),
+    clip("TL3", "green", "pin:K1.b", "pin:D1.anode"),
+    clip("TL4", "black", "pin:D1.cathode", "pin:B1.neg"),
+    clip("TL5", "blue", "pin:PC1.coat", null, [0, 0], [70, 20]),
+  ];
+  return held(held(b, "NO", "s1", "SP1"), "YES", "s1", "CN1");
+}
+
+/**
+ * Two sealed boxes, one lamp (SH5): box A holds an AA cell, box B a 9 V battery; the lamp module is clipped to B. The
+ * knob box (SH6) with its tag sits behind them. `open` lifts every lid.
+ */
+export function boxesBench(open = false): BenchState {
+  let b = emptyBench(null);
+  b.parts = [
+    pp("BOXA", "box", { lid: open, label: "A", wiring: { "s1.pos": "t1", "s1.neg": "t2" } }, [-120, 10]),
+    pp("X1", "battery", { size: "aa", emf: 1.58, internalOhms: 0.15 }, [0, 0]),
+    pp("BOXB", "box", { lid: open, label: "B", wiring: { "s1.pos": "t1", "s1.neg": "t2" } }, [0, 10]),
+    pp("B1", "battery", { emf: 9.4, internalOhms: 1.7 }, [0, 0]),
+    pp("R1", "resistor", { ohms: 1000 }, [100, -20]),
+    pp("D1", "led", { color: "red", maxmA: 50 }, [120, 50], 180),
+    pp("KB", "box", { lid: open, knob: true, tag: "10 kΩ", wiring: { "s1.a": "t1", "s1.wiper": "j1", "s2.a": "j1", "s2.b": "t2" } }, [-70, -110]),
+    pp("RV1", "trimmer", { ohms: 10000, position: 0.3, base: true }, [0, 0]),
+    pp("RK", "resistor", { ohms: 470 }, [0, 0]),
+  ];
+  b.leads = [
+    clip("TL1", "red", "pin:BOXB.t1", "pin:R1.a"),
+    clip("TL2", "green", "pin:R1.b", "pin:D1.anode"),
+    clip("TL3", "black", "pin:D1.cathode", "pin:BOXB.t2"),
+  ];
+  b = held(b, "BOXA", "s1", "X1");
+  b = held(b, "BOXB", "s1", "B1");
+  b = held(b, "KB", "s1", "RV1");
+  return held(b, "KB", "s2", "RK");
+}
+
+/** The tired battery (SH7): the lamp on a battery at 8%, the desk clock, an AA cut open beside it. */
+export function tiredBench(): BenchState {
+  const b = lampBench({ charge: 0.08 });
+  b.parts.push(pp("CK1", "clock", {}, [-80, -80]), pp("XA", "battery", { size: "aa", emf: 1.58, internalOhms: 0.15, xray: q("xray") !== "0" }, [-170, 70]));
+  return b;
+}
+
+/** Prefixes and symbols (SH9, SH11, SH12): the cabinet and its padlock, value tags, drawers, the torn blueprint. */
+export function symbolsBench(): BenchState {
+  const b = emptyBench(null);
+  b.parts = [
+    pp("CAB", "box", { style: "cabinet", lock: { wheels: ["4,700 Ω", "0.02 A", "9,000 mV"], set: [true, true, false] } }, [-120, -110]),
+    pp("L1", "tag", { text: "4.7 kΩ" }, [20, -130]),
+    pp("L2", "tag", { text: "20 mA", alt: true }, [60, -130]),
+    pp("L3", "tag", { text: "9 V" }, [100, -130]),
+    pp("DR-BAT", "bin", { style: "drawer", face: "battery" }, [-170, 20]),
+    pp("DR-SW", "bin", { style: "drawer", face: "switch" }, [-90, 20]),
+    pp("DR-RES", "bin", { style: "drawer", face: "resistor" }, [-10, 20]),
+    pp("DR-LED", "bin", { style: "drawer", face: "led" }, [70, 20]),
+    pp("RB", "resistor", { ohms: 10000 }, [0, 0]),
+    pp("SD1", "schematic", { title: "Blueprint", symbols: [{ kind: "battery", part: "B1" }, { kind: "resistor", part: "R1", text: "1 kΩ" }, { kind: "led", part: "D1" }], torn: 2 }, [-110, 130]),
+    pp("PC", "piece", { symbol: "led", turn: 0 }, [10, 130]),
+    pp("SD2", "schematic", { symbols: [{ kind: "battery" }, { kind: "switch" }, { kind: "resistor" }, { kind: "led" }] }, [140, 130]),
+  ];
+  return held(b, "DR-RES", "s1", "RB");
+}
+
+/** The static toy (SH3, wave 2): balloons, a wool scarf, paper bits, a comb, a spoon and a strip of wall. */
+export function staticBench(): BenchState {
+  const b = emptyBench(null);
+  b.parts = [
+    pp("WL1", "wall", {}, [0, -90]),
+    // Stuck to the wall's face: charged.
+    pp("BL0", "balloon", { color: "yellow", charge: -6 }, [-40, -90 + 5 + 17]),
+    pp("BL1", "balloon", { color: "red", charge: -7 }, [40, 30]),
+    pp("BL2", "balloon", { color: "blue" }, [100, -20]),
+    pp("SF1", "scarf", { charge: 7 }, [-70, 80]),
+    pp("PB1", "paper", {}, [42, 62]),
+    pp("CB1", "comb", { charge: -3 }, [110, 100]),
+    pp("MS1", "sample", { material: "metal-spoon" }, [150, 40]),
+  ];
+  return b;
+}

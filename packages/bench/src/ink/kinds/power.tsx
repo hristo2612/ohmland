@@ -20,6 +20,8 @@ function NineVolt({ pi, st }: DrawProps<"battery">) {
   const labels = useLabels();
   const snap = !!pi.part.params.snap;
   const hp = health(st);
+  // Laid on its back in a box: seen from above it shows its front, terminals at the back.
+  if (pi.pose.lie) return <g transform={`translate(0 ${-(BATTERY.len - 0.9)})`}>{NineVoltFront({ pi, st, id, labels, snap, hp })}</g>;
   if (pi.pose.heldBy) {
     const D = BATTERY.thick / 2;
     return (
@@ -38,11 +40,16 @@ function NineVolt({ pi, st }: DrawProps<"battery">) {
       </g>
     );
   }
+  return NineVoltFront({ pi, st, id, labels, snap, hp });
+}
+
+/** The 9 V battery front on: terminals at the top (at their clip points), the body below. */
+function NineVoltFront({ pi, id, labels, snap, hp }: { pi: DrawProps<"battery">["pi"]; st: DrawProps<"battery">["st"]; id: string; labels: ReturnType<typeof useLabels>; snap: boolean; hp: string }) {
   const top = 3;
   const bottom = BATTERY.len;
   const band0 = 16;
   const band1 = 29;
-  const depth = 4.5;
+  const depth = pi.pose.lie ? 0 : 4.5;
   return (
     <g>
       <ellipse cx={2} cy={bottom + 1.6} rx={W9 + 6} ry={2.2} className="f-shade" opacity={0.7} />
@@ -102,6 +109,7 @@ function AaCell({ pi }: DrawProps<"battery">) {
   const x0 = -AA.len / 2;
   const x1 = AA.len / 2 - 1.5;
   const rot = pi.f.rot;
+  if (pi.part.params.xray) return <AaCutaway held={!!pi.pose.heldBy} />;
   return (
     <g>
       {!pi.pose.heldBy && [-15, 15].map((x) => <rect key={x} x={x - 3} y={-R - 1.2} width={6} height={AA.dia + 2.4} rx={1.2} className="f-black ln-thin" />)}
@@ -118,6 +126,42 @@ function AaCell({ pi }: DrawProps<"battery">) {
       <Upright x={x1 - 8.5} z={0} rot={0} fontSize={5} fontWeight={700} textAnchor="middle" dominantBaseline="central" className="f-ink">
         +
       </Upright>
+    </g>
+  );
+}
+
+/**
+ * An AA cell cut open along its length: the steel can, a dark ring of manganese dioxide (the + side's chemical), a thin
+ * separator, the grey zinc paste in the middle (the − side's), and the brass pin that collects from it.
+ */
+function AaCutaway({ held }: { held: boolean }) {
+  const defs = useDefs();
+  const R = AA.dia / 2;
+  const x0 = -AA.len / 2;
+  const x1 = AA.len / 2 - 1.5;
+  const can = 0.7;
+  const ring = 3.1;
+  const sep = 0.7;
+  const core = R - can - ring - sep;
+  const xs = x0 + 2.2;
+  const xe = x1 - 2.4;
+  return (
+    <g>
+      {!held && [-15, 15].map((x) => <rect key={x} x={x - 3} y={-R - 1.2} width={6} height={AA.dia + 2.4} rx={1.2} className="f-black ln-thin" />)}
+      <rect x={n3(x0)} y={-R} width={n3(x1 - x0)} height={AA.dia} rx={1.4} className="f-metal" />
+      <rect x={n3(xs)} y={n3(-R + can)} width={n3(xe - xs)} height={n3(AA.dia - 2 * can)} rx={0.8} className="f-mno2" />
+      <rect x={n3(xs + ring * 0.6)} y={n3(-core - sep)} width={n3(xe - xs - ring * 1.2)} height={n3(2 * (core + sep))} rx={0.8} className="f-sep" />
+      <rect x={n3(xs + ring * 0.6 + sep)} y={n3(-core)} width={n3(xe - xs - ring * 1.2 - 2 * sep)} height={n3(2 * core)} rx={0.6} className="f-zinc-gel" />
+      <rect x={n3(xs + ring * 0.6 + sep)} y={n3(-core)} width={n3(xe - xs - ring * 1.2 - 2 * sep)} height={n3(2 * core)} rx={0.6} fill={`url(#${defs}-speckle)`} />
+      <path d={`M${n3(xs + 3)} ${n3(-R + can + 1.2)}l1 1.4M${n3(xs + 11)} ${n3(R - can - 1.6)}l1.2 -1M${n3(xs + 20)} ${n3(-R + can + 1)}l1 1.2M${n3(xs + 30)} ${n3(R - can - 1.4)}l1 -1.2M${n3(xs + 38)} ${n3(-R + can + 1.1)}l1 1.2`} className="s-slip" strokeWidth={0.3} />
+      <rect x={n3(x0 - 0.4)} y={-0.45} width={n3((xe - x0) * 0.62)} height={0.9} rx={0.45} className="f-brass ln-thin" />
+      <rect x={n3(x1 - 1.4)} y={n3(-R + 0.6)} width={1.6} height={n3(AA.dia - 1.2)} rx={0.6} className="f-metal-hi ln-thin" />
+      <rect x={n3(x1)} y={-2.9} width={1.6} height={5.8} rx={0.6} className="f-metal-hi ln" />
+      <rect x={n3(x0)} y={-R} width={n3(x1 - x0)} height={AA.dia} rx={1.4} className="ln" />
+      <path d={`M${n3(xs)} ${n3(-R + can)}H${n3(xe)}M${n3(xs)} ${n3(R - can)}H${n3(xe)}`} className="ln-thin" />
+      <text x={n3(x1 - 5)} y={0.3} fontSize={4.4} fontWeight={700} textAnchor="middle" dominantBaseline="central" className="print-light">
+        +
+      </text>
     </g>
   );
 }
@@ -156,6 +200,7 @@ function batteryBox(part: PlacedPartOf<"battery">, c: ShapeCtx): [number, number
   const size = part.params.size ?? "9v";
   if (size === "aa") return [-AA.len / 2 - 0.4, -AA.dia / 2 - 1.2, AA.len / 2 + 0.4, AA.dia / 2 + 1.2];
   if (size === "coin") return [-COIN.tab - 2, -COIN.holder / 2 + 1, COIN.tab + 2, COIN.holder / 2 - 1];
+  if (c.lie) return [-W9, -BATTERY.len + 0.9 - 3.4, W9, 0.9];
   if (c.held) return [-W9, -BATTERY.thick / 2, W9, BATTERY.thick / 2];
   return [-W9, -3.4, W9 + 4.5, BATTERY.len];
 }
