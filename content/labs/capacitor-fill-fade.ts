@@ -95,13 +95,15 @@ export default defineLab({
       id: "dump",
       prompt: "Fill it again, then press the black button.",
       goal: (lab) => {
-        const m = lab.memory as { at?: number; dark?: number };
+        const m = lab.memory as { before?: number; at?: number; dark?: number };
         if (!lab.closed("S2")) {
           if (m.at !== undefined && m.dark === undefined) delete m.at;
+          // How full C1 was just before the press: through 100 Ω it empties in a few snapshots on a slow device.
+          m.before = vc(lab);
           return false;
         }
         if (m.at === undefined) {
-          if (vc(lab) > 3) m.at = lab.t;
+          if ((m.before ?? vc(lab)) > 3) m.at = lab.t;
           return false;
         }
         if (m.dark === undefined && glow(lab) < 0.05) m.dark = lab.t;
