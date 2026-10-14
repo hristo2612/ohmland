@@ -406,8 +406,8 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   const spotKey = (props.spot ?? []).join(",");
   // A tap check on a chip's or display's pins: the spotlit part prints no pin numbers, which would answer it.
   const quietPins = props.check?.kind === "targets" && props.check.targets.some((t) => printsPins(bench, t));
-  // Arcs need the part close: it is framed with the probe tips, which come to it.
-  const toolFrame = arcs && built.bench.meter ? [`part:${arcs.part}`, "probe:red", "probe:black"] : [];
+  // Arcs need the part close: it is framed (at a reading scale while the hands work on it).
+  const toolFrame = arcs ? [`part:${arcs.part}`] : [];
   const frameKey = [...(props.frame ?? []), ...toolFrame].join(",");
   // The docked tool's size: when it comes, goes or changes size the bench is framed again.
   const [dockKey, setDockKey] = useState("");

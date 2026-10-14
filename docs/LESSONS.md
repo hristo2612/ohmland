@@ -137,8 +137,8 @@ Optional, on any beat:
   sit across a voltage on a current position: there the zero is the mistake to see); a blown mA fuse gets its Replace
   control at the mA socket while the beat waits on the bench. A continuity panel: drawn on its part, an arc for each
   pair of legs tested, solid and labelled with the positions it beeped in (A, B; rest, held), or dashed with a small
-  cross when it never beeped, faint until tested in the position the part is in now. The part is framed with the probe
-  tips, and its arcs stay until the beat ends; a pin map for the same part shows them too.
+  cross when it never beeped, faint until tested in the position the part is in now. The part is framed, and its arcs
+  stay until the beat ends; a pin map for the same part shows them too, and the signed-off notebook page keeps them.
 
 Anchors (`at`, `answer`, `among`, `on`, `spot`, `trace`) use the lab's shorthand: a part `D1`, a lead `D1.anode`, a
 hole `e12` or `rail+:21`, a clip lead end `TL1.a`, a jumper end `W1.b`, or a raw bench anchor (`pin:D1.anode`,

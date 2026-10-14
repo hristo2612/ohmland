@@ -1,6 +1,7 @@
 /*
  * Instruments drawn on the bench (ToolInk.tsx): the meter's reading when its display is off screen, a red pencil ring
- * on the socket the red lead belongs in, and continuity arcs on a switch. Tokens only.
+ * on the socket the red lead belongs in, and continuity arcs on a switch (ContinuityArcs.tsx, also kept on the
+ * notebook page). Tokens only.
  */
 .ti { position: absolute; inset: 0; pointer-events: none; }
 .ti__svg { position: absolute; inset: 0; overflow: visible; }
@@ -37,6 +38,12 @@
   animation: ti-in var(--bl-dur-write, var(--dur-write)) var(--bl-ease-out, var(--ease-out)) backwards;
   animation-delay: calc(var(--bl-dur-write, var(--dur-write)) * 0.6);
 }
+
+/* The same arcs kept on the signed-off notebook page, under a row of the part's legs. */
+.ti-fig { margin: 0; overflow-x: auto; }
+.ti-fig svg { display: block; max-width: 100%; height: auto; overflow: visible; }
+.ti-fig__lug circle { fill: var(--bl-paper, var(--paper)); stroke: var(--bl-ink, var(--ink)); stroke-width: 1.6; }
+.ti-fig__lug text { fill: var(--bl-ink-2, var(--ink-2)); font-size: var(--bl-text-xs, var(--text-xs)); }
 
 /* The meter's reading, large, only while its display cannot be read on the bench. */
 .ti-reading {
