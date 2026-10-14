@@ -1,6 +1,6 @@
 /*
- * Instruments drawn on the bench (ToolInk.tsx): the meter's reading when its display is off screen, and a red pencil
- * ring on the socket the red lead belongs in. Tokens only.
+ * Instruments drawn on the bench (ToolInk.tsx): the meter's reading when its display is off screen, a red pencil ring
+ * on the socket the red lead belongs in, and continuity arcs on a switch. Tokens only.
  */
 .ti { position: absolute; inset: 0; pointer-events: none; }
 .ti__svg { position: absolute; inset: 0; overflow: visible; }
@@ -13,6 +13,29 @@
   stroke-linecap: round;
   stroke-dasharray: 1;
   animation: bl-draw var(--bl-dur-write, var(--dur-write)) var(--bl-ease-out, var(--ease-out)) backwards;
+}
+
+/* Continuity: blue ink, the learner's own findings. */
+.ti-arc { color: var(--bl-blue, var(--blue)); transition: opacity var(--bl-dur-write, var(--dur-write)) var(--bl-ease-out, var(--ease-out)); }
+.ti-arc--faint { opacity: 0.38; }
+/* A pair that never beeped recedes behind the ones that did (a six-legged switch has eleven of them). */
+.ti-arc--open { opacity: 0.72; }
+.ti-arc--open.ti-arc--faint { opacity: 0.3; }
+.ti-arc__line { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+.ti-arc--beep .ti-arc__line { stroke-dasharray: 1; animation: bl-draw var(--bl-dur-write, var(--dur-write)) var(--bl-ease-out, var(--ease-out)) backwards; }
+.ti-arc--open .ti-arc__line { stroke-width: 1.5; stroke-dasharray: 4 5; animation: ti-in var(--bl-dur-write, var(--dur-write)) var(--bl-ease-out, var(--ease-out)) backwards; }
+.ti-arc__cross { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; animation: ti-in var(--bl-dur-write, var(--dur-write)) var(--bl-ease-out, var(--ease-out)) backwards; }
+.ti-arc__label {
+  fill: currentColor;
+  font-family: var(--bl-hand, var(--font-hand));
+  font-size: var(--bl-text-md, var(--text-md));
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--bl-paper, var(--paper));
+  stroke-width: 5;
+  stroke-linejoin: round;
+  animation: ti-in var(--bl-dur-write, var(--dur-write)) var(--bl-ease-out, var(--ease-out)) backwards;
+  animation-delay: calc(var(--bl-dur-write, var(--dur-write)) * 0.6);
 }
 
 /* The meter's reading, large, only while its display cannot be read on the bench. */

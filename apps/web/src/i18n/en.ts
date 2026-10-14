@@ -259,6 +259,13 @@ export const en = {
       unit: "unit button",
       patch: "rubbed patch",
     } as Record<string, string>,
+    /** A continuity table drawn on its part: one arc per pair of legs tested (ToolInk.tsx). */
+    arcs: {
+      /** Labels on an arc for the positions it beeped in: a slider's sides, a one-way toggle, a button. */
+      sides: { a: "A", b: "B", on: "on", off: "off", up: "rest", down: "held" } as Record<string, string>,
+      pair: (a: string, b: string, beeps: string[], silent: string[]) =>
+        `${a} and ${b}: ${[beeps.length ? `beeps at ${beeps.join(" and ")}` : "", silent.length ? `silent at ${silent.join(" and ")}` : ""].filter(Boolean).join(", ")}`,
+    },
     markWheel: (n: number) => `wheel ${n}`,
     markSymbol: (part: string) => `${part} symbol`,
     wrongTap: "Not that one. Look again.",

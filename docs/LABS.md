@@ -197,7 +197,7 @@ shows one only from that task on. Goals read `lab.panel(id)` (`cells`, `size`, `
 
 | Panel | |
 |---|---|
-| `{ kind: "continuity", id, part }` | Every pair of the part's legs in each position, filled in as the meter (continuity mode) probes them |
+| `{ kind: "continuity", id, part }` | Every pair of the part's legs in each position, filled in as the meter (continuity mode) probes them. A bench lesson draws it on the part as arcs between the legs (docs/LESSONS.md, `tool`) |
 | `{ kind: "truth-table", id, inputs, output \| outputs, mystery?, name? }` | Logs the outputs for every input combination tried, once steady; clears when the wiring changes. Inputs: a switch by its throws `{ part, label, a, b }`, a button, switch or DIP position by closed `{ part, label, low?, high? }`, or a node by its logic level `{ node, label }`. Outputs: an LED `{ part }` (lit) or a node `{ node }` (high). The row the inputs are on now is marked. `name: "AND"` is written under the table, with `mystery: true` only once every row is filled. Cells: `"0,1"` for the first output, `"0,1#1"` for the second |
 | `{ kind: "pin-map", id, part, roles: [{ id, label, legs }], swap?, peek? }` | Name every terminal; counts wrong submissions; `swap` lets two role groups trade (which pole is "A"); `peek` opens the part once right |
 | `{ kind: "tags", id, items, options, answer }` | Tag each item with one option |

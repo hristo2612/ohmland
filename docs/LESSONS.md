@@ -128,11 +128,14 @@ Optional, on any beat:
   panel id. Without it, a lab panel tied to the beat's task (its `show`) appears. Never two at once. A tool stays
   open into the next beat that names it too (through that beat's guess), and closes when the next beat does not. The
   fix-it round and the secret take a `tool` too (`fixit: { tool: meter, ... }`, `secret: { tool: meter, ... }`).
-  `meter` is drawn on the bench instead of docked beside it: the bench meter is the instrument (a tap on its dial
-  turns it one detent, a long press one back; its RANGE key steps the range up, a long press down; the display shows
-  the range); over the bench there is only its reading, large, while the display is off screen or too small to read,
-  and a red pencil ring on the socket the red lead belongs in when it is in the wrong one (none while the probes sit
-  across a voltage on a current position: there the zero is the mistake to see).
+  Two tools are drawn on the bench instead of docked beside it. `meter`: the bench meter is the instrument (a tap on
+  its dial turns it one detent, a long press one back; its RANGE key steps the range up, a long press down; the display
+  shows the range); over the bench there is only its reading, large, while the display is off screen or too small to
+  read, and a red pencil ring on the socket the red lead belongs in when it is in the wrong one (none while the probes
+  sit across a voltage on a current position: there the zero is the mistake to see). A continuity panel: drawn on its
+  part, an arc for each pair of legs tested, solid and labelled with the positions it beeped in (A, B; rest, held), or
+  dashed with a small cross when it never beeped, faint until tested in the position the part is in now. The part is
+  framed with the probe tips, and its arcs stay until the beat ends; a pin map for the same part shows them too.
 
 Anchors (`at`, `answer`, `among`, `on`, `spot`, `trace`) use the lab's shorthand: a part `D1`, a lead `D1.anode`, a
 hole `e12` or `rail+:21`, a clip lead end `TL1.a`, a jumper end `W1.b`, or a raw bench anchor (`pin:D1.anode`,

@@ -31,7 +31,7 @@ import { Annotations, useSize, useViewTick } from "./Annotations";
 import { holeName, type PinName } from "./flow";
 import { allHoles, resolveAnchor, type Mark } from "./marks";
 import { ResistorSlider } from "./ResistorSlider";
-import { MeterInk } from "./ToolInk";
+import { ContinuityInk, MeterInk, continuityFor } from "./ToolInk";
 import type { Popup } from "../../content/schema";
 import type { CodeBeat } from "../../lab/code/CodeDrawer";
 import "../../lab/lab.css";
@@ -380,11 +380,19 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
 
   // Frame and spotlight the parts in play (a whole-bench view when none are named), in the part of the bench the
   // docked tool leaves free. On a phone the bench is small, so a beat about one part brings that part close.
+  const tool = props.tool ?? defaultTool(lab, props.gate);
+  // A continuity table is drawn on its part, and stays there until the beat ends (its discovery reads off the arcs).
+  const arcsNow = continuityFor(lab.panels, tool);
+  const beatKey = props.code?.key ?? null;
+  const arcsKept = useRef<{ beat: string | null; id: string } | null>(null);
+  if (arcsNow) arcsKept.current = { beat: beatKey, id: arcsNow.id };
+  const arcs = arcsNow ?? (arcsKept.current?.beat === beatKey ? continuityFor(lab.panels, arcsKept.current.id) : null);
   const spotKey = (props.spot ?? []).join(",");
   // A tap check on a chip's or display's pins: the spotlit part prints no pin numbers, which would answer it.
   const quietPins = props.check?.kind === "targets" && props.check.targets.some((t) => printsPins(bench, t));
-  const frameKey = (props.frame ?? []).join(",");
-  const tool = props.tool ?? defaultTool(lab, props.gate);
+  // Arcs need the part close: it is framed with the probe tips, which come to it.
+  const toolFrame = arcs && built.bench.meter ? [`part:${arcs.part}`, "probe:red", "probe:black"] : [];
+  const frameKey = [...(props.frame ?? []), ...toolFrame].join(",");
   // The docked tool's size: when it comes, goes or changes size the bench is framed again.
   const [dockKey, setDockKey] = useState("");
   useEffect(() => {
@@ -405,7 +413,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     const b = runtime.store.getState().bench;
     const resolve = (list: string[] | null) => (list ?? []).map((s) => resolveAnchor(b, s)).filter((x): x is string => !!x);
     const spotted = resolve(props.spot);
-    const framed = [...spotted, ...resolve(props.frame)];
+    const framed = [...spotted, ...resolve(props.frame), ...toolFrame];
     c.spotlight(spotted.length ? spotted : null, quietPins ? { pins: false } : undefined);
     const inset = dockInset(stage);
     const box = stage.getBoundingClientRect();
@@ -451,6 +459,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
           <Annotations controllerRef={controllerRef} bench={bench} marks={props.marks} />
           <TapLayer controllerRef={controllerRef} bench={bench} check={props.check} labelOf={api.labelOf} onTap={(a) => cb.current.onTap(a)} />
           {tool === "meter" && built.bench.meter && <MeterInk runtime={runtime} controllerRef={controllerRef} />}
+          {arcs && <ContinuityInk runtime={runtime} controllerRef={controllerRef} panel={arcs} />}
           {props.popup && (
             <PopupCard controllerRef={controllerRef} bench={bench} at={props.popup.at} title={m.lessonBench.popup.resistorTitle}>
               <ResistorSlider runtime={runtime} props={props.popup.props} onDone={() => cb.current.onPopupDone()} />
@@ -534,11 +543,11 @@ function defaultTool(lab: LabDefinition, task: string | null): string | null {
 }
 
 /**
- * One instrument at a time, only when the beat needs it: a slip on the bench's lower edge. The meter has none: it is
- * drawn on the bench (ToolInk.tsx).
+ * One instrument at a time, only when the beat needs it: a slip on the bench's lower edge. The meter and a continuity
+ * table have none: they are drawn on the bench (ToolInk.tsx).
  */
 function ToolDock({ runtime, built, tool, code }: { runtime: LabRuntime; built: ReturnType<typeof buildBench>; tool: string | null; code: CodeBeat | null }) {
-  if (!tool || tool === "meter") return null;
+  if (!tool || tool === "meter" || continuityFor(runtime.lab.panels, tool)?.id === tool) return null;
   let body: ReactNode = null;
   if (tool === "scope" && built.scope) body = <ScopePanel runtime={runtime} config={built.scope} />;
   else if (tool === "logger" && built.logger) body = <LoggerPanel runtime={runtime} config={built.logger} />;
