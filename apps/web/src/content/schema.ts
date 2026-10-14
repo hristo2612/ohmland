@@ -373,7 +373,7 @@ const popupSchema = z.strictObject({
  * The one instrument or panel a moment shows: meter, scope, logger, stopwatch, tapper, controls, views (the lab's
  * overlay toggles), or a lab panel id.
  */
-const toolSchema = z.string().trim().regex(/^[a-z0-9-]+$/, "must be meter, scope, logger, stopwatch, tapper, controls, views or a panel id");
+const toolSchema = z.string().trim().regex(/^[a-z0-9-]+$/, "must be meter, scope, logger, stopwatch, tapper, controls, views, code, serial, millis or a panel id");
 
 /**
  * One bench step in a lesson file: a lab solution step ({ do: param, part: PL1, params: { wheel1: 3 } }). Its fields are
@@ -409,6 +409,13 @@ export const beatSchema = z
      * otherwise none.
      */
     tool: toolSchema.optional(),
+    /**
+     * Unit 5, with `tool: code`: the blocks the code drawer's palette offers during this beat, each a block's name
+     * (delay, every, if) or one step in bench C ("digitalWrite(13, LOW);"). A beat without one offers none.
+     */
+    palette: z.array(z.string().trim().min(1)).min(1).max(6).optional(),
+    /** Unit 5, with `tool: code`: the program the drawer starts this beat from (bench C), in place of the learner's. */
+    program: z.string().trim().min(1).optional(),
 
     // One thing to do (at most one of these; none means a plain Next).
     /** The three-period lesson's first period: name a part ("This is an LED."). Tap it to go on. */
@@ -453,6 +460,7 @@ export const beatSchema = z
     if (b.note?.at === "tap" && !b.tap) ctx.addIssue({ code: "custom", message: "at: tap needs a tap beat", path: ["note", "at"] });
     if (b.wrong && !b.tap && !b.pick) ctx.addIssue({ code: "custom", message: "wrong lines go with a tap or a pick", path: ["wrong"] });
     if (b.then && !b.tap && !b.pick && !b.number) ctx.addIssue({ code: "custom", message: "then goes with a tap, pick or number check", path: ["then"] });
+    if ((b.palette || b.program) && b.tool !== "code") ctx.addIssue({ code: "custom", message: "palette and program go with tool: code", path: [b.palette ? "palette" : "program"] });
   });
 
 /** Every line on a bench lesson's main path, for the word budget (hints and wrong lines are on demand). */

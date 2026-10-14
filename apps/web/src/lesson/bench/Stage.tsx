@@ -6,7 +6,7 @@
  * The player (BenchLesson.tsx) owns the flow. It tells the stage which task may complete right now (`gate`; the
  * secret bonus is always armed), and the stage reports tasks, fried parts, nudges and taps back.
  */
-import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useStore } from "zustand";
 import { PRINTED_KINDS, boardGeometry, trayLeft, type BenchState } from "@ohmland/bench/core";
 import { isOptional, type LabDefinition, type LabTask, type SolutionStep } from "../../lab/define";
@@ -31,9 +31,12 @@ import { holeName } from "./flow";
 import { allHoles, resolveAnchor, type Mark } from "./marks";
 import { ResistorSlider } from "./ResistorSlider";
 import type { Popup } from "../../content/schema";
+import type { CodeBeat } from "../../lab/code/CodeDrawer";
 import "../../lab/lab.css";
 
 const Surface = BenchSurfaceChunk.Component;
+/** The microcontroller board's tools (code drawer, serial monitor, millis): a chunk of their own, for labs with a board. */
+const CodeTools = lazy(() => import("../../lab/code/CodeTools"));
 
 export type StageCheck = { kind: "targets"; targets: string[] } | { kind: "meet"; part: string } | { kind: "holes"; hover?: boolean } | null;
 
@@ -87,6 +90,8 @@ export type StageProps = {
   /** The one instrument or panel the beat needs ("meter", "scope", "logger", "stopwatch", "tapper", "controls", "views"
    * or a lab panel id). Null: the panel the lab ties to the current task, if any. */
   tool: string | null;
+  /** Unit 5: the beat's code drawer palette and starting program (with `tool: code`). */
+  code?: CodeBeat | null;
   keyboardOpen: boolean;
   onApi(api: StageApi | null): void;
   onBenchReady(): void;
@@ -408,7 +413,8 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     const phone = w < 640;
     const one = spotted.length === 1 && framed.length === 1 ? b.parts.find((p) => `part:${p.id}` === spotted[0]) : undefined;
     const close = phone && !!one && PRINTED_KINDS.has(one.kind) && one.kind !== "tag";
-    const padding = close ? 8 : Math.round(free * (phone ? 0.12 : 0.3));
+    // Several parts in play are their own context: a modest margin keeps them close.
+    const padding = close ? 8 : Math.round(free * (framed.length > 1 ? 0.06 : phone ? 0.12 : 0.3));
     c.focus(framed, framed.length ? { padding, inset } : { inset });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spotKey, frameKey, runtime, benchReady, dockKey]);
@@ -446,7 +452,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
           )}
         </div>
       )}
-      <ToolDock runtime={runtime} built={built} tool={tool} />
+      <ToolDock runtime={runtime} built={built} tool={tool} code={props.code ?? null} />
       {props.keyboardOpen && (
         <div className="bl-keyboard">
           <p className="bl-keyboard__hint">{m.lessonBench.keyboardHint}</p>
@@ -506,7 +512,7 @@ function defaultTool(lab: LabDefinition, task: string | null): string | null {
 }
 
 /** One instrument at a time, only when the beat needs it: a slip on the bench's lower edge. */
-function ToolDock({ runtime, built, tool }: { runtime: LabRuntime; built: ReturnType<typeof buildBench>; tool: string | null }) {
+function ToolDock({ runtime, built, tool, code }: { runtime: LabRuntime; built: ReturnType<typeof buildBench>; tool: string | null; code: CodeBeat | null }) {
   if (!tool) return null;
   let body: ReactNode = null;
   if (tool === "meter" && built.bench.meter) body = <MeterPanel runtime={runtime} />;
@@ -517,6 +523,12 @@ function ToolDock({ runtime, built, tool }: { runtime: LabRuntime; built: Return
   else if (tool === "controls" && built.controls.length) body = <ControlsPanel runtime={runtime} controls={built.controls} />;
   else if (tool === "views" && built.overlays?.offer?.length) body = <ViewsPanel runtime={runtime} offer={built.overlays.offer} />;
   else if (runtime.lab.panels?.some((p) => p.id === tool)) body = <LabPanels runtime={runtime} only={tool} />;
+  else if ((tool === "code" || tool === "serial" || tool === "millis") && built.bench.parts.some((p) => p.kind === "mcu-board"))
+    body = (
+      <Suspense fallback={null}>
+        <CodeTools runtime={runtime} tool={tool} beat={code} />
+      </Suspense>
+    );
   if (!body) return null;
   return (
     <div className="bl-tool" data-tool={tool}>

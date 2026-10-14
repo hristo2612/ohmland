@@ -24,6 +24,7 @@ import { useInteraction, handleBenchKey, type InteractionApi } from "./Interacti
 import { Overlay, trayCover } from "./Overlay";
 import { PaletteContext, useReadPalette } from "./palette";
 import { Readouts, StressTags, inspectKey } from "./Readouts";
+import { TagSlips } from "../view/TagSlips";
 import type { Pick } from "./pick";
 import { PaperRenderer, PaperUpkeep, SoftShadows, type ShadowArea } from "./Render";
 import { SpotlightRig, ViewRig, type ViewApi } from "./viewRig";
@@ -146,6 +147,10 @@ export function Bench(props: BenchProps) {
   useEffect(() => {
     store.setState({ locked: lockedKey ? lockedKey.split(",") : [] });
   }, [store, lockedKey]);
+  const namesKey = JSON.stringify(props.names ?? {});
+  useEffect(() => {
+    store.setState({ names: JSON.parse(namesKey) as Record<string, string> });
+  }, [store, namesKey]);
   const frameKey = props.frame ? props.frame.join(",") : "";
   useLayoutEffect(() => {
     store.setState({ frame: frameKey ? (frameKey.split(",").map(Number) as [number, number, number, number]) : null });
@@ -232,6 +237,7 @@ export function Bench(props: BenchProps) {
               <Warmup held={held} offscreen={quality === "high"} dark={palette.dark} onWarm={release} />
             </Canvas>
             <StressTags controller={controller} />
+            <TagSlips store={store} spot={spotTargets} compact={compact} projector={controller} />
             <Overlay tray={tray} readOnly={readOnly} compact={compact} api={api} size={size} controller={controller} />
             <SolderOverlay store={store} view={solderView} compact={compact} readOnly={readOnly} tray={showTray} />
           </div>

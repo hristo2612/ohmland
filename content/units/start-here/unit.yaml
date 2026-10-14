@@ -1,11 +1,14 @@
-# Start here (blueprint: docs/curriculum/start-here.md). Its island is Sketch Isle (working name).
-# A minimal stand-in so the two case modules build; the unit's wiring (tool-cases, the island) lands separately.
+# Start here: the first unit (blueprint: docs/curriculum/start-here.md). Twelve short cases at the bench: a loop, flow,
+# push and squeeze as feelings, then the meter, prefixes, the breadboard, symbols and a first build from a drawing.
+# Its island is Sketch Isle, joined to Bareboard Isle (Basics) by a cable bridge. The unit schema has no field for an
+# island name yet, so the name lives in the summary.
 id: start-here
 title: Start here
-summary: Small cases on the bench. Loops, conductors, charge, flow, push and squeeze, before any meter.
+summary: On Sketch Isle, crack twelve small cases at the bench, from a dark lamp to your first build from a drawing.
 isle:
   theme: sketch-isle
   seed: 0
 modules:
   - first-cases
   - push-and-squeeze
+  - tool-cases

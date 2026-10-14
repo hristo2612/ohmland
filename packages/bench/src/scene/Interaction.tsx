@@ -231,7 +231,7 @@ export function useInteraction({
         case "part":
         case "press":
         case "flip":
-        // A setting spot (a tag, an AA's cutaway, a torn piece) taps to change it and drags the part, as in ink.
+        // A tap on a setting spot (a tag, a torn piece) changes it; a drag from there moves the part, as in ink.
         case "setting":
           if (p.type === "press") return { kind: "press", id: p.id };
           if (locked.includes(p.id)) return null;
