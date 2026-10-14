@@ -39,8 +39,15 @@ export async function taskDone(page: Page, id: string) {
   await expect.poll(() => page.evaluate((t) => window.ohmlandLab?.status()[t] ?? null, id), { timeout: 15_000 }).toBe("done");
 }
 
-/** Flips a toggle switch on its wooden block by clicking the lever. */
+/** Which view draws the bench ("3d" or "ink"). */
+export const benchView = (page: Page) => page.evaluate(() => window.ohmlandLab?.view?.() ?? "3d");
+
+/** Flips a toggle switch on its wooden block by clicking the lever (in ink, the switch itself). */
 export async function flipBlockSwitch(page: Page, id: string) {
+  if ((await benchView(page)) === "ink") {
+    await page.mouse.click(...xy(await project(page, `part:${id}`)));
+    return;
+  }
   const part = (await bench(page)).parts.find((p) => p.id === id)!;
   // The lever stands about 24 mm above the desk, 5.5 mm behind the block's centre.
   await page.mouse.click(...xy(await project(page, [part.pos[0], 24, part.pos[1] - 5.5])));
@@ -54,9 +61,9 @@ async function grabPoint(page: Page, lead: string, end: "a" | "b"): Promise<Poin
   const l = (await bench(page)).leads.find((x) => x.id === lead)!;
   const e = l[end];
   const o = l[end === "a" ? "b" : "a"];
-  const p = e.to ? await project(page, e.to) : await project(page, [e.pos[0], 4, e.pos[1]]);
+  const p = await project(page, e.to ?? `lead:${lead}.${end}`);
   if (!e.to) return p;
-  const q = o.to ? await project(page, o.to) : await project(page, [o.pos[0], 4, o.pos[1]]);
+  const q = await project(page, o.to ?? `lead:${lead}.${end === "a" ? "b" : "a"}`);
   const d = Math.hypot(q.x - p.x, q.y - p.y) || 1;
   return { x: p.x + ((q.x - p.x) / d) * 5, y: p.y + ((q.y - p.y) / d) * 5 };
 }
@@ -89,7 +96,7 @@ async function stepOnBench(page: Page, step: unknown) {
 /** Drags a clip lead out of the tray so its b clip lands on `anchor`. Returns the new lead's id. */
 export async function leadFromTray(page: Page, color: string, anchor: string): Promise<string> {
   const before = new Set((await bench(page)).leads.map((l) => l.id));
-  const box = (await page.locator(".ohb-tray .ohb-item", { hasText: color }).first().boundingBox())!;
+  const box = (await page.locator(".ohb-tray .ohb-item, .ohi-tray .ohi-item", { hasText: color }).first().boundingBox())!;
   await drag(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, await project(page, anchor));
   const id = (await bench(page)).leads.find((l) => !before.has(l.id))?.id;
   if (!id) throw new Error(`No ${color} lead came out of the tray`);

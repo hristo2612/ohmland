@@ -83,7 +83,7 @@ export default function BenchSurface({ view, runtime, tray, quality, readOnly, h
         const r = host.current?.getBoundingClientRect();
         return p && r ? { x: p.x + r.left, y: p.y + r.top } : null;
       },
-      pickAt: (x, y) => inner3d()?.pickAt(x, y) ?? null,
+      pickAt: (x, y) => (hub.current?.inner() as { pickAt?(x: number, y: number): unknown } | null)?.pickAt?.(x, y) ?? null,
       bench: () => runtime.store.getState().bench,
       status: () => ({ ...runtime.session.status }),
       meter: () => runtime.session.view().meter,
@@ -92,6 +92,7 @@ export default function BenchSurface({ view, runtime, tray, quality, readOnly, h
         const s = runtime.store.getState().snapshot;
         return s ? { t: s.t, lag: s.lag ?? 0 } : null;
       },
+      view: () => rendered(view),
       showMe: (taskId) => runtime.showMe(taskId),
       panel: (id) => runtime.session.panels[id] ?? null,
       step: (s) => {
@@ -104,7 +105,7 @@ export default function BenchSurface({ view, runtime, tray, quality, readOnly, h
       delete window.ohmlandLab;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runtime]);
+  }, [runtime, view]);
 
   const shown = useMemo(() => (highlight?.length ? highlight : undefined), [highlight]);
 

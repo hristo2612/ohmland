@@ -3,10 +3,8 @@
  * (3D or 2D ink, remembered per device), the BenchController contract the lesson's ink overlay draws with, and the lazy
  * chunk that renders the bench.
  *
- * Today the chunk (BenchSurface.tsx) renders the existing 3D <Bench> and implements BenchController itself, and the ink
- * view is the 3D bench seen from straight above. When packages/bench ships <BenchView view> and its controller,
- * BenchSurface renders that instead: the one place to change. Light on purpose (no three.js): the lesson shell imports
- * it on first load.
+ * The chunk (BenchSurface.tsx) renders packages/bench's <BenchView view>: the 3D bench or the 2D ink bench, each loaded
+ * on demand, behind one controller hub. Light on purpose (no three.js): the lesson shell imports it on first load.
  */
 import { preloadable } from "./prefetch";
 import type { BenchSurfaceProps } from "./BenchSurface";
@@ -29,10 +27,10 @@ export interface BenchController {
 }
 
 /**
- * Whether packages/bench has its 2D ink renderer yet. Until it does, "ink" draws the 3D bench from straight above,
- * so the toggle, the remembered choice and every overlay already work in both positions.
+ * Whether packages/bench draws the 2D ink view itself. Before its renderer landed, "ink" drew the 3D bench from
+ * straight above (the stand-in in BenchSurface.tsx), so the toggle and every overlay already worked in both positions.
  */
-export const INK_RENDERER = false;
+export const INK_RENDERER = true;
 
 const KEY = "ohmland:bench-view";
 

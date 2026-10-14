@@ -36,6 +36,8 @@ type LabHook = {
   panel(id: string): unknown;
   /** Applies one solution step to the bench, as a learner's move would (bench lessons; for scripts on small screens). */
   step?(s: unknown): void;
+  /** Which view draws the bench ("3d" or "ink"; bench lessons). */
+  view?(): string;
 };
 
 declare global {
