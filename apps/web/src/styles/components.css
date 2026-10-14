@@ -32,7 +32,7 @@
 }
 .btn svg { flex: none; }
 .btn--large { min-height: 56px; padding-inline: var(--s-8); font-size: var(--text-md); }
-.btn--small { min-height: 40px; padding-inline: var(--s-4); }
+.btn--small { min-height: var(--tap); padding-inline: var(--s-4); }
 .btn--block { display: flex; width: 100%; }
 .btn--wrap { white-space: normal; }
 
@@ -90,7 +90,8 @@
 .icon-btn--outline, .icon-btn--soft { border-color: var(--rule-soft); background: var(--paper-slip); }
 .icon-btn--primary { background: var(--btn-bg); color: var(--btn-fg); }
 .icon-btn--primary:hover { background: var(--btn-bg-hover); }
-.icon-btn--small { width: 36px; height: 36px; }
+/* a smaller glyph, never a smaller target */
+.icon-btn--small { width: var(--tap); height: var(--tap); }
 .icon-btn[aria-pressed="true"], .icon-btn[aria-expanded="true"] { background: var(--paper-sunk); border-color: var(--rule-soft); }
 .icon-btn:disabled { color: var(--ink-3); cursor: not-allowed; background: transparent; }
 
