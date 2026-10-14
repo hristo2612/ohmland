@@ -47,7 +47,7 @@ export default defineLab({
       { id: "W1", from: "a14", to: "rail+:15", color: "red" },
       { id: "W2", from: "a20", to: "rail-:21", color: "black" },
     ],
-    tray: [{ id: "Q1", kind: "npn", count: 1, label: "2N3904" }],
+    tray: [{ id: "Q1", kind: "npn", params: { model: "2N3904" }, count: 1, label: "Transistor" }],
     instruments: [],
   },
   mascot: {

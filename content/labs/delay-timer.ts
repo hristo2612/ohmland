@@ -57,7 +57,7 @@ export default defineLab({
       { id: "W7", from: "d10", to: "a21", color: "white" },
       { id: "W8", from: "a22", to: "rail+:22", color: "red" },
     ],
-    tray: [{ id: "Q1", kind: "npn", count: 1, label: "2N3904" }],
+    tray: [{ id: "Q1", kind: "npn", params: { model: "2N3904" }, count: 1, label: "Transistor" }],
     instruments: [
       { kind: "stopwatch", start: { part: "S1", to: "b" }, stop: { part: "K1", contact: "no" }, watch: "C1.pos" },
       { kind: "meter", at: "desk:-178,22", rot: 16, mode: "dcv", tips: { red: "desk:-52,48", black: "desk:-40,54" } },
