@@ -1,8 +1,11 @@
-// Blueprint: docs/curriculum/unit-1.md, L16. Half a lemon with two electrode slots, two copper-plated coins and two
+// Blueprint: docs/curriculum/unit-1.md, L16, trimmed (docs/curriculum/conversion-guide.md, B3 16). The lab of a bench
+// lesson (docs/LESSONS.md): content/units/basics/cells-and-batteries/lemon-cell. One idea: two different metals in
+// juice make a push. Half a lemon with two electrode slots, two copper-plated coins and two
 // galvanised (zinc) strips beside it. Drop an electrode near a slot to push it in; the lemon's "Metals" setting
 // pushes the two together. Copper and zinc apart make a cell of about 0.92 V with copper as plus (packages/bench,
-// `fruit`). The tray has a red LED and two clip leads for the bonus.
-import { defineLab, type LabView } from "@ohmland/lab";
+// `fruit`). The tray has a red LED and two clip leads for the bonus. From the simulator: 0.936 V, -0.936 V with the
+// probes swapped, 0.002 V with two coins, 0.000 V with the metals touching.
+import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 import { readsIn } from "./lib/meter";
 
 type Metal = "copper" | "zinc";
@@ -28,6 +31,14 @@ const acrossBoth = (lab: LabView): boolean => {
 };
 
 const nearZero = (lab: LabView): boolean => lab.meter?.mode === "dcv" && acrossBoth(lab) && readsIn(lab, -0.05, 0.05);
+
+/** The fix-it bench: copper and zinc back in the lemon, pushed together, the probes on them. */
+const TOUCHING: SolutionStep[] = [
+  { do: "move", part: "E2", at: "desk:-46,52" },
+  { do: "move", part: "E3", at: "in:FC1.right" },
+  { do: "param", part: "FC1", params: { touching: true } },
+  { do: "probe", red: "E1.tip", black: "E3.tip" },
+];
 
 export default defineLab({
   id: "lemon-cell",
@@ -56,15 +67,23 @@ export default defineLab({
   },
   tasks: [
     {
+      id: "push-in",
+      prompt: "Push a copper coin and a zinc strip into the lemon.",
+      goal: (lab) => !!pair(lab) && !touching(lab),
+      hints: ["Drop one metal on each cut in the lemon.", "Copper is the reddish coin, zinc the grey strip."],
+      highlight: ["FC1", "E1", "E3"],
+      success: "Two metals, one lemon.",
+    },
+    {
       id: "make-a-cell",
-      prompt: "Push in a copper coin and a zinc strip. Red on copper, black on zinc.",
+      prompt: "Red probe on the copper, black on the zinc.",
       goal: (lab) => {
         const p = pair(lab);
         return !!p && !touching(lab) && lab.meter?.mode === "dcv" && lab.probed(`${p.cu}.tip`, `${p.zn}.tip`) && readsIn(lab, 0.8, 1.0);
       },
-      hints: ["Drop one metal on each cut in the lemon.", "Keep them apart. 2V shows the most digits."],
-      highlight: ["FC1", "E1", "E3"],
-      success: "About 0.9 V from a lemon. You made a cell.",
+      hints: ["Touch the red probe tip to the copper coin.", "Black on the zinc strip. Keep the metals apart."],
+      highlight: ["E1", "E3"],
+      success: "About 0.9 V from a lemon.",
     },
     {
       id: "which-is-plus",
@@ -89,11 +108,16 @@ export default defineLab({
     },
     {
       id: "touching",
-      prompt: "Zinc back in. Push the metals together. Measure.",
-      goal: (lab) => !!pair(lab) && touching(lab) && nearZero(lab),
-      hints: ["Click the lemon, then choose Touching.", "Keep the probes on the two electrodes."],
+      prompt: "My lemon reads zero. Fix it.",
+      setup: TOUCHING,
+      // Touching first (the setup), then apart and reading again: a lemon that never read zero does not count.
+      goal: (lab) => {
+        if (!!pair(lab) && touching(lab)) lab.memory["shorted"] = true;
+        return lab.memory["shorted"] === true && !!pair(lab) && !touching(lab) && lab.meter?.mode === "dcv" && acrossBoth(lab) && (readsIn(lab, 0.8, 1.0) || readsIn(lab, -1.0, -0.8));
+      },
+      hints: ["Look closely at the two metals in the lemon.", "Click the lemon and set its metals apart."],
       highlight: ["FC1"],
-      success: "Zero again. Touching metals short the cell inside.",
+      success: "Apart again, and pushing.",
     },
     {
       id: "one-lemon-led",
@@ -113,6 +137,7 @@ export default defineLab({
   solution: [
     { do: "move", part: "E1", at: "in:FC1.left" },
     { do: "move", part: "E3", at: "in:FC1.right" },
+    { do: "check", task: "push-in" },
     { do: "probe", red: "E1.tip", black: "E3.tip" },
     { do: "check", task: "make-a-cell" },
     { do: "probe", red: "E3.tip", black: "E1.tip" },
@@ -121,12 +146,11 @@ export default defineLab({
     { do: "move", part: "E2", at: "in:FC1.right" },
     { do: "probe", red: "E1.tip", black: "E2.tip" },
     { do: "check", task: "same-metal" },
-    { do: "move", part: "E2", at: "desk:-46,52" },
-    { do: "move", part: "E3", at: "in:FC1.right" },
-    { do: "param", part: "FC1", params: { touching: true } },
-    { do: "probe", red: "E1.tip", black: "E3.tip" },
-    { do: "check", task: "touching" },
+    ...TOUCHING,
+    { do: "wait", seconds: 0.5 },
     { do: "param", part: "FC1", params: { touching: false } },
+    { do: "wait", seconds: 0.5 },
+    { do: "check", task: "touching" },
     { do: "place", part: "D1", kind: "led", params: { color: "red", maxmA: 50 }, at: "desk:56,-30" },
     { do: "lead", id: "TL1", from: "D1.anode", to: "E1.tip", color: "red" },
     { do: "lead", id: "TL2", from: "D1.cathode", to: "E3.tip", color: "black" },

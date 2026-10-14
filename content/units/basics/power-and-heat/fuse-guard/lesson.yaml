@@ -1,144 +1,51 @@
-# Blueprint: docs/curriculum/unit-1.md, L14.
+# Blueprint: docs/curriculum/unit-1.md, L14, the kept half after the split (docs/curriculum/conversion-guide.md, B3 14).
+# A bench lesson (docs/LESSONS.md). One idea: a fuse melts on purpose to save the rest, and the beep shows the gap.
+# The 10A socket moved to big-current. Lab: content/labs/fuse-guard.ts.
+format: bench
 id: fuse-guard
-version: 1
-title: The part that fails first
-summary: Blow a fuse on purpose, test fuses with continuity, and use two fuses to bracket a big current.
-minutes: 12
+version: 2
+title: The weak link
+summary: Blow a fuse on purpose, hear the gap it leaves with the continuity beep, and fit the rating that protects.
+minutes: 6
+lab: fuse-guard
 unlocks:
   parts: [fuse]
   isle: fuse
-steps:
-  - type: hook
-    body: |
-      Some parts are designed to fail. A fuse is a thin strip of metal sealed in a little glass tube. When too much
-      current flows, the strip melts and breaks the circuit before anything more precious gets hurt. Today you'll
-      sacrifice one on purpose, then use two fuses and your meter to work out how much current a small battery can
-      really push.
-    visual: { kind: part, part: fuse }
-    predict:
-      prompt: A 1 A fuse is clipped straight across a 9 V battery. What happens?
-      options:
-        - Nothing
-        - The fuse blows
-        - The battery bursts
-    mascot: Meet the bravest part on the bench. It's built to fail.
 
-  - type: lab
-    lab: fuse-guard
+start:
+  title: The weak link
+  say: Meet the bravest part on the bench. It's built to fail.
+  go: Let's meet it
 
-  - type: explain
-    cards:
-      - title: A weak link on purpose
-        body: |
-          A fuse is a deliberately weak spot: a thin strip of metal that melts when the current is too high for too
-          long. Once it melts, the loop is broken and all current stops. That protects the wiring, the battery and
-          every other part. A blown fuse can't be repaired, only replaced, and always with one of the same rating.
-      - title: Ratings are rough
-        body: |
-          A fuse's rating is the current it can carry indefinitely, not the current that blows it instantly. A fast
-          fuse at twice its rating may take a second or more to open. At several times its rating it's gone in a
-          blink. So fuses bracket a current roughly, and the time matters as much as the size.
-        # widget (planned): fuse-curve. Drag a current slider and see the time to blow for 1 A and 3 A fuses on a log
-        # scale.
-      - title: Where fuses go
-        body: |
-          Fuses have no polarity: the wire melts whichever way the current flows. Where they sit matters more. Put a
-          fuse close to the power source so it protects everything after it. And never swap in a higher rating or a
-          bit of wire. The fuse would survive the next fault, and something more expensive would burn instead.
-      - title: The big-current socket
-        body: |
-          Currents above a couple of hundred milliamps go through the meter's 10A socket. Inside, a thick, very low
-          resistance path carries the current. On many meters that input has no fuse, and it's meant for short
-          measurements: about 10 seconds, then a rest. Treat it like a stopwatch reading: connect, read, disconnect.
+beats:
+  - say: This is a fuse. A thin wire in glass. Tap it.
+    objective: Blow one
+    meet: F1
+    note: { at: F1, text: fuse }
 
-  - type: quiz
-    items:
-      - id: bracket
-        type: choice
-        prompt: In a circuit, a 1 A fuse blows quickly but a 3 A fuse survives. What can you say about the current?
-        options:
-          - text: More than about 1 A, and probably less than about 3 A
-            correct: true
-            why: The 1 A fuse proves it's over 1 A, and the survivor suggests it's under 3 A. Fuse ratings are approximate, so "about".
-          - text: Exactly 2 A
-            why: Fuses only bracket a range. A meter gives the exact value.
-          - text: More than 3 A
-            why: Then the 3 A fuse would most likely have blown too.
-        explain: Two fuses give a rough range. A meter on 10A pins it down.
+  - say: Clip it straight across the battery. Guess first.
+    guess: { options: [Nothing happens, It gets warm, It blows], answer: It blows }
+    do: blow-1a
+    note: { at: F1, text: "melted: a gap on purpose" }
+    rule: A fuse melts to save the rest.
 
-      - id: limit-myth
-        type: choice
-        prompt: Does a 1 A fuse limit the current to 1 A?
-        options:
-          - text: No. It lets any current through until it melts, then stops it all
-            correct: true
-            why: A fuse is either a wire or a gap. It never holds current at a value.
-          - text: Yes, it holds the current at 1 A
-            why: Nothing in a fuse controls current. It just melts.
-          - text: Only in DC circuits
-            why: Fuses work the same way in AC and DC.
-        explain: A fuse is an on-or-off safety switch, not a current limiter.
+  - say: Does a 1 A fuse hold the flow at 1 A?
+    pick: { options: ["Yes, at 1 A", "No, it just melts"], answer: "No, it just melts" }
+    wrong: { "Yes, at 1 A": "It never holds anything. Wire or gap, that's all." }
 
-      - id: fuse-polarity
-        type: choice
-        prompt: Does it matter which way round a fuse goes?
-        options:
-          - text: "No"
-            correct: true
-            why: Heat melts the wire whichever way the current flows.
-          - text: Yes, the marked end goes to plus
-            why: The marking is just the rating.
-          - text: Only for big fuses
-            why: No fuse has polarity.
-        explain: Fuses, like resistors, work either way round.
+  - say: Dial to the beep. Probe the blown fuse, then the 3 A.
+    objective: Hear the gap
+    do: continuity-check
+    tool: meter
+    note: { at: F2, text: "beep: joined. Silence: a gap." }
 
-      - id: bigger-fuse
-        type: choice
-        prompt: A gadget's 1 A fuse keeps blowing. Ravi fits a 10 A fuse instead. Good idea?
-        options:
-          - text: "No: something is drawing too much current, and now nothing will stop it"
-            correct: true
-            why: The fuse was doing its job. The real fault is still there.
-          - text: Yes, problem solved
-            why: The fault remains and can now overheat wires or parts.
-          - text: Yes, if the voltage rating matches
-            why: The current rating is what protects the circuit.
-        explain: A fuse that keeps blowing is a symptom. Find the fault, and replace like with like.
+  - say: What is this?
+    pick: { on: F2, options: [A fuse, A resistor, A battery], answer: A fuse }
 
-      - id: ideal-amps
-        type: numeric
-        prompt: A 9 V battery with 1.5 Ω of internal resistance drives a fuse, meter and leads that add up to 1.5 Ω. What's the ideal current?
-        answer: 3
-        unit: A
-        tolerance: 1
-        hint: Add up every resistance in the loop, including the battery's own.
-        explain: Total resistance is 3 Ω, so I = 9 ÷ 3 = 3 A. A real battery delivers less, because its voltage sags.
+fixit:
+  say: Fix-it time. This short should blow the fuse. It doesn't.
+  tasks:
+    - task: fix-short
 
-      # Blueprint order had "move the red lead" and "turn the dial" as separate steps, which can be done in either
-      # order. They are one step here so the order has a single right answer.
-      - id: big-current-steps
-        type: order
-        prompt: Put these steps for measuring a large current in order.
-        items:
-          - Estimate the current. More than about 200 mA means the 10A input.
-          - Move the red lead to 10A and turn the dial to 10A.
-          - Break the loop and connect the meter in series.
-          - Read the value quickly.
-          - Disconnect, then move the red lead back to VΩ.
-        explain: Set the meter up before connecting, keep the measurement short, and leave the meter ready for volts.
-
-  - type: wrap
-    rules:
-      - "A fuse is a weak link on purpose: it melts to save everything else."
-      - Replace a fuse only with the same rating.
-      - Fuses have no polarity.
-      - Use the 10A socket for big currents, and only briefly.
-    realWorld:
-      parts:
-        - A 9 V battery
-        - Fast-blow glass fuses rated 1 A and 3 A (5 × 20 mm)
-        - Clip leads
-        - A multimeter with a 10A input
-      safety:
-        - "Fuses and leads get hot: let them cool before touching."
-        - "Keep connections to a few seconds. Never try this with a car battery or a lithium pack: they can push enough current to melt wires and start fires."
+end:
+  say: Brave little wire. It fails so nothing else has to.
