@@ -210,8 +210,12 @@ export function BenchInk(props: BenchInkProps) {
       const hw = Math.max(MIN, r[2] - r[0]) / 2;
       const hh = Math.max(MIN, r[3] - r[1]) / 2;
       const p = f.padding ?? 48;
+      // The tray, the chrome and a docked panel come first; the margin round the targets takes at most a fifth of
+      // the room they leave on each side, so the targets never shrink to nothing beside a tray and a dock.
       const base = padNow();
-      view.fit(growRect([cx - hw, cz - hh, cx + hw, cz + hh], 3), { top: base.top + p * 0.5, right: base.right + p, bottom: base.bottom + p * 0.5, left: base.left + p }, { instant, max: 18 });
+      const px = Math.min(p, Math.max(0, view.vp.w - base.left - base.right) * 0.2);
+      const py = Math.min(p * 0.5, Math.max(0, view.vp.h - base.top - base.bottom) * 0.2);
+      view.fit(growRect([cx - hw, cz - hh, cx + hw, cz + hh], 3), { top: base.top + py, right: base.right + px, bottom: base.bottom + py, left: base.left + px }, { instant, max: 18 });
     },
     [view, fitHomeNow, padNow],
   );
