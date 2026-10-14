@@ -463,7 +463,12 @@ export type Nudge = { when: (lab: LabView) => boolean; say: string };
 
 export type SolutionStep =
   | { do: "place"; part: string; kind: BenchPartKind; at: Spot; params?: Record<string, unknown>; rot?: number }
-  | { do: "move"; part: string; at: Spot; rot?: number }
+  | { do: "move"; part: string; at: Spot; rot?: number; holes?: undefined }
+  /**
+   * Move only these flying leads into these holes (null takes one out), keeping the others where they are: the
+   * logic probe's tip from hole to hole, its supply leads left on the rails.
+   */
+  | { do: "move"; part: string; holes: Record<string, Spot | null>; at?: undefined; rot?: undefined }
   | { do: "rotate"; part: string }
   | { do: "remove"; part: string }
   /** Add a clip lead (from the tray) between two points; either end may be null (lying on the desk). */
