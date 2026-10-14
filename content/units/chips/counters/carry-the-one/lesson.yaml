@@ -1,0 +1,68 @@
+# Blueprint: docs/curriculum/unit-4.md, CH15. A bench lesson (docs/LESSONS.md).
+# One idea: each rollover clocks the next digit. New: carry out (three periods: a note as it carries, a tap among
+# three pins, "What is this pin?"). Bare chips on a full board until the digit modules exist, and no chip-care card
+# (the only pop-up widget is the resistor slider). Lab: content/labs/carry-the-one.ts.
+format: bench
+id: carry-the-one
+version: 1
+title: Carry the one
+summary: Clock a tens digit from the ones digit's carry, and watch two counters count to 99.
+minutes: 6
+lab: carry-the-one
+unlocks:
+  parts: []
+  isle: jumper-arch
+
+start:
+  title: Carry the one
+  say: My billboard stops at 9. It needs a tens digit.
+  go: Add tens
+
+beats:
+  - say: Move the yellow wire from minus to the ones' pin 5.
+    objective: Carry
+    spot: [W3, U1]
+    do: carry-in
+    note: { at: U1.5, text: "carry: rises as 9 rolls over" }
+
+  - say: Watch for 19. What comes next? Guess first.
+    objective: Count up
+    spot: [DS2, DS1]
+    guess: { options: ["20", "10", "29"], answer: "20" }
+    do: nineteen-twenty
+    rule: Each rollover clocks the next digit.
+
+  - say: Two digits. What is the highest count?
+    pick: { options: ["19", "99", "100"], answer: "99" }
+    wrong:
+      "19": The tens keep going past 1. Up to 9.
+      "100": That needs a third digit.
+
+  - say: Watch 99 tick over.
+    spot: [DS2, DS1]
+    do: roll-99
+    note: { at: DS2, text: "then round again from 00" }
+
+  - say: Show me the carry pin.
+    tap: { answer: U1.5, among: [U1.1, U1.5, U1.15] }
+    hint: Follow the yellow wire to the ones chip.
+
+  - say: What is this pin?
+    pick: { options: [Carry out, Clock, Reset], answer: Carry out, on: U1.5 }
+    wrong:
+      Clock: The clock comes in at pin 1. This one goes out.
+      Reset: Reset is pin 15. This one carries the one.
+
+secret:
+  task: divide-by-ten
+  say: "Secret: swap the clock's 1 µF for the 0.1 µF."
+  done: The ones blur. The tens took their place.
+  note: { at: DS2, text: "tens now tick like ones did" }
+
+fixit:
+  say: My tens digit races the ones. Fix it.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Carry the one! My billboard counts to 99.

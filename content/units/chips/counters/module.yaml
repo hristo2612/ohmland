@@ -7,3 +7,5 @@ landmark:
   name: The Counter Billboard
 lessons:
   - seven-segments
+  - count-the-ticks
+  - carry-the-one

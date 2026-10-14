@@ -16,14 +16,14 @@ export function railCols(board: "half" | "full"): number[] {
 export const wire = (id: string, from: string, to: string, color: Extract<WireSpec, object>["color"] = "yellow"): WireSpec => ({ id, from, to, color });
 
 /**
- * A 4026B decade counter with pin 1 at e`col` and its display (on a carrier, a resistor per bar) at columns `col + 10`
- * to `col + 14`, wired bar to bar. Pin 16 and pin 3 (display enable) take the far plus rail; pin 8 and the display's
+ * A 4026B decade counter with pin 1 at e`col` and its display (on a carrier, a resistor per bar) at columns `dcol` to
+ * `dcol + 4` (default `col + 10`, to its right), wired bar to bar. Pin 16 and pin 3 (display enable) take the far plus rail; pin 8 and the display's
  * common go to the near minus rail. Pin 2 (inhibit) and pin 15 (reset) go to minus unless the lab wires them itself
  * (`inh: false`, `rst: false`). Clock (pin 1) and carry out (pin 5) are left for the lab.
  */
-export function digit(o: { chip: string; display: string; col: number; ohms: number; board: "half" | "full"; inh?: boolean; rst?: boolean; label?: string }): { parts: BenchPart[]; wires: WireSpec[] } {
+export function digit(o: { chip: string; display: string; col: number; dcol?: number; ohms: number; board: "half" | "full"; inh?: boolean; rst?: boolean; label?: string }): { parts: BenchPart[]; wires: WireSpec[] } {
   const c = o.col;
-  const d = c + 10;
+  const d = o.dcol ?? c + 10;
   const rails = railCols(o.board);
   const near = (col: number) => rails.reduce((a, b) => (Math.abs(b - col) < Math.abs(a - col) ? b : a));
   const w = (k: string, from: string, to: string, color: Extract<WireSpec, object>["color"]) => wire(`${o.chip}-${k}`, from, to, color);
@@ -97,4 +97,26 @@ export function probe(lab: LabView, id: string): "H" | "L" | "-" | null {
 export function seen(lab: LabView, key: string, cond: boolean): boolean {
   if (cond) lab.memory[key] = true;
   return lab.memory[key] === true;
+}
+
+/** How many single steps up a counter took over the last `seconds` (a 9 to 0 rollover counts as one). */
+export function stepsUp(lab: LabView, chip: string, seconds = 20, mod = 10): number {
+  const v = lab.values(`count:${chip}`, seconds);
+  let n = 0;
+  for (let k = 1; k < v.length; k++) if (v[k] === (v[k - 1]! + 1) % mod) n++;
+  return n;
+}
+
+/** A counter went from `a` straight to `b` within the last `seconds`. */
+export function went(lab: LabView, chip: string, a: number, b: number, seconds = 30): boolean {
+  const v = lab.values(`count:${chip}`, seconds);
+  for (let k = 1; k < v.length; k++) if (v[k - 1] === a && v[k] === b) return true;
+  return false;
+}
+
+/** A counter's value at time `t` from its history (the last sample at or before it), or null. */
+export function countAt(lab: LabView, chip: string, t: number, seconds = 30): number | null {
+  let out: number | null = null;
+  for (const [ts, v] of lab.history(`count:${chip}`, seconds)) if (ts <= t + 1e-9) out = v;
+  return out;
 }
