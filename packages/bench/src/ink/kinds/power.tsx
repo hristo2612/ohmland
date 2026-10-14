@@ -20,6 +20,8 @@ function NineVolt({ pi, st }: DrawProps<"battery">) {
   const labels = useLabels();
   const snap = !!pi.part.params.snap;
   const hp = health(st);
+  // Laid on its back in a box: seen from above it shows its front, terminals at the back.
+  if (pi.pose.lie) return <g transform={`translate(0 ${-(BATTERY.len - 0.9)})`}>{NineVoltFront({ pi, st, id, labels, snap, hp })}</g>;
   if (pi.pose.heldBy) {
     const D = BATTERY.thick / 2;
     return (
@@ -38,11 +40,16 @@ function NineVolt({ pi, st }: DrawProps<"battery">) {
       </g>
     );
   }
+  return NineVoltFront({ pi, st, id, labels, snap, hp });
+}
+
+/** The 9 V battery front on: terminals at the top (at their clip points), the body below. */
+function NineVoltFront({ pi, id, labels, snap, hp }: { pi: DrawProps<"battery">["pi"]; st: DrawProps<"battery">["st"]; id: string; labels: ReturnType<typeof useLabels>; snap: boolean; hp: string }) {
   const top = 3;
   const bottom = BATTERY.len;
   const band0 = 16;
   const band1 = 29;
-  const depth = 4.5;
+  const depth = pi.pose.lie ? 0 : 4.5;
   return (
     <g>
       <ellipse cx={2} cy={bottom + 1.6} rx={W9 + 6} ry={2.2} className="f-shade" opacity={0.7} />
@@ -193,6 +200,7 @@ function batteryBox(part: PlacedPartOf<"battery">, c: ShapeCtx): [number, number
   const size = part.params.size ?? "9v";
   if (size === "aa") return [-AA.len / 2 - 0.4, -AA.dia / 2 - 1.2, AA.len / 2 + 0.4, AA.dia / 2 + 1.2];
   if (size === "coin") return [-COIN.tab - 2, -COIN.holder / 2 + 1, COIN.tab + 2, COIN.holder / 2 - 1];
+  if (c.lie) return [-W9, -BATTERY.len + 0.9 - 3.4, W9, 0.9];
   if (c.held) return [-W9, -BATTERY.thick / 2, W9, BATTERY.thick / 2];
   return [-W9, -3.4, W9 + 4.5, BATTERY.len];
 }

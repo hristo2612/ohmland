@@ -59,3 +59,27 @@ export function slotTurn(n: number, i: number): number {
   if (n === 3) return [-90, 0, 90][i]!;
   return [-90, 0, 90, 180][i % 4]!;
 }
+
+/** A torn edge: a ragged square outline of side `s` centred on (x, z), as points going round it. */
+export function tornOutline(x: number, z: number, s: number): [number, number][] {
+  const h = s / 2;
+  const jag = [0.9, -0.6, 0.7, -0.8, 0.5, -0.7, 0.8, -0.5];
+  const corners: [number, number][] = [
+    [x - h, z - h],
+    [x + h, z - h],
+    [x + h, z + h],
+    [x - h, z + h],
+  ];
+  const out: [number, number][] = [];
+  corners.forEach(([x0, z0], c) => {
+    const [x1, z1] = corners[(c + 1) % 4]!;
+    const nx = -(z1 - z0) / s;
+    const nz = (x1 - x0) / s;
+    for (let i = 0; i < 8; i++) {
+      const t = i / 8;
+      const j = i === 0 ? 0 : jag[(i + c * 2) % jag.length]!;
+      out.push([x0 + (x1 - x0) * t + nx * j, z0 + (z1 - z0) * t + nz * j]);
+    }
+  });
+  return out;
+}

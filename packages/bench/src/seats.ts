@@ -32,11 +32,13 @@ export function holderOf(bench: BenchState, partId: string): { holder: PlacedPar
   return null;
 }
 
-/** World position (mm, y up) and turn of a part in a seat. */
-export function seatPose(holder: PlacedPart, seat: SeatDef, held: PlacedPart): { origin: Vec3; rot: number } {
+/** World position (mm, y up) and turn of a part in a seat, and whether it lies on its back (see SeatDef.place). */
+export function seatPose(holder: PlacedPart, seat: SeatDef, held: PlacedPart): { origin: Vec3; rot: number; lie?: boolean } {
   const p = seat.place(held);
   const [rx, rz] = rotateXZ(p.at[0], p.at[2], holder.rot);
-  return { origin: [holder.pos[0] + rx, p.at[1], holder.pos[1] + rz], rot: (((holder.rot + (p.rot ?? 0)) % 360) + 360) % 360 };
+  const out: { origin: Vec3; rot: number; lie?: boolean } = { origin: [holder.pos[0] + rx, p.at[1], holder.pos[1] + rz], rot: (((holder.rot + (p.rot ?? 0)) % 360) + 360) % 360 };
+  if (p.lie) out.lie = true;
+  return out;
 }
 
 /** The nearest seat that accepts `part` within `reach` mm of a desk point (a full seat only when nothing else is free). */

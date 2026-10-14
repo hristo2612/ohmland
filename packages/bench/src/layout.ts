@@ -21,7 +21,12 @@ export type PartPose = {
   ends?: Record<string, { pos: Vec3; inHole: boolean }>;
   /** Sitting in a holder's seat (the holder's id). */
   heldBy?: string;
+  /** Laid on its back in its seat (a 9 V battery in a sealed box): turned a quarter about x, top toward -z. */
+  lie?: boolean;
 };
+
+/** A local point of a part laid on its back: its top (+y) now points to the back (-z). */
+export const lieDown = (p: Vec3): Vec3 => [p[0], p[2], -p[1]];
 
 const add3 = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 
@@ -110,12 +115,15 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
     const local = ((def.heldLegs ?? def.deskLegs) as (p: unknown) => Record<string, Vec3>)(part.params);
     const legs: Record<string, Vec3> = {};
     for (const leg of def.legs) {
-      const l = local[leg];
-      if (!l) continue;
+      const l0 = local[leg];
+      if (!l0) continue;
+      const l = sp.lie ? lieDown(l0) : l0;
       const [rx, rz] = rotateXZ(l[0], l[2], sp.rot);
       legs[leg] = add3(sp.origin, [rx, l[1], rz]);
     }
-    return { mount: "desk", origin: sp.origin, rot: sp.rot, legs, heldBy: seat.holder.id };
+    const pose: PartPose = { mount: "desk", origin: sp.origin, rot: sp.rot, legs, heldBy: seat.holder.id };
+    if (sp.lie) pose.lie = true;
+    return pose;
   }
 
   const origin: Vec3 = [part.pos[0], 0, part.pos[1]];
@@ -250,8 +258,9 @@ export function probeTip(bench: BenchState, color: ProbeColor, depth = 0): Vec3 
 }
 
 /** An insulated spot (local, as `PartDef.spots` gives it) in world coordinates, for a part's pose. */
-function spotWorld(pose: PartPose, local: Vec3 | undefined): Vec3 | null {
-  if (!local) return null;
+function spotWorld(pose: PartPose, local0: Vec3 | undefined): Vec3 | null {
+  if (!local0) return null;
+  const local = pose.lie ? lieDown(local0) : local0;
   const [rx, rz] = rotateXZ(local[0], local[2], pose.rot);
   return [pose.origin[0] + rx, pose.origin[1] + local[1], pose.origin[2] + rz];
 }

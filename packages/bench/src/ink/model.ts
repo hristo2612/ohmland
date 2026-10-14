@@ -150,7 +150,7 @@ function partInk(bench: BenchState, part: PlacedPart, holder: PlacedPart | null)
   for (const [leg, p] of Object.entries(pose.legs)) legs[leg] = [p[0], p[2]];
   const kind = inkKind(part.kind);
   const held = !!pose.heldBy;
-  const ctx = { mount: pose.mount, held, ...(pose.span !== undefined ? { span: pose.span } : {}) };
+  const ctx = { mount: pose.mount, held, ...(pose.lie ? { lie: true } : {}), ...(pose.span !== undefined ? { span: pose.span } : {}) };
   const out: PartInk = {
     part,
     pose,

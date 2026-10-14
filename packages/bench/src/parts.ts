@@ -51,8 +51,11 @@ export type SeatDef = {
   name: string;
   /** Kinds that fit. */
   accepts: readonly BenchPartKind[];
-  /** Where the held part's origin sits in the holder's frame (mm, y up) and its turn relative to the holder. */
-  place: (held: PlacedPart) => { at: Vec3; rot?: number };
+  /**
+   * Where the held part's origin sits in the holder's frame (mm, y up), its turn relative to the holder, and `lie`: a
+   * 9 V battery laid on its back, terminals toward the back (a sealed box is not deep enough to stand it up).
+   */
+  place: (held: PlacedPart) => { at: Vec3; rot?: number; lie?: boolean };
   /** Metal contacts: a held part's lead -> the holder's lead it touches (leads the held part lacks are ignored). */
   joins?: Readonly<Record<string, string>>;
 };
@@ -770,8 +773,15 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
         return {
           name,
           accepts: BOX_KINDS,
-          // An AA lies plus to the left, by the + terminal (so its wires do not cross).
-          place: (held: PlacedPart) => ({ at: [x, floor, z] as Vec3, rot: held.kind === "battery" && held.params.size === "aa" ? 180 : 0 }),
+          place: (held: PlacedPart) => {
+            if (held.kind === "battery" && (held.params.size ?? "9v") === "9v" && !held.params.snap) {
+              // A 9 V battery lies on its back, its snaps toward the back of the box.
+              const front = (cab ? CABINET.d / 2 - CABINET.strip : BOX.d / 2 - BOX.strip) - 4;
+              return { at: [x, floor + BATTERY.thick / 2, Math.min(z + BATTERY.len / 2, front)] as Vec3, lie: true };
+            }
+            // An AA lies plus to the left, by the + terminal (so its wires do not cross).
+            return { at: [x, floor, z] as Vec3, rot: held.kind === "battery" && held.params.size === "aa" ? 180 : 0 };
+          },
           joins,
         };
       });

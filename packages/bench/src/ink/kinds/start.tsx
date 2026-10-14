@@ -8,7 +8,7 @@ import { dotRate, formatGate, gateAmps, tagText } from "../../flow";
 import { useLabels } from "../../labels";
 import { schematicSlot } from "../../parts";
 import { BenchStoreContext, type BenchStore, type BenchStoreState } from "../../store";
-import { slotTurn, symbolInk } from "../../symbols";
+import { slotTurn, symbolInk, tornOutline } from "../../symbols";
 import type { PartParamsMap, SymbolKind } from "../../types";
 import { Upright, localLegs, n3, rrect } from "./common";
 import type { DrawProps, InkRegistry } from "./types";
@@ -251,20 +251,9 @@ function BoxTag({ x, z, text, rot }: { x: number; z: number; text: string; rot: 
 
 /** A torn edge: a ragged square outline of side `s` centred on (x, z). */
 function torn(x: number, z: number, s: number): string {
-  const h = s / 2;
-  const jag = [0.9, -0.6, 0.7, -0.8, 0.5, -0.7, 0.8, -0.5];
-  const side = (x0: number, z0: number, x1: number, z1: number, k: number) => {
-    let d = "";
-    const nx = -(z1 - z0) / s;
-    const nz = (x1 - x0) / s;
-    for (let i = 1; i <= 8; i++) {
-      const t = i / 8;
-      const j = i === 8 ? 0 : jag[(i + k) % jag.length]!;
-      d += `L${n3(x0 + (x1 - x0) * t + nx * j)} ${n3(z0 + (z1 - z0) * t + nz * j)}`;
-    }
-    return d;
-  };
-  return `M${n3(x - h)} ${n3(z - h)}${side(x - h, z - h, x + h, z - h, 0)}${side(x + h, z - h, x + h, z + h, 2)}${side(x + h, z + h, x - h, z + h, 4)}${side(x - h, z + h, x - h, z - h, 6)}Z`;
+  return `${tornOutline(x, z, s)
+    .map(([px, pz], i) => `${i ? "L" : "M"}${n3(px)} ${n3(pz)}`)
+    .join("")}Z`;
 }
 
 function Schematic({ pi }: DrawProps<"schematic">) {
