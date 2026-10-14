@@ -50,6 +50,11 @@ export type Achievement = {
   /** Hidden achievements show as a mystery until unlocked. */
   hidden?: boolean;
   /**
+   * The unit it belongs to, for one whose refs name no lesson (a lab trigger alone). Otherwise the unit comes from its
+   * refs (see achievementUnit), so it follows a lesson that moves.
+   */
+  unit?: string;
+  /**
    * A named trigger that unlocks this achievement when a lab fires it (blueprint N16), in addition to `check`. Labs
    * fire triggers through a task's `trigger`, the lab's `triggers`, or the runtime's built-in ones (see
    * apps/web/src/lab/session.ts, BUILT_IN_TRIGGERS).
@@ -66,6 +71,37 @@ export type EarnedAchievement = Omit<Achievement, "description"> & { description
 /** An achievement's description for this course. */
 export const describeAchievement = (a: Achievement, outline: CourseOutline): string =>
   typeof a.description === "function" ? a.description(outline) : a.description;
+
+/**
+ * The unit an achievement belongs to: its own `unit`, else the latest unit (in course order) among the lessons and
+ * units its refs name. None for a course-wide one (finish five lessons, burn out a part).
+ */
+export function achievementUnit(a: Achievement, outline: CourseOutline): string | undefined {
+  if (a.unit) return a.unit;
+  const refs = a.refs ?? {};
+  const lessons = [...(refs.lessons ?? []), ...[...(refs.tasks ?? []), ...(refs.bonus ?? [])].map(([lessonId]) => lessonId)];
+  const units = [...(refs.units ?? []), ...lessons.flatMap((id) => outline.lessons[id]?.unit ?? [])];
+  const order = (u: string) => outline.units.findIndex((x) => x.id === u);
+  return units.reduce<string | undefined>((best, u) => (best === undefined || order(u) > order(best) ? u : best), undefined);
+}
+
+/**
+ * What the achievements page shows: the stamps earned, then the next few still to earn (never a secret), from the
+ * unit the learner is in (or one before it, or course-wide) first. One from a later unit is `later`: its title only,
+ * so it never gives a lesson away.
+ */
+export function stampsToShow(state: LearnerState, outline: CourseOutline, current: string | undefined, count = 3) {
+  const order = (u: string | undefined) => (u === undefined ? -1 : outline.units.findIndex((x) => x.id === u));
+  const here = current === undefined ? -1 : order(current);
+  const later = (a: Achievement) => {
+    const u = achievementUnit(a, outline);
+    return u !== undefined && (order(u) < 0 || order(u) > here);
+  };
+  const earned = ACHIEVEMENTS.filter((a) => state.achievements[a.id]);
+  const waiting = ACHIEVEMENTS.filter((a) => !state.achievements[a.id] && !a.hidden).map((a) => ({ a, later: later(a) }));
+  const next = [...waiting.filter((x) => !x.later), ...waiting.filter((x) => x.later)].slice(0, count);
+  return { earned, next };
+}
 
 const lessonsDone = (s: LearnerState) => Object.keys(s.lessons).length;
 const tasksDone = (s: LearnerState) => Object.values(s.lessons).reduce((n, l) => n + l.tasks.length, 0);
@@ -188,6 +224,7 @@ const UNIT_2: readonly Achievement[] = [
   },
   {
     id: "tau-tamer",
+    unit: "switching",
     ...t["tau-tamer"],
     icon: "clock",
     xp: 75,
@@ -200,6 +237,7 @@ const UNIT_2: readonly Achievement[] = [
   { id: "feather-touch", ...t["feather-touch"], icon: "cursor", xp: 50, ...allTasks(["touch-switch", "darlington"]) },
   {
     id: "five-second-club",
+    unit: "switching",
     ...t["five-second-club"],
     icon: "clock",
     xp: 75,
@@ -220,6 +258,7 @@ const UNIT_2: readonly Achievement[] = [
   },
   {
     id: "tuning-fork",
+    unit: "switching",
     ...t["tuning-fork"],
     icon: "star",
     xp: 75,
@@ -318,6 +357,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   },
   {
     id: "lawmaker",
+    unit: "basics",
     ...t.lawmaker,
     icon: "book",
     xp: 75,
@@ -351,6 +391,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   { id: "sour-power", ...t["sour-power"], icon: "spark", xp: 50, ...allTasks(["stack-the-cells", "light-it"]) },
   {
     id: "upside-down",
+    unit: "basics",
     ...t["upside-down"],
     icon: "retry",
     xp: 25,
