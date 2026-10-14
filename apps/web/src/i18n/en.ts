@@ -1087,7 +1087,7 @@ export const en = {
     zoomIn: "Zoom in",
     zoomOut: "Zoom out",
     sound: "Sound effects",
-    hint: "Drag to turn, pinch or scroll to zoom, tap a piece to see where it came from.",
+    hint: "Drag to turn. Tap a piece.",
     loading: "Loading your island",
     failedTitle: "Your island could not be drawn",
     failedBody: "This browser has 3D graphics turned off or does not support them. Your progress is safe.",
@@ -1097,12 +1097,9 @@ export const en = {
     emptyContinue: "Continue your first lesson",
     bubbleClose: "Close the label",
     listTitle: "What is on your island",
-    cardCounts: (lessons: number, modules: number) =>
-      lessons === 0
-        ? "Finish a lesson to place your first piece."
-        : modules === 0
-          ? `${count(lessons, "piece", "pieces")} placed. Finish a module to build a landmark.`
-          : `${count(lessons, "piece", "pieces")} placed, ${count(modules, "landmark", "landmarks")} built.`,
+    /** The small count line under the island's title. */
+    counts: (lessons: number, modules: number) =>
+      modules === 0 ? count(lessons, "piece", "pieces") : `${count(lessons, "piece", "pieces")}, ${count(modules, "landmark", "landmarks")}`,
   },
 
   reveal: {

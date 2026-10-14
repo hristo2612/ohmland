@@ -137,7 +137,5 @@
 @media (max-width: 720px) {
   .isle-bar { gap: var(--s-2); min-height: 64px; }
   .isle-bar__title h1 { font-size: var(--text-md); line-height: var(--lh-sm); }
-  .isle-bar__counts { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .isle-bar__sep { display: none; }
-  .isle-hint { display: none; }
 }

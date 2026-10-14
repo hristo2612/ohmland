@@ -1,7 +1,8 @@
 /**
  * The /isle page: the learner's island, full screen on the notebook's own paper. The page shows at once with a loading line; the island
- * code (and three.js) loads after hydration. Drag to turn, pinch or scroll to zoom, tap a piece for its label. A new
- * learner sees the bare starting plot and the way to their first lesson.
+ * code (and three.js) loads after hydration. Drag to turn, pinch or scroll to zoom, tap a piece for its label (the hint
+ * names only the first and last; pinching is found by hand). A new learner sees the bare starting plot and the way to
+ * their first lesson.
  */
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { IsleLabel, IsleView } from "@ohmland/isle";
@@ -149,7 +150,7 @@ export default function IslePage({ outline }: { outline: CourseOutline }) {
           <IconButton label={m.isle.close} icon="arrow-left" href="/learn" />
           <div className="isle-bar__title">
             <h1>{m.isle.title}</h1>
-            {ready && !empty && <p className="isle-bar__counts">{m.isle.cardCounts(lessons, modules)}</p>}
+            {ready && !empty && <p className="isle-bar__counts">{m.isle.counts(lessons, modules)}</p>}
           </div>
         </div>
         <div className="isle-bar__group isle-bar__tools">
