@@ -536,9 +536,12 @@ async function afterAction(page, shot, key, n) {
     if (!p || p.moment !== key) return;
     if (p.phase === "done") {
       await settle(page);
+      // A moment with nothing to read moves on by itself: then the next moment's primary is not this one's Next.
+      const q = await phaseOf(page);
+      if (!q || q.moment !== key) return;
       await shot(`${n}-${key}-done`);
-      const next = primary(page);
-      if (await next.count()) await next.click();
+      const next = page.locator(`.bl[data-moment="${key}"][data-phase="done"] [data-primary]:not([disabled])`).first();
+      if (await next.count()) await next.click({ timeout: 5000 }).catch(() => {});
       return;
     }
     await page.waitForTimeout(250);
