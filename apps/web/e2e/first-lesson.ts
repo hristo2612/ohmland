@@ -14,9 +14,19 @@ async function rotateLed(page: Page) {
     await page.evaluate(() => window.ohmlandLab!.step!({ do: "rotate", part: "D1" }));
     return;
   }
+  // Look up the screen from the legs for the LED's dome (what the bench would grab there), then tap it.
   const a = await project(page, "pin:D1.anode");
   const k = await project(page, "pin:D1.cathode");
-  await page.mouse.click((a.x + k.x) / 2, (a.y + k.y) / 2 - 36);
+  const x = (a.x + k.x) / 2;
+  let y = (a.y + k.y) / 2;
+  for (let dy = 0; dy <= 90; dy += 3) {
+    const hit = await page.evaluate(([px, py]) => JSON.stringify(window.ohmlandLab!.pickAt(px!, py!) ?? null), [x, y - dy]);
+    if (hit.includes('"D1"')) {
+      y -= dy;
+      break;
+    }
+  }
+  await page.mouse.click(x, y);
   await page.getByRole("button", { name: "Rotate" }).first().click();
 }
 
@@ -34,7 +44,7 @@ async function slideRailEnd(page: Page) {
 
 /**
  * Plays the first lesson from its start screen to the finale, every check right on the first try. A first completion
- * finishes the Start here module too, so the island reveal opens before the finale; it is closed and the finale shown.
+ * places an island piece, so the island reveal opens before the finale; it is closed and the finale shown.
  */
 export async function playFirstLesson(page: Page, opts: { expectReveal?: boolean } = {}) {
   // The start screen: the mission and one way in.

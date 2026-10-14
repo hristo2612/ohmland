@@ -215,6 +215,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       if (mo.beat?.tap?.joinedTo) addMark({ id: `marker-${mo.key}`, kind: "ring", at: mo.beat.tap.joinedTo, tone: "red" });
       if (mo.beat?.pick?.on) addMark({ id: `on-${mo.key}`, kind: "ring", at: mo.beat.pick.on, tone: "ink" });
       state.current.api?.calm();
+      // A setup puts fresh parts on the bench: nothing is left to replace.
+      if (mo.task && !done && state.current.api?.task(mo.task)?.setup?.length) setFried([]);
       if (mo.task && !done) {
         pendingSetup.current = mo.task;
         if (state.current.api) {
@@ -247,6 +249,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   const complete = useCallback(
     (mo: Moment, opts: { tapped?: string; mood?: RobotMood } = {}) => {
       setPhase("done");
+      // What a wrong try wrote on the bench has done its job: the discovery takes its place.
+      setMarks((ms) => ms.filter((k) => !k.id.startsWith("miss-")));
       const lines: string[] = [];
       if (mo.done) {
         say(mo.done, opts.mood ?? "happy");
@@ -559,6 +563,8 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
             : null;
   const readOnly = !started || phase === "guess" || check?.kind === "targets";
   const spot = started ? spotOf(moment) : null;
+  // A hole check brings the marked hole's corner of the board close, without veiling the holes around it.
+  const frame = started && moment.beat?.tap?.joinedTo ? [moment.beat.tap.joinedTo] : null;
   const popup = started && phase === "act" && moment.action === "popup" ? (moment.beat?.popup ?? null) : null;
   const friedHere = friedAll.filter((f) => f.lessonId === lesson.id).map((f) => f.label);
   const fixedCount = moments.filter((mo) => mo.kind === "fix" && mo.task && tasks.includes(mo.task)).length;
@@ -856,6 +862,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               readOnly={readOnly}
               trayOpen={!!gate}
               spot={spot}
+              frame={frame}
               xray={started && !!moment.beat?.xray}
               hintHighlight={hintHighlight}
               marks={marks}

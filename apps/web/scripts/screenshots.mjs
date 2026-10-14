@@ -241,7 +241,7 @@ async function moduleReveal(browser, url) {
       if (!wanted(`reveal-module-${size}-${theme}`)) continue;
       const { context, page } = await newPage(browser, size, theme);
       await seedLearner(page, url, "wrap");
-      await page.goto(`${url}${withClock(`/learn/basics/${MODULE_ONE[2]}`, theme)}`, { waitUntil: "networkidle" });
+      await page.goto(`${url}${withClock(`/learn/basics/${MODULE_ONE[3]}`, theme)}`, { waitUntil: "networkidle" });
       await page.waitForSelector("[data-step-type=wrap]");
       await page.locator("[data-primary]").click();
       await revealShown(page);

@@ -69,8 +69,10 @@ export type StageProps = {
   readOnly: boolean;
   /** Whether the tray of parts and leads is out (only while a task may need it). */
   trayOpen: boolean;
-  /** Parts in play: spotlit. */
+  /** Parts in play: spotlit and framed. */
   spot: string[] | null;
+  /** Anchors to frame without a spotlight (a breadboard corner for a hole check). */
+  frame: string[] | null;
   xray: boolean;
   /** Hint highlights of the current task. */
   hintHighlight: string[] | undefined;
@@ -318,17 +320,20 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   // Frame and spotlight the parts in play (a whole-bench view when none are named). On a phone the bench is small, so
   // a beat about one part brings that part close.
   const spotKey = (props.spot ?? []).join(",");
+  const frameKey = (props.frame ?? []).join(",");
   useEffect(() => {
     const c = controllerRef.current;
     if (!c || !benchReady) return;
     const b = runtime.store.getState().bench;
-    const raw = (props.spot ?? []).map((s) => resolveAnchor(b, s)).filter((x): x is string => !!x);
-    c.spotlight(raw.length ? raw : null);
+    const resolve = (list: string[] | null) => (list ?? []).map((s) => resolveAnchor(b, s)).filter((x): x is string => !!x);
+    const spotted = resolve(props.spot);
+    const framed = [...spotted, ...resolve(props.frame)];
+    c.spotlight(spotted.length ? spotted : null);
     // A part in play keeps some bench around it: close enough to tell its legs apart, never a lone close-up.
     const box = stageRef.current?.getBoundingClientRect();
-    c.focus(raw, raw.length && box ? { padding: Math.round(Math.min(box.width, box.height) * 0.26) } : {});
+    c.focus(framed, framed.length && box ? { padding: Math.round(Math.min(box.width, box.height) * 0.3) } : {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spotKey, runtime, benchReady]);
+  }, [spotKey, frameKey, runtime, benchReady]);
 
   return (
     <div ref={stageRef} className="bl-stage" data-bench-ready={benchReady || undefined} data-lab-ready data-lab={lab.id} onPointerDownCapture={() => audio.unlock()} onKeyDownCapture={() => audio.unlock()}>

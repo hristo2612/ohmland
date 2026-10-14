@@ -8,7 +8,7 @@ the notebook page fills itself in and is signed off.
 Read `docs/DESIGN-PRINCIPLES.md` first: it decides how much goes on a screen and how much we say. Wording rules are in
 `docs/CONTENT.md`, the lab file in `docs/LABS.md`. The reference lessons are
 `content/units/basics/current-and-leds/first-glow`, `content/units/basics/your-meter/welcome-to-the-bench` and
-`content/units/basics/start-here/how-a-breadboard-works`, each with its lab in `content/labs/<id>.ts`.
+`content/units/basics/your-meter/how-a-breadboard-works`, each with its lab in `content/labs/<id>.ts`.
 
 ## Two files
 

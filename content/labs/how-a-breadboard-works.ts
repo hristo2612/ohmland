@@ -1,4 +1,4 @@
-// A reference lab of a bench lesson (docs/LESSONS.md): content/units/basics/start-here/how-a-breadboard-works.
+// A reference lab of a bench lesson (docs/LESSONS.md): content/units/basics/your-meter/how-a-breadboard-works.
 // One idea: hidden metal strips join some holes. The hole games are the lesson's own checks; the lab holds the bench
 // and the two hands-on tasks (fix an LED whose legs share a strip, slide a wire along a rail) plus the secret.
 // Half-size board: 30 numbered strips a to e and f to j, rails in groups of five (columns 1-5, 7-11, 13-17 ...).

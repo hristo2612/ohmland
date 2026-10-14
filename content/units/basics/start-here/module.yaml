@@ -1,9 +1,0 @@
-# Temporary home of the first bench lesson. It moves into a new first unit, "Start here", later.
-id: start-here
-title: Start here
-summary: Meet the breadboard, the board every circuit in Ohmland is built on.
-landmark:
-  id: breadboard-yard
-  name: the Breadboard Yard
-lessons:
-  - how-a-breadboard-works

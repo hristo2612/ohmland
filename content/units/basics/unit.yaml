@@ -7,7 +7,6 @@ isle:
   theme: green-board
   seed: 1
 modules:
-  - start-here
   - your-meter
   - resistance
   - current-and-leds

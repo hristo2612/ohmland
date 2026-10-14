@@ -54,7 +54,7 @@ async function drag(page, from, to) {
 }
 async function leadFromTray(page, color, anchor) {
   const before = new Set((await benchState(page)).leads.map((l) => l.id));
-  const box = await page.locator(".ohb-tray .ohb-item", { hasText: color }).first().boundingBox();
+  const box = await page.locator(".ohb-tray .ohb-item, .ohi-tray .ohi-item", { hasText: color }).first().boundingBox();
   await drag(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, await project(page, anchor));
   return (await benchState(page)).leads.find((l) => !before.has(l.id)).id;
 }
@@ -64,9 +64,9 @@ async function grabPoint(page, lead, end) {
   const l = (await benchState(page)).leads.find((x) => x.id === lead);
   const e = l[end];
   const o = l[end === "a" ? "b" : "a"];
-  const p = e.to ? await project(page, e.to) : await project(page, [e.pos[0], 4, e.pos[1]]);
+  const p = await project(page, e.to ?? `lead:${lead}.${end}`);
   if (!e.to) return p;
-  const q = o.to ? await project(page, o.to) : await project(page, [o.pos[0], 4, o.pos[1]]);
+  const q = await project(page, o.to ?? `lead:${lead}.${end === "a" ? "b" : "a"}`);
   const d = Math.hypot(q.x - p.x, q.y - p.y) || 1;
   return { x: p.x + ((q.x - p.x) / d) * 5, y: p.y + ((q.y - p.y) / d) * 5 };
 }
@@ -91,9 +91,10 @@ async function unclip(page, lead, end) {
   const from = await grabPoint(page, lead, end);
   await drag(page, from, { x: from.x + 30, y: from.y + 90 });
 }
+const inkView = (page) => page.evaluate(() => window.ohmlandLab.view?.() === "ink");
 async function flipBlockSwitch(page, id) {
   const p = (await benchState(page)).parts.find((x) => x.id === id);
-  const pt = await project(page, [p.pos[0], 24, p.pos[1] - 5.5]);
+  const pt = (await inkView(page)) ? await project(page, `part:${id}`) : await project(page, [p.pos[0], 24, p.pos[1] - 5.5]);
   await page.mouse.click(pt.x, pt.y);
 }
 /** Picks the LED up by its dome (above its legs on screen) and turns it with the bench's Rotate button. */
@@ -102,9 +103,23 @@ async function rotateLed(page) {
     await page.evaluate(() => window.ohmlandLab.step({ do: "rotate", part: "D1" }));
     return;
   }
-  const a = await project(page, "pin:D1.anode");
-  const k = await project(page, "pin:D1.cathode");
-  await page.mouse.click((a.x + k.x) / 2, (a.y + k.y) / 2 - 36);
+  if (await inkView(page)) {
+    const d = await project(page, "part:D1");
+    await page.mouse.click(d.x, d.y);
+  } else {
+    const a = await project(page, "pin:D1.anode");
+    const k = await project(page, "pin:D1.cathode");
+    const x = (a.x + k.x) / 2;
+    let y = (a.y + k.y) / 2;
+    for (let dy = 0; dy <= 90; dy += 3) {
+      const hit = await page.evaluate(([px, py]) => JSON.stringify(window.ohmlandLab.pickAt(px, py) ?? null), [x, y - dy]);
+      if (hit.includes('"D1"')) {
+        y -= dy;
+        break;
+      }
+    }
+    await page.mouse.click(x, y);
+  }
   await page.getByRole("button", { name: "Rotate" }).first().click();
 }
 async function tapHole(page, hole) {
@@ -184,7 +199,7 @@ async function firstGlow(page, shot) {
   await page.locator(".bl-clock").click();
   await settle(page, 400);
   await shot("16-fixit-clock");
-  await settle(page, 600);
+  await page.waitForFunction(() => (window.ohmlandLab.part("D1")?.glow ?? 0) < 0.01);
   // The fix-it bench starts from the canonical loop (TL1 to TL3), with the battery's clips swapped.
   await swapClips(page, ["TL2", "b", "pin:D1.anode"], ["TL3", "a", "pin:D1.cathode"]);
   await at(page, "end");
@@ -298,6 +313,7 @@ async function welcome(page, shot) {
   await at(page, "fix0");
   await settle(page, 1500);
   await shot("09-fixit");
+  await page.waitForFunction(() => (window.ohmlandLab.part("D1")?.glow ?? 0) < 0.01);
   await clipTo(page, "TL2", "a", "pin:S1.b");
   await at(page, "end");
   await finish(page, shot, 10);

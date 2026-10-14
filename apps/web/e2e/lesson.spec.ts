@@ -8,15 +8,15 @@ test("a guest finishes the first lesson and sees XP on the signed-off page", asy
 
   await playFirstLesson(page);
 
-  // 30 for the lesson + 3 checks first try x 10 + 2 bench tasks x 15 + 100 for the Start here module, plus
-  // "First spark" (20), "Clean sweep" (25), "Landmark" (30) and "Spotless module" (50) = 315 XP.
+  // 30 for the lesson + 3 checks first try x 10 + 2 bench tasks x 15, plus "First spark" (20) and "Clean sweep" (25)
+  // = 135 XP.
   const finale = page.locator("[data-finale]");
   await expect(finale.getByRole("heading", { name: "How a breadboard works, done" })).toBeVisible();
-  await expect(page.locator(".finale__xp")).toHaveText("+315 XP");
+  await expect(page.locator(".finale__xp")).toHaveText("+135 XP");
 
-  // The XP survives a reload: the header chip on the course map shows level 3.
+  // The XP survives a reload: the header chip on the course map shows level 2.
   await page.goto("/learn");
-  await expect(page.locator(".level-chip__badge")).toHaveText("3");
+  await expect(page.locator(".level-chip__badge")).toHaveText("2");
 });
 
 test("a lesson's first load carries no three.js", async ({ page }) => {

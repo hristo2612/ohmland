@@ -543,9 +543,7 @@
 }
 .bl-tick--inline { margin-left: var(--bl-s-3); }
 .bl-stamp--checked {
-  position: absolute;
-  right: var(--bl-s-6);
-  bottom: var(--bl-s-6);
+  align-self: flex-end;
   display: grid;
   gap: var(--bl-s-1);
   width: auto;
@@ -591,6 +589,9 @@
   .bl { --bl-bar-h: 52px; }
   .bl-bar { gap: var(--bl-s-2); padding: 0 var(--bl-s-2); }
   .bl-nb-btn__text { display: none; }
+  .bl-nb-btn { min-width: var(--bl-tap); padding: 0 var(--bl-s-2); gap: var(--bl-s-1); }
+  .bl-bar__tools { gap: var(--bl-s-2); }
+  .bl-bar__title { font-size: var(--bl-text-sm); }
   .bl-views__opt { min-width: 40px; padding: 0 var(--bl-s-2); }
   .bl-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
   .bl-bench { order: 0; }
@@ -621,7 +622,6 @@
   .bl-margin--finale { order: 0; display: flex; max-height: none; border-top: 0; border-bottom: 1.5px solid var(--bl-rose); }
   .bl-finale__page { padding: var(--bl-s-4) var(--bl-s-4) var(--bl-s-12); }
   .bl-page { padding: var(--bl-s-4); }
-  .bl-stamp--checked { position: static; justify-self: end; align-self: flex-end; }
 }
 
 /* ---- Motion -------------------------------------------------------------------------------------------------------- */

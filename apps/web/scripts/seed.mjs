@@ -3,13 +3,14 @@
 /** SwiftShader gives headless Chromium WebGL, so the 3D island draws in screenshots and tests. */
 export const WEBGL_ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"];
 
-/** The Your meter module (after the Start here module): its lessons in order, and the step index of the last one's wrap. */
-export const MODULE_ONE = ["welcome-to-the-bench", "meet-the-meter", "tiny-and-huge-numbers"];
+/** The first module of the course (Your meter): its lessons in order, and the step index of the last one's wrap. */
+export const MODULE_ONE = ["how-a-breadboard-works", "welcome-to-the-bench", "meet-the-meter", "tiny-and-huge-numbers"];
 export const MODULE_ONE_WRAP = 4;
 
 /**
  * Writes a learner record for `origin` (visits it first, since IndexedDB is per origin).
- *   one     the first lesson done, the second in progress, some achievements and fried parts
+ *   one     the first lesson done, the second (a bench lesson) in progress at its second beat, some achievements
+ *           and fried parts
  *   module  the whole first module done, so its landmark (the Meter Tower) is built too
  *   wrap    one lesson short of the first module: its last lesson resumes at the wrap step, and finishing it builds
  *           the module's landmark
@@ -21,12 +22,13 @@ export async function seedLearner(page, origin, kind = "one") {
       // a fixed clock, so the island (seeded by the first lesson's time) looks the same in every run
       const now = Date.parse("2026-10-10T09:30:00.000Z");
       const iso = (d) => new Date(now - d * 86400000).toISOString();
-      const [first, second, third] = lessonIds;
-      const lessons = { [first]: { at: iso(3), version: 1, firstTry: 5, items: 5, tasks: ["close-the-switch", "break-the-loop", "mend-the-loop"] } };
+      const [zero, first, second, third] = lessonIds;
+      const lessons = { [zero]: { at: iso(4), version: 1, firstTry: 3, items: 3, tasks: ["fix-led", "rail-slide"] } };
+      if (kind !== "one") lessons[first] = { at: iso(3), version: 2, firstTry: 1, items: 1, tasks: ["close-the-switch", "break-the-loop", "mend-the-loop", "fix-switch"] };
       if (kind !== "one") lessons[second] = { at: iso(2), version: 1, firstTry: 4, items: 6, tasks: ["plug-in", "set-dial", "read-battery", "swap-probes"] };
       if (kind === "module") lessons[third] = { at: iso(1), version: 1, firstTry: 5, items: 6, tasks: ["over-the-limit", "climb-a-range", "aa-cell", "kilo-ohms"] };
       const inProgress =
-        kind === "one" ? { [second]: { step: 2, answers: {}, at: iso(0), version: 1 } } : kind === "wrap" ? { [third]: { step: wrapStep, answers: {}, at: iso(0), version: 1 } } : {};
+        kind === "one" ? { [first]: { step: 2, answers: {}, at: iso(0), version: 2 } } : kind === "wrap" ? { [third]: { step: wrapStep, answers: {}, at: iso(0), version: 1 } } : {};
       const state = {
         v: 1,
         lessons,

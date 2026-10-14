@@ -22,7 +22,7 @@ const BASICS = new Set(
 describe("lab solutions", () => {
   it("finds the labs", () => {
     expect(labs.length).toBeGreaterThan(0);
-    // 18 classic Unit 1 labs, plus how-a-breadboard-works in the temporary Start here module.
+    // 18 classic Unit 1 labs, plus how-a-breadboard-works (at the start of Your meter until Start here exists).
     expect(BASICS.size).toBe(19);
   });
 
