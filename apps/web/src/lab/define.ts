@@ -462,8 +462,10 @@ export type Nudge = { when: (lab: LabView) => boolean; say: string };
 // Solutions: bench actions as data. A test replays them headlessly; "Show me" plays them on the bench.
 
 export type SolutionStep =
-  | { do: "place"; part: string; kind: BenchPartKind; at: Spot; params?: Record<string, unknown>; rot?: number }
-  | { do: "move"; part: string; at: Spot; rot?: number; holes?: undefined }
+  /** `holes` puts the legs in those holes one by one (a perfboard's "PB1:C7"; flying leads), as a bench config's do. */
+  | { do: "place"; part: string; kind: BenchPartKind; at: Spot; params?: Record<string, unknown>; rot?: number; holes?: Record<string, string> }
+  /** With `at`, `holes` puts every leg in its hole one by one (a perfboard's "PB1:C7"), as a bench config's do. */
+  | { do: "move"; part: string; at: Spot; rot?: number; holes?: Record<string, string> }
   /**
    * Move only these flying leads into these holes (null takes one out), keeping the others where they are: the
    * logic probe's tip from hole to hole, its supply leads left on the rails.

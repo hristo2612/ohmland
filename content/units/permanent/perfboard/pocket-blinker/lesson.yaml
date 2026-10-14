@@ -1,0 +1,69 @@
+# Blueprint: docs/curriculum/unit-3.md, MP11. A bench lesson (docs/LESSONS.md).
+# One idea: build in small batches and check each one before the next. No new part: the lesson is the build, the twin
+# blinker from Unit 2 soldered on perfboard. The blueprint's saw and vise are not on the bench yet, so the lesson ends
+# at the test (no trim). Lab: content/labs/pocket-blinker.ts.
+format: bench
+id: pocket-blinker
+version: 1
+title: The antenna blinker
+summary: Solder the twin blinker onto perfboard in three batches, checking every joint, and watch it blink for keeps.
+minutes: 10
+lab: pocket-blinker
+unlocks:
+  parts: []
+  isle: led-lamp
+
+start:
+  title: The antenna blinker
+  say: My blinker, for keeps. We build it in batches.
+  go: Let's build
+
+beats:
+  - say: Batch one. Transistors and lamps on their ghosts.
+    objective: Batch one
+    do: place-one
+    spot: [PB2, Q1, Q2, D1, D2]
+
+  - say: Flip it. Solder those ten legs, then check each.
+    do: solder-one
+    spot: [PB2]
+    note: { at: PB2, text: "caught now, fixed in seconds" }
+    rule: Build a little, check a little.
+
+  - say: Batch two. The four resistors.
+    objective: Two more batches
+    do: batch-two
+    spot: [PB2, R1, R2, R3, R4]
+
+  - say: Batch three. Capacitors, stripes as drawn.
+    do: batch-three
+    spot: [PB2, C1, C2]
+
+  - say: Underneath now. Tap C1's stripe leg.
+    tap: { answer: C1.neg, among: [C1.pos, C1.neg, C2.pos, C2.neg] }
+    spot: [PB2]
+    hint: From the top, C1 sits bottom left. Mirror it.
+    wrong:
+      C1.pos: "That's its plus leg. Mirrored, remember?"
+      C2.pos: "That's C2. Find C1 on the plan."
+      C2.neg: "That's C2. Find C1 on the plan."
+
+  - say: Battery leads in and soldered. Flip it back. Guess first.
+    objective: Test it
+    guess: { options: [It blinks, It stays dark, It stays lit], answer: It blinks }
+    do: it-blinks
+    spot: [PB2, B1]
+    note: { at: PB2, text: "same blink, now for keeps" }
+
+secret:
+  task: flex-test
+  say: Curious? Press the board while it blinks.
+  note: { at: PB2, text: "good joints don't mind" }
+
+fixit:
+  say: Fix-it time. My spare blinker won't start.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. Look, I'm blinking!

@@ -1,0 +1,58 @@
+# Blueprint: docs/curriculum/unit-3.md, MP5. A bench lesson (docs/LESSONS.md).
+# One idea: heat runs along a lead into a part; a metal clip on the lead carries it away. New part: the heat sink.
+# The first LED cooks by design: the unit's fried moment. Lab: content/labs/cook-an-led.ts.
+format: bench
+id: cook-an-led
+version: 1
+title: Too hot to glow
+summary: Cook an LED by resting the iron on its leg, then save the next one with a copper heat sink.
+minutes: 7
+lab: cook-an-led
+unlocks:
+  parts: [heat-sink-clip, led-3mm]
+  isle: heatsink
+
+start:
+  title: Too hot to glow
+  say: My antenna lamp needs a joint on its leg.
+  go: Let's heat it
+
+beats:
+  - say: Rest the iron on the lamp's long leg. Keep it there.
+    objective: Heat travels
+    do: cook-it
+    note: { at: D1, text: "heat crept up the leg" }
+
+  - say: Lift the iron. Let it cool, then replace the lamp.
+    do: fresh-lamp
+    note: { at: D1, text: "parts stay hot after the iron" }
+
+  - say: This is a heat sink. Clip it near the lamp.
+    objective: Sink it
+    do: clip-on
+    note: { at: HS1, text: "heat sink: copper drinks heat" }
+
+  - say: Same iron, 30 seconds. Guess first.
+    guess: { options: [It dies again, It dims a bit, It stays bright], answer: It stays bright }
+    do: survive-30
+    note: { at: D1, text: "past 30 s, still bright" }
+    rule: Clip between the heat and the part.
+
+  - say: Show me the heat sink.
+    tap: { answer: HS1, among: [HS1, R1, B1] }
+
+  - say: What is this?
+    pick: { on: HS1, options: [A heat sink, A clip lead, A fuse], answer: A heat sink }
+
+secret:
+  task: steel-clip
+  say: Curious? Swap in the steel clip and heat again.
+  note: { at: HS2, text: "steel: a weaker heat path" }
+
+fixit:
+  say: Fix-it time. My heat sink isn't helping. Why?
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. My lamp kept its cool.

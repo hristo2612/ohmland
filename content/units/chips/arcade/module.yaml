@@ -1,0 +1,11 @@
+id: arcade
+title: The arcade
+summary: A quiz buzzer, lamps that count in binary, a die that stops at six, and two fair dice.
+# Reveal caption: Fair rolls guaranteed: thirty-six pairs, equal time.
+landmark:
+  id: dice-arcade
+  name: The Dice Arcade
+lessons:
+  - first-buzzer-wins
+  - count-in-binary
+  - roll-a-six
