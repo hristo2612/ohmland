@@ -6,7 +6,8 @@
   "description": "Ohmland 3D lab workbench: procedural part models, breadboard, multimeter, interaction and bench-to-netlist.",
   "exports": {
     ".": "./src/index.ts",
-    "./core": "./src/core.ts"
+    "./core": "./src/core.ts",
+    "./ink": "./src/ink/index.ts"
   },
   "scripts": {
     "dev": "vite playground",

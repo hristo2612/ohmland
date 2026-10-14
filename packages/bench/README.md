@@ -179,6 +179,74 @@ Mystery parts: `shuffleFor(seed, n)` gives a permutation (never the identity) fr
 leg)` is the terminal wired as `leg`, `wiredAs(part, terminal)` the reverse, and `terminalNumber(part, leg)` the
 number printed beside a terminal.
 
+## 2D ink view (`<BenchInk />`)
+
+The same bench as a top-down ink drawing on grid paper, in the Classic notebook style: graphite outlines, coloured
+pencil washes, blue ink for your selection and red pencil for the teacher's hints. It renders the same `BenchState`
+from the same store, emits the same actions through the same `benchOps`, and reads the same simulator snapshots, so
+a lab can switch between the 3D and ink views at any moment without losing anything (see `docs/BENCH-VIEWS.md`).
+It is plain SVG: nothing under `src/ink` imports three.js (a test walks the import graph to keep it that way).
+
+![Ink bench](screenshots/ink-desktop.png)
+
+```tsx
+import { BenchInk } from "@ohmland/bench/ink";
+
+<BenchInk store={store} tray={tray} onAction={onAction} controllerRef={controller} />;
+```
+
+Props are the 3D `<Bench>`'s (`initial`, `store`, `tray`, `snapshot`, `onChange`, `onAction`, `quality`, `readOnly`,
+`locked`, `frame`, `highlight`, `labels`, `className`, `style`, `onReady`, `controllerRef`); `camera` is accepted and
+ignored. `labels` also takes the ink view's few strings (`INK_LABELS`: zoom, fit, cursor and screen reader lines).
+`quality: "low"` drops the glow rays.
+
+**Teaching scale.** Parts on the board are drawn at true size on their holes. Small parts lying on the desk are drawn
+larger than life (resistors 2x, LEDs and other radials 1.6x, 1 W resistors 1.35x, power resistors and props at true
+size), but every lead, terminal, clip point and socket is exactly where `partPose` and `anchorPosition` put it, so the
+drawing shows the connections BenchState holds. A 9 V battery on the desk is drawn standing, terminals on top at their
+clip points and its label below; seated in the battery tester it is seen from straight above. A probe resting on
+something is held nearly upright, so it is drawn short and see-through.
+
+**Live state.** LED glow (a halo in the LED's colour, rays above 12%, brighter in a dim room), dead parts (cracked and
+hatched LEDs and diodes, scorched resistors, a blown fuse's broken filament and smudge, a burst electrolytic), smoke
+wisps for `smoking` (still under reduced motion), relay blades that swing from NC to NO with `extra.armature`, the
+meter's seven-segment LCD with its unit and DC/AC marks, switch and slider positions, a held pushbutton, the desk
+clock, stress and heat readouts (`inspect`) and the room light (`ambient` dims the paper, never the glows).
+
+**Controller** (`controllerRef`, the shared `BenchController` plus `resetView()`, `pickAt(x, y)` and `camera()`):
+`project(anchor)` gives CSS px relative to the bench element for any anchor (`hole:e12`, `pin:R1.a`, `lead:TL1.b`,
+`probe:red`, `socket:com`), part (`D1`, `part:D1`, `part:R1/a` for a lead), meter spot (`part:M1/display`, `dial`,
+`dialFace`, `sockets`, `com`...), `board` or `strip:14a-e`; `onViewChange(cb)` fires on every pan, zoom, glide and
+resize; `focus(targets, { padding, instant })` glides to frame them (an empty list frames the work area);
+`spotlight(targets)` fades everything else (the board stays as quiet context) and rings the targets in red pencil.
+
+**Interaction**, as in 3D: drag or tap-then-tap from the tray; drag parts (they snap into holes, drop into holders'
+seats, or swap with a part of the same kind they are dropped on); drag a resistor's or a capacitor's lead to stretch
+it; drag jumper ends, clips, probe tips, banana plugs, the meter and its dial (or click the knob, or a label); click a
+switch to flip it, hold a button, turn a trimmer, click a prop's printed setting (moisture tabs, the tester's load
+switch), drag along the pencil card to draw; Wire mode for hole to hole jumpers; X-ray; right-click or long-press for
+the menu. Hover a hole (or tap it) to light its metal strip and everything joined to it. Empty-paper drags pan; the
+wheel, trackpad pinch and two fingers zoom toward the pointer.
+
+**Keyboard.** The bench, every part, wire, clip, probe, plug and the dial are focusable with names. The 3D view's keys
+work (arrows move the selected part a hole, `R`, `Delete`, `Space` flips or presses, `W`, `X`, `Ctrl/Cmd+Z`,
+`Ctrl/Cmd+Shift+Z`), plus `+`, `-` and `0` to zoom and fit. With nothing selected the arrows walk a cursor between
+holes and leads (screen readers hear the point and what is joined to it); `Enter` on a clip, probe or plug picks it
+up, the arrows carry it, `Enter` puts it down, `Delete` leaves it loose and `Escape` cancels. In Wire mode `Enter` on
+two holes adds a jumper; an armed tray item is placed with `Enter`.
+
+**Adding a part kind.** Each kind is one entry in the ink registry (`src/ink/kinds`): a `box` (its outline in the
+part's frame) and a `Draw` component (top down, millimetres, x right and z down the page), plus an optional
+`actuator`, `layer` and `clock`. Leads must end on `localLegs(pi)`. Desk modules (`base: true`) share `TerminalBlock`.
+A kind with no entry still works: it is drawn as a labelled slip with its leads, and the ink test fails until it has
+a drawing of its own.
+
+**Performance.** Pan and zoom never re-render React: the camera writes one transform per layer, the grid paper's
+background, a stroke-width variable and a level of detail (fine print and hole centres appear as they become
+readable). The board's 830 holes are one path, drawn once. A part's geometry is cached by identity, so a drag rebuilds
+only the moving part, and each part re-renders only when its look changes (glow in 2% steps), so a steady circuit
+costs nothing per snapshot. Outlines keep their pen width at every zoom (`vector-effect: non-scaling-stroke`).
+
 ## BenchState
 
 Plain JSON, millimetres on the desk (x right, z toward the viewer, y up).
@@ -239,6 +307,10 @@ pnpm --filter @ohmland/bench dev     # vite playground, http://localhost:5199
 - `?scene=clips` a section-one bench with no board, everything joined by crocodile leads; `?scene=smoke` a small
   board with an overloaded resistor; `?scene=empty`, `?scene=half` (400-point board); `?scene=props` every lab
   prop on one desk.
+- `?view=ink` the 2D ink view, `?view=split` both views side by side on one store (or the 3D / Ink / Both toggle);
+  the ink view loads no three.js. `?scene=glow` the first-glow desk, `?scene=blocks` Unit 2 desk modules, mystery
+  relays and bendable capacitor legs on a half board. Ink helpers: `theme=dark`, `focus=R1,D1`, `spot=R1`,
+  `ambient=0.3`, `inspect=stress:D1;heat:R1`, `t=5400` (simulated seconds, for the clock).
 - `?mode=gallery` every part in rows (`&rows=0-3`, `&row=2`, `&focus=4` for a close-up).
 - `?mode=preview` a few `<PartPreview>` turntables.
 - Screenshot helpers: `q=low`, `panel=0`, `tray=0`, `glow=0.8`, `health=R1:smoking,D1:dead`, `display=OL`,
@@ -250,6 +322,7 @@ pnpm --filter @ohmland/bench dev     # vite playground, http://localhost:5199
 pnpm --filter @ohmland/bench test        # Vitest: netlist, snapping, colour code
 pnpm --filter @ohmland/bench typecheck
 pnpm --filter @ohmland/bench shots       # Playwright: interaction check + screenshots into screenshots/
+pnpm --filter @ohmland/bench shots:ink   # Playwright: the ink view driven by mouse, touch and keyboard + ink-*.png
 ```
 
 The Playwright run starts the playground itself. On macOS headless Chromium renders WebGL through Metal; elsewhere the
