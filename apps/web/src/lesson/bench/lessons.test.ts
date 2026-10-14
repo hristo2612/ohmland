@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { partLegs, type BenchState } from "@ohmland/bench/core";
 import { targetPoint } from "@ohmland/bench/view";
 import { loadCourse, type BenchLessonData } from "../../content/load";
+import { loadVariants, type VariantLesson } from "../../content/variants";
 import { resolveAttach } from "../../lab/anchors";
 import { buildBench } from "../../lab/build";
 import { isOptional, type LabDefinition, type SolutionStep } from "../../lab/define";
@@ -20,7 +21,11 @@ import { resolveAnchor } from "./marks";
 const labs = new Map(
   Object.values(import.meta.glob<{ default: LabDefinition }>("../../../../../content/labs/*.ts", { eager: true })).map((mod) => [mod.default.id, mod.default]),
 );
-const lessons = loadCourse().lessons.filter((l): l is BenchLessonData => l.format === "bench");
+// The course's bench lessons, then the try-out copies (content/variants), which must fit their labs just the same.
+const lessons: VariantLesson[] = [
+  ...loadCourse().lessons.filter((l): l is BenchLessonData => l.format === "bench"),
+  ...loadVariants("voice").variants.flatMap((v) => v.lessons),
+];
 
 /** The bench at the start and after every solution step. */
 function benches(lab: LabDefinition): BenchState[] {
@@ -39,7 +44,7 @@ describe("bench lessons", () => {
   });
 
   for (const lesson of lessons) {
-    describe(lesson.id, () => {
+    describe(lesson.href, () => {
       const lab = labs.get(lesson.lab);
       it("has its lab", () => expect(lab, `content/labs/${lesson.lab}.ts`).toBeDefined());
       if (!lab) return;
@@ -48,6 +53,14 @@ describe("bench lessons", () => {
 
       it("names only tasks the lab has", () => {
         for (const mo of moments) if (mo.task) expect(taskIds.has(mo.task), `${mo.key}: task "${mo.task}"`).toBe(true);
+      });
+
+      it("words only the lab's tasks, and only the nudges they have", () => {
+        for (const [id, words] of Object.entries(lesson.labLines ?? {})) {
+          const task = lab.tasks.find((t) => t.id === id);
+          expect(task, `labLines: task "${id}"`).toBeDefined();
+          expect(words.nudges?.length ?? 0, `labLines.${id}.nudges`).toBeLessThanOrEqual(task?.nudges?.length ?? 0);
+        }
       });
 
       it("walks the lab's required tasks in order", () => {

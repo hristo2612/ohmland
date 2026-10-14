@@ -25,12 +25,14 @@ type Props = {
   footer?: boolean;
   /** The phone's bottom bar (left out on the landing, as on lesson pages). */
   bar?: boolean;
+  /** Leave the page out of search engines (the hidden try-out pages). */
+  noindex?: boolean;
 };
-const { title, description, active, bodyClass, bare = false, footer = true, bar = true } = Astro.props;
+const { title, description, active, bodyClass, bare = false, footer = true, bar = true, noindex = false } = Astro.props;
 const { outline } = getCourse();
 ---
 
-<Base title={title} description={description} bodyClass={[bar && "has-bottom-nav", bodyClass].filter(Boolean).join(" ")}>
+<Base title={title} description={description} bodyClass={[bar && "has-bottom-nav", bodyClass].filter(Boolean).join(" ")} noindex={noindex}>
   <a class="skip-link" href="#main">{m.common.skipToContent}</a>
   <div class="leaf">
   <header class:list={["site-header", { "site-header--bare": bare }]}>
