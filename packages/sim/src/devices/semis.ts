@@ -110,6 +110,32 @@ const EYE_TAU = 0.03;
 const FLASH_AMPS = 0.01;
 const FLASH_GLOW = 0.25;
 const FLASH_TAU = 0.08;
+// Outside heat (a soldering iron on a lead, input "bodyC"). Light output falls as the die warms (and comes back as it
+// cools), and above LED_HOT_C the die and its bond wire suffer: damage builds faster the hotter it is.
+/** Die temperature where the glow starts to fall, and the span over which it falls nearly to nothing. */
+const LED_DIM_FROM = 36;
+const LED_DIM_SPAN = 165;
+/** Damage from heat: none up to LED_HOT_C, then ((T - LED_HOT_C) / LED_HOT_SPAN)^2 per second. */
+export const LED_HOT_C = 105;
+const LED_HOT_SPAN = 32;
+
+/** How much of its glow an LED keeps at a die temperature (1 when cool). */
+export function ledHeatDim(dieC: number): number {
+  return clamp(1 - Math.max(0, dieC - LED_DIM_FROM) / LED_DIM_SPAN, 0.06, 1);
+}
+
+/** Damage per second an LED's die takes at a temperature (1 is death). */
+export function ledHeatRate(dieC: number): number {
+  if (!(dieC > LED_HOT_C)) return 0;
+  const k = (dieC - LED_HOT_C) / LED_HOT_SPAN;
+  return k * k;
+}
+
+/** Outside body temperature from a "bodyC" input: ambient or more. */
+function bodyTemp(v: InputValue): number {
+  return Math.max(AMBIENT, num(v, AMBIENT));
+}
+
 /** Perceived brightness 0..1 for a current: roughly logarithmic, 0.85 near 15 mA, faint but visible at 0.5 mA. */
 export function ledGlow(i: number): number {
   if (!(i > 1e-6)) return 0;
@@ -125,7 +151,12 @@ export class LedDevice extends JunctionDevice {
   /** Held glow of a recent brief flash (decays over FLASH_TAU). */
   flash = 0;
   thermal = new Thermal(300, 0.5);
+  /** Outside body temperature (input "bodyC"); the die runs at this plus its own self-heating. */
+  bodyC = AMBIENT;
+  private outside = false;
   private peak = 0;
+  private peakDie = AMBIENT;
+  private heatCause = false;
   private damagedSent = false;
   private reverseTime = 0;
   private reversedSent = false;
@@ -157,13 +188,28 @@ export class LedDevice extends JunctionDevice {
       this.peak = Math.max(this.peak, i);
       const k = i / iAbs;
       rate = (k * k - 1) / 3;
-      this.damage += rate * h;
     }
+    // Outside heat: a hot die wears out by itself, whatever the current.
+    const die = this.dieC;
+    this.peakDie = Math.max(this.peakDie, die);
+    const heat = ledHeatRate(die);
+    if (heat > 0 || rate > 0) this.heatCause = heat > rate;
+    rate += heat;
+    this.damage += rate * h;
     if (this.damage >= 1) {
       this.dead = true;
       this.damage = 1;
       ctx.markDirty();
       ctx.markBreak();
+      if (this.heatCause) {
+        ctx.emit(
+          this.id,
+          "died",
+          `The LED cooked from the inside. Heat ran up its leg until the die reached about ${Math.round(this.peakDie)} °C, and the chip or its bond wire gave way. Keep the iron on a joint for only a few seconds, or clip a heat sink on the leg between the joint and the body.`,
+          { temp: this.peakDie, cause: "overheat" },
+        );
+        return;
+      }
       const r9 = Math.max(1, Math.round((9 - this.v20) / 0.015 / 10) * 10);
       ctx.emit(
         this.id,
@@ -176,12 +222,19 @@ export class LedDevice extends JunctionDevice {
     // Only warn about wear when the LED is not about to die anyway (a hard short kills it in milliseconds).
     if (this.damage >= 0.1 && !this.damagedSent && rate < 5) {
       this.damagedSent = true;
-      ctx.emit(
-        this.id,
-        "damaged",
-        `The LED is overdriven at ${fmtA(i)} (it is made for ${fmtA(this.maxA)}) and is wearing out: it will get dimmer and then fail. Use a bigger series resistor.`,
-        { amps: i, ratedAmps: this.maxA },
-      );
+      if (this.heatCause) {
+        ctx.emit(this.id, "damaged", `The LED's die is at about ${Math.round(die)} °C and is being damaged: it will get dimmer and then fail. Take the heat away.`, {
+          temp: die,
+          cause: "overheat",
+        });
+      } else {
+        ctx.emit(
+          this.id,
+          "damaged",
+          `The LED is overdriven at ${fmtA(i)} (it is made for ${fmtA(this.maxA)}) and is wearing out: it will get dimmer and then fail. Use a bigger series resistor.`,
+          { amps: i, ratedAmps: this.maxA },
+        );
+      }
     }
     if (v < -5) {
       this.reverseTime += h;
@@ -199,22 +252,38 @@ export class LedDevice extends JunctionDevice {
       this.reversedSent = false;
     }
   }
+  /** Die temperature: the outside body temperature plus the LED's own self-heating. */
+  get dieC(): number {
+    return this.bodyC + (this.thermal.temp - AMBIENT);
+  }
   health(i: number): Health {
     if (this.dead) return "dead";
     const iAbs = 2.5 * this.maxA;
-    return i > 2 * iAbs ? "smoking" : i > iAbs ? "hot" : "ok";
+    if (i > 2 * iAbs) return "smoking";
+    return i > iAbs || this.dieC > LED_HOT_C ? "hot" : "ok";
   }
   state(x: Float64Array): PartState {
     const i = this.current(x);
     const v = volt(x, this.an) - volt(x, this.ca);
-    const s = baseState(i, v, v * i, this.thermal.temp, this.health(i));
-    s.glow = this.dead ? 0 : Math.max(ledGlow(this.iAvg), this.flash) * (1 - 0.6 * this.damage);
+    const die = this.dieC;
+    const s = baseState(i, v, v * i, die, this.health(i));
+    s.glow = this.dead ? 0 : Math.max(ledGlow(this.iAvg), this.flash) * (1 - 0.6 * this.damage) * ledHeatDim(die);
     // stress: current as a share of the rated maximum (1 = at maxmA).
     s.extra = { damage: this.damage, color: this.color, stress: Math.max(0, i) / this.maxA };
+    if (this.outside) s.extra.bodyC = this.bodyC;
     return s;
   }
+  override setInput(key: InputKey, value: InputValue): boolean {
+    if (key !== "bodyC") return false;
+    this.bodyC = bodyTemp(value);
+    this.outside = true;
+    return true;
+  }
+  override inputValue(key: InputKey): InputValue | undefined {
+    return key === "bodyC" && this.outside ? this.bodyC : undefined;
+  }
   override save(): Record<string, unknown> {
-    return { damage: this.damage, dead: this.dead, temp: this.thermal.temp, iAvg: this.iAvg, flash: this.flash, peak: this.peak };
+    return { damage: this.damage, dead: this.dead, temp: this.thermal.temp, iAvg: this.iAvg, flash: this.flash, peak: this.peak, peakDie: this.peakDie, heatCause: this.heatCause };
   }
   override restore(s: Record<string, unknown>): void {
     this.damage = finiteOr(s.damage as number, 0);
@@ -224,6 +293,8 @@ export class LedDevice extends JunctionDevice {
     this.iAvg = finiteOr(s.iAvg as number, 0);
     this.flash = finiteOr(s.flash as number, 0);
     this.peak = finiteOr(s.peak as number, 0);
+    this.peakDie = finiteOr(s.peakDie as number, AMBIENT);
+    this.heatCause = s.heatCause === true;
   }
   override replace(): void {
     this.damage = 0;
@@ -231,6 +302,10 @@ export class LedDevice extends JunctionDevice {
     this.damagedSent = false;
     this.thermal.temp = AMBIENT;
     this.peak = 0;
+    this.peakDie = AMBIENT;
+    this.heatCause = false;
+    this.bodyC = AMBIENT;
+    this.outside = false;
   }
 }
 
@@ -250,6 +325,9 @@ export class DiodeDevice extends JunctionDevice {
   readonly model: keyof typeof DIODES;
   damage = 0;
   thermal: Thermal;
+  /** Outside body temperature (input "bodyC"): the junction runs at this plus its own heating. */
+  bodyC = AMBIENT;
+  private outside = false;
   private peak = 0;
   private damagedSent = false;
   constructor(spec: Spec<"diode">) {
@@ -271,7 +349,7 @@ export class DiodeDevice extends JunctionDevice {
       const k = Math.abs(i) / m.surge;
       rate += (k * k - 1) * 5;
     }
-    const T = this.thermal.temp;
+    const T = this.thermal.temp + this.bodyC - AMBIENT;
     if (T > DIODE_MAX_C) rate += (T - DIODE_MAX_C) / 50;
     if (rate <= 0) return;
     this.damage += rate * ctx.h;
@@ -297,11 +375,21 @@ export class DiodeDevice extends JunctionDevice {
   state(x: Float64Array): PartState {
     const i = this.current(x);
     const v = volt(x, this.an) - volt(x, this.ca);
-    const T = this.thermal.temp;
+    const T = this.thermal.temp + this.bodyC - AMBIENT;
     const health: Health = this.dead ? "dead" : T > 150 ? "smoking" : T > 100 ? "hot" : "ok";
     const s = baseState(i, v, v * i, T, health);
     s.extra = { model: this.model, damage: this.damage };
+    if (this.outside) s.extra.bodyC = this.bodyC;
     return s;
+  }
+  override setInput(key: InputKey, value: InputValue): boolean {
+    if (key !== "bodyC") return false;
+    this.bodyC = bodyTemp(value);
+    this.outside = true;
+    return true;
+  }
+  override inputValue(key: InputKey): InputValue | undefined {
+    return key === "bodyC" && this.outside ? this.bodyC : undefined;
   }
   override save(): Record<string, unknown> {
     return { damage: this.damage, dead: this.dead, temp: this.thermal.temp };
@@ -318,6 +406,8 @@ export class DiodeDevice extends JunctionDevice {
     this.damagedSent = false;
     this.peak = 0;
     this.thermal.temp = AMBIENT;
+    this.bodyC = AMBIENT;
+    this.outside = false;
   }
 }
 
@@ -374,6 +464,9 @@ export class NpnDevice extends Device {
   private peakIc = 0;
   private peakP = 0;
   private smoked = false;
+  /** Outside body temperature (input "bodyC"): the junction runs at this plus its own heating. */
+  bodyC = AMBIENT;
+  private outside = false;
   private damagedSent = false;
   // evaluation results
   ic = 0;
@@ -496,7 +589,7 @@ export class NpnDevice extends Device {
     }
     this.peakIc = Math.max(this.peakIc, iMax);
     this.peakP = Math.max(this.peakP, p);
-    const T = this.thermal.temp;
+    const T = this.thermal.temp + this.bodyC - AMBIENT;
     if (T > 150) byHeat = (T - 150) / 100;
     if (byCurrent + byHeat > 0) {
       this.cause = byCurrent >= byHeat ? "overcurrent" : "overheat";
@@ -537,10 +630,13 @@ export class NpnDevice extends Device {
       ctx.markDirty();
       ctx.markBreak();
       const base = Math.abs(ib) > 0.05 ? " Always feed the base through a resistor (10 kΩ is a good start)." : "";
+      const cooked = this.cause === "overheat" && this.bodyC > 100;
       ctx.emit(
         this.id,
         "died",
-        `The transistor failed. It carried up to ${fmtA(this.peakIc)} and ${fmtW(this.peakP)}, beyond the 2N3904's ${fmtA(Q.ICMAX)} and ${fmtW(Q.PMAX)} limits.${base}`,
+        cooked
+          ? `The transistor cooked: heat from outside ran up its legs until the junction passed 150 °C. Keep the iron on each joint for only a few seconds.`
+          : `The transistor failed. It carried up to ${fmtA(this.peakIc)} and ${fmtW(this.peakP)}, beyond the 2N3904's ${fmtA(Q.ICMAX)} and ${fmtW(Q.PMAX)} limits.${base}`,
         { amps: this.peakIc, watts: this.peakP, cause: this.cause },
       );
     }
@@ -554,7 +650,7 @@ export class NpnDevice extends Device {
     const vbe = vb - ve;
     const vbc = vb - volt(x, this.ci);
     const p = vce * ic + vbe * ib;
-    const T = this.thermal.temp;
+    const T = this.thermal.temp + this.bodyC - AMBIENT;
     const health: Health = this.dead ? "dead" : T > 200 ? "smoking" : T > 100 ? "hot" : "ok";
     const region = this.dead
       ? "dead"
@@ -568,7 +664,17 @@ export class NpnDevice extends Device {
     // For transistors, i is the collector current and v is Vce.
     const s = baseState(ic, vce, p, T, health);
     s.extra = { ib, ie, vbe, vbc, region, beta: Math.abs(ib) > 1e-12 ? ic / ib : 0, bf: this.bf };
+    if (this.outside) s.extra.bodyC = this.bodyC;
     return s;
+  }
+  override setInput(key: InputKey, value: InputValue): boolean {
+    if (key !== "bodyC") return false;
+    this.bodyC = bodyTemp(value);
+    this.outside = true;
+    return true;
+  }
+  override inputValue(key: InputKey): InputValue | undefined {
+    return key === "bodyC" && this.outside ? this.bodyC : undefined;
   }
   override save(): Record<string, unknown> {
     return { damage: this.damage, dead: this.dead, temp: this.thermal.temp, cause: this.cause };
@@ -589,6 +695,8 @@ export class NpnDevice extends Device {
     this.peakIc = 0;
     this.peakP = 0;
     this.reversedSent = false;
+    this.bodyC = AMBIENT;
+    this.outside = false;
     this.cause = "overcurrent";
   }
 }

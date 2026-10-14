@@ -303,6 +303,11 @@ export abstract class Device {
   timed = false;
   /** Needs accept() calls (thermal, damage, accumulators). */
   accepts = true;
+  /**
+   * Largest solver step this part needs (seconds), for parts that drive a waveform no capacitor's error check would
+   * resolve (an AC source, a supply's ripple). The engine takes the smallest; time-lapse scales it as usual.
+   */
+  maxStep: number | undefined = undefined;
 
   constructor(spec: PartSpec) {
     this.id = spec.id;
