@@ -1,28 +1,39 @@
-// Blueprint: docs/curriculum/unit-2.md, Lesson 8. The changeover from lesson 7, rebuilt with a power switch: the
-// battery snap feeds slide switch S2 at the left end, whose output (row 3) feeds the near + rail. Relay K1 straddles
-// the channel at row 11 (coil 11, COM 14, NC 16, NO 18); its far coil pin goes to the far minus rail, and a 1N4001
-// across the coil (band on the near coil strip) catches the kickback. NC feeds the yellow LED, NO the green one.
-// Button S1 (rows 7 and 9) feeds the coil for now; the learner swaps it for a jumper from NC: the relay buzzes.
+// Blueprint: docs/curriculum/unit-2.md, Lesson 8; conversion: docs/curriculum/conversion-guide.md, C2 lesson 8. The lab
+// of a bench lesson (docs/LESSONS.md): content/units/switching/breadboard/relay-buzzer/lesson.yaml.
+// One idea: a relay fed through its own NC contact switches itself on and off. (The capacitor that slows it is the
+// next lesson, tame-the-buzz.)
 //
-// Measured in the simulator: about 83 buzzes a second (166 clicks), both LEDs near 0.7; contacts wear out after about
-// 18 s of buzzing. 1,000 µF across the coil ticks every 0.61 s; with 100 Ω in the feed 0.65 s; 470 µF 0.31 s.
-import { defineLab, type LabView } from "@ohmland/lab";
-
-/** An electrolytic of this many farads sits across the coil, + on the fed coil pin. */
-const capAcross = (lab: LabView, farads: number) =>
-  lab.bench.parts.some((p) => p.kind === "electrolytic-cap" && Math.abs(p.params.farads - farads) < farads * 0.01 && lab.joins(p.id, "K1.coil1", "K1.coil2", "forward"));
-
-/** The relay's last `n` full cycles all lasted between `lo` and `hi` seconds. */
-function ticking(lab: LabView, n: number, lo: number, hi: number): boolean {
-  const p = lab.relayPeriods("K1", 8).slice(-n);
-  return p.length >= n && p.every((x) => x >= lo && x <= hi);
-}
+// The changeover from lesson 7, rebuilt with a power switch: the battery snap feeds slide switch S2 at the left end,
+// whose output (row 3) feeds the near + rail. Relay K1 straddles the channel at row 11 (coil 11, COM 14, NC 16, NO 18);
+// its far coil pin goes to the far minus rail, and a 1N4001 across the coil (band on the near coil strip) catches the
+// kickback. NC feeds the yellow LED, NO the green one. Button S1 (rows 7 and 9) feeds the coil; one wire from NC to
+// the coil makes the relay buzz.
+//
+// Measured in the simulator: about 83 buzzes a second (166 clicks), yellow near 0.75 and green near 0.69 (they swap
+// too fast to see); the contacts wear out after about 18 s of buzzing. Fed from NO instead, it never clicks.
+import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 
 const powered = (lab: LabView) => lab.closed("S2");
 
+/** Buzzing: the coil fed from NC, dozens of clicks a second, both LEDs half lit. */
+function buzzing(lab: LabView): boolean {
+  if (!powered(lab) || !lab.connected("K1.nc1", "K1.coil1") || lab.count("clicked", "K1", 1) < 40) return false;
+  const y = lab.stats("glow:D2", 0.5);
+  const g = lab.stats("glow:D3", 0.5);
+  return !!y && !!g && y.mean > 0.15 && y.mean < 0.85 && g.mean > 0.15 && g.mean < 0.85;
+}
+const fromNo = (lab: LabView) => lab.connected("K1.no1", "K1.coil1");
+
+/** The fix-it bench: the feed wire lands on NO (row 18) instead of NC, and the power is on. */
+const FEED_FROM_NO: SolutionStep[] = [
+  { do: "unwire", wire: "W9" },
+  { do: "wire", id: "W9", from: "a18", to: "a11", color: "green" },
+  { do: "flip", part: "S2", to: "b" },
+];
+
 export default defineLab({
   id: "relay-buzzer",
-  title: "A relay that switches itself",
+  title: "It buzzes itself",
   bench: {
     board: "full",
     frame: ["desk:-104,-30", "desk:-6,30"],
@@ -47,87 +58,74 @@ export default defineLab({
       { id: "W7", from: "a7", to: "rail+:7", color: "red" },
       { id: "W8", from: "c9", to: "c11", color: "yellow" },
     ],
-    tray: [
-      { id: "C1", kind: "electrolytic-cap", params: { farads: 1000e-6, volts: 16 }, count: 1, label: "1,000 µF" },
-      { id: "C2", kind: "electrolytic-cap", params: { farads: 470e-6, volts: 16 }, count: 1, label: "470 µF" },
-      { id: "R4", kind: "resistor", params: { ohms: 100 }, count: 1, label: "100 Ω" },
-    ],
-    instruments: [{ kind: "scope", traces: [{ label: "Coil", volts: "K1.coil1" }], window: 4, range: [-1, 10] }],
+    tray: [],
+    instruments: [],
   },
   mascot: {
-    start: "One wire move turns a polite switch into something alive.",
     hint: "The coil can take its power from the relay's own NC contact.",
-    success: "A capacitor is a little tank that keeps the coil fed.",
-    fried: "It buzzed itself to bits. Real relays do that too. New one on the bench.",
-    exit: "From buzz to tick. You tamed it with a capacitor.",
+    fried: "It buzzed itself to bits. Real relays do that too.",
   },
-  fried: { relay: "Relay: contacts worn out by buzzing", "electrolytic-cap": "Electrolytic capacitor, connected backwards", capacitor: "Electrolytic capacitor, connected backwards" },
+  fried: { relay: "Relay: contacts worn out by buzzing" },
   tasks: [
     {
-      id: "move-one-wire",
-      prompt: "Remove button **S1**. Feed the coil from **NC** instead. Power on.",
+      id: "polite-click",
+      prompt: "Power on with S2. Press S1, then let go.",
       goal: (lab) => {
-        if (!powered(lab) || !lab.connected("K1.nc1", "K1.coil1") || lab.count("clicked", "K1", 1) < 40) return false;
-        const y = lab.stats("glow:D2", 0.5);
-        const g = lab.stats("glow:D3", 0.5);
-        return !!y && !!g && y.mean > 0.15 && y.mean < 0.85 && g.mean > 0.15 && g.mean < 0.85;
+        if (!powered(lab)) return false;
+        if (lab.closed("S1") && lab.closed("K1") && lab.isLit("D3")) lab.memory["in"] = true;
+        return lab.memory["in"] === true && !lab.closed("S1") && !lab.closed("K1") && lab.isLit("D2");
       },
-      hints: ["One jumper from NC (row 16) to the coil (row 11).", "Nothing? Check the coil's other pin reaches the minus rail."],
-      highlight: ["S1", "pin:K1.nc1", "pin:K1.coil1"],
-      success: "It buzzes! Pulling in cuts its own power; letting go restores it.",
-      notice: "Both LEDs look half lit. Switch off soon: the contacts are wearing.",
-      mascot: { success: "It's alive! And slightly annoying." },
+      hints: ["Slide S2, the switch at the far left, to on.", "Then press the black button S1 and let go."],
+      highlight: ["S2", "S1"],
+      nudges: [{ when: (lab) => lab.closed("S1") && !powered(lab), say: "No power yet. Slide S2 on first." }],
+      success: "Click in, click out.",
     },
     {
-      id: "tame-it",
-      prompt: "Add the **1,000 µF** capacitor across the coil. Power on.",
-      goal: (lab) => powered(lab) && capAcross(lab, 1000e-6) && ticking(lab, 3, 0.5, 1.4),
-      hints: ["The stripe on the capacitor's sleeve marks its negative leg.", "Long leg in row 11, striped leg bent to the minus rail."],
-      highlight: ["pin:K1.coil1"],
-      success: "Tick, tock. The capacitor keeps the coil fed after NC opens.",
-    },
-    {
-      id: "soften-the-surge",
-      prompt: "Soften NC's surge: put the **100 Ω** between NC and the coil.",
-      goal: (lab) =>
-        powered(lab) &&
-        capAcross(lab, 1000e-6) &&
-        lab.joins("R4", "K1.nc1", "K1.coil1") &&
-        !lab.connected("K1.nc1", "K1.coil1") &&
-        ticking(lab, 3, 0.4, 1.3) &&
-        lab.periods("glow:D2", 0.3, 4).length >= 2 &&
-        lab.timeAbove("glow:D2", 0.3, 3) >= 0.1,
-      hints: ["NC to R4, R4 to the coil. Remove the direct jumper."],
+      id: "move-one-wire",
+      prompt: "Run a wire from NC, row 16, to the coil, row 11.",
+      goal: buzzing,
+      hints: ["One wire from row 16 to row 11, on this side of the gap.", "Nothing? Check S2 is still on."],
       highlight: ["pin:K1.nc1", "pin:K1.coil1"],
-      success: "Gentler on the contacts, and the yellow LED really blinks now.",
+      nudges: [{ when: (lab) => fromNo(lab) && !lab.connected("K1.nc1", "K1.coil1"), say: "That's NO, row 18. NC is row 16." }],
+      success: "It buzzes!",
     },
     {
-      id: "faster-ticks",
-      prompt: "Swap in the **470 µF** capacitor. Predict first: faster or slower?",
-      goal: (lab) => powered(lab) && capAcross(lab, 470e-6) && !capAcross(lab, 1000e-6) && ticking(lab, 3, 0.2, 0.7),
-      hints: ["Same spot, same way round: stripe to the minus rail."],
-      success: "About half the capacitance, about half the hold time.",
+      id: "switch-off",
+      prompt: "Switch off with S2.",
+      goal: (lab) => !powered(lab) && lab.count("clicked", "K1") >= 40,
+      hints: ["Slide S2 back to off."],
+      highlight: ["S2"],
+      success: "Quiet again.",
+    },
+    {
+      id: "fix-the-feed",
+      prompt: "The power's on, but my buzzer just sits there. Fix it.",
+      setup: FEED_FROM_NO,
+      // Silent with the power on first (the setup), then buzzing.
+      goal: (lab) => {
+        if (powered(lab) && lab.count("clicked", "K1", 1) === 0) lab.memory["silent"] = true;
+        return lab.memory["silent"] === true && buzzing(lab);
+      },
+      hints: ["Follow the green wire from the coil. Which contact does it reach?", "NO is open at rest. Move the wire to NC, row 16."],
+      highlight: ["wire:W9", "pin:K1.nc1"],
+      success: "Fixed.",
     },
   ],
   solution: [
-    { do: "remove", part: "S1" },
-    { do: "unwire", wire: "W8" },
-    { do: "wire", id: "W9", from: "a16", to: "a11", color: "green" },
     { do: "flip", part: "S2", to: "b" },
+    { do: "press", part: "S1", seconds: 0.8 },
+    { do: "wait", seconds: 0.3 },
+    { do: "check", task: "polite-click" },
+    { do: "wire", id: "W9", from: "a16", to: "a11", color: "green" },
     { do: "wait", seconds: 1.2 },
     { do: "check", task: "move-one-wire" },
     { do: "flip", part: "S2", to: "a" },
-    { do: "place", part: "C1", kind: "electrolytic-cap", at: "b11-rail-:10", params: { farads: 1000e-6, volts: 16 } },
-    { do: "flip", part: "S2", to: "b" },
-    { do: "wait", seconds: 4 },
-    { do: "check", task: "tame-it" },
+    { do: "check", task: "switch-off" },
+    ...FEED_FROM_NO,
+    { do: "wait", seconds: 0.6 },
     { do: "unwire", wire: "W9" },
-    { do: "place", part: "R4", kind: "resistor", at: "a16-a11", params: { ohms: 100 } },
-    { do: "wait", seconds: 4.5 },
-    { do: "check", task: "soften-the-surge" },
-    { do: "remove", part: "C1" },
-    { do: "place", part: "C2", kind: "electrolytic-cap", at: "b11-rail-:10", params: { farads: 470e-6, volts: 16 } },
-    { do: "wait", seconds: 2.5 },
-    { do: "check", task: "faster-ticks" },
+    { do: "wire", id: "W9", from: "a16", to: "a11", color: "green" },
+    { do: "wait", seconds: 1.2 },
+    { do: "check", task: "fix-the-feed" },
   ],
 });
