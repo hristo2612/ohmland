@@ -97,37 +97,48 @@ test("first-glow: mend the torn drawing, build it on the board, see the drawing 
   await expect(page.locator("[data-finale]")).toContainText("4 lab tasks");
 });
 
-test("welcome-to-the-bench: switch, break and mend the loop, name the switch, fix the bench", async ({ page }) => {
+test("welcome-to-the-bench: find the gap with the tracer, break and mend the loop, name it, fix the bench", async ({ page }) => {
   await start(page, "/learn/start-here/welcome-to-the-bench");
   await atMoment(page, "b0", "act");
   await flipBlockSwitch(page, "S1");
   await taskDone(page, "close-the-switch");
-  await atMoment(page, "b0", "done");
+  // Switched on and still dark: the red clip bites the battery's plastic wrapper.
+  expect(await glow(page)).toBeLessThan(0.01);
+
+  // A wrong tap names what was tapped; the minus snap runs the tracer, which stops at the wrapper.
+  await atMoment(page, "b1", "act");
+  await page.locator('[data-tap="B1.pos"]').click();
+  await page.locator('[data-tap="B1.neg"]').click();
+  await atMoment(page, "b1", "done");
+  await primary(page).click();
+  await atMoment(page, "b2", "act");
+  await clipTo(page, "TL1", "a", "pin:B1.pos");
+  await taskDone(page, "find-the-gap");
+  await expect.poll(() => glow(page)).toBeGreaterThan(0.3);
+  await atMoment(page, "b2", "done");
   await primary(page).click();
 
-  await atMoment(page, "b1", "guess");
+  await atMoment(page, "b3", "guess");
   await page.locator("[data-guess='2']").click();
   await unclip(page, "TL2", "a");
   await taskDone(page, "break-the-loop");
   await expect(page.locator(".bl-guess")).toContainText("Called it.");
   await primary(page).click();
-  await atMoment(page, "b2", "act");
+  await atMoment(page, "b4", "act");
   await clipTo(page, "TL2", "a", "pin:S1.b");
   await taskDone(page, "mend-the-loop");
 
-  // What is this? A pick about the part on the bench.
-  await atMoment(page, "b3", "act");
-  await page.locator("[data-pick]", { hasText: "A switch" }).click();
-  await atMoment(page, "b3", "done");
-  await primary(page).click();
+  // What is this, all the way round? A pick about the whole bench.
+  await atMoment(page, "b5", "act");
+  await page.locator("[data-pick]", { hasText: "a loop" }).click();
 
   await atMoment(page, "secret", "act");
   await page.locator(".bl-link", { hasText: "Skip" }).click();
   await atMoment(page, "fix0", "act");
-  // The broken bench first: the switch is on, the lamp is dark.
+  // The broken bench first: the switch is on, the lamp is dark (the yellow clip bites the switch's wooden block).
   await expect.poll(() => glow(page)).toBeLessThan(0.01);
   await clipTo(page, "TL2", "a", "pin:S1.b");
-  await taskDone(page, "fix-switch");
+  await taskDone(page, "fix-it");
   await atMoment(page, "end", "act");
 });
 
@@ -139,10 +150,12 @@ test("the bench view switches between 3D and ink mid-lesson and keeps the bench"
   const other = (await page.evaluate(() => window.ohmlandLab!.view!())) === "ink" ? "3D" : "Ink";
   await page.getByRole("radio", { name: other }).click();
   await expect.poll(() => page.evaluate(() => window.ohmlandLab?.view?.())).toBe(other === "3D" ? "3d" : "ink");
-  // Same bench, drawn the other way: the switch is still on, the lamp still lit, and the ink still lands on the parts.
+  // Same bench, drawn the other way: the switch is still on, the lamp still dark (the red clip is still on the battery's
+  // wrapper), and the ink still lands on the parts.
   const parts = (await bench(page)).parts as unknown as { id: string; params: { to?: string } }[];
   expect(parts.find((p) => p.id === "S1")?.params.to).toBe("b");
-  await expect.poll(() => glow(page)).toBeGreaterThan(0.3);
+  expect((await bench(page)).leads.find((l) => l.id === "TL1")?.a.to).toBe("pin:B1.wrap");
+  await expect.poll(() => glow(page)).toBeLessThan(0.01);
   await expect.poll(() => page.evaluate(() => window.ohmlandLab!.project("part:D1"))).not.toBeNull();
   // The choice is remembered for the next lesson.
   await page.reload();

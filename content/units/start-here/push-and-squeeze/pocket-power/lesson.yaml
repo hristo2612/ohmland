@@ -1,0 +1,63 @@
+# Blueprint: docs/curriculum/start-here.md, SH7 "The tired battery". A bench lesson (docs/LESSONS.md).
+# One idea: a battery is a chemical pump that runs down. Plus the unit's one safety moment: the shelf of power
+# sources, sorted on the bench (bench-safe or hands-off). Lab: content/labs/pocket-power.ts.
+format: bench
+id: pocket-power
+version: 1
+title: Pocket power
+summary: Run a tired battery down in a time-lapse, look inside one, and sort which power sources are safe to touch.
+minutes: 7
+lab: pocket-power
+unlocks:
+  parts: []
+  isle: cell-jar
+
+start:
+  title: The tired battery
+  say: Yesterday my lamp was bright. Today, dim. Who did it?
+  go: Investigate
+
+beats:
+  - say: Speed up time. Watch my lamp and the push.
+    objective: Catch it running down
+    tool: controls
+    do: fast-forward
+    note: { at: B1, text: "push sinking, hour by hour" }
+
+  - say: Peek inside a battery. Tap the AA.
+    objective: Look inside
+    spot: [XA]
+    do: peek-inside
+    done: Two chemicals, kept apart by a thin wall.
+    note: { at: XA, text: a chemical pump }
+
+  - say: What ran out?
+    pick: { options: [the chemicals, the electrons], answer: the chemicals }
+    wrong: { the electrons: "Electrons stay in the wire. The chemicals got used." }
+    rule: Batteries run down as their chemicals get used.
+
+  - say: Fit a fresh battery.
+    objective: Fresh battery
+    do: fresh-battery
+
+  - say: Bench-safe or hands-off? Sort the shelf.
+    objective: Stay safe
+    do: sort-the-shelf
+    done: Wall power can kill. Lithium packs can burn.
+    note: { at: CC1, text: "coin cells: never near little kids" }
+    rule: Wall power is never for the bench.
+
+secret:
+  task: no-flow-no-drain
+  tool: controls
+  say: Curious? Unclip my lamp, then speed up time.
+  done: The push hill barely moves.
+  note: { at: B2, text: "no flow, no drain" }
+
+fixit:
+  say: Fix-it time. My torch is dim.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. The chemicals did it.

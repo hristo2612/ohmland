@@ -101,7 +101,9 @@ Teaching overlays draw over the bench in both views, from one state in the bench
   under reduced motion. Calm and optional: off unless a lab or lesson turns them on.
 - **Gates** (a `gate` part clipped round a lead) count the dots that pass them (`DOT_SPACING` apart, so a gate ticks at
   speed / 8 mm), from the simulator's snapshots: the store keeps the counts (`gates`), so both views show the same
-  number. In number mode the flag reads the lead's current ("0.0075 A") with a unit button.
+  number. Clipping a gate on, moving one or taking one off starts every gate's count again, so gates clipped at
+  different moments count side by side from the same zero. In number mode the flag reads the lead's current
+  ("0.0075 A") with a unit button.
 - **Push** (`push: true`): red pencil hatching across every lead, denser the higher its voltage above the battery's
   minus (none at 0 V), and a hatched hill by each battery and on each sealed box, as tall as its push (9.5 V is full).
 - **The loop tracer** (`trace: { from }`): a red pencil line runs from the terminal, lead by lead and part by part along

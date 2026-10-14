@@ -10,5 +10,5 @@ isle:
   seed: 0
 modules:
   - first-cases
-  # push-and-squeeze (lessons 5 to 7) goes here once its lessons land.
+  - push-and-squeeze
   - tool-cases
