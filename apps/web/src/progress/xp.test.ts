@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CourseOutline } from "../content/outline";
-import { achievementXp, evaluateAchievements } from "./achievements";
+import { achievementById, achievementXp, describeAchievement, evaluateAchievements, type LabEvent } from "./achievements";
 import { lessonStates, totalXp } from "./derive";
 import { levelForXp, levelProgress, levelTitle, xpForLevel } from "./levels";
 import { emptyLearner } from "./state";
@@ -126,21 +126,27 @@ describe("achievements", () => {
     expect(earned(s)).not.toContain("island-founder");
     s = done(s, "lemon-cell", 3, 6, ["one-lemon-led"]);
     expect(earned(s)).toContain("island-founder");
+    // The lesson count comes from the outline, not from the copy.
+    expect(describeAchievement(achievementById("island-founder")!, basics)).toContain("all 3 lessons");
 
-    // Eight of the ten bonus tasks unlock "curious-mind"; seven do not.
-    const bonus: [string, string][] = [
-      ["welcome-to-the-bench", "swap-battery-leads"],
-      ["meet-the-meter", "tired-battery"],
-      ["what-resists", "extremes"],
-      ["draw-a-resistor", "slide-along"],
-      ["first-glow", "no-resistor"],
-      ["watts-and-heat", "one-watt-too"],
-      ["fuse-guard", "battery-check"],
-      ["inside-the-battery", "watch-it-sag"],
-    ];
-    const withBonus = (n: number) => bonus.slice(0, n).reduce((acc, [lesson, task]) => done(acc, lesson, 1, 1, [task]), emptyLearner());
-    expect(earned(withBonus(7))).not.toContain("curious-mind");
-    expect(earned(withBonus(8))).toContain("curious-mind");
+    // About half of the Basics secrets unlock "curious-mind" (the list itself is checked in achievements.test.ts).
+    const curious = achievementById("curious-mind")!;
+    const secrets = curious.refs!.bonus!;
+    const goal = Math.ceil(secrets.length / 2);
+    expect(curious.description).toContain(`Find ${goal} secrets`);
+    const withSecrets = (n: number) => secrets.slice(0, n).reduce((acc, [lesson, task]) => done(acc, lesson, 1, 1, [...(acc.lessons[lesson]?.tasks ?? []), task]), emptyLearner());
+    expect(earned(withSecrets(goal - 1))).not.toContain("curious-mind");
+    expect(earned(withSecrets(goal))).toContain("curious-mind");
+  });
+
+  it("brackets the current across two lessons: the 1 A fuse blown first, then the 3 A fuse's trigger", () => {
+    const now = "2026-02-02T00:00:00.000Z";
+    const trigger = { type: "trigger" as const, name: "bracketed", lessonId: "big-current" };
+    const earned = (s: LearnerState, events: LabEvent[]) => evaluateAchievements({ state: s, outline, events }, now).earned.map((a) => a.id);
+    const blown = done(emptyLearner(), "fuse-guard", 1, 1, ["blow-1a"]);
+    expect(earned(emptyLearner(), [trigger])).not.toContain("bracketed");
+    expect(earned(blown, [])).not.toContain("bracketed");
+    expect(earned(blown, [trigger])).toContain("bracketed");
   });
 });
 
