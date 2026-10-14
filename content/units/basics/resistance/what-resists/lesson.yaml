@@ -50,6 +50,7 @@ beats:
 secret:
   task: double-spacing
   say: "Bonus: does twice the distance give twice the ohms? Drag the black probe from the 2 mark to the 4 mark."
+  spot: [P1]
   tool: meter
   done: The ohms barely go up, because most of them are where the tips touch your skin.
   note: { at: P1, text: "most ohms: where the tips touch" }

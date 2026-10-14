@@ -54,7 +54,7 @@ export default defineLab({
       id: "find-the-gap",
       prompt: "Move the red clip from the plastic onto the metal snap.",
       goal: (lab) => lab.closed("S1") && lab.isLit("D1"),
-      hints: ["The red clip sits on the battery's plastic wrapper. Drag it onto the metal stud marked plus (+)."],
+      hints: ["The red clip sits on the battery's plastic wrapper. Drag it onto the round metal stud, the plus (+) snap."],
       highlight: ["TL1", "pin:B1.pos"],
       nudges: [{ when: (lab) => !lab.closed("S1"), say: "Flip the switch back to ON: the loop is open there too." }],
       success: "It glows!",

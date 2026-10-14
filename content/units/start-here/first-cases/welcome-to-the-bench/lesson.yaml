@@ -23,10 +23,10 @@ beats:
     objective: Find the gap
     do: close-the-switch
 
-  - say: Tap the minus (−) snap, a metal stud on the battery, and my pencil will trace the path from there.
+  - say: Tap the battery's minus (−) snap, the metal stud the black wire is clipped to. My pencil will trace the path from there.
     tap: { answer: B1.neg, among: [B1.pos, B1.neg] }
     trace: B1.neg
-    wrong: { B1.pos: "That's the plus (+) snap. Tap the other metal stud, marked minus (−)." }
+    wrong: { B1.pos: "That's the plus (+) snap. Tap the other metal stud, the one with the black wire." }
     done: My pencil stops at the red clip, the jaws on the red wire, because it bites plastic, not metal.
     note: { at: TL1.a, text: "this clip bites plastic: a gap" }
 
