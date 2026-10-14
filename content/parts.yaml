@@ -379,9 +379,207 @@ parts:
       - It sounds louder in a box, because the box stops the waves from the front and back of the cone cancelling out.
 
   # ------------------------------------------------------------------------------------------------------------------
-  # Unit 4: Chips, the 555 timer and the lighthouse (content/units/chips, CH1 to CH10). The parts-bin cards carry the
-  # datasheet names the lessons leave out (comparator, flip-flop, monostable, astable, bistable).
+  # Unit 3: Making it permanent (content/units/permanent, docs/curriculum/unit-3.md section 8.6). Unit 3 owns these
+  # ids; keep Unit 1 and 2 parts above this line. Until the parts bin has drawings for them, each borrows the nearest
+  # icon.
   # ------------------------------------------------------------------------------------------------------------------
+
+  - id: soldering-iron
+    name: Soldering iron
+    icon: test-leads
+    blurb: A temperature-controlled iron that lives in its stand.
+    facts:
+      - "Tip at 320 to 350 °C for leaded solder, 350 to 380 °C for lead-free."
+      - "Stays hot for minutes after you switch it off. Treat every iron as hot."
+      - "Hold it by the grip. Never catch a falling iron: step back."
+      - "Burn? Cool running water for 20 minutes."
+
+  - id: solder
+    name: Solder
+    icon: jumper-wire
+    blurb: A soft metal wire with flux in its core.
+    facts:
+      - "Tin-lead 63/37 melts at 183 °C. Lead-free SAC305 melts over 217 to 220 °C."
+      - "The rosin flux inside cleans the metal so the solder can wet it."
+      - "Never use acid-core solder on electronics: its flux keeps eating copper."
+      - "Wash your hands before eating, whichever kind you use."
+
+  - id: desoldering-braid
+    name: Desoldering braid
+    icon: jumper-wire
+    blurb: Fine copper braid that soaks up molten solder.
+    facts:
+      - "Lay it on the joint and press the iron on top: the solder wicks into the braid."
+      - "Snip off the used, silvered end before the next joint."
+      - "It gets hot fast. Hold it by its spool."
+
+  - id: heat-sink-clip
+    name: Heat-sink clip
+    icon: test-leads
+    blurb: A copper clip that pulls heat out of a lead.
+    facts:
+      - "Clip it on the lead between the joint and the part's body."
+      - "Copper carries heat about eight times better than plain steel."
+      - "Parts stay hot after the iron leaves. Give them a moment."
+
+  - id: led-3mm
+    name: 3 mm LED
+    icon: led
+    blurb: A smaller LED, the same as a 5 mm one electrically.
+    facts:
+      - "Long leg: the anode, toward plus. It still needs a resistor."
+      - "Less mass than a 5 mm LED, so it heats up faster under an iron."
+
+  - id: wire-stripper
+    name: Wire stripper
+    icon: test-leads
+    blurb: Notched jaws that cut the jacket, not the copper.
+    facts:
+      - "Match the notch to the wire's gauge. Too small nicks the copper; too big slips."
+      - "Stranded wire has its own scale. Twist the strands after stripping."
+      - "A jaw stop sets how much comes off: 10 mm suits a splice or a breadboard hole."
+
+  - id: hookup-wire
+    name: Hookup wire
+    icon: jumper-wire
+    blurb: 22 AWG copper in a plastic jacket.
+    facts:
+      - "22 AWG solid wire has 0.64 mm of copper."
+      - "AWG: bigger numbers are thinner. 18 AWG is 1.02 mm, 26 AWG is 0.40 mm."
+      - "Solid wire goes into breadboards; stranded wire flexes without breaking."
+
+  - id: heat-shrink
+    name: Heat-shrink tube
+    icon: jumper-wire
+    blurb: Tube that shrinks to about half its width when heated.
+    facts:
+      - "Slide it onto the wire before you solder the joint."
+      - "It starts shrinking near 90 °C and is done by about 120 °C."
+      - "Shrink it with hot air, never with the iron. Keep the gun moving."
+
+  - id: wall-adapter
+    name: Wall adapter
+    icon: battery
+    blurb: Turns mains into low-voltage power for the bench.
+    facts:
+      - "Read the label: the DC or AC mark, the volts, the current and the polarity drawing."
+      - "Unregulated adapters read high on a light load, with a ripple on top."
+      - "Never open one and never cut a plugged-in cord: the wall side is mains."
+
+  - id: barrel-jack
+    name: Barrel-jack board
+    icon: battery
+    blurb: A socket for an adapter's plug, with two pins for the rails.
+    facts:
+      - "The centre contact and the sleeve come out on two pins, one hole apart."
+      - "Most 5.5 mm plugs are centre plus; some pedal adapters are centre minus."
+      - "Check with the meter before you plug it into a circuit."
+
+  - id: regulator-7805
+    name: 7805 regulator
+    icon: transistor
+    blurb: Three legs. About 7 V or more in, a steady 5 V out.
+    facts:
+      - "Printed side toward you, legs down: in, ground, out. The tab is ground."
+      - "It needs about 2 V of headroom: under about 7 V in, the output sags."
+      - "Spare volts turn into heat: (volts in minus 5 V) times the current."
+      - "Usual capacitors: 0.33 µF on the input, 0.1 µF on the output."
+
+  - id: perfboard
+    name: Perfboard
+    icon: breadboard
+    blurb: A board of holes 2.54 mm apart, each with its own copper pad.
+    facts:
+      - "Nothing is joined until you join it: bend legs, add links, solder."
+      - "Flip it over and left becomes right: the underside is a mirror of the top."
+      - "Bare legs must never cross underneath. Use an insulated link on top instead."
+  # Unit 4: Chips, CH13 to CH26 (docs/curriculum/unit-4.md, section 10). Counters, logic and the arcade.
+  # ------------------------------------------------------------------------------------------------------------------
+
+  - id: seven-segment
+    name: Seven-segment display
+    icon: seven-segment
+    blurb: Seven bar-shaped LEDs and a dot that share one lead. The right bars make any digit.
+    facts:
+      - "Bars a to g run clockwise from the top (a to f), with g across the middle. The dot is dp."
+      - "Common cathode: every bar's minus side is joined. Common anode: every plus side is."
+      - Each bar needs its own resistor. One shared resistor in the common lead makes a 1 brighter than an 8.
+      - "Our 10-pin display has two COM pins, joined inside, one in the middle of each row."
+      - Its rows sit 0.6 in apart, so on a breadboard it straddles the channel with room to spare.
+
+  - id: dip-switch
+    name: DIP switch (8 way)
+    icon: switch
+    blurb: Eight tiny slide switches in one chip-shaped block.
+    facts:
+      - "Switch n joins pin n to the pin straight across from it (pin 17 − n on a 16-pin block)."
+      - Each one is a plain on-off switch. ON is usually marked on the body.
+      - "It straddles a breadboard's channel like a chip, so every switch gets its own two strips."
+      - Made for settings you change now and then, not for pressing all day.
+
+  - id: counter-4026b
+    name: Decade counter (4026B)
+    icon: chip
+    blurb: A 16-pin chip that adds one on every rising clock edge and drives a seven-segment display itself.
+    facts:
+      - "Pin 1 clock (counts on low to high), 2 clock inhibit, 3 display enable, 5 carry out, 15 reset, 16 plus, 8 minus."
+      - "Reset and inhibit are active high: high on pin 15 holds 0, high on pin 2 ignores the clock."
+      - "Carry out is high for 0 to 4 and low for 5 to 9, so it rises as 9 rolls over to 0: clock the next digit with it."
+      - "A 4000B-series CMOS chip: made for 3 to 18 V. Its bar outputs are weak, so a few kΩ per bar is plenty."
+      - "Safety: CMOS chips dislike static. Touch something grounded before you pick one up."
+
+  - id: logic-gates
+    name: Logic gate chips (74HC)
+    icon: chip
+    blurb: Small chips that each answer high or low by one fixed rule. Four gates in a 14-pin body.
+    facts:
+      - "74HC08 AND, 74HC32 OR, 74HC86 XOR and 74HC00 NAND share one pinout: inputs 1 and 2 give output 3, and so on."
+      - "74HC02 NOR has its outputs first (pins 1, 4, 10, 13). 74HC04 holds six one-input NOT gates. 74HC27 has three 3-input NORs."
+      - "Pin 14 plus, pin 7 minus. Made for 2 to 6 V; above 7 V they are destroyed."
+      - "At 5 V an input below about 1.5 V reads low and above about 3.5 V reads high. Never leave an input floating."
+      - "Plan on about 4 mA from an output. Light a lamp from a spare gate, not from a wire that also feeds logic."
+
+  - id: logic-probe
+    name: Logic probe
+    icon: test-leads
+    blurb: A pen that tells you whether a pin is high or low. It feeds on the circuit it tests.
+    facts:
+      - "Red clip to plus, black to minus. Without them its lamps stay dark."
+      - "H lights above 70% of its supply, L below 30%. Neither lamp means in between, or floating."
+      - "The PULSE lamp blinks on every change, even one too fast for your eye."
+      - It barely loads the pin, so it reads a circuit without changing it.
+
+  - id: ic-555-cmos
+    name: CMOS 555 timer
+    icon: chip
+    blurb: The 555's low-power twin. Same pins, but its output swings all the way to the rails.
+    facts:
+      - "Pins as the classic 555: 1 minus, 2 trigger, 3 output, 4 reset, 5 control, 6 threshold, 7 discharge, 8 plus."
+      - "Runs from about 2 V, draws microamps, and its high output reaches the supply: right for 74HC logic at 5 V."
+      - "A classic 555's high sits about 1.5 V under its supply, too close to call at 5 V."
+      - "Its output sources less current than the classic one, about 20 mA at 5 V."
+
+  - id: counter-74hc393
+    name: Binary counter (74HC393)
+    icon: chip
+    blurb: Two 4-bit counters in one chip. Four outputs count 0 to 15 in binary.
+    facts:
+      - "Counter one: clock pin 1, clear pin 2, outputs QA to QD on pins 3 to 6. Counter two mirrors it on pins 8 to 13."
+      - "It steps on the clock's falling edge. Clear is active high and holds 0000 while high."
+      - "QA is worth 1, QB 2, QC 4, QD 8. QD falling can clock the next counter: 8 bits from one chip."
+      - "Wire a pattern back to clear and it counts from 0 to one less than that pattern."
+
+  - id: ic-socket
+    name: IC socket
+    icon: chip
+    blurb: A frame of springy contacts that a chip plugs into, so it can come out without desoldering.
+    facts:
+      - Solder the socket, not the chip. The chip goes in last, and swaps in seconds.
+      - "Sockets have a notch too. Line up the socket's notch, then the chip's."
+      - "8, 14 and 16 pin sizes match the 555, the 74HC gates and the 4026B."
+
+  # Unit 4: Chips, CH1 to CH12 (the 555 timer and the lighthouse). The cards carry the datasheet names the lessons
+  # leave out (comparator, flip-flop, monostable, astable, bistable).
 
   # description: A whole timing circuit in an 8-pin black block: two comparators watching a ladder of three equal
   # resistors, a flip-flop, an output stage and a discharge transistor. Met pin by pin in CH1 to CH10.

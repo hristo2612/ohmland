@@ -1,12 +1,16 @@
 /**
  * The free-build bench (/bench): the lab runtime with no tasks. The tray holds the learner's unlocked parts, the meter
- * and scope come with their parts, builds save to the learner record, and "Start fresh" clears the bench.
+ * and scope come with their parts, builds save to the learner record, and "Clear bench" starts it again. A new learner
+ * (an empty bin) finds the starter battery and clip leads already on the desk, with no tray. Clear and Save show once
+ * the bench has changed; the graphics setting sits behind one quiet settings button.
  */
 import { Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
+import type { TrayItem } from "@ohmland/bench/core";
 import { useStore } from "zustand";
 import { defaultMeter, emptyBench, partDef, type BenchState } from "@ohmland/bench/core";
 import { Button } from "../components/Button";
 import { Icon } from "../components/Icon";
+import { IconButton } from "../components/IconButton";
 import { MascotSay } from "../components/MascotSay";
 import { toast } from "../components/toast-store";
 import type { CourseOutline } from "../content/outline";
@@ -21,7 +25,7 @@ import { friedLabel } from "./labels";
 import { BenchViewChunk, takeSim } from "./prefetch";
 import { autoQuality, pickQuality, storeQuality, type Quality } from "./quality";
 import { LabRuntime } from "./runtime";
-import { sandboxKit } from "./sandbox-parts";
+import { sandboxKit, starterDesk } from "./sandbox-parts";
 import { BenchBoundary, BenchSkeleton, FriedNotice } from "./shell";
 import "./lab.css";
 
@@ -35,12 +39,17 @@ const SANDBOX: LabDefinition = {
   solution: [],
 };
 
-/** A fresh bench: the bare desk or a breadboard, with the meter when the learner has one. */
-function freshBench(board: boolean, meter: boolean): BenchState {
+/** A fresh bench: the bare desk or a breadboard, with the meter when the learner has one, and the starter kit out. */
+function freshBench(board: boolean, meter: boolean, starter: boolean): BenchState {
   const b = emptyBench(board ? { kind: "bb830" } : null);
   if (meter) b.meter = defaultMeter(board ? [150, 4] : [120, 0], -12);
-  return b;
+  return starter ? starterDesk(b) : b;
 }
+
+const NO_TRAY: TrayItem[] = [];
+/** The starter desk's framing: loose clip leads do not count towards a bench's bounds, so frame the desk they lie on. */
+const STARTER_FRAME: [number, number, number, number] = [-100, -60, 100, 60];
+const QUALITIES: Quality[] = ["high", "low"];
 
 export default function Sandbox({ outline, firstHref }: { outline: CourseOutline; firstHref: string }) {
   const ready = useLearnerReady(outline);
@@ -51,14 +60,17 @@ export default function Sandbox({ outline, firstHref }: { outline: CourseOutline
 function SandboxBench({ outline, firstHref }: { outline: CourseOutline; firstHref: string }) {
   const learner = useLearner((s) => s.learner);
   const kit = useMemo(() => sandboxKit(partsBin(learner, outline)), [learner, outline]);
+  // An empty bin keeps the starter kit on the desk for the whole visit (the tray would only repeat it).
+  const [starter] = useState(kit.empty);
+  const tray = starter ? NO_TRAY : kit.tray;
   const mutedRef = useRef(learner.settings.muted);
   mutedRef.current = learner.settings.muted;
   const audio = useMemo(() => new LabAudio(() => mutedRef.current), []);
   const runtime = useMemo(() => {
     const built: BuiltBench = {
-      bench: freshBench(false, kit.meter),
+      bench: freshBench(false, kit.meter, starter),
       locked: [],
-      tray: kit.tray,
+      tray,
       meter: kit.meter ? { kind: "meter" } : null,
       scope: null,
       logger: null,
@@ -96,11 +108,32 @@ function SandboxBench({ outline, firstHref }: { outline: CourseOutline; firstHre
   const [benchReady, setBenchReady] = useState(false);
   const [name, setName] = useState("");
   const [scopePart, setScopePart] = useState<string>("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
   const nameId = useId();
+  const settingsId = useId();
   const saved = Object.entries(learner.sandbox.saved).sort((a, b) => b[1].at.localeCompare(a[1].at));
+  // Nothing to clear or save until the bench differs from a fresh one (desk or board, meter out or away).
+  const changed = useMemo(() => JSON.stringify(bench) !== JSON.stringify(freshBench(!!bench.board, !!bench.meter, starter)), [bench, starter]);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (!settingsRef.current?.contains(e.target as Node)) setSettingsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSettingsOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [settingsOpen]);
 
   const start = (board: boolean) => {
-    runtime.loadBench(freshBench(board, kit.meter && !!bench.meter));
+    runtime.loadBench(freshBench(board, kit.meter && !!bench.meter, starter));
     toast({ title: m.bench.clearDone, icon: "check", duration: 2500 });
   };
   const save = () => {
@@ -118,8 +151,7 @@ function SandboxBench({ outline, firstHref }: { outline: CourseOutline; firstHre
   const toggleMeter = () => {
     runtime.store.getState().apply((b) => ({ ...b, meter: b.meter ? null : defaultMeter(b.board ? [150, 4] : [120, 0], -12) }));
   };
-  const toggleQuality = () => {
-    const next: Quality = quality === "high" ? "low" : "high";
+  const chooseQuality = (next: Quality) => {
     setQuality(next);
     storeQuality(next === autoQuality() ? null : next);
   };
@@ -147,7 +179,7 @@ function SandboxBench({ outline, firstHref }: { outline: CourseOutline; firstHre
       <div className="lab__stage" data-bench-ready={benchReady || undefined}>
         <BenchBoundary fallback={<p className="lab__nobench notice notice--warn">{m.lab.noBench}</p>}>
           <Suspense fallback={<BenchSkeleton />}>
-            <BenchView runtime={runtime} tray={kit.tray} quality={quality} onReady={() => setBenchReady(true)} />
+            <BenchView runtime={runtime} tray={tray} quality={quality} frame={starter ? STARTER_FRAME : null} onReady={() => setBenchReady(true)} />
             {!benchReady && <BenchSkeleton />}
           </Suspense>
         </BenchBoundary>
@@ -170,82 +202,103 @@ function SandboxBench({ outline, firstHref }: { outline: CourseOutline; firstHre
             <h2 className="lab__title">{m.bench.title}</h2>
             <p className="lab__progress small">{m.bench.short}</p>
           </div>
-          <div className="lab__tools" role="group" aria-label={m.lab.tools}>
-            <button type="button" className="btn btn--small btn--tertiary lab__quality" onClick={toggleQuality} aria-label={`${m.lab.quality}: ${quality === "high" ? m.lab.qualityHigh : m.lab.qualityLow}`}>
-              <Icon name="spark" size={16} />
-              {quality === "high" ? m.lab.qualityHigh : m.lab.qualityLow}
-            </button>
+          <div className="lab__tools sandbox__settings" ref={settingsRef}>
+            <IconButton label={m.bench.settings} icon="settings" aria-expanded={settingsOpen} aria-controls={settingsId} onClick={() => setSettingsOpen((o) => !o)} />
+            {settingsOpen && (
+              <div className="sandbox__menu" id={settingsId}>
+                <p className="kicker" id={`${settingsId}-q`}>
+                  {m.lab.quality}
+                </p>
+                <div className="sandbox__menu-row" role="radiogroup" aria-labelledby={`${settingsId}-q`}>
+                  {QUALITIES.map((q) => (
+                    <button key={q} type="button" role="radio" aria-checked={quality === q} className="sandbox__menu-opt" onClick={() => chooseQuality(q)}>
+                      {q === "high" ? m.lab.qualityHigh : m.lab.qualityLow}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </header>
         <div className="lab__scroll">
           {kit.empty && (
-            <MascotSay pose="thinking" size={48} className="lab__say">
-              <strong>{m.bench.emptyTitle}.</strong> {m.bench.emptyBody}{" "}
-              <a href={firstHref}>{m.bench.start}</a>
-            </MascotSay>
+            <div className="sandbox__start">
+              <MascotSay pose="happy" size={48} className="lab__say">
+                {m.bench.starterSay}
+              </MascotSay>
+              <Button href={firstHref} variant="secondary" iconEnd="arrow-right">
+                {m.bench.start}
+              </Button>
+            </div>
           )}
 
-          <section className="instrument sandbox__fresh">
-            <header className="instrument__head">
-              <h3 className="instrument__title">{m.bench.fresh}</h3>
-            </header>
-            <div className="sandbox__row">
-              <Button size="small" icon="retry" onClick={() => start(!!bench.board)} data-clear>
-                {m.bench.clear}
-              </Button>
-              {kit.board && (
-                <Button size="small" variant="soft" icon="tools" onClick={() => start(!bench.board)}>
-                  {bench.board ? m.bench.toDesk : m.bench.toBoard}
-                </Button>
-              )}
-              {kit.meter && (
-                <Button size="small" variant="soft" icon="target" onClick={toggleMeter} aria-pressed={!!bench.meter}>
-                  {bench.meter ? m.bench.meterOff : m.bench.meterOn}
-                </Button>
-              )}
-            </div>
-          </section>
+          {(changed || kit.board || kit.meter) && (
+            <section className="instrument sandbox__fresh">
+              <header className="instrument__head">
+                <h3 className="instrument__title">{m.bench.fresh}</h3>
+              </header>
+              <div className="sandbox__row">
+                {changed && (
+                  <Button size="small" icon="retry" onClick={() => start(!!bench.board)} data-clear>
+                    {m.bench.clear}
+                  </Button>
+                )}
+                {kit.board && (
+                  <Button size="small" variant="soft" icon="tools" onClick={() => start(!bench.board)}>
+                    {bench.board ? m.bench.toDesk : m.bench.toBoard}
+                  </Button>
+                )}
+                {kit.meter && (
+                  <Button size="small" variant="soft" icon="target" onClick={toggleMeter} aria-pressed={!!bench.meter}>
+                    {bench.meter ? m.bench.meterOff : m.bench.meterOn}
+                  </Button>
+                )}
+              </div>
+            </section>
+          )}
 
-          <section className="instrument sandbox__saves">
-            <header className="instrument__head">
-              <h3 className="instrument__title">{m.bench.builds}</h3>
-            </header>
-            <form
-              className="sandbox__row"
-              onSubmit={(e) => {
-                e.preventDefault();
-                save();
-              }}
-            >
-              <label htmlFor={nameId} className="sr-only">
-                {m.bench.nameLabel}
-              </label>
-              <input id={nameId} className="input sandbox__name" value={name} placeholder={m.bench.namePlaceholder} onChange={(e) => setName(e.target.value)} maxLength={40} />
-              <Button size="small" variant="primary" icon="download" type="submit" data-save>
-                {m.bench.save}
-              </Button>
-            </form>
-            {saved.length === 0 ? (
-              <p className="small muted">{m.bench.buildsEmpty}</p>
-            ) : (
-              <ul className="sandbox__list">
-                {saved.map(([id, b]) => (
-                  <li key={id} className="sandbox__build">
-                    <span className="sandbox__build-name">
-                      {b.name}
-                      <span className="small muted">{m.bench.savedAt(m.common.date(b.at))}</span>
-                    </span>
-                    <Button size="small" variant="soft" onClick={() => open(id)}>
-                      {m.bench.open}
-                    </Button>
-                    <button type="button" className="icon-btn icon-btn--small" aria-label={m.bench.removeLabel(b.name)} title={m.bench.remove} onClick={() => useLearner.getState().deleteBench(id)}>
-                      <Icon name="trash" size={16} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          {(changed || saved.length > 0) && (
+            <section className="instrument sandbox__saves">
+              <header className="instrument__head">
+                <h3 className="instrument__title">{m.bench.builds}</h3>
+              </header>
+              {changed && (
+                <form
+                  className="sandbox__row"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    save();
+                  }}
+                >
+                  <label htmlFor={nameId} className="sr-only">
+                    {m.bench.nameLabel}
+                  </label>
+                  <input id={nameId} className="input sandbox__name" value={name} placeholder={m.bench.namePlaceholder} onChange={(e) => setName(e.target.value)} maxLength={40} />
+                  <Button size="small" variant="primary" icon="download" type="submit" data-save>
+                    {m.bench.save}
+                  </Button>
+                </form>
+              )}
+              {saved.length > 0 && (
+                <ul className="sandbox__list">
+                  {saved.map(([id, b]) => (
+                    <li key={id} className="sandbox__build">
+                      <span className="sandbox__build-name">
+                        {b.name}
+                        <span className="small muted">{m.bench.savedAt(m.common.date(b.at))}</span>
+                      </span>
+                      <Button size="small" variant="soft" onClick={() => open(id)}>
+                        {m.bench.open}
+                      </Button>
+                      <button type="button" className="icon-btn icon-btn--small" aria-label={m.bench.removeLabel(b.name)} title={m.bench.remove} onClick={() => useLearner.getState().deleteBench(id)}>
+                        <Icon name="trash" size={16} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
 
           {bench.meter && <Notebook runtime={runtime} />}
           <ConnectionsPanel runtime={runtime} />

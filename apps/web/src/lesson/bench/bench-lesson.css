@@ -66,6 +66,8 @@
   background-size: var(--bl-cell) var(--bl-cell);
   font-family: var(--bl-sans);
 }
+/* The lesson is one screen: the page itself never scrolls (a panel scrolls inside its dock). The signed-off page does. */
+html:has(.bl:not(.bl--finale)) { overflow: hidden; }
 
 /* ---- The bar ---------------------------------------------------------------------------------------------------- */
 .bl-bar {
@@ -182,8 +184,8 @@
 .bl-struck { text-decoration: line-through; text-decoration-color: var(--bl-red); text-decoration-thickness: 2px; }
 .bl-guess { margin: 0; color: var(--bl-ink-2); font-size: var(--bl-text-sm); }
 .bl-guess__k { font-size: var(--bl-text-xs); font-weight: 600; letter-spacing: var(--tracking-caps); text-transform: uppercase; }
-.bl-guess__verdict { display: block; margin-top: var(--bl-s-1); color: var(--bl-blue); font-family: var(--bl-hand); font-size: var(--bl-text-md); }
-.bl-notice { margin: 0; color: var(--bl-ink-2); font-size: var(--bl-text-sm); line-height: 1.4; animation: bl-fade var(--bl-dur-write) var(--bl-ease-out); }
+/* A guess against what happened, said by the robot as the start of its line; the learner's own words stay in blue ink. */
+.bl-said__guess { color: var(--bl-blue); }
 
 .bl-act { display: flex; flex-direction: column; align-items: flex-start; gap: var(--bl-s-3); }
 .bl-go, .bl-next { animation: bl-fade var(--bl-dur-write) var(--bl-ease-out) backwards; }
@@ -203,7 +205,7 @@
 .bl-chip:hover:not(:disabled) { background: var(--bl-blue-wash); }
 .bl-chip:active:not(:disabled) { transform: translate(1px, 1px); }
 .bl-chip:disabled { color: var(--bl-ink-3); box-shadow: none; text-decoration: line-through; text-decoration-color: var(--bl-red); cursor: default; }
-.bl-chip:focus-visible, .bl-link:focus-visible, .bl-clock:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.bl-chip:focus-visible, .bl-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .bl-link {
   display: inline-flex;
   align-items: center;
@@ -252,25 +254,11 @@
   white-space: nowrap;
 }
 
-.bl-clock {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--bl-s-2);
-  align-self: flex-start;
-  min-height: 36px;
-  padding: 0 var(--bl-s-3);
-  border: 1px dashed var(--bl-rule);
-  background: transparent;
-  color: var(--bl-ink-2);
-  font: inherit;
-  font-size: var(--bl-text-sm);
-  cursor: pointer;
-}
-.bl-clock[aria-pressed="true"] { border-style: solid; color: var(--bl-ink); }
+/* The optional fix-it clock: a quiet link beside Hint (a dashed border would read as "not available"). */
+.bl-clock { color: var(--bl-ink-2); }
+.bl-clock[aria-pressed="true"] { color: var(--bl-blue); text-decoration: none; }
 .bl-clock__left { margin: 0; color: var(--bl-blue); font-family: var(--bl-mono); font-size: var(--bl-text-xl); }
 
-.bl-fried { display: flex; flex-wrap: wrap; align-items: center; gap: var(--bl-s-2); }
-.bl-fried__hall { color: var(--bl-red); font-size: var(--bl-text-xs); font-weight: 600; letter-spacing: var(--tracking-caps); text-transform: uppercase; }
 
 .bl-xp {
   position: absolute;
@@ -284,7 +272,7 @@
   animation: bl-float calc(var(--bl-dur-draw) * 2) var(--bl-ease-out) forwards;
 }
 
-/* The rule stamped into the margin. It collapses into the notebook when the lesson moves on. */
+/* The rule stamped right under the robot's line. It slides into the notebook button when the lesson moves on. */
 .bl-stamped {
   display: flex;
   align-items: center;
@@ -299,6 +287,9 @@
   animation: bl-fade var(--bl-dur-write) var(--bl-ease-out) backwards;
 }
 .bl-stamped__text { font-weight: 600; }
+/* The copy that slides into the notebook button as the beat ends. */
+.bl-stamped--flying { position: fixed; z-index: var(--z-menu); margin: 0; pointer-events: none; animation: none; transform-origin: center; }
+.bl-stamped--flying .bl-stamp { animation: none; }
 .bl-stamp {
   display: inline-grid;
   flex: none;
@@ -330,10 +321,14 @@
   font: inherit;
   font-size: var(--bl-text-sm);
 }
+/* Hidden until focused: truly 1 px (no tap height or padding), so it never reaches past the page and scrolls it. */
 .bl-keyboard-btn:not(:focus-visible):not([aria-expanded="true"]) {
   position: absolute;
   width: 1px;
   height: 1px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
@@ -423,6 +418,31 @@
   pointer-events: none;
 }
 
+/* A fried part's Replace control, taped to the bench just under the part. */
+.bl-replace-host { position: absolute; inset: 0; pointer-events: none; }
+.bl-replace {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bl-s-1);
+  min-height: var(--bl-tap);
+  padding: 0 var(--bl-s-3);
+  border: 1px solid var(--bl-red);
+  background: var(--bl-slip);
+  box-shadow: var(--bl-slip-shadow);
+  color: var(--bl-red);
+  font: inherit;
+  font-size: var(--bl-text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  transform: translateX(-50%);
+  animation: bl-fade var(--bl-dur-write) var(--bl-ease-out) backwards;
+}
+.bl-replace:hover { background: var(--bl-red-wash); }
+.bl-replace:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
 .bl-popup-host { position: absolute; inset: 0; pointer-events: none; }
 .bl-popup {
   position: absolute;
@@ -456,7 +476,7 @@
 .bl-slider__stops [data-on] { color: var(--bl-blue); font-weight: 600; }
 .bl-slider__caption { margin: 0 0 var(--bl-s-2); color: var(--bl-ink-2); font-size: var(--bl-text-sm); }
 
-/* One instrument at a time, on the bench's lower edge. */
+/* One instrument at a time, on the bench's lower edge. A tall one scrolls inside, never the page. */
 .bl-tool {
   position: absolute;
   right: var(--bl-s-3);
@@ -464,6 +484,7 @@
   width: min(360px, calc(100% - 24px));
   max-height: 55%;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: var(--bl-s-3);
   border: 1px solid var(--bl-rule);
   background: var(--bl-slip);
@@ -530,6 +551,8 @@
 .bl-page__date { color: var(--bl-ink-2); font-family: var(--bl-hand); font-size: var(--bl-text-lg); }
 .bl-page__sec { display: flex; flex-direction: column; gap: var(--bl-s-2); }
 .bl-page__sec p { margin: 0; }
+/* A lab panel's figure (the 555 map): small, in ink, on the page. */
+.bl-page__figure .xr-map { width: min(240px, 100%); }
 .bl-page__rules, .bl-page__checks, .bl-page__hall { display: flex; flex-direction: column; gap: var(--bl-s-2); margin: 0; padding: 0; list-style: none; }
 .bl-page__rules li { display: flex; align-items: center; gap: var(--bl-s-3); font-size: var(--bl-text-md); }
 .bl-page__checks li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--bl-s-3); }
@@ -554,7 +577,11 @@
   gap: var(--bl-s-1);
   width: auto;
   height: auto;
-  margin: 0;
+  max-width: calc(100% - var(--bl-s-4));
+  /* Tilted, its corners reach past its box: a little room keeps them inside the page. It presses in once the page
+     is there. */
+  margin: 0 var(--bl-s-2) var(--bl-s-1) 0;
+  animation-delay: var(--bl-dur-write);
   padding: var(--bl-s-2) var(--bl-s-4);
   border-radius: 4px;
   font-size: var(--bl-text-lg);
@@ -563,12 +590,29 @@
 }
 .bl-stamp--checked small { font-size: var(--bl-text-xs); letter-spacing: 0.04em; }
 .bl-notebook .bl-page { box-shadow: none; }
+/* The bench view switch in the notebook sheet: phones only (wide screens keep it in the bar). */
+.bl-notebook__view { display: none; align-items: center; justify-content: space-between; gap: var(--bl-s-3); margin-bottom: var(--bl-s-4); }
 
 /* ---- The sign-off -------------------------------------------------------------------------------------------------- */
 .bl--finale { overflow: auto; height: auto; min-height: 100dvh; grid-template-rows: var(--bl-bar-h) auto; }
-.bl-main--finale { grid-template-columns: 360px minmax(0, 1fr); }
-.bl-margin--finale { gap: var(--bl-s-4); overflow: visible; }
-.bl-finale__title { margin: 0; font-family: var(--bl-serif); font-size: var(--bl-text-2xl); line-height: 1.15; outline: none; }
+/* Two beats: the robot's line and the signed page first; the tally, the level and the way on fade in after. */
+.bl-finale {
+  position: relative;
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas: "lead page" "tally page" "tally slips";
+  align-items: start;
+}
+/* The margin's rose line, down the whole sign-off. */
+.bl-finale::before { content: ""; position: absolute; top: 0; bottom: 0; left: 360px; border-left: 1.5px solid var(--bl-rose); pointer-events: none; }
+.bl-finale__lead { grid-area: lead; display: flex; flex-direction: column; gap: var(--bl-s-4); padding: var(--bl-s-6) var(--bl-s-6) 0; }
+.bl-finale__title { margin: 0; font-size: var(--bl-text-2xl); line-height: 1.2; }
+.bl-finale__page { grid-area: page; max-width: 760px; padding: var(--bl-s-8) var(--bl-s-8) var(--bl-s-6); }
+.bl-finale__tally { grid-area: tally; display: flex; flex-direction: column; gap: var(--bl-s-4); padding: var(--bl-s-6); }
+.bl-finale__rest { display: flex; flex-direction: column; gap: var(--bl-s-4); }
+.bl-finale__rest, .bl-finale__slips { opacity: 0; transition: opacity var(--bl-dur-write) var(--bl-ease-out); }
+.bl-finale__rest[data-shown], .bl-finale__slips[data-shown] { opacity: 1; }
 .bl-tally { display: flex; flex-direction: column; gap: var(--bl-s-1); margin: 0; padding: 0; list-style: none; }
 .bl-tally li, .bl-tally__sum { display: flex; align-items: baseline; justify-content: space-between; gap: var(--bl-s-3); opacity: 0; transition: opacity var(--bl-dur-write) var(--bl-ease-out); }
 .bl-tally li[data-shown], .bl-tally__sum[data-shown] { opacity: 1; }
@@ -576,16 +620,17 @@
 .bl-tally__sum { margin: 0; padding-top: var(--bl-s-2); border-top: 2px solid var(--bl-blue); }
 .bl-tally__sum span { color: var(--bl-ink-2); font-size: var(--bl-text-sm); }
 .bl-tally__sum b { font-size: var(--bl-text-2xl); }
-.bl-level { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--bl-s-2); }
+/* The level: the LEVEL UP stamp beside its line, above the bar (never over it). */
+.bl-level { display: flex; flex-direction: column; gap: var(--bl-s-2); }
+.bl-level__row { display: flex; align-items: center; gap: var(--bl-s-3); }
 .bl-level__t { margin: 0; font-weight: 600; }
 .bl-level__t small { display: block; color: var(--bl-ink-2); font-weight: 400; }
-.bl-level__bar { grid-column: 1 / -1; height: 8px; border: 1px solid var(--bl-ink); }
+.bl-level__bar { height: 8px; border: 1px solid var(--bl-ink); }
 .bl-level__bar span { display: block; height: 100%; background: var(--bl-blue); }
 .bl-stamp--level { width: 64px; height: 64px; font-size: 10px; }
 .bl-finale__cta { display: flex; flex-direction: column; align-items: flex-start; gap: var(--bl-s-2); }
-.bl-finale__next { margin: var(--bl-s-1) 0 0; color: var(--bl-ink-2); font-size: var(--bl-text-sm); }
-.bl-finale__page { display: flex; flex-direction: column; gap: var(--bl-s-6); max-width: 760px; padding: var(--bl-s-8) var(--bl-s-8) var(--bl-s-12); }
-.bl-finale__slips { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--bl-s-4); }
+.bl-finale__next { margin: 0; color: var(--bl-ink-2); font-size: var(--bl-text-sm); }
+.bl-finale__slips { grid-area: slips; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--bl-s-4); max-width: 760px; padding: 0 var(--bl-s-8) var(--bl-s-12); }
 .bl-slip { display: flex; flex-direction: column; gap: var(--bl-s-2); padding: var(--bl-s-4); border: 1px solid var(--bl-rule); background: var(--bl-slip); box-shadow: var(--bl-slip-shadow); color: var(--bl-ink); text-decoration: none; }
 .bl-slip__row { display: flex; align-items: center; gap: var(--bl-s-3); }
 .bl-slip--isle:hover { background: var(--bl-sunk); }
@@ -598,7 +643,10 @@
   .bl-nb-btn { min-width: var(--bl-tap); padding: 0 var(--bl-s-2); gap: var(--bl-s-1); }
   .bl-bar__tools { gap: var(--bl-s-2); }
   .bl-bar__title { font-size: var(--bl-text-sm); }
-  .bl-views__opt { min-width: 40px; padding: 0 var(--bl-s-2); }
+  /* The view switch is a setting: on a phone it moves into the notebook sheet and the title takes the bar. */
+  .bl-views--bar { display: none; }
+  .bl-notebook__view { display: flex; }
+  .bl-views__opt { min-height: var(--bl-tap); }
   .bl-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
   .bl-bench { order: 0; }
   .bl-margin {
@@ -621,7 +669,8 @@
   .bl-line { font-size: var(--bl-text-lg); }
   .bl-xp { top: -14px; right: auto; left: 0; font-size: var(--bl-text-md); }
   .bl-stamped { padding: var(--bl-s-2); }
-  .bl-stamp { width: 40px; height: 40px; }
+  /* The margin's rule stamp only: the CHECKED and LEVEL UP stamps keep their own size. */
+  .bl-stamped .bl-stamp { width: 40px; height: 40px; }
   .bl-target--part { width: 64px; height: 48px; margin: -24px 0 0 -32px; }
   .ann__text { font-size: 18px; }
   /* The meter as a slim strip (the reading, the dial, the range), so the bench stays in view above it. Warnings and
@@ -667,9 +716,15 @@
   /* While a tool is docked along the bottom, a selected part's bar (Add salt, Rotate) moves up under the undo buttons. */
   .bl-stage.bl-stage:has(> .bl-tool) .ohb-sel,
   .bl-stage.bl-stage:has(> .bl-tool) .ohi-sel { top: 64px; bottom: auto; }
-  .bl--finale .bl-main--finale { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; }
-  .bl-margin--finale { order: 0; display: flex; max-height: none; border-top: 0; border-bottom: 1.5px solid var(--bl-rose); }
-  .bl-finale__page { padding: var(--bl-s-4) var(--bl-s-4) var(--bl-s-12); }
+  /* The sign-off as one column: the line, the signed page, then the tally and the way on, then the slips. */
+  .bl-finale { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "lead" "page" "tally" "slips"; }
+  .bl-finale::before { display: none; }
+  .bl-finale__lead { flex-direction: row; align-items: center; gap: var(--bl-s-3); padding: var(--bl-s-4) var(--bl-s-4) 0; }
+  .bl-finale__lead .bl-robot { flex: none; width: 64px; height: auto; }
+  .bl-finale__title { font-size: var(--bl-text-xl); }
+  .bl-finale__page { padding: var(--bl-s-4); }
+  .bl-finale__tally { padding: 0 var(--bl-s-4) var(--bl-s-6); }
+  .bl-finale__slips { padding: 0 var(--bl-s-4) var(--bl-s-12); }
   .bl-page { padding: var(--bl-s-4); }
 }
 

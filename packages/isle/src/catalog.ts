@@ -19,6 +19,18 @@ const UNIT_ALIASES: Record<string, UnitId> = { "making-it-permanent": "permanent
 /** The catalog's id for a unit id: an alias resolves to its unit, any other id stays as it is. */
 export const unitOf = (u: string): string => UNIT_ALIASES[u] ?? u;
 
+/**
+ * How a unit's island is drawn, by the theme ids content uses (a unit's `isle.theme`). Most islands are a green
+ * circuit board. Start here's is Sketch Isle: the same board drawn in pencil on a slip of notebook paper (paper top,
+ * graphite traces, ink outlines, a keel of stacked pages), which Basics then makes real as Bareboard Isle. A theme
+ * only changes how an island is drawn, never the plan.
+ */
+export const THEMES = ["green-board", "sketch-isle"] as const;
+export type ThemeId = (typeof THEMES)[number];
+const UNIT_THEMES: Partial<Record<string, ThemeId>> = { "start-here": "sketch-isle" };
+/** The theme a unit's island is drawn in (any unit not listed is a green board). */
+export const themeOf = (unit: string): ThemeId => UNIT_THEMES[unitOf(unit)] ?? "green-board";
+
 /** Pieces: one per finished lesson. */
 export const PIECES = [
   "resistor",

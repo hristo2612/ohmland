@@ -194,10 +194,10 @@ Desk-only kinds built for the Unit 1 labs, in the same procedural style (`models
 **Seats.** A `PartDef` may declare `seats(params)`: named spots that accept kinds, place the held part (`place(held)`
 returns its local position and turn) and optionally `joins` its leads to the holder's. Who sits where is
 `params.held` (`{ r: "R2" }`), so the bench stays plain JSON. `movePart` seats a part dropped within 16 mm of a seat
-(the previous occupant pops out in front), takes it out when dragged away, and keeps seated parts with a moving
-holder; `seatPart`, `unseat`, `syncHeld`, `holderOf` and `seatNear` script it. `swapParts(a, b)` and
-`dropOnto(id, target, from)` swap two parts' places, seats and attachments; the bench does this when a part is
-dropped right on one of its kind.
+(the previous occupant pops out in front, in a row beside any popped out before it), takes it out when dragged away,
+and keeps seated parts with a moving holder; `seatPart`, `unseat`, `syncHeld`, `holderOf` and `seatNear` script it.
+`swapParts(a, b)` and `dropOnto(id, target, from)` swap two parts' places, seats and attachments; the bench does this
+when a part is dropped right on one of its kind.
 
 **Settings, actions, hotspots.** `PartDef.settings` (`{ key, values, also? }`) show on the selection bar as chips or a
 select (labels in `BenchLabels.settings`, by `kind.key`); `PartDef.actions` are one-shot buttons (the card's erase);

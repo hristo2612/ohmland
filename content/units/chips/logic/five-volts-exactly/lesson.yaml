@@ -1,0 +1,73 @@
+# Blueprint: docs/curriculum/unit-4.md, CH17, narrowed by docs/curriculum/unit-3.md 8.2: the 7805 is now taught in
+# Unit 3's steady-five, so this lesson keeps logic levels and floating inputs (the regulator just feeds the 5 V rail).
+# A bench lesson (docs/LESSONS.md). One idea: a logic input reads high near plus and low near minus; a floating one
+# reads noise, so tie it down. Nothing new to name. Lab: content/labs/five-volts-exactly.ts.
+format: bench
+id: five-volts-exactly
+version: 1
+title: High, low or floating
+summary: Sweep a gate's input from 0 to 5 V, let it float and pick up the hum of your hand, then tie it down.
+minutes: 6
+lab: five-volts-exactly
+unlocks:
+  parts: []
+  isle: header-fence
+
+start:
+  title: High, low or floating
+  say: Logic chips hear just two words, high and low.
+  go: Listen in
+
+beats:
+  - say: Turn the knob all the way up. Watch my lamp.
+    objective: High and low
+    tool: controls
+    spot: [RV1, U1, D1]
+    do: knob-high
+    note: { at: U1.13, text: "near 5 V: reads high" }
+
+  - say: Now all the way down.
+    tool: controls
+    spot: [RV1, U1, D1]
+    do: knob-low
+    note: { at: U1.13, text: "near 0 V: reads low" }
+    rule: Near plus is high, near minus is low.
+
+  - say: Which input is surely high?
+    pick: { options: ["4.5 V", "2.6 V", "1 V"], answer: "4.5 V" }
+    wrong:
+      "2.6 V": Too near the middle. Chips promise high above 3.5 V.
+      "1 V": That's a safe low. High lives near 5 V.
+
+  - say: Pull out the knob's yellow wire.
+    objective: Floating
+    spot: [W1]
+    do: float-input
+
+  - say: Now bring your hand near the chip. Guess first.
+    tool: controls
+    spot: [U1, D1]
+    guess: { options: [Nothing happens, It flickers], answer: It flickers }
+    do: hand-hum
+    note: { at: U1.13, text: "floating: it reads noise" }
+
+  - say: Tie it down. The 10 kΩ, from pin 13 to minus.
+    spot: [U1, R4]
+    do: pull-down
+    note: { at: R4, text: "pull-down: low until driven" }
+    rule: Never leave a logic input floating.
+
+secret:
+  task: fry-a-gate
+  spot: [U9]
+  say: "Secret: move my spare chip's plus wire to 9 V."
+  done: Pop. That chip wanted 5 V, not 9.
+  note: { at: U9, text: "9 V: too much for 74HC" }
+
+fixit:
+  say: My lamp flickers again. Fix it.
+  tasks:
+    - task: fix-it
+
+end:
+  say: High, low, never floating. My castle can listen now.

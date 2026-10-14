@@ -567,7 +567,8 @@ function SolderLayer({ store, view, compact, readOnly = false, tray = false }: S
           data-tool="braid"
           onPointerDown={(e) => {
             const { x, y } = local(e);
-            begin(e, { tool: "braid", id: e.pointerId, x, y, near: null });
+            // Picking the braid up starts from the joint it lies on, so taking it anywhere else lifts it off.
+            begin(e, { tool: "braid", id: e.pointerId, x, y, near: store.getState().station?.braid ?? null });
           }}
         />
       )}

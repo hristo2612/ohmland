@@ -50,6 +50,8 @@ export function replayLab(lab: LabDefinition, trace?: (line: string) => void): R
 
   sim.load(session.net.netlist);
   for (const i of built.inputs) sim.setInput(i.id, i.key, i.value);
+  // The lab's `settle`, unseen, as the runtime runs it before the learner sees the bench.
+  if (lab.settle) sim.step(lab.settle);
   // Simulated seconds per real second, as the runtime would run (a "speed" control turns it up for a time-lapse).
   let speed = lab.speed ?? 1;
   for (const c of built.controls) if (c.key === "speed") speed = c.value;

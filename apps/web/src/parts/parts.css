@@ -84,14 +84,35 @@
   transition: box-shadow var(--dur-ui) var(--ease-out), transform var(--dur-ui) var(--ease-out);
 }
 .part-slip:hover { box-shadow: var(--slip-shadow-lift); transform: translate(-1px, -1px); }
-.part-slip__art { display: grid; place-items: center start; height: 88px; margin-bottom: var(--s-2); }
+.part-slip__art { display: grid; place-items: center start; height: 96px; margin-bottom: var(--s-2); }
 .part-slip__name { font-size: var(--text-md); line-height: var(--lh-md); font-weight: var(--weight-strong); }
 .part-slip__meta { display: flex; align-items: flex-start; gap: var(--s-1); color: var(--ink-2); font-size: var(--text-xs); line-height: var(--lh-xs); }
 .part-slip__meta svg { flex: none; margin-top: 3px; }
-.part-slip--locked { background: transparent; border: var(--border-1) dashed var(--rule-soft); box-shadow: none; }
-.part-slip--locked:hover { box-shadow: none; transform: none; background: var(--paper-slip); }
-.part-slip--locked .part-slip__name { color: var(--ink-2); font-weight: var(--weight-body); }
-.part-slip--locked .part-slip__meta { color: var(--ink-3); }
+/* The next part: a dashed slip that leads to the lesson that brings it. */
+.part-slip--next { background: transparent; border: var(--border-1) dashed var(--rule); box-shadow: none; text-decoration: none; }
+.part-slip--next:hover { background: var(--paper-slip); box-shadow: none; transform: none; }
+.part-slip--next .kicker { color: var(--blue); }
+.part-slip--next .part-slip__meta { align-items: center; color: var(--ink-2); }
+.part-slip--next .part-slip__meta svg { margin-top: 0; }
+
+/* The rest: small pencil outlines, no words until one is tapped. */
+.parts-later { display: grid; gap: var(--s-4); margin-top: var(--s-12); }
+.parts-later__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--s-16), 1fr)); gap: var(--s-2); list-style: none; padding: 0; margin: 0; }
+.part-ghost {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: var(--s-16);
+  padding: var(--s-1);
+  border: var(--border-1) solid transparent;
+  border-radius: var(--radius-0);
+  background: transparent;
+  opacity: 0.7;
+  cursor: pointer;
+  transition: background-color var(--dur-ui) var(--ease-out), opacity var(--dur-ui) var(--ease-out);
+}
+.part-ghost:hover { opacity: 1; background: var(--paper-slip); border-color: var(--rule-soft); }
 
 .part-detail { display: grid; gap: var(--s-4); margin-top: var(--s-4); justify-items: start; }
 .part-detail .facts { width: 100%; }
@@ -101,4 +122,5 @@
   .parts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4); }
   .part-slip { padding: var(--s-3); }
   .part-slip__art { height: 72px; }
+  .parts-later { margin-top: var(--s-8); }
 }

@@ -2,7 +2,8 @@ import type { CourseOutline } from "../content/outline";
 import { m } from "../i18n";
 import { PartIcon } from "../parts/PartIcon";
 import type { PartIconKind } from "../parts/kinds";
-import { ACHIEVEMENTS, describeAchievement } from "../progress/achievements";
+import { ACHIEVEMENTS, describeAchievement, stampsToShow } from "../progress/achievements";
+import { resumeTarget } from "../progress/derive";
 import { useDerived, useLearner, useLearnerReady } from "../progress/useLearner";
 import { Button } from "./Button";
 import { MascotSay } from "./MascotSay";
@@ -49,39 +50,49 @@ export function LevelLine({ outline }: { outline: CourseOutline }) {
   );
 }
 
-/** The achievements: a page of rubber stamps, pressed in red once earned, a dashed ring while still waiting. */
+/**
+ * The achievements: the stamps you have, pressed in red, then the next three still to earn as dashed rings, each with
+ * a short line on how (a later unit's shows its title only). Secrets stay out of sight until they are earned.
+ */
 export function AchievementGrid({ outline }: { outline: CourseOutline }) {
   const ready = useLearnerReady(outline);
-  const unlocked = useLearner((s) => s.learner.achievements);
-  const count = ACHIEVEMENTS.filter((a) => unlocked[a.id]).length;
+  const learner = useLearner((s) => s.learner);
+  const count = ACHIEVEMENTS.filter((a) => learner.achievements[a.id]).length;
+  const target = resumeTarget(learner, outline);
+  const current = target ? outline.lessons[target]?.unit : outline.units[outline.units.length - 1]?.id;
+  const { earned, next } = stampsToShow(learner, outline, current);
   return (
     <section className="ach" aria-labelledby="ach-title">
       <div className="ach__head">
         <h2 id="ach-title">{m.achievements.gridTitle}</h2>
         <p className="small muted">{ready ? m.achievements.unlockedCount(count, ACHIEVEMENTS.length) : " "}</p>
       </div>
-      <ul className="stamps">
-        {ACHIEVEMENTS.map((a, i) => {
-          const got = ready ? unlocked[a.id] : undefined;
-          const secret = a.hidden && !got;
-          return (
-            <li key={a.id} className="stamps__item" data-state={got ? "earned" : "todo"}>
-              <Stamp
-                icon={secret ? "lock" : a.icon}
-                state={got ? "earned" : "todo"}
-                ring={got ? m.achievements.stampRing(m.common.date(got.at)) : undefined}
-                tilt={got ? TILTS[i % TILTS.length] : 0}
-                size={96}
-              />
+      {ready && (
+        <ul className="stamps">
+          {earned.map((a, i) => {
+            const got = learner.achievements[a.id]!;
+            return (
+              <li key={a.id} className="stamps__item" data-state="earned">
+                <Stamp icon={a.icon} state="earned" ring={m.achievements.stampRing(m.common.date(got.at))} tilt={TILTS[i % TILTS.length]} size={96} />
+                <h3 className="stamps__title">
+                  {a.title}
+                  <span className="sr-only">, {m.achievements.unlockedOn(m.common.date(got.at))}</span>
+                </h3>
+              </li>
+            );
+          })}
+          {next.map(({ a, later }) => (
+            <li key={a.id} className="stamps__item" data-state="todo">
+              <Stamp icon={a.icon} state="todo" tilt={0} size={96} />
               <h3 className="stamps__title">
-                {secret ? m.achievements.hiddenTitle : a.title}
-                <span className="sr-only">, {got ? m.achievements.unlockedOn(m.common.date(got.at)) : m.achievements.locked}</span>
+                {a.title}
+                <span className="sr-only">, {m.achievements.locked}</span>
               </h3>
-              {!got && <p className="stamps__how">{secret ? m.achievements.hiddenBody : describeAchievement(a, outline)}</p>}
+              {!later && <p className="stamps__how">{describeAchievement(a, outline)}</p>}
             </li>
-          );
-        })}
-      </ul>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

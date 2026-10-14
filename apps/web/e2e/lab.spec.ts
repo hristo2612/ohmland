@@ -71,7 +71,8 @@ test("first-glow: mend the torn drawing, build it on the board, see the drawing 
   await page.locator("[data-guess='1']").click();
   await step(page, { do: "move", part: "D1", at: "b9" });
   await taskDone(page, "move-it");
-  await expect(page.locator(".bl-guess")).toContainText("Called it.");
+  // The guess against what happened is folded into the robot's line.
+  await expect(page.locator(".bl-line")).toContainText("Called it.");
   await expect(page.locator(".bl-stamped")).toContainText("A drawing shows connections, not places.");
   await primary(page).click();
   await atMoment(page, "b4", "act");
@@ -122,7 +123,8 @@ test("welcome-to-the-bench: find the gap with the tracer, break and mend the loo
   await page.locator("[data-guess='2']").click();
   await unclip(page, "TL2", "a");
   await taskDone(page, "break-the-loop");
-  await expect(page.locator(".bl-guess")).toContainText("Called it.");
+  // The guess against what happened is folded into the robot's line.
+  await expect(page.locator(".bl-line")).toContainText("Called it.");
   await primary(page).click();
   await atMoment(page, "b4", "act");
   await clipTo(page, "TL2", "a", "pin:S1.b");
@@ -148,7 +150,14 @@ test("the bench view switches between 3D and ink mid-lesson and keeps the bench"
   await flipBlockSwitch(page, "S1");
   await taskDone(page, "close-the-switch");
   const other = (await page.evaluate(() => window.ohmlandLab!.view!())) === "ink" ? "3D" : "Ink";
-  await page.getByRole("radio", { name: other }).click();
+  // The switch is in the bar; on a phone it lives in the notebook sheet, so the lesson's title keeps the bar.
+  const inBar = page.locator(".bl-views--bar").getByRole("radio", { name: other });
+  if (await inBar.isVisible()) await inBar.click();
+  else {
+    await page.locator("[data-notebook-button]").click();
+    await page.getByRole("dialog").getByRole("radio", { name: other }).click();
+    await page.keyboard.press("Escape");
+  }
   await expect.poll(() => page.evaluate(() => window.ohmlandLab?.view?.())).toBe(other === "3D" ? "3d" : "ink");
   // Same bench, drawn the other way: the switch is still on, the lamp still dark (the red clip is still on the battery's
   // wrapper), and the ink still lands on the parts.
@@ -165,22 +174,27 @@ test("the bench view switches between 3D and ink mid-lesson and keeps the bench"
 test("the free-build bench builds, saves and clears", async ({ page }) => {
   await page.goto("/bench");
   await benchReady(page);
-  // The starter kit: a battery and clip leads, even with an empty parts bin.
-  await expect(page.locator(".ohb-tray .ohb-item")).toHaveCount(4);
-  const box = (await page.locator(".ohb-tray .ohb-item", { hasText: "battery" }).first().boundingBox())!;
-  const spot = await project(page, [0, 0, 0]);
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  for (let i = 1; i <= 10; i++) await page.mouse.move(box.x + ((spot.x - box.x) * i) / 10, box.y + ((spot.y - box.y) * i) / 10);
-  await page.mouse.up();
-  await expect.poll(async () => (await bench(page)).parts.length).toBe(1);
+  // The starter kit is already out on a new learner's desk: a battery and three clip leads, no tray. Nothing to clear
+  // or save yet.
+  const start = await bench(page);
+  expect(start.parts.map((p) => p.id)).toEqual(["B1"]);
+  expect(start.leads).toHaveLength(3);
+  await expect(page.locator(".ohb-tray")).toHaveCount(0);
+  await expect(page.locator("[data-clear], [data-save]")).toHaveCount(0);
 
-  await page.getByPlaceholder("My circuit").fill("One battery");
+  const batteryAt = async () => (await bench(page)).parts.find((p) => p.id === "B1")?.pos.join(",");
+  const home = await batteryAt();
+  await drag(page, await project(page, "part:B1"), await project(page, [-20, 0, 40]));
+  await expect.poll(batteryAt).not.toBe(home);
+  const moved = await batteryAt();
+
+  await page.getByPlaceholder("My circuit").fill("Moved battery");
   await page.locator("[data-save]").click();
-  await expect(page.locator(".sandbox__build")).toContainText("One battery");
+  await expect(page.locator(".sandbox__build")).toContainText("Moved battery");
 
   await page.locator("[data-clear]").click();
-  await expect.poll(async () => (await bench(page)).parts.length).toBe(0);
+  await expect.poll(batteryAt).toBe(home);
+  await expect(page.locator("[data-clear]")).toHaveCount(0);
   await page.locator(".sandbox__build").getByRole("button", { name: "Open" }).click();
-  await expect.poll(async () => (await bench(page)).parts.length).toBe(1);
+  await expect.poll(batteryAt).toBe(moved);
 });

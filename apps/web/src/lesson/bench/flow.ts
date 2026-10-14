@@ -35,8 +35,11 @@ export type Moment = {
   fix?: { index: number; count: number; intro: string; timer: number };
 };
 
-/** One graded check's record. `first` is settled by the first try; `done` once it is right (or revealed). */
-export type CheckRecord = { first: boolean; done: boolean; at?: string };
+/**
+ * One graded check's record. `first` is settled by the first try; `done` once it is right (or revealed); `tries`
+ * counts the tries up to the right one (absent in records saved before it was counted).
+ */
+export type CheckRecord = { first: boolean; done: boolean; at?: string; tries?: number };
 
 export const answerKeys = {
   check: (key: string) => `check:${key}`,
@@ -85,9 +88,32 @@ export function momentsOf(lesson: BenchLessonData): Moment[] {
       fix: { index: i, count: fixit.tasks.length, intro: fixit.say, timer: fixit.timer },
     };
     if (fixit.tool) m.tool = fixit.tool;
+    if (fixit.spot) m.spot = fixit.spot;
     out.push(m);
   });
   out.push({ key: "end", kind: "end", say: lesson.end.say, action: "finish" });
+  return out;
+}
+
+/** A chip pin the lesson has put a word to: pin 6 of U1 is "threshold". */
+export type PinName = { part: string; pin: number; word: string };
+
+/**
+ * The chip pins named before moment `index`, by "pin 6: threshold" notes and picks on a pin ("What is pin 6?"
+ * Threshold), in the lesson's own words. Only candidates: the stage keeps the words that really name that pin.
+ */
+export function pinNamesBefore(moments: readonly Moment[], index: number): PinName[] {
+  const out: PinName[] = [];
+  for (const mo of moments.slice(0, Math.max(0, index))) {
+    const note = mo.note;
+    if (note && note.at !== "tap") {
+      const part = note.at.replace(/^(pin|part):/, "").split(/[./]/)[0]!;
+      for (const [, n, word] of note.text.matchAll(/\bpin (\d+):? ([a-z]+)/gi)) out.push({ part, pin: Number(n), word: word!.toLowerCase() });
+    }
+    const pick = mo.beat?.pick;
+    const on = pick?.on ? /^(?:pin:)?([^.:/]+)\.(\d+)$/.exec(pick.on) : null;
+    if (on && pick?.answer) out.push({ part: on[1]!, pin: Number(on[2]), word: pick.answer.toLowerCase() });
+  }
   return out;
 }
 
@@ -140,6 +166,9 @@ export function recordTry(prev: CheckRecord | undefined, right: boolean, at?: st
   const rec: CheckRecord = { first: prev ? prev.first : right, done: !!prev?.done || right };
   const where = right ? at : prev?.at;
   if (where !== undefined) rec.at = where;
+  // Tries stop counting once it is right; a record saved before they were counted stays without a count.
+  const tries = prev?.done ? prev.tries : prev ? (prev.tries === undefined ? undefined : prev.tries + 1) : 1;
+  if (tries !== undefined) rec.tries = tries;
   return rec;
 }
 

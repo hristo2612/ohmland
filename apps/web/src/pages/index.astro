@@ -21,14 +21,14 @@ const units = [
 const DRAWING: Record<string, "led" | "transistor" | "solder" | "chip" | "radio"> = {
   basics: "led",
   switching: "transistor",
-  "making-it-permanent": "solder",
+  permanent: "solder",
   chips: "chip",
   beyond: "radio",
 };
 const L = m.landing;
 ---
 
-<Page bare>
+<Page bare bar={false}>
   <section class="hero" aria-labelledby="hero-title">
     <div class="hero__stage" data-stage>
       <svg class="hero__defs" aria-hidden="true" focusable="false">
