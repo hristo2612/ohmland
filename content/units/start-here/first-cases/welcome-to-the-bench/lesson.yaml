@@ -1,0 +1,61 @@
+# Blueprint: docs/curriculum/start-here.md, SH1 "The dark lamp". A bench lesson (docs/LESSONS.md).
+# One idea: flow needs a closed loop, metal on metal all the way round. Lab: content/labs/welcome-to-the-bench.ts.
+format: bench
+id: welcome-to-the-bench
+version: 3
+title: Welcome to the bench
+summary: A desk lamp will not light. Find the gap, and learn that flow needs a closed loop.
+minutes: 5
+lab: welcome-to-the-bench
+unlocks:
+  parts: [battery-9v, alligator-clips]
+  isle: led-lamp
+
+start:
+  title: The dark lamp
+  say: My desk lamp is dark. Take the case?
+  go: Take the case
+
+beats:
+  - say: Flip its switch.
+    objective: Find the gap
+    do: close-the-switch
+
+  - say: Still dark. Tap the battery's minus snap.
+    tap: { answer: B1.neg, among: [B1.pos, B1.neg] }
+    trace: B1.neg
+    wrong: { B1.pos: "That's plus. Minus is the other snap." }
+    note: { at: TL1.a, text: "plastic: a gap" }
+
+  - say: Move that clip onto the metal snap.
+    do: find-the-gap
+    trace: B1.neg
+    note: { at: D1, text: "loop: metal all the way round" }
+    rule: Flow needs a closed loop.
+
+  - say: Unclip a lead far from the lamp. Guess first.
+    objective: Break it, mend it
+    guess: { options: [It stays lit, It dims, It goes dark], answer: It goes dark }
+    do: break-the-loop
+    done: Dark at once.
+    note: { at: D1, text: "one gap, all dark" }
+
+  - say: Clip it back.
+    do: mend-the-loop
+
+  - say: What is this, all the way round?
+    pick: { options: [a loop, a lamp, a line], answer: a loop }
+
+secret:
+  task: swap-battery-leads
+  say: Curious? Swap the battery's two clips.
+  done: Dark, and nothing broke.
+  note: { at: D1, text: "backwards: dark, no harm" }
+
+fixit:
+  say: Fix-it time. Switch on, still dark. Your turn.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. First light in ages.

@@ -5,7 +5,7 @@ import { createSimulation, type Snapshot } from "@ohmland/sim";
 import { advanceGates, dotRate, dotSpeed, expandPrefix, flowMap, formatGate, gateAmps, hatchSpacing, pushMap, tagText, traceLoop } from "../src/flow";
 import { anchorPosition, clipTargets } from "../src/layout";
 import { benchToNetlist } from "../src/netlist";
-import { addPart, emptyBench, movePart, removeLead, seatPart, setPartParams } from "../src/ops";
+import { addPart, emptyBench, movePart, removeLead, seatPart, setPartParams, swapTarget } from "../src/ops";
 import { conducts, materialOhms, partDef } from "../src/parts";
 import { hiddenParts, holderOf } from "../src/seats";
 import { APART_MM, MAX_MARKS, apart, lifting, stuckTo } from "../src/static";
@@ -108,6 +108,16 @@ describe("everyday objects", () => {
     };
     b = movePart(b, "K1", [-48, -4]);
     expect(holderOf(b, "K1")?.holder.id).toBe("YES");
+    // Dropped anywhere on the tray, even on a filed object, a part takes the nearest free seat.
+    b = { ...b, parts: [...b.parts, part("CN1", "sample", { material: "coin" }, [0, 140])] };
+    b = movePart(b, "CN1", [-44, 20]);
+    expect([holderOf(b, "K1")?.holder.id, holderOf(b, "CN1")?.holder.id]).toEqual(["YES", "YES"]);
+    // A battery dropped on a battery filed in the tray does not swap it out.
+    b = { ...b, parts: [...b.parts, part("B9", "battery", {}, [0, 160]), part("CC", "battery", { size: "coin" }, [0, 200])] };
+    b = movePart(b, "B9", [0, -4]);
+    const filed = b.parts.find((p) => p.id === "B9")!;
+    b = movePart(b, "CC", filed.pos, { seat: false });
+    expect(swapTarget(b, "CC")).toBeNull();
     b = movePart(b, "D1", [180, -4]);
     expect(holderOf(b, "D1")).toBeNull();
     b = movePart(b, "R1", [180, -4]);
@@ -222,6 +232,15 @@ describe("gates", () => {
     const c = counts as Record<string, number>;
     expect(c.G1).toBeCloseTo(c.G2!, 6);
     expect(c.G1).toBeCloseTo(dotRate(7.5e-3), 0);
+    // A gate clipped on later starts both counts again, so the two read the same number.
+    let one = lampLoop();
+    [one] = addPart(one, "gate", { on: "TL3", at: 0.5 }, { pos: [0, 0] }, "G1");
+    let late: Record<string, number> = {};
+    for (let k = 0; k < 30; k++) late = advanceGates(late, one, s, 1 / 30);
+    expect(late.G1).toBeGreaterThan(1);
+    for (let k = 0; k < 30; k++) late = advanceGates(late, b, s, 1 / 30);
+    expect(late.G1).toBeCloseTo(late.G2!, 6);
+    expect(late.G1).toBeCloseTo(c.G1!, 6);
     expect(dotSpeed(0.7e-3)).toBeLessThan(dotSpeed(16e-3) / 2.5);
     expect(dotSpeed(0)).toBe(0);
     expect(dotSpeed(10)).toBe(40);

@@ -1,7 +1,8 @@
 /** Chips on the bench: pins by number and name, how a chip sits on the board, logic levels, the 555 map's blocks. */
 import { describe, expect, it } from "vitest";
-import { emptyBench, type BenchState, type PlacedPart } from "@ohmland/bench/core";
+import { emptyBench, holeWorld, type BenchState, type PlacedPart } from "@ohmland/bench/core";
 import { blocks555, chipInfo, chipPinRef, chipSeat, gatesOf, latchNamed, levelOf, mapComplete, pinCode, pinNumber } from "./chips";
+import { applyStep } from "./steps";
 
 /** A chip as the bench will place it: a model and its legs in holes (leg names "1" to "8", or datasheet names). */
 const chip = (id: string, model: string, holes: Record<string, string>): PlacedPart => ({ id, kind: "chip", params: { model }, pos: [0, 0], rot: 0, holes }) as unknown as PlacedPart;
@@ -119,5 +120,32 @@ describe("logic levels and the 555 map", () => {
     expect(gatesOf(chipInfo("74HC27")!)[0]).toMatchObject({ kind: "nor", inputs: [1, 2, 13], output: 12 });
     expect(gatesOf(chipInfo("74HC04")!)).toHaveLength(6);
     expect(gatesOf(chipInfo("74HC393")!)).toEqual([]);
+  });
+});
+
+describe("the logic probe in solution steps", () => {
+  const board = { kind: "bb830" } as const;
+  const probe = { id: "LP1", kind: "logic-probe", params: {}, pos: [96, 10], rot: 0, holes: { vcc: "bp57", gnd: "bn58" } } as unknown as PlacedPart;
+  const lp = (b: BenchState) => b.parts.find((p) => p.id === "LP1")!;
+  const at = (hole: string) => [...holeWorld(board, hole)!];
+
+  it("stands the pen at its tip's hole, as a drag does, never off beside the board", () => {
+    const b = applyStep({ ...emptyBench(board), parts: [probe] }, { do: "move", part: "LP1", at: "a22-bp57-bn58" }).bench;
+    expect(lp(b).holes).toEqual({ tip: "a22", vcc: "bp57", gnd: "bn58" });
+    expect(lp(b).pos).toEqual(at("a22"));
+    // A single hole is the tip alone: the supply leads come out (a fix-it's unplugged probe).
+    expect(lp(applyStep(b, { do: "move", part: "LP1", at: "a30" }).bench).holes).toEqual({ tip: "a30" });
+  });
+
+  it("moves only the named leads with `holes`, and lays a pulled pen in front of the board", () => {
+    const b = applyStep({ ...emptyBench(board), parts: [probe] }, { do: "move", part: "LP1", at: "a22-bp57-bn58" }).bench;
+    const moved = applyStep(b, { do: "move", part: "LP1", holes: { tip: "a30" } }).bench;
+    expect(lp(moved).holes).toEqual({ tip: "a30", vcc: "bp57", gnd: "bn58" });
+    expect(lp(moved).pos).toEqual(at("a30"));
+    const out = applyStep(moved, { do: "move", part: "LP1", holes: { tip: null } }).bench;
+    expect(lp(out).holes).toEqual({ vcc: "bp57", gnd: "bn58" });
+    expect(lp(out).pos[0]).toBeCloseTo(at("a30")[0]!);
+    expect(lp(out).pos[1]).toBeGreaterThan(27.3);
+    expect(applyStep(b, { do: "move", part: "LP1", holes: { nose: "a30" } }).problem).toMatch(/no lead/);
   });
 });

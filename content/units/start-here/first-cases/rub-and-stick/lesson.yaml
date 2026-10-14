@@ -1,0 +1,59 @@
+# Blueprint: docs/curriculum/start-here.md, SH3 "The clingy balloon" (wave 2). A bench lesson (docs/LESSONS.md).
+# One idea: rubbing moves charge; on an insulator it sits still. That is static. Lab: content/labs/rub-and-stick.ts.
+format: bench
+id: rub-and-stick
+version: 1
+title: Rub and stick
+summary: A balloon clings to the wall with nothing holding it. Rub, lift and stick to find out why.
+minutes: 6
+lab: rub-and-stick
+unlocks:
+  parts: []
+  isle: capacitor
+
+start:
+  title: The clingy balloon
+  say: That balloon hangs on the wall. Nothing holds it.
+  go: Investigate
+
+beats:
+  - say: Rub the red balloon on the scarf.
+    objective: Charge it
+    do: rub-it
+    note: { at: BL1, text: "charge, rubbed off the wool" }
+
+  - say: Hold it over the paper bits.
+    do: paper-hop
+    note: { at: PB1, text: charge pulls }
+
+  - say: Put it on the wall. Guess first.
+    objective: Make it stick
+    guess: { options: [It falls, It sticks], answer: It sticks }
+    do: stick-it
+    note: { at: BL1, text: rubber holds the charge still }
+    rule: Charge that sits still is static.
+
+  - say: Show me the static.
+    tap: { answer: BL1, among: [BL1, PB1, CB1] }
+
+  - say: Can a balloon keep my lamp lit?
+    pick: { options: [Yes, "No"], answer: "No" }
+    wrong: { Yes: "A spark is one quick jump. A lamp needs steady flow." }
+    note: { at: BL1, text: a lamp needs steady flow }
+
+  - say: What are these marks?
+    pick: { on: BL1, options: [static, flow, a gap], answer: static }
+
+secret:
+  task: two-balloons
+  say: Curious? Rub both balloons. Hang them side by side.
+  done: They push each other apart!
+  note: { at: BL2, text: same charge pushes apart }
+
+fixit:
+  say: Fix-it time. I rubbed a metal spoon. No hop.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. Charge can wait.

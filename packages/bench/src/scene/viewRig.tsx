@@ -294,10 +294,15 @@ export function ViewRig({
       const i = inset.current;
       const px = (x: number) => (x / w) * 2;
       const py = (y: number) => (y / h) * 2;
-      const l = -1 + px(Math.max(pad.left, i.left) + padding);
-      const r = 1 - px(i.right + padding);
-      const b = -1 + py(Math.max(pad.bottom, i.bottom) + padding);
-      const t = 1 - py(i.top + padding);
+      const left = Math.max(pad.left, i.left);
+      const bottom = Math.max(pad.bottom, i.bottom);
+      // The tray and a docked panel come first; the margin takes at most a fifth of the room they leave on each side.
+      const mx = Math.min(padding, Math.max(0, w - left - i.right) * 0.2);
+      const my = Math.min(padding, Math.max(0, h - bottom - i.top) * 0.2);
+      const l = -1 + px(left + mx);
+      const r = 1 - px(i.right + mx);
+      const b = -1 + py(bottom + my);
+      const t = 1 - py(i.top + my);
       return { l: Math.min(l, r - 0.2), r, b: Math.min(b, t - 0.2), t, aspect: w / h };
     };
 

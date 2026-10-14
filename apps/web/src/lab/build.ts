@@ -239,9 +239,10 @@ export function placePart(bench: BenchState, part: PlacedPart, at: string | unde
       const id = resolveHole(bench.board, h);
       if (id) resolved[leg] = id;
     }
-    // A part on flying leads (a speaker, a battery snap) sits at its desk spot, if given, with its leads in the holes.
+    // A part on flying leads (a speaker, a battery snap) sits at its desk spot, if given, with its leads in the holes;
+    // a probe pen stands at its tip.
     const spot = flying && at ? deskSpot(at) : null;
-    return { part: { ...part, holes: resolved, pos: flying ? spot ?? sideOfBoard(bench) : part.pos } as PlacedPart, desk: false };
+    return { part: flying ? onFlyingLeads(bench, part, resolved, spot ?? sideOfBoard(bench)) : ({ ...part, holes: resolved } as PlacedPart), desk: false };
   }
   if (at === "rails" && part.kind === "battery" && bench.board) {
     const col = boardGeometry(bench.board).railCols[0]!;
@@ -268,7 +269,7 @@ export function placePart(bench: BenchState, part: PlacedPart, at: string | unde
         legs.forEach((leg, i) => {
           if (ids[i]) h[leg] = ids[i]!;
         });
-        if (Object.keys(h).length === legs.length || flying) return { part: flying ? ({ ...part, holes: h, pos: sideOfBoard(bench) } as PlacedPart) : onBoard(bench, { ...part, holes: h } as PlacedPart), desk: false };
+        if (Object.keys(h).length === legs.length || flying) return { part: flying ? onFlyingLeads(bench, part, h, sideOfBoard(bench)) : onBoard(bench, { ...part, holes: h } as PlacedPart), desk: false };
       }
     }
     const fit = fitAt(bench, part, ids[0]!, part.rot);
@@ -276,6 +277,40 @@ export function placePart(bench: BenchState, part: PlacedPart, at: string | unde
     return { part: { ...part, pos: deskAuto() }, desk: true, warning: `${part.id}: does not fit at "${at}", left on the desk` };
   }
   return { part: { ...part, pos: deskAuto() }, desk: true };
+}
+
+/**
+ * A part on flying leads with these leads in holes. A part whose tip is one of them (a logic probe's pen, PartDef
+ * `nose`) stands at the tip's hole, as a drag puts it, and that lead has no loose end; anything else (a battery snap,
+ * a speaker) lies at `desk`.
+ */
+function onFlyingLeads(bench: BenchState, part: PlacedPart, holes: Record<string, string>, desk: Vec2): PlacedPart {
+  const nose = noseOf(part);
+  const tip = nose && holes[nose] && bench.board ? holeWorld(bench.board, holes[nose]!) : null;
+  if (!tip || !nose) return { ...part, holes, pos: desk } as PlacedPart;
+  const { [nose]: _end, ...ends } = (part as { ends?: Record<string, Vec2> }).ends ?? {};
+  return { ...part, holes, ends, pos: [tip[0], tip[1]] } as PlacedPart;
+}
+
+/**
+ * A part on flying leads with only the named leads moved (null takes one out of its hole), the rest left where they
+ * are. A probe pen pulled out of its hole lies on the desk just in front of the board, below that hole.
+ */
+export function replugLeads(bench: BenchState, part: PlacedPart, moves: Record<string, string | null>): PlacedPart {
+  const holes: Record<string, string> = {};
+  for (const [leg, h] of Object.entries(part.holes ?? {})) if (h) holes[leg] = h;
+  for (const [leg, h] of Object.entries(moves)) {
+    if (h) holes[leg] = h;
+    else delete holes[leg];
+  }
+  const nose = noseOf(part);
+  const left = nose && !holes[nose] && part.holes?.[nose] && bench.board ? holeWorld(bench.board, part.holes[nose]!) : null;
+  const desk: Vec2 = left && bench.board ? [left[0], (bench.board.pos?.[1] ?? 0) + boardGeometry(bench.board).depth / 2 + 12] : part.pos;
+  return onFlyingLeads(bench, part, holes, desk);
+}
+
+function noseOf(part: PlacedPart): string | undefined {
+  return (partDef(part.kind) as { nose?: string }).nose;
 }
 
 /** A desk spot just left of the board, for batteries and flying leads. */

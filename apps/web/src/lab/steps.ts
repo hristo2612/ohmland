@@ -1,10 +1,12 @@
 /**
  * Solution steps -> bench changes and simulator inputs. Pure: the headless replay test and "Show me" both use it.
  */
-import { benchOps, chargeable, defaultParams, isThrowSwitch, type BenchState, type LeadColor, type PlacedPart, type WireColor } from "@ohmland/bench/core";
+import { benchOps, chargeable, defaultParams, isFlying, isThrowSwitch, partLegs, type BenchState, type LeadColor, type PlacedPart, type WireColor } from "@ohmland/bench/core";
 import { deskSpot, resolveAttach, resolveHole } from "./anchors";
-import { addLeadBetween, placePart, seatSpot, type SimInput } from "./build";
-import type { SolutionStep } from "./define";
+import type { Diagnostic } from "@ohmland/code";
+import { addLeadBetween, placePart, replugLeads, seatSpot, type SimInput } from "./build";
+import { isPanelView, type PanelViewName, type SolutionStep } from "./define";
+import { boardPart, uploadError, uploadTo } from "./mcu";
 
 export type StepEffect = {
   bench: BenchState;
@@ -20,8 +22,10 @@ export type StepEffect = {
   tapper?: boolean;
   /** Switch a view or overlay ("flow", "push", the board's "xray"), or a chip's x-ray panel ("xray:U1"). */
   view?: { name: "flow" | "electrons" | "push" | "xray"; on: boolean };
-  /** Open or close a chip's x-ray panel ("xray:U1"). */
-  panelView?: { name: `xray:${string}`; on: boolean };
+  /** Open or close a panel's view: a chip's x-ray ("xray:U1"), the code drawer's text, a board's millis or serial. */
+  panelView?: { name: PanelViewName; on: boolean };
+  /** An Upload press in the code drawer: the program, and the mistake it was refused for (null: it went up). */
+  code?: { part: string; source: string; error: Diagnostic | null };
   /** Run (or clear, with null) the loop tracer from an anchor. */
   trace?: string | null;
   /** Let a histogram's auto-roller roll. */
@@ -61,6 +65,18 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
     case "move": {
       const cur = bench.parts.find((p) => p.id === step.part);
       if (!cur) return done(bench, { problem: `no part ${step.part}` });
+      if (step.holes) {
+        // Only the named flying leads move; the others stay in their holes (a probe's tip, not its supply leads).
+        if (!isFlying(cur)) return done(bench, { problem: `move: ${step.part} has no flying leads for "holes"` });
+        const moves: Record<string, string | null> = {};
+        for (const [leg, spot] of Object.entries(step.holes)) {
+          if (!partLegs(cur).includes(leg)) return done(bench, { problem: `move: ${step.part} has no lead "${leg}"` });
+          const h = spot === null ? null : resolveHole(bench.board, spot);
+          if (spot !== null && !h) return done(bench, { problem: `move: no hole ${spot}` });
+          moves[leg] = h;
+        }
+        return done({ ...bench, parts: bench.parts.map((p) => (p.id === step.part ? replugLeads(bench, cur, moves) : p)) });
+      }
       const seat = seatSpot(step.at);
       if (seat) return seated(bench, step.part, seat, done);
       if (step.at.startsWith("on:")) {
@@ -174,7 +190,7 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
       return { bench, inputs: [], wait: SETTLE, tapper: step.on };
     case "view": {
       const name = step.name;
-      if (name.startsWith("xray:")) return { bench, inputs: [], wait: SETTLE, panelView: { name: name as `xray:${string}`, on: step.on } };
+      if (isPanelView(name)) return { bench, inputs: [], wait: SETTLE, panelView: { name, on: step.on } };
       return { bench, inputs: [], wait: SETTLE, view: { name: name as "flow" | "electrons" | "push" | "xray", on: step.on } };
     }
     case "roll":
@@ -190,6 +206,12 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
     case "trace": {
       const from = step.from ? resolveAttach(bench, step.from) : null;
       return { bench, inputs: [], wait: SETTLE, trace: from, ...(step.from && !from ? { problem: `trace: nothing at ${step.from}` } : {}) };
+    }
+    case "code": {
+      if (!boardPart(bench, step.part)) return done(bench, { problem: `code: ${step.part} is not a microcontroller board` });
+      // Upload checks the program first: a mistake keeps the board as it was.
+      const error = uploadError(step.source);
+      return done(error ? bench : uploadTo(bench, step.part, step.source), { code: { part: step.part, source: step.source, error } });
     }
     case "wait":
       return { bench, inputs: [], wait: step.seconds };

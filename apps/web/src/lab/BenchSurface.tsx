@@ -120,6 +120,7 @@ export default function BenchSurface({ view, runtime, tray, quality, readOnly, h
         readOnly={!!readOnly}
         highlight={shown}
         locked={locked}
+        names={runtime.built.labels}
         frame={frame ?? null}
         labels={m.benchUi}
         onAction={runtime.onAction}
