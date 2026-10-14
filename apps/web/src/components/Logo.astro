@@ -1,9 +1,8 @@
 ---
-import { Mascot } from "../mascot/Mascot";
 import { m } from "../i18n";
 ---
 
-<a class="logo" href="/" aria-label={m.nav.home}>
-  <Mascot pose="idle" size={32} animate={false} />
-  <span class="logo__word" aria-hidden="true">{m.meta.siteName}</span>
+<a class="wordmark" href="/" aria-label={m.nav.home}>
+  <svg class="wordmark__mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30"></rect><text x="16" y="23" text-anchor="middle">Ω</text></svg>
+  <span aria-hidden="true">{m.meta.siteName}</span>
 </a>
