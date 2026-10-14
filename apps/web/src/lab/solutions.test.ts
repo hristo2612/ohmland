@@ -23,8 +23,8 @@ describe("lab solutions", () => {
   it("finds the labs", () => {
     expect(labs.length).toBeGreaterThan(0);
     // 18 classic Unit 1 labs, plus how-a-breadboard-works (at the start of Your meter until Start here exists), plus
-    // the split half share-the-push.
-    expect(BASICS.size).toBe(20);
+    // the split halves share-the-push and use-the-law.
+    expect(BASICS.size).toBe(21);
   });
 
   for (const { file, lab } of labs) {
