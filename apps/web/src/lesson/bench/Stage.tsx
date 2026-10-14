@@ -8,7 +8,7 @@
  */
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useStore } from "zustand";
-import { boardGeometry, trayLeft, type BenchState } from "@ohmland/bench/core";
+import { PRINTED_KINDS, boardGeometry, trayLeft, type BenchState } from "@ohmland/bench/core";
 import { isOptional, type LabDefinition, type LabTask, type SolutionStep } from "../../lab/define";
 import { m } from "../../i18n";
 import { useLearner } from "../../progress/store";
@@ -390,9 +390,17 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     c.spotlight(spotted.length ? spotted : null);
     const inset = dockInset(stage);
     const box = stage.getBoundingClientRect();
-    // A part in play keeps some bench around it: close enough to tell its legs apart, never a lone close-up.
-    const free = Math.min(box.width - (inset.right ?? 0), box.height - (inset.bottom ?? 0));
-    c.focus(framed, framed.length ? { padding: Math.round(Math.max(0, free) * 0.3), inset } : { inset });
+    const w = box.width - (inset.right ?? 0);
+    const free = Math.max(0, Math.min(w, box.height - (inset.bottom ?? 0)));
+    // A part in play keeps some bench around it: close enough to tell its legs apart and tap them, never a lone
+    // close-up (both views frame at least about 24 mm of bench). A phone is narrow, so a smaller share of it goes to
+    // the margin, and one big printed prop (a colour chart, a pencil card) fills the bench so its print can be read; a
+    // value tag is small and reads with the usual margin.
+    const phone = w < 640;
+    const one = spotted.length === 1 && framed.length === 1 ? b.parts.find((p) => `part:${p.id}` === spotted[0]) : undefined;
+    const close = phone && !!one && PRINTED_KINDS.has(one.kind) && one.kind !== "tag";
+    const padding = close ? 8 : Math.round(free * (phone ? 0.12 : 0.3));
+    c.focus(framed, framed.length ? { padding, inset } : { inset });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spotKey, frameKey, runtime, benchReady, dockKey]);
 

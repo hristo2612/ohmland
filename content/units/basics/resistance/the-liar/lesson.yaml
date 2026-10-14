@@ -1,0 +1,57 @@
+# Blueprint: docs/curriculum/unit-1.md, L6 (the meter half). A bench lesson (docs/LESSONS.md), split from
+# reading-the-stripes per docs/curriculum/conversion-guide.md, B3 (6b). One idea: a real value sits close to its label,
+# within its tolerance. Lab: content/labs/the-liar.ts.
+format: bench
+id: the-liar
+version: 1
+title: The liar
+summary: Measure resistors against their labels, find out what tolerance allows, and catch the one that lies.
+minutes: 6
+lab: the-liar
+unlocks:
+  parts: []
+  isle: resistor
+
+start:
+  title: One resistor lies
+  say: One of these resistors is lying about its value.
+  go: Find it
+
+beats:
+  - say: Measure the 470 Ω. Guess first.
+    objective: Close enough
+    tool: meter
+    guess: { options: [exactly 470, close to 470, way off], answer: close to 470 }
+    do: measure-it
+    done: 466 Ω. Close, not exact.
+    note: { at: R3, text: "gold stripe: within 5%" }
+    rule: Close to the label is normal.
+
+  - say: Measure the 1.5 kΩ. Close enough, or a liar?
+    tool: meter
+    pick: { options: [close enough, a liar], answer: close enough }
+    wrong: { a liar: "1.56 is 60 Ω high. 5% allows 75." }
+    note: { at: R4, text: "1.56 kΩ: 4% high, fine" }
+
+  - say: One of them is past 5%. Bin the liar.
+    objective: Catch the liar
+    tool: meter
+    do: find-the-liar
+    done: Caught it. 2.46 kΩ is about 12% high.
+    note: { at: BIN1, text: "past 5%: reject" }
+
+secret:
+  task: probe-tips
+  say: Curious? Touch the two probe tips together.
+  tool: meter
+  done: Not quite zero!
+  note: { at: probe:red, text: "0.2 Ω: the leads themselves" }
+
+fixit:
+  say: Fix-it time. Someone binned a good one. Fix it.
+  tool: meter
+  tasks:
+    - task: rescue
+
+end:
+  say: Labels can fib a little. Your meter can't.

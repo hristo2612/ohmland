@@ -906,7 +906,7 @@ export const en = {
       "gate.unit": { label: "Unit", values: { A: "A", mA: "mA" } },
       "box.lid": { label: "Lid", values: { false: "Shut", true: "Open" } },
     } as Record<string, { label: string; values?: Record<string, string>; unit?: string }>,
-    actions: { "card.erase": "Erase" } as Record<string, string>,
+    actions: { "card.erase": "Erase", "cup.salt": "Add salt" } as Record<string, string>,
     heat: { cool: "cool", warm: "warm", hot: "hot", ouch: "ouch" },
     /** Words printed on lab props. */
     print: {

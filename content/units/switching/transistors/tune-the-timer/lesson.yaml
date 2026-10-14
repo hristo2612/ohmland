@@ -1,0 +1,54 @@
+# Blueprint: docs/curriculum/unit-2.md, Lesson 15; docs/curriculum/conversion-guide.md, 15b (split, the new half).
+# A bench lesson (docs/LESSONS.md). One idea: more resistance in the RC means a longer delay, and a trimmer sets it.
+# Lab: content/labs/tune-the-timer.ts (five-seconds moved here from delay-timer, with its five-second-club trigger).
+format: bench
+id: tune-the-timer
+version: 1
+title: Tune it to five
+summary: Meet the trimmer, a resistor with a knob, and tune your relay timer to five seconds.
+minutes: 7
+lab: tune-the-timer
+unlocks:
+  parts: [trimmer]
+  isle: pot
+
+start:
+  title: Tune it to five
+  say: My timer clicks too soon. I want five seconds.
+  go: Let's tune
+
+beats:
+  - say: This is a trimmer, a resistor with a knob. Tap it.
+    meet: P1
+    note: { at: P1, text: "trimmer: wiper in the middle" }
+
+  - say: Turn it up a little, then time a run. Guess first.
+    objective: Turn the knob
+    tool: stopwatch
+    guess: { options: [Shorter wait, Longer wait, No change], answer: Longer wait }
+    do: longer-delay
+    note: { at: P1, text: "more resistance, longer wait" }
+
+  - say: Show me the wiper.
+    tap: { answer: P1.wiper, among: [P1.a, P1.wiper, P1.b] }
+    wrong: { P1.a: "That's an end. The wiper sits between.", P1.b: "That's the other end. Try the middle." }
+    note: { at: P1.wiper, text: "the wiper slides along the track" }
+    rule: "Wiper and one end: a variable resistor."
+
+  - say: Tune it to 5 s. Three runs in a row.
+    objective: Five seconds
+    tool: stopwatch
+    do: five-seconds
+    note: { at: C1, text: "clicks when C1 nears 6.7 V" }
+
+  - say: Last one. What is this?
+    pick: { on: P1, options: [A trimmer, A transistor, A capacitor], answer: A trimmer }
+
+fixit:
+  say: Fix-it time. The knob does nothing. Why?
+  tool: stopwatch
+  tasks:
+    - task: fix-wiper
+
+end:
+  say: Five seconds, on demand. That's a real timer.

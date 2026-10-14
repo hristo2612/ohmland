@@ -1,140 +1,55 @@
+# Blueprint: docs/curriculum/unit-2.md, Lesson 14; docs/curriculum/conversion-guide.md, 14 (split, the kept half).
+# A bench lesson (docs/LESSONS.md). One idea: two transistors chained multiply their gain, enough for a fingertip.
+# Lab: content/labs/touch-switch.ts. Saturation is the lesson before, all-the-way-on.
+format: bench
 id: touch-switch
-version: 1
-title: All the way on
-summary: Push a transistor into saturation, use it as a proper switch, and build a touch switch for a feather-light fingertip.
-minutes: 12
+version: 2
+title: Fingertip switch
+summary: Light an LED with a fingertip on two touch pads, then chain a second transistor for a feather touch.
+minutes: 7
+lab: touch-switch
 unlocks:
   parts: [touch-pads]
   isle: heatsink
-steps:
-  - type: hook
-    body: |
-      A light switch is either on or off. Halfway is useless, and in electronics it's also warm. A transistor can sit
-      anywhere between off and fully on, so to use it as a switch you have to push it all the way.
 
-      Today you'll find the point where more base current stops helping. Then you'll build a switch you work with a
-      fingertip. Your skin conducts a little. Is a little enough?
-    visual: { kind: part, part: touch-pads }
-    predict:
-      prompt: You keep lowering the base resistor, giving more and more base current. What happens to the LED?
-      options:
-        - It gets brighter forever
-        - It brightens, then stops getting brighter
-        - It gets dimmer
-    mascot: All the way on, or all the way off. No dithering.
+start:
+  title: Fingertip switch
+  say: Your skin conducts a little. Is a little enough?
+  go: Let's touch
 
-  - type: lab
-    lab: touch-switch
-    intro: The circuit from the last lesson is back, with Q1 already in place. Swap base resistors and watch the collector.
+beats:
+  - say: These are touch pads. Tap them.
+    meet: T1
+    note: { at: T1, text: touch pads }
 
-  - type: explain
-    cards:
-      - title: Saturation
-        body: |
-          As base current rises, collector current rises with it, until the transistor can't drop any less voltage.
-          Then it's **saturated**: fully on, with about 0.1 V from collector to emitter.
+  - say: Touch lightly, then press firmly. Watch the LED.
+    objective: One transistor
+    tool: controls
+    do: touch-it
+    note: { at: D1, text: "light touch: barely glows" }
 
-          Now the load decides the current, and extra base current changes nothing. That's exactly what you want from
-          a switch.
-      - title: Switches run cool
-        body: |
-          The heat in a transistor is the voltage across it times the current through it. Off: no current, no heat.
-          Saturated: 0.1 V × 15 mA = 1.5 mW, barely warm.
+  - say: Meet Q2. Move R5's far leg to its base.
+    objective: Two in a chain
+    spot: [R5, Q2]
+    do: feed-q2
+    note: { at: Q2, text: "Q2 feeds Q1's base" }
 
-          Halfway, in our LED circuit: about 3.5 V × 7.5 mA, roughly 26 mW. A switch should spend its life at the two
-          cool ends and cross the warm middle quickly.
-      - title: Designing a transistor switch
-        body: |
-          Work out the load current and divide by the lowest β the datasheet promises (100 for a 2N3904 at 10 mA).
-          Then give the base two to five times that.
+  - say: Now the lightest touch. Guess first.
+    tool: controls
+    guess: { options: [Barely glows, Full light], answer: Full light }
+    do: darlington
+    note: { at: Q2, text: "gains multiply: 200 × 200" }
+    rule: Chained transistors multiply their gains.
 
-          For 15 mA: at least 0.15 mA, so aim for 0.5 mA. From 9 V that's (9 V - 0.7 V) ÷ 0.5 mA, about 16 kΩ.
-          Pick 10 kΩ or 15 kΩ.
-        mascot: Your fingertip just flipped a switch. With physics.
-      - title: Transistor or relay?
-        body: |
-          Transistors are tiny, silent, fast (millions of switches a second) and never wear out. But they drop a
-          little voltage when on, leak a tiny bit when off, and a single one usually handles DC only.
+  - say: Gains of 150 and 200, chained. Total gain?
+    pick: { options: ["350", "3,000", "30,000"], answer: "30,000" }
+    wrong: { "350": "Gains multiply. They don't add.", "3,000": "Close. Count the zeros again." }
 
-          Relays switch big currents and AC, offer changeover contacts and full isolation, and drop almost nothing
-          when closed. But they're slow, bulky and wear out. Choose by the job.
-        mascot: Forty thousand times gain. I feel dizzy.
+fixit:
+  say: Fix-it time. My touch lamp never lights. Why?
+  tool: controls
+  tasks:
+    - task: fix-emitter
 
-  - type: quiz
-    items:
-      - id: min-base-current
-        type: numeric
-        prompt: An LED circuit needs 15 mA through a transistor with a minimum β of 100. What is the smallest base current that could saturate it?
-        answer: 0.15
-        unit: mA
-        tolerance: 2
-        hint: Divide the collector current by β.
-        explain: "15 mA ÷ 100 = 0.15 mA. Designers give two to five times that, for margin."
-
-      - id: vce-sat
-        type: choice
-        prompt: A saturated transistor carries 15 mA. Roughly what voltage is across its collector and emitter?
-        options:
-          - text: About 0.1 V
-            correct: true
-            why: Fully on, it drops very little.
-          - text: About 0.7 V
-            why: That's base to emitter, not collector to emitter.
-          - text: Half the supply
-            why: That's the warm in-between region.
-        explain: Saturation means the smallest possible collector-emitter voltage, typically 0.05 to 0.2 V.
-
-      - id: relay-job
-        type: choice
-        prompt: Which job suits a relay better than a transistor?
-        options:
-          - text: Blinking an LED 20,000 times a second
-            why: A relay can't move that fast.
-          - text: Switching a mains heater from a battery circuit
-            correct: true
-            why: Relays switch AC and keep the two circuits fully isolated.
-          - text: A pocket-sized, silent touch switch
-            why: Transistors win on size and silence.
-        explain: Big AC loads and isolation are relay territory. Speed and size favour transistors.
-
-      - id: darlington-gain
-        type: choice
-        prompt: Two transistors with β = 150 and β = 200 form a Darlington pair. Roughly what is the combined gain?
-        options:
-          - text: "350"
-            why: Gains don't add. The first transistor's output becomes the second one's input.
-          - text: "3,000"
-            why: Check the zeros. 150 × 200 is bigger than that.
-          - text: "30,000"
-            correct: true
-            why: "The gains multiply: 150 × 200 = 30,000."
-        explain: "In a Darlington pair the gains multiply: 150 × 200 = 30,000."
-
-      - id: why-cool
-        type: choice
-        prompt: Why does a transistor switch run cooler fully on than half on?
-        options:
-          - text: Its heat is Vce × Ic, and Vce is tiny when it's saturated
-            correct: true
-            why: Low voltage across it means low power.
-          - text: Less current flows when it's fully on
-            why: More current flows, but almost no voltage is across it.
-          - text: Transistors never get warm
-            why: Half on, they can get quite warm.
-        explain: Power is voltage times current. Saturated, the voltage term nearly vanishes.
-
-  - type: wrap
-    rules:
-      - "Saturated: fully on, about 0.1 V across it, and the load sets the current."
-      - Give the base two to five times the minimum current it needs.
-      - Two transistors chained as a Darlington pair multiply their gains.
-      - Relays for big loads and AC. Transistors for speed, size and silence.
-    realWorld:
-      parts:
-        - Two 2N3904 transistors
-        - 470 Ω and 10 kΩ resistors
-        - A red LED
-        - Two bare wire ends as touch pads
-        - A 9 V battery and a breadboard
-      safety:
-        - Touch the pads with one fingertip only, never across both hands, and never on broken skin. At 9 V it's harmless.
+end:
+  say: A feather touch, a full light. Forty thousand times gain!

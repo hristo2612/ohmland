@@ -1,0 +1,67 @@
+# Blueprint: docs/curriculum/unit-2.md, Lesson 8 (its second half); conversion: docs/curriculum/conversion-guide.md,
+# C2 lesson 8b. A bench lesson (docs/LESSONS.md). One idea: a capacitor across the coil keeps it fed, so a bigger
+# capacitor ticks slower. New part: the electrolytic capacitor. Lab: content/labs/tame-the-buzz.ts.
+format: bench
+id: tame-the-buzz
+version: 1
+title: Slow the buzz
+summary: Put a capacitor across a buzzing relay's coil, and a bigger one makes it tick slower.
+minutes: 7
+lab: tame-the-buzz
+unlocks:
+  parts: [electrolytic-capacitor]
+  isle: capacitor
+
+start:
+  title: Slow the buzz
+  say: My buzzer is wearing itself out. Let's slow it down.
+  go: Slow it
+
+beats:
+  - say: This is a capacitor. Tap it.
+    objective: Meet the capacitor
+    meet: C1
+    note: { at: C1, text: capacitor }
+
+  - say: Tap its minus leg. Look for the stripe.
+    tap: { answer: C1.neg, among: [C1.pos, C1.neg] }
+    wrong:
+      C1.pos: "That's the long leg, plus. Find the stripe."
+    note: { at: C1.neg, text: "stripe: minus, the short leg" }
+
+  - say: Long leg in row 11, stripe in row 13. Power on.
+    objective: Tame the buzz
+    guess: { options: [Faster, Slower, Silent], answer: Slower }
+    do: tame-it
+    done: Tick... tock. Much calmer.
+    note: { at: C1, text: a little tank for the coil }
+
+  - say: Peek at the scope. Where does the relay let go?
+    tool: scope
+    spot: [K1, C1]
+    pick: { options: [Near 9 V, Near 2 V], answer: Near 2 V }
+    wrong:
+      Near 9 V: "That's where it refills. Look at the low points."
+    note: { at: K1, text: "lets go near 1.8 V" }
+
+  - say: Swap in the 470 µF. Faster or slower?
+    guess: { options: [Faster, Slower], answer: Faster }
+    do: faster-ticks
+    note: { at: C2, text: "half the tank, half the tick" }
+    rule: Bigger capacitor, slower ticks.
+
+  - say: What is this?
+    pick: { on: C2, options: [A capacitor, A resistor, A diode], answer: A capacitor }
+
+secret:
+  task: soften-the-surge
+  say: Curious? Swap the green wire for the 100 Ω.
+  done: Gentler on the contacts. Each refill is softer.
+
+fixit:
+  say: Fix-it time. Check my capacitor before you power up.
+  tasks:
+    - task: fix-backwards
+
+end:
+  say: Tick, tock. A tank and a coil keep time.

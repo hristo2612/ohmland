@@ -1,14 +1,16 @@
 // Readouts floating over parts (lab instruments): an LED's stress bar (its current as a share of its maximum) and a
-// part's temperature with a touch-feel word. They face the camera and read their part's state from the store.
+// part's temperature with a touch-feel word. The temperature faces the camera in the scene; the stress bar is a small
+// paper tag in the page above the part, as in the ink view, so it reads on paper in either theme.
 
-import { useLayoutEffect, useMemo } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Billboard } from "@react-three/drei";
 import { useLabels } from "../labels";
 import { partPose } from "../layout";
 import { useBench, type BenchStoreState, type InspectSpec } from "../store";
+import type { ScreenPoint } from "../view/controller";
 import { FONT, makeCanvas } from "../three/canvas";
-import type { BenchState, PlacedPart } from "../types";
+import type { BenchState, PlacedPart, Vec3 } from "../types";
 
 /** Parts a readout spec covers: by id or by kind. */
 function covered(bench: BenchState, spec: InspectSpec): PlacedPart[] {
@@ -33,55 +35,69 @@ export function inspectKey(s: BenchStoreState): string {
   return out;
 }
 
+/** Where a readout floats: a little above the part. */
+function readoutAt(bench: BenchState, p: PlacedPart): Vec3 {
+  const pose = partPose(bench, p);
+  const lift = p.kind === "led" ? 12 : p.kind === "resistor" ? 13 : 20;
+  return [pose.origin[0], pose.origin[1] + lift, pose.origin[2]];
+}
+
+/** The temperature tags, in the scene. */
 export function Readouts({ bench, inspect }: { bench: BenchState; inspect: readonly InspectSpec[] }) {
   return (
     <>
-      {inspect.flatMap((spec) =>
-        covered(bench, spec).map((p) => {
-          const pose = partPose(bench, p);
-          const lift = p.kind === "led" ? 16 : p.kind === "resistor" ? 13 : 20;
-          const at: [number, number, number] = [pose.origin[0], pose.origin[1] + lift, pose.origin[2]];
-          return spec.show === "stress" ? <StressBar key={`s:${p.id}`} id={p.id} at={at} /> : <HeatTag key={`h:${p.id}`} id={p.id} at={at} />;
-        }),
-      )}
+      {inspect.flatMap((spec) => (spec.show === "stress" ? [] : covered(bench, spec).map((p) => <HeatTag key={`h:${p.id}`} id={p.id} at={readoutAt(bench, p)} />)))}
     </>
   );
 }
 
-const BAR_W = 24;
-const BAR_H = 3.6;
+/** Projects a world point to the bench element (CSS px), and tells when the view moves. */
+type Projector = { project(p: Vec3): ScreenPoint | null; onViewChange(cb: () => void): () => void };
 
-function StressBar({ id, at }: { id: string; at: [number, number, number] }) {
-  const level = useBench((s) => Math.round(Math.min(1, stressOf(s, id)) * 40) / 40);
-  const dead = useBench((s) => s.snapshot?.parts[id]?.health === "dead");
-  const back = useMemo(() => new THREE.MeshBasicMaterial({ color: "#1d2128", transparent: true, opacity: 0.8, depthTest: false, toneMapped: false }), []);
-  const fill = useMemo(() => new THREE.MeshBasicMaterial({ color: "#3cb862", depthTest: false, toneMapped: false }), []);
-  useLayoutEffect(
-    () => () => {
-      back.dispose();
-      fill.dispose();
-    },
-    [back, fill],
-  );
-  fill.color.set(dead ? "#7d8088" : level >= 0.9 ? "#e5483b" : level >= 0.5 ? "#f2a33a" : "#3cb862");
-  const w = Math.max(0.001, (BAR_W - 1) * (dead ? 1 : level));
+/**
+ * The stress bars, as small paper tags in the page above their parts (the ink view's look): green, then orange from
+ * half the maximum, red from nine tenths, grey when the part is dead. Ticks mark half and nine tenths.
+ */
+export function StressTags({ controller }: { controller: Projector }) {
+  const bench = useBench((s) => s.bench);
+  const inspect = useBench((s) => s.inspect);
+  const ids = inspect.flatMap((spec) => (spec.show === "stress" ? covered(bench, spec).map((p) => p.id) : []));
+  if (!ids.length) return null;
   return (
-    <Billboard position={at}>
-      <mesh material={back} renderOrder={40}>
-        <planeGeometry args={[BAR_W + 1.2, BAR_H + 1.2]} />
-      </mesh>
-      <mesh material={fill} position={[-(BAR_W - 1) / 2 + w / 2, 0, 0.01]} renderOrder={41}>
-        <planeGeometry args={[w, BAR_H - 0.6]} />
-      </mesh>
-      {/* Ticks at half and nine tenths of the maximum. */}
-      {[0.5, 0.9].map((k) => (
-        <mesh key={k} material={back} position={[-(BAR_W - 1) / 2 + (BAR_W - 1) * k, 0, 0.02]} renderOrder={42}>
-          <planeGeometry args={[0.35, BAR_H - 0.4]} />
-        </mesh>
+    <div className="ohb-readouts" aria-hidden="true">
+      {[...new Set(ids)].map((id) => (
+        <StressTag key={id} id={id} controller={controller} />
       ))}
-    </Billboard>
+    </div>
   );
 }
+
+const StressTag = memo(function StressTag({ id, controller }: { id: string; controller: Projector }) {
+  const level = useBench((s) => Math.round(Math.min(1, stressOf(s, id)) * 40) / 40);
+  const dead = useBench((s) => s.snapshot?.parts[id]?.health === "dead");
+  const bench = useBench((s) => s.bench);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const place = () => {
+      const el = ref.current;
+      const p = bench.parts.find((x) => x.id === id);
+      const sp = p ? controller.project(readoutAt(bench, p)) : null;
+      if (!el) return;
+      el.style.visibility = sp && sp.visible ? "" : "hidden";
+      if (sp) el.style.transform = `translate(${sp.x}px, ${sp.y}px) translate(-50%, calc(-100% - 6px))`;
+    };
+    place();
+    return controller.onViewChange(place);
+  }, [controller, bench, id]);
+  const tone = dead ? "dead" : level >= 0.9 ? "high" : level >= 0.5 ? "mid" : "low";
+  return (
+    <div ref={ref} className="ohb-stress" data-tone={tone} style={{ visibility: "hidden" }}>
+      <i style={{ width: `${(dead ? 1 : level) * 100}%` }} />
+      <b style={{ left: "50%" }} />
+      <b style={{ left: "90%" }} />
+    </div>
+  );
+});
 
 function feel(temp: number): "cool" | "warm" | "hot" | "ouch" {
   return temp < 35 ? "cool" : temp < 50 ? "warm" : temp < 70 ? "hot" : "ouch";

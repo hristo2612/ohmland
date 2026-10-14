@@ -1,7 +1,8 @@
-// Blueprint: docs/curriculum/unit-1.md, L6. Five loose resistors whose bands show their nominal values, each with its
-// own real value (one out of tolerance), a colour chart, five value labels to drag next to them and a reject bin.
-import { defineLab, type LabView } from "@ohmland/lab";
-import { rangeIs, readsIn } from "./lib/meter";
+// Blueprint: docs/curriculum/unit-1.md, L6, split for a bench lesson (docs/curriculum/conversion-guide.md, B3): this is
+// the kept half (the code), content/units/basics/resistance/reading-the-stripes/lesson.yaml; measuring and the
+// tolerance moved to the-liar. One idea: two digit stripes, then the number of zeros. Five loose resistors whose
+// bands show their values, a colour chart and five value labels to drag next to them; no meter, stripes only.
+import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 
 /** Each value label and the resistor it belongs to. */
 const LABELS: [label: string, resistor: string][] = [
@@ -18,24 +19,34 @@ const labelled = (lab: LabView, label: string, resistor: string): boolean => {
   const d = lab.distance(label, resistor);
   return d < 30 && RESISTORS.every((r) => r === resistor || lab.distance(label, r) > d);
 };
+const sorted = (lab: LabView) => LABELS.every(([l, r]) => labelled(lab, l, r));
 
 // Where the resistors lie, tipped out of the bag (desk mm).
 const AT: Record<string, [number, number]> = { R1: [-104, -6], R2: [-64, 10], R3: [-16, -8], R4: [32, 8], R5: [80, -6] };
+/** Each label's place just in front of its resistor. */
+const by = (r: string) => `desk:${AT[r]![0]},${AT[r]![1] + 18}`;
+
+/** The fix-it bench: the 470 Ω and 150 Ω labels swapped. */
+const SWAPPED: SolutionStep[] = [
+  { do: "move", part: "L3", at: by("R2") },
+  { do: "move", part: "L2", at: by("R3") },
+];
+/** The secret: one more resistor comes out of the bag, with gold in third place (4.7 Ω). */
+const TINY: SolutionStep[] = [{ do: "place", part: "R6", kind: "resistor", at: "desk:40,-74", params: { ohms: 4.7, watts: 0.25 } }];
 
 export default defineLab({
   id: "reading-the-stripes",
   title: "Reading the stripes",
   bench: {
     board: "none",
+    frame: ["desk:-124,-104", "desk:104,64"],
     parts: [
-      { id: "R1", kind: "resistor", at: `desk:${AT.R1}`, rot: 8, params: { ohms: 15, watts: 0.25, actualOhms: 15.2 }, label: "15 Ω resistor" },
-      { id: "R2", kind: "resistor", at: `desk:${AT.R2}`, rot: -10, params: { ohms: 150, watts: 0.25, actualOhms: 148 }, label: "150 Ω resistor" },
-      { id: "R3", kind: "resistor", at: `desk:${AT.R3}`, rot: 4, params: { ohms: 470, watts: 0.25, actualOhms: 466 }, label: "470 Ω resistor" },
-      { id: "R4", kind: "resistor", at: `desk:${AT.R4}`, rot: -6, params: { ohms: 1500, watts: 0.25, actualOhms: 1520 }, label: "1.5 kΩ resistor" },
-      // Out of tolerance (+11.8%); its body is very slightly darkened.
-      { id: "R5", kind: "resistor", at: `desk:${AT.R5}`, rot: 12, params: { ohms: 2200, watts: 0.25, actualOhms: 2460 }, label: "2.2 kΩ resistor" },
+      { id: "R1", kind: "resistor", at: `desk:${AT.R1}`, rot: 8, params: { ohms: 15, watts: 0.25 }, label: "Resistor" },
+      { id: "R2", kind: "resistor", at: `desk:${AT.R2}`, rot: -10, params: { ohms: 150, watts: 0.25 }, label: "Resistor" },
+      { id: "R3", kind: "resistor", at: `desk:${AT.R3}`, rot: 4, params: { ohms: 470, watts: 0.25 }, label: "Resistor" },
+      { id: "R4", kind: "resistor", at: `desk:${AT.R4}`, rot: -6, params: { ohms: 1500, watts: 0.25 }, label: "Resistor" },
+      { id: "R5", kind: "resistor", at: `desk:${AT.R5}`, rot: 12, params: { ohms: 2200, watts: 0.25 }, label: "Resistor" },
       { id: "CH1", kind: "chart", at: "desk:-80,-86", locked: true, label: "Colour chart" },
-      { id: "BIN1", kind: "bin", at: "desk:56,-82", locked: true, label: "Reject bin" },
       // The value labels, shuffled along the front.
       { id: "L3", kind: "tag", at: "desk:-100,46", params: { text: "470 Ω" } },
       { id: "L5", kind: "tag", at: "desk:-62,52", params: { text: "2.2 kΩ" } },
@@ -44,12 +55,10 @@ export default defineLab({
       { id: "L2", kind: "tag", at: "desk:52,46", params: { text: "150 Ω" } },
     ],
     tray: [],
-    instruments: [{ kind: "meter", at: "desk:168,22", mode: "ohm", range: "2k" }],
+    instruments: [],
   },
   mascot: {
-    start: "Stripes, not numbers. Let's crack the code.",
     hint: "Gold stripe on the right. Then read from the left.",
-    success: "You caught the liar. Nothing gets past you now.",
   },
   tasks: [
     {
@@ -62,56 +71,56 @@ export default defineLab({
       note: { id: "value", label: "Yellow, violet, brown", unit: "Ω" },
       hints: ["First two stripes are digits: yellow 4, violet 7.", "The third stripe counts zeros. Brown is 1."],
       highlight: ["R3", "CH1"],
-      success: "4, 7 and one zero: 470 Ω.",
-    },
-    {
-      id: "measure-it",
-      prompt: "Measure it on the 2k range. Exactly 470 Ω?",
-      goal: (lab) => lab.meter?.mode === "ohm" && rangeIs(lab, "2k") && lab.across("R3", "either") && readsIn(lab, 0.447, 0.493),
-      hints: ["A probe on each wire end."],
-      highlight: ["pin:R3.a", "pin:R3.b"],
-      success: "Close, not exact. Gold promises within 5%: this one is.",
-    },
-    {
-      id: "probe-tips",
-      prompt: "200 range. Touch the probe tips together.",
-      goal: (lab) => lab.meter?.mode === "ohm" && rangeIs(lab, "200") && lab.connected("red", "black") && readsIn(lab, 0.1, 0.4),
-      hints: ["Drag one probe's tip onto the other's."],
-      success: "About 0.2 Ω: the meter's own leads.",
-      notice: "So the 15 Ω resistor reads about 0.2 Ω high.",
+      success: "470 Ω.",
     },
     {
       id: "sort-the-bag",
-      prompt: "Read and measure the other four. Label each one.",
-      goal: (lab) => LABELS.every(([l, r]) => labelled(lab, l, r)),
-      hints: ["Stripes first, then confirm with the meter.", "Brown, green, red: 1, 5 and two zeros.", "Drop each label right next to its resistor."],
+      prompt: "Read the other four. Label each one.",
+      goal: sorted,
+      hints: ["Brown, green, red: 1, 5 and two zeros.", "Drop each label right next to its resistor."],
       highlight: ["L1", "L2", "L3", "L4", "L5"],
-      success: "Five for five. Stripes and meter agree.",
+      success: "Five for five.",
     },
     {
-      id: "find-the-liar",
-      prompt: "One is outside its 5% tolerance. Bin it.",
+      id: "fix-labels",
+      prompt: "Two labels disagree with their stripes. Fix them.",
+      setup: SWAPPED,
+      // Wrong first (the setup), then right again: a bench that was never wrong does not count.
       goal: (lab) => {
-        const held = lab.holds("BIN1");
-        return held.length === 1 && held[0] === "R5";
+        if (!sorted(lab)) lab.memory["wrong"] = true;
+        return lab.memory["wrong"] === true && sorted(lab);
       },
-      hints: ["Work out 5% above and below each value.", "2.2 kΩ plus 5% is 2.31 kΩ."],
-      highlight: ["BIN1"],
-      success: "Caught it. 2.46 kΩ is over 5% above 2.2 kΩ. Probably overheated once.",
+      hints: ["Read each stripe again. Which label doesn't match?", "Yellow, violet, brown is 470 Ω. Brown, green, brown is 150 Ω."],
+      highlight: ["L2", "L3"],
+      success: "Fixed.",
+    },
+    {
+      id: "tiny-gold",
+      prompt: "Yellow, violet, gold: gold in third place. How many ohms?",
+      setup: TINY,
+      goal: (lab) => {
+        const v = lab.note("gold");
+        return v !== null && Math.abs(v - 4.7) < 0.05;
+      },
+      note: { id: "gold", label: "Yellow, violet, gold", unit: "Ω" },
+      hints: ["Gold in third place means divide by ten.", "47 divided by 10."],
+      highlight: ["R6", "CH1"],
+      success: "4.7 Ω.",
+      bonus: true,
     },
   ],
   solution: [
     { do: "note", id: "value", value: "470" },
     { do: "check", task: "decode-yellow" },
-    { do: "probe", red: "R3.a", black: "R3.b" },
-    { do: "check", task: "measure-it" },
-    { do: "dial", mode: "ohm", range: "200" },
-    { do: "probe", red: "black" },
-    { do: "check", task: "probe-tips" },
-    { do: "probe", red: "R5.a", black: "R5.b", range: "20k" },
-    ...LABELS.map(([l, r]) => ({ do: "move" as const, part: l, at: `desk:${AT[r]![0]},${AT[r]![1] + 18}` })),
+    ...LABELS.map(([l, r]) => ({ do: "move" as const, part: l, at: by(r) })),
     { do: "check", task: "sort-the-bag" },
-    { do: "move", part: "R5", at: "in:BIN1" },
-    { do: "check", task: "find-the-liar" },
+    ...SWAPPED,
+    { do: "move", part: "L3", at: by("R3") },
+    { do: "move", part: "L2", at: by("R2") },
+    { do: "check", task: "fix-labels" },
+    // The secret: its bench starts from the sorted bag, with one more resistor out.
+    ...TINY,
+    { do: "note", id: "gold", value: "4.7" },
+    { do: "check", task: "tiny-gold" },
   ],
 });
