@@ -15,6 +15,7 @@ import { LED_HEX, WIRE_HEX } from "../three/materials";
 import { PartIcon, ToolIcon } from "./icons";
 import type { InteractionApi } from "./Interaction";
 import { COMPACT_WIDTH, NARROW_TRAY, trayCoverOf } from "../view/tray-cover";
+import { useOverflowX } from "../view/useOverflowX";
 
 // Quiet, notebook-style chrome: pasted paper slips with hairline rules, ink icons, blue ink for what the learner has
 // switched on. Colours and type come from the page's notebook tokens when it has them (fallbacks are the light page).
@@ -76,6 +77,7 @@ const CSS = `
 .ohb-compact .ohb-tray h2{display:none}
 .ohb-compact .ohb-tray-list{display:flex;flex-direction:row;overflow-x:auto;overflow-y:hidden;padding:4px}
 .ohb-compact .ohb-item{min-width:72px;min-height:0;font-size:13px;line-height:16px}
+.ohb-compact .ohb-tray-list[data-scroll] .ohb-item{touch-action:pan-x}
 .ohb-compact .ohb-tools{left:8px;top:8px}
 .ohb-compact .ohb-view{right:8px;top:8px}
 .ohb-compact .ohb-sel{bottom:calc(92px + var(--ohb-inset-bottom,0px))}
@@ -184,6 +186,8 @@ export function Overlay({
   const left = (item: TrayItem) => trayLeft(item, bench);
   const showTray = !readOnly && tray.length > 0 && tray.some((item) => left(item) !== 0);
   const wideTray = tray.length > NARROW_TRAY && !compact;
+  // A strip that scrolls lets a sideways swipe scroll it; an upward drag takes a part out.
+  const [stripScrolls, stripRef] = useOverflowX(tray.length);
   // "Reset view" shows only once the learner has moved the camera away from the framing of the work area.
   const [moved, setMoved] = useState(false);
   useEffect(() => {
@@ -328,7 +332,7 @@ export function Overlay({
       {showTray && (
         <div className={`ohb-panel ohb-tray${wideTray ? " ohb-wide" : ""}`} role="list" aria-label={labels.tray}>
           <h2>{labels.tray}</h2>
-          <div className="ohb-tray-list">
+          <div className="ohb-tray-list" ref={stripRef} data-scroll={stripScrolls || undefined}>
             {tray.map((item, i) => {
               const { name, detail } = itemLabel(item, labels);
               const remaining = left(item);
