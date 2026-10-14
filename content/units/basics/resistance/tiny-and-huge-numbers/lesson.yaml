@@ -24,14 +24,14 @@ beats:
     guess: { options: ["9.40", "2.00", OL], answer: OL }
     do: over-the-limit
     done: OL. 9 V won't fit in 2 V.
-    note: { at: part:M1, text: "OL: over limit, go up" }
+    note: { at: part:M1/display, text: "OL: over limit, go up" }
 
   - say: Up one range at a time. Stop at a number.
     objective: Climb a range
     tool: meter
     do: climb-a-range
     done: 9.40 V. The first range that fits.
-    note: { at: part:M1, text: "20 V: most digits that fit" }
+    note: { at: part:M1/display, text: "20 V: most digits that fit" }
     rule: Pick the smallest range above your reading.
 
   - say: Quick one. 12 V is coming. Which range?
@@ -50,7 +50,7 @@ secret:
   say: Curious? Try 200 V on the 9 V battery.
   tool: meter
   done: Still works.
-  note: { at: part:M1, text: "200 V: works, fewer digits" }
+  note: { at: part:M1/display, text: "200 V: works, fewer digits" }
 
 fixit:
   say: Fix-it time. My AA shows just 1.6. More digits?

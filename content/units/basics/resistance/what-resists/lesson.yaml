@@ -30,7 +30,7 @@ beats:
     tool: meter
     number: { answer: 840, unit: kΩ, tolerance: 1 }
     hint: M is a million. k is a thousand.
-    note: { at: part:M1, text: "M: mega, a million" }
+    note: { at: part:M1/display, text: "M: mega, a million" }
 
   - say: Tap Wet on the patch. Guess first.
     objective: Wet skin
@@ -41,7 +41,7 @@ beats:
     note: { at: P1, text: "dry 840 kΩ, wet 46 kΩ" }
 
   - say: Quick one. What does Ω measure?
-    pick: { options: [push, flow, squeeze], answer: squeeze, on: part:M1 }
+    pick: { options: [push, flow, squeeze], answer: squeeze, on: part:M1/dial }
     wrong: { push: "Push is V, volts. Try again.", flow: "Flow is A, amps. Try again." }
 
 secret:
