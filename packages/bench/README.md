@@ -55,6 +55,12 @@ the current one stays on screen. Its `controllerRef` receives a hub that stays t
 overlays subscribe to `onViewChange` once, and the last `focus` and `spotlight` carry over to the new view.
 `hub.inner()` is the active view's own controller (in 3D, a `Bench3DController`).
 
+`cableStyle: "classic" | "drape" | "taped" | "tidy"` picks how clip leads and probe cords run between their clips in
+both views (default `classic`; without the prop, a style picked on the device under `CABLE_STYLE_KEY` applies). The
+routes (`src/cables/route.ts`) are pure and worked out once per bench change; `tidyBench` (`@ohmland/bench/core`)
+is the tidy style's layout pass and `inkClutter` (`@ohmland/bench/ink`) scores a drawing's clutter. See
+`docs/BENCH-VIEWS.md`, "Cable styles".
+
 ### `BenchController`
 
 | Method | |
@@ -100,16 +106,19 @@ Interaction: drag parts from the tray (or tap a tray item, then tap the bench). 
 into the nearest free holes that fit its footprint, or it lies on the desk. Drag a resistor or diode lead to stretch it
 (3 to 8 holes). Wire mode: click a hole then another (or drag between them); pick the colour in the toolbar.
 Drag crocodile clips, probe tips and banana plugs; they snap to the nearest lead, terminal, wire end, hole or socket.
-Turn the meter dial by dragging it, clicking it (next position) or clicking a label. Hover a hole (or tap it on touch)
-to see everything metal-connected to it through the board; the X-ray toggle shows every strip. Right-click or
-long-press for a context menu.
+Turn the meter dial by dragging round it, tapping the knob where it should point (its middle: one step on) or
+clicking a label. A switch flips on a tap or a short drag of its lever. Hover a hole (or tap it on touch) to see
+everything metal-connected to it through the board; the X-ray toggle shows every strip. Right-click or long-press for
+a context menu. How a drag feels (lift, landing marks, magnet, glide back, edge pan, the finger's lift) is shared
+with the ink view: docs/BENCH-VIEWS.md, "Drag and drop".
 
 Keyboard (the bench is focusable): arrows move the selected part one hole (or turn a selected trimmer, or the meter
 dial), `R` rotates, `Delete` removes, `Space` presses a selected pushbutton or flips a switch, `W` wire mode, `X` x-ray,
 `T` top view, `Escape` cancels, `Ctrl/Cmd+Z` undo, `Ctrl/Cmd+Shift+Z` redo.
 
 Camera: left drag orbits (limited to the front half and above the desk), right drag pans within the work area, wheel
-or pinch zooms toward the cursor. A double click or double tap on a part frames it; on the empty desk it frames the
+or pinch zooms toward the cursor. On touch one finger on the empty bench pans (as in ink), two fingers zoom and pan,
+three orbit. A double click or double tap on a part frames it; on the empty desk it frames the
 work area again. The first view, and the view after a resize while the learner has not moved the camera, frames the
 work area: the lab's `frame` when it sets one, else the board, the parts, the meter and the leads that hold
 something. Rendering is on demand: nothing is drawn while nothing changes, except while smoke or a hint pulse
@@ -452,8 +461,8 @@ as quiet context) and rings the targets in red pencil.
 
 **Interaction**, as in 3D: drag or tap-then-tap from the tray; drag parts (they snap into holes, drop into holders'
 seats, or swap with a part of the same kind they are dropped on); drag a resistor's or a capacitor's lead to stretch
-it; drag jumper ends, clips, probe tips, banana plugs, the meter and its dial (or click the knob, or a label); click a
-switch to flip it, hold a button, turn a trimmer, click a prop's printed setting (moisture tabs, the tester's load
+it; drag jumper ends, clips, probe tips, banana plugs, the meter and its dial (or tap the knob where it should point,
+or a label); tap a switch or flick its lever to flip it, hold a button, turn a trimmer, click a prop's printed setting (moisture tabs, the tester's load
 switch), drag along the pencil card to draw; Wire mode for hole to hole jumpers; X-ray; right-click or long-press for
 the menu. Hover a hole (or tap it) to light its metal strip and everything joined to it. Empty-paper drags pan; the
 wheel, trackpad pinch and two fingers zoom toward the pointer.

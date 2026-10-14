@@ -29,7 +29,7 @@ export function rulerMarks(cols: number, at: (hole: string) => ScreenPoint | nul
   const col = { x: a2.x - a1.x, y: a2.y - a1.y };
   const row = { x: b1.x - a1.x, y: b1.y - a1.y };
   // Only once holes are far enough apart for a label beside each row: zoomed out, the board's own print serves.
-  if (Math.hypot(row.x, row.y) < 15) return [];
+  if (Math.hypot(row.x, row.y) < 17) return [];
   // Where the board prints its labels: a step past the first and last strip, and past rows a and j.
   const step = (p: ScreenPoint | null, d: { x: number; y: number }, k: number) => (p ? { x: p.x + d.x * k, y: p.y + d.y * k } : null);
   const letters = ROWS.flatMap((r) => [step(at(`${r}1`), col, -1.4), step(at(`${r}${cols}`), col, 1.4)]);

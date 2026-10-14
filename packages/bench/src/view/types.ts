@@ -6,6 +6,7 @@ import type { BenchLabels } from "../labels";
 import type { BenchStore } from "../store";
 import type { BenchAction, BenchState, Quality, TrayItem } from "../types";
 import type { BenchController } from "./controller";
+import type { CableStyle } from "../cables/style";
 
 export type BenchRendererProps = {
   /** Starting bench (ignored when `store` is given). */
@@ -32,6 +33,8 @@ export type BenchRendererProps = {
   labels?: Partial<BenchLabels>;
   /** A desk rectangle [x0, z0, x1, z1] in mm to frame at the start and on "reset view" (a lab's working area). */
   frame?: [number, number, number, number] | null;
+  /** How clip leads and probe cords are drawn between their clips (default "classic"; see src/cables/style.ts). */
+  cableStyle?: CableStyle;
   /** Page colours: follow the page's notebook tokens (default), or force the light or the night page. */
   theme?: "light" | "dark";
   className?: string;

@@ -52,6 +52,8 @@ export type BuiltBench = {
   labels: Record<string, string>;
   /** Simulator inputs to send once the circuit is loaded (control sliders, legacy `light`, `pressed`). */
   inputs: SimInput[];
+  /** Parts the tidy layout pass leaves where the lab put them (`stay: true`). */
+  fixed?: string[];
   /** Spare meter fuses, or null for unlimited. */
   spareFuses: number | null;
   /** The desk rectangle the camera frames, [x0, z0, x1, z1] in mm, or null for the whole bench. */
@@ -334,7 +336,7 @@ function attach(bench: BenchState, s: string | null, aliases: Record<string, Rec
   return resolveAttach(bench, s);
 }
 
-function parseLead(spec: LeadSpec): { id?: string; from: string | null; to: string | null; color?: LeadColor } {
+function parseLead(spec: LeadSpec): { id?: string; from: string | null; to: string | null; color?: LeadColor; lie?: string } {
   if (typeof spec !== "string") return spec;
   const [from, to] = spec.split(/\s*(?:->|→|\|| to )\s*/);
   return { from: from || null, to: to || null };
@@ -366,6 +368,7 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
   const boardKind = config.board === "half" ? "bb400" : config.board === "none" ? null : "bb830";
   let bench = emptyBench(boardKind ? { kind: boardKind, ...(config.splitRails && boardKind === "bb830" ? { splitRails: true } : {}) } : null);
   const locked: string[] = [];
+  const fixed: string[] = [];
   const labels: Record<string, string> = {};
   const inputs: SimInput[] = [];
   const aliases: Record<string, Record<string, string>> = {};
@@ -412,6 +415,7 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
     }
     if (p.label) labels[p.id] = p.label;
     if (p.locked) locked.push(p.id);
+    if (p.stay) fixed.push(p.id);
     if (b.n.pins) aliases[p.id] = b.n.pins;
     if (b.n.inputs) inputs.push(...b.n.inputs);
     pending.push({ id: p.id, n: b.n, at: p.at, holes: p.holes, rot: p.rot ?? 0 });
@@ -496,7 +500,15 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
     const to = attach(bench, s.to, aliases);
     if (s.from && !from) warnings.push(`lead ${s.id ?? i + 1}: nothing at "${s.from}", that clip lies on the desk`);
     if (s.to && !to) warnings.push(`lead ${s.id ?? i + 1}: nothing at "${s.to}", that clip lies on the desk`);
-    bench = addLeadBetween(bench, from, to, s.color ?? LEAD_COLORS[i % LEAD_COLORS.length]!, s.id)[0];
+    const [next, lid] = addLeadBetween(bench, from, to, s.color ?? LEAD_COLORS[i % LEAD_COLORS.length]!, s.id);
+    bench = next;
+    // Where a loose clip lies, when the lab says.
+    const lie = s.lie ? deskSpot(s.lie) : null;
+    if (s.lie && !lie) warnings.push(`lead ${s.id ?? i + 1}: cannot place "${s.lie}"`);
+    if (lie) {
+      if (!from) bench = benchOps.clipLead(bench, lid, "a", null, lie);
+      if (!to) bench = benchOps.clipLead(bench, lid, "b", null, from ? lie : [lie[0] + 50, lie[1]]);
+    }
   });
 
   for (const g of onLeads) {
@@ -552,7 +564,7 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
 
   const frame = frameOf(bench, config.frame, warnings);
   const overlays = { flow: config.overlays?.flow ?? "off", push: !!config.overlays?.push, offer: config.overlays?.offer ?? [] } as const;
-  return { bench, locked, tray, meter, scope, logger, stopwatch, tapper, controls: config.controls ?? [], nodes: config.nodes ?? {}, labels, inputs, spareFuses, inspect, warnings, frame, overlays };
+  return { bench, locked, fixed, tray, meter, scope, logger, stopwatch, tapper, controls: config.controls ?? [], nodes: config.nodes ?? {}, labels, inputs, spareFuses, inspect, warnings, frame, overlays };
 }
 
 /** The rectangle spanned by holes and desk spots, with a little margin. */

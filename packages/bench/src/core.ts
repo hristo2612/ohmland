@@ -89,6 +89,11 @@ export { chargeable, charge as staticCharge, stuckTo, lifting, apart, MAX_MARKS,
 // The store needs React and zustand but not three.js, so a host can own it before the 3D view loads.
 export { createBenchStore, type BenchStore, type BenchStoreState, type BenchUi, type InspectSpec, type BenchOverlay } from "./store";
 export { DEFAULT_LABELS, type BenchLabels } from "./labels";
+// Cable styles (how clip leads and probe cords are drawn) and the tidy layout pass.
+export { CABLE_STYLES, isCableStyle, type CableStyle } from "./cables/style";
+export { conventionColours } from "./cables/colours";
+export { tidyBench, type TidyOptions } from "./cables/tidy";
+export { clutter, type Clutter, type ClutterScene } from "./cables/clutter";
 // Unit 3: the solder station engine, joints, perfboard, wire and heat-shrink (src/solder).
 export * from "./solder";
 export { spotAnchor } from "./anchors";

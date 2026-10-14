@@ -11,7 +11,7 @@ import { DOT_MIN_AMPS, ELECTRON_SLOWDOWN, dotSpeed, flowMap, traceLoop, unitSpac
 import { stillMotion } from "../../motion";
 import type { BenchStore } from "../../store";
 import type { Vec2 } from "../../types";
-import { anchorInk, leadPolyline, type InkModel, type LeadInk } from "../model";
+import { anchorInk, leadPolyline, type InkModel } from "../model";
 import { INK, n3 } from "../frame";
 
 type Striped = Exclude<FlowStyle, "dots">;
@@ -19,7 +19,8 @@ type Striped = Exclude<FlowStyle, "dots">;
 const n2 = (v: number) => Math.round(v * 100) / 100;
 
 // ---------------------------------------------------------------------------------------------------------------
-// Paths as polylines: sampled from the path data the view draws, so units follow whatever shape a lead takes.
+// Conductors as polylines: the points the view draws each cable through (a lead's stored cable, in any cable style),
+// so the units follow whatever shape a lead takes.
 
 type Poly = { xs: Float64Array; ys: Float64Array; acc: Float64Array; L: number };
 
@@ -74,35 +75,15 @@ function pt(pl: Poly, s: number, lat: number): string {
   return `${n2(p.x + p.nx * lat)} ${n2(p.y + p.ny * lat)}`;
 }
 
-let probe: SVGPathElement | null = null;
-const sampled = new Map<string, Vec2[]>();
-
-/** Points every half millimetre along SVG path data, measured by the browser; `fallback` where it cannot. */
-function samplePath(d: string, fallback: () => Vec2[]): Vec2[] {
-  const hit = sampled.get(d);
-  if (hit) return hit;
-  let pts: Vec2[] | null = null;
-  try {
-    if (typeof document !== "undefined") {
-      probe ??= document.createElementNS("http://www.w3.org/2000/svg", "path");
-      probe.setAttribute("d", d);
-      const L = probe.getTotalLength();
-      if (L > 0) {
-        const n = Math.max(8, Math.min(600, Math.ceil(L / 0.5)));
-        pts = [];
-        for (let i = 0; i <= n; i++) {
-          const p = probe.getPointAtLength((L * i) / n);
-          pts.push([p.x, p.y]);
-        }
-      }
-    }
-  } catch {
-    pts = null;
+/** Points along a quadratic curve (a jumper as the view draws it). */
+function quadPts(a: Vec2, c: Vec2, b: Vec2, n = 16): Vec2[] {
+  const out: Vec2[] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const u = 1 - t;
+    out.push([u * u * a[0] + 2 * u * t * c[0] + t * t * b[0], u * u * a[1] + 2 * u * t * c[1] + t * t * b[1]]);
   }
-  pts ??= fallback();
-  if (sampled.size > 600) sampled.clear();
-  sampled.set(d, pts);
-  return pts;
+  return out;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -163,17 +144,9 @@ function barsD(l: Lay, len: number, lat: number): string {
 // ---------------------------------------------------------------------------------------------------------------
 // Flow
 
-type Ride = { key: string; d: string; amps: number; half: number; pts: () => Vec2[] };
+type Ride = { key: string; d: string; amps: number; half: number; pts: Vec2[] };
 
 const pathOf = (pts: Vec2[]) => pts.map((p, i) => `${i ? "L" : "M"}${n3(p[0])} ${n3(p[1])}`).join("");
-
-/** A clip lead from jaws to jaws: clip, the cable as the view draws it, clip (the tracer runs through the clips). */
-function leadD(li: LeadInk): string {
-  const p = li.path.trim();
-  const body = p.startsWith("M") ? p.slice(1) : null;
-  if (!body) return pathOf(leadPolyline(li));
-  return `M${n3(li.a.tip[0])} ${n3(li.a.tip[1])}L${body}L${n3(li.b.tip[0])} ${n3(li.b.tip[1])}`;
-}
 
 /** Every conductor that can carry current, as drawn, with the current along it from the snapshot. */
 function rides(model: InkModel, s: Snapshot | null): Ride[] {
@@ -182,18 +155,18 @@ function rides(model: InkModel, s: Snapshot | null): Ride[] {
   for (const li of model.leads.values()) {
     if (!li.a.attached && !li.b.attached) continue;
     // Inside the cable itself, as the lead draws it (not over the clips' boots).
-    out.push({ key: `lead:${li.lead.id}`, d: li.path, amps: f.leads[li.lead.id] ?? 0, half: INK.cableW / 2, pts: () => leadPolyline(li).slice(1, -1) });
+    out.push({ key: `lead:${li.lead.id}`, d: li.path, amps: f.leads[li.lead.id] ?? 0, half: INK.cableW / 2, pts: li.cable });
   }
   for (const wi of model.wires.values()) {
     const d = `M${n3(wi.a[0])} ${n3(wi.a[1])}Q${n3(wi.ctrl[0])} ${n3(wi.ctrl[1])} ${n3(wi.b[0])} ${n3(wi.b[1])}`;
-    out.push({ key: `wire:${wi.wire.id}`, d, amps: f.wires[wi.wire.id] ?? 0, half: INK.jumperW / 2, pts: () => [wi.a, wi.b] });
+    out.push({ key: `wire:${wi.wire.id}`, d, amps: f.wires[wi.wire.id] ?? 0, half: INK.jumperW / 2, pts: quadPts(wi.a, wi.ctrl, wi.b) });
   }
   for (const p of f.parts) {
     const pi = model.parts.get(p.id);
     const a = pi?.legs[p.from];
     const b = pi?.legs[p.to];
     if (!a || !b || Math.hypot(a[0] - b[0], a[1] - b[1]) < 1) continue;
-    out.push({ key: `part:${p.id}:${p.from}`, d: pathOf([a, b]), amps: p.amps, half: 0.5, pts: () => [a, b] });
+    out.push({ key: `part:${p.id}:${p.from}`, d: pathOf([a, b]), amps: p.amps, half: 0.5, pts: [a, b] });
   }
   return out;
 }
@@ -230,7 +203,7 @@ export const InkFlowStripes = memo(function InkFlowStripes({ model, store, elect
   }, [model, liveKey, store]);
   const still = useMemo(() => stillMotion(), []);
   const shaped = style === "barber" || style === "chevrons";
-  const polys = useMemo(() => new Map(shaped ? list.map((r) => [r.key, polyOf(samplePath(r.d, r.pts))]) : []), [list, shaped]);
+  const polys = useMemo(() => new Map(shaped ? list.map((r) => [r.key, polyOf(r.pts)]) : []), [list, shaped]);
   const els = useRef(new Map<string, (SVGPathElement | null)[]>());
   const amps = useRef(new Map<string, number>());
   const travel = useRef(new Map<string, number>());
@@ -340,7 +313,8 @@ function tracePolyline(model: InkModel, t: Trace): Vec2[] {
     if (s.kind === "lead") {
       const li = model.leads.get(s.id);
       if (!li) continue;
-      const line = samplePath(leadD(li), () => leadPolyline(li));
+      // Through the clips' jaws at each end, along the cable as drawn.
+      const line = leadPolyline(li);
       for (const p of s.from === "a" ? line : [...line].reverse()) add(p);
     } else {
       add([s.a[0], s.a[2]]);

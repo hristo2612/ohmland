@@ -5,7 +5,7 @@ import type { BenchLessonData } from "../../content/load";
 import { benchLessonSchema } from "../../content/schema";
 import { answerKeys, holeName, isMomentDone, momentsOf, notesToSave, noteText, pinNamesBefore, progressOf, recordTry, rulesFound, savedNotes, scoreOf } from "./flow";
 import { parseNote } from "../../lab/notes";
-import { judgeJoined, resolveAnchor } from "./marks";
+import { choiceScale, judgeJoined, namedParts, resolveAnchor } from "./marks";
 
 const lesson = (extra: Record<string, unknown> = {}): BenchLessonData =>
   ({
@@ -160,5 +160,52 @@ describe("the lab notebook across a resume", () => {
     const back = savedNotes({ [answerKeys.notes("lab")]: saved }, "lab");
     expect([parseNote(back["glow"]!, "mA"), parseNote(back["drop"]!, "V")]).toEqual([12.5, 1.9]);
     expect(savedNotes({ [answerKeys.notes("lab")]: ["junk"] }, "lab")).toEqual({});
+  });
+});
+
+describe("parts a robot line names", () => {
+  it("finds parts by label, by either half of a label that ends in a kind, and by id", () => {
+    const built = buildBench({
+      board: "none",
+      parts: [
+        { id: "B1", kind: "battery", at: "desk:-60,0", label: "9 V battery" },
+        { id: "S1", kind: "toggle-switch", at: "desk:0,-40", params: { base: true }, label: "Switch" },
+        { id: "R1", kind: "resistor", at: "desk:40,0", params: { ohms: 1500 }, label: "1.5 kΩ resistor" },
+        { id: "D1", kind: "led", at: "desk:0,40", label: "Lamp" },
+        { id: "D2", kind: "led", at: "desk:20,40", label: "Red LED" },
+      ],
+      tray: [],
+      instruments: [],
+    });
+    const named = (line: string) => namedParts(line, built.bench, built.labels).sort();
+    expect(named("Unclip a lead far from the lamp.")).toEqual(["D1"]);
+    expect(named("Still dark. Tap the battery's minus snap.")).toEqual(["B1"]);
+    expect(named("Swap the 1.5 kΩ for the 470 Ω. Same holes.")).toEqual(["R1"]);
+    expect(named("Flip its switch, then check D1.")).toEqual(["D1", "S1"]);
+    expect(named("Clip it back.")).toEqual([]);
+    expect(named("My stress bar is red.")).toEqual([]);
+    expect(named("Put the old one back. Then a fresh LED.")).toEqual(["D1", "D2"]);
+    expect(named("Clip the leads on both resistors.")).toEqual(["R1"]);
+    expect(named("This is a resistor. It squeezes the flow.")).toEqual([]);
+  });
+});
+
+describe("how close hands-on work must come", () => {
+  it("needs neighbouring holes on a board, the closest terminals of two parts on the desk, and nothing for one part", () => {
+    const board = buildBench({ board: "half", parts: [{ id: "R1", kind: "resistor", at: "c6-c10", params: { ohms: 470 } }], tray: [], instruments: [] }).bench;
+    expect(choiceScale(board, ["part:R1"], 20)).toBeCloseTo(20 / 2.54);
+    expect(choiceScale(board, ["hole:a3"], 20)).toBeCloseTo(20 / 2.54);
+    const desk = buildBench({
+      board: "none",
+      parts: [
+        { id: "B1", kind: "battery", at: "desk:-60,0" },
+        { id: "D1", kind: "led", at: "desk:60,0" },
+      ],
+      tray: [],
+      instruments: [],
+    }).bench;
+    // Two legs of one LED are the loupe's to tell apart; the battery and the LED are far apart.
+    expect(choiceScale(desk, ["part:D1"], 20)).toBe(0);
+    expect(choiceScale(desk, ["part:B1", "part:D1"], 20)).toBeLessThan(0.5);
   });
 });

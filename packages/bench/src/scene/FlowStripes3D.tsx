@@ -15,6 +15,7 @@ import { holeWorld } from "../board";
 import { jumperPath } from "../models/Leads";
 import { stillMotion } from "../motion";
 import type { BenchStore } from "../store";
+import type { CableStyle } from "../cables/style";
 import type { BenchState, Vec3 } from "../types";
 import type { FloorFn } from "../three/geometry";
 import { useAnimating } from "../three/anim";
@@ -220,15 +221,15 @@ function stripeMaterial(style: Striped, tracer: boolean, colors: { flow: string;
 type Ride = { key: string; pts: THREE.Vector3[]; radius: number };
 
 /** Every conductor that carries current, as drawn: clip leads (cable only), jumpers and the stretches through parts. */
-function rides(bench: BenchState, floor: FloorFn, snapshot: Snapshot | null): { rides: Ride[]; amps: Map<string, number> } {
+function rides(bench: BenchState, floor: FloorFn, snapshot: Snapshot | null, cables: CableStyle): { rides: Ride[]; amps: Map<string, number> } {
   const f = flowMap(bench, snapshot);
   const amps = new Map<string, number>();
   const out: Ride[] = [];
   for (const l of bench.leads) {
     const i = f.leads[l.id] ?? 0;
     if (!(Math.abs(i) >= DOT_MIN_AMPS) || (!l.a.to && !l.b.to)) continue;
-    // The cable as LeadView draws it, from one clip's tail to the other's.
-    out.push({ key: `lead:${l.id}`, pts: leadCable(bench, l, floor).cable, radius: R_LEAD });
+    // The cable as LeadView draws it in the bench's cable style, from one clip's tail to the other's.
+    out.push({ key: `lead:${l.id}`, pts: leadCable(bench, l, floor, cables).cable, radius: R_LEAD });
     amps.set(`lead:${l.id}`, i);
   }
   if (bench.board) {
@@ -256,12 +257,13 @@ function rides(bench: BenchState, floor: FloorFn, snapshot: Snapshot | null): { 
 }
 
 export const FlowStripes3D = memo(function FlowStripes3D({ bench, store, floor, electrons, style }: { bench: BenchState; store: BenchStore; floor: FloorFn; electrons: boolean; style: Striped }) {
-  // Rebuilt only when the set of conductors carrying current changes, not on every snapshot.
-  const liveKey = useStore(store, (s) => [...rides(bench, floor, s.snapshot).amps.keys()].join("|"));
+  // Rebuilt only when the set of conductors carrying current changes (or the cables are laid another way).
+  const cables = useStore(store, (s) => s.cableStyle);
+  const liveKey = useStore(store, (s) => [...rides(bench, floor, s.snapshot, s.cableStyle).amps.keys()].join("|"));
   const pal = usePaperPalette();
   const still = useMemo(() => stillMotion(), []);
   const meshes = useMemo(() => {
-    const { rides: list } = rides(bench, floor, store.getState().snapshot);
+    const { rides: list } = rides(bench, floor, store.getState().snapshot, cables);
     const out: { key: string; geo: THREE.TubeGeometry; material: THREE.ShaderMaterial; length: number }[] = [];
     for (const r of list) {
       const sl = sleeve(r.pts, r.radius);
@@ -273,7 +275,7 @@ export const FlowStripes3D = memo(function FlowStripes3D({ bench, store, floor, 
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bench, floor, liveKey, style, pal.flow, pal.red, still]);
+  }, [bench, floor, cables, liveKey, style, pal.flow, pal.red, still]);
   useLayoutEffect(
     () => () => {
       for (const m of meshes) {
@@ -287,14 +289,14 @@ export const FlowStripes3D = memo(function FlowStripes3D({ bench, store, floor, 
   const travel = useRef(new Map<string, number>());
   useLayoutEffect(() => {
     const update = (s: Snapshot | null) => {
-      amps.current = rides(bench, floor, s).amps;
+      amps.current = rides(bench, floor, s, cables).amps;
       // Standing still, the spacing (and the way each unit faces) is all there is to show: set it now.
       if (still) for (const m of meshes) paint(m.material, m.key, 0);
     };
     update(store.getState().snapshot);
     return store.subscribe((s, prev) => s.snapshot !== prev.snapshot && update(s.snapshot));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bench, floor, store, meshes, still]);
+  }, [bench, floor, cables, store, meshes, still]);
   const paint = (material: THREE.ShaderMaterial, key: string, dt: number) => {
     const i = amps.current.get(key) ?? 0;
     const v = Math.sign(i) * dotSpeed(i) * (electrons ? -ELECTRON_SLOWDOWN : 1);
@@ -326,6 +328,7 @@ export const FlowStripes3D = memo(function FlowStripes3D({ bench, store, floor, 
 
 export const TraceRun3D = memo(function TraceRun3D({ bench, store, floor, from, at, style }: { bench: BenchState; store: BenchStore; floor: FloorFn; from: string; at: number; style: Striped }) {
   const pressed = useStore(store, (s) => s.ui.pressed);
+  const cables = useStore(store, (s) => s.cableStyle);
   const trace = useMemo(() => traceLoop(bench, from, { pressed, snapshot: store.getState().snapshot }), [bench, from, pressed, store]);
   const pts = useMemo(() => {
     const out: THREE.Vector3[] = [];
@@ -338,7 +341,7 @@ export const TraceRun3D = memo(function TraceRun3D({ bench, store, floor, from, 
         const l = bench.leads.find((x) => x.id === s.id);
         if (!l) continue;
         // Inside the cable, through the clips' jaws at each end.
-        const c = leadCable(bench, l, floor);
+        const c = leadCable(bench, l, floor, cables);
         const line = [c.a.tip, ...c.cable, c.b.tip];
         for (const p of s.from === "a" ? line : line.reverse()) add(p.clone());
       } else {
@@ -347,7 +350,7 @@ export const TraceRun3D = memo(function TraceRun3D({ bench, store, floor, from, 
       }
     }
     return out;
-  }, [trace, bench, floor]);
+  }, [trace, bench, floor, cables]);
   const pal = usePaperPalette();
   const run = useMemo(() => {
     const sl = sleeve(pts, R_TRACE);

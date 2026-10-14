@@ -225,10 +225,12 @@ export default defineLab({
     { do: "param", part: "DR1", params: { open: true } },
     { do: "wait", seconds: 9.5 },
     { do: "check", task: "exit-delay" },
+    // From a fresh bench ("Show me") green may still be timing out a power-up latch: let it end first.
+    { do: "wait", seconds: 5 },
     { do: "param", part: "DR1", params: { open: false } },
     { do: "wait", seconds: 0.5 },
     { do: "param", part: "DR1", params: { open: true } },
-    { do: "wait", seconds: 5.5 },
+    { do: "wait", seconds: 6 },
     { do: "check", task: "silent-end" },
     { do: "unwire", wire: "WT" },
     { do: "wire", id: "WT", from: "a33", to: "a46", color: "green" },

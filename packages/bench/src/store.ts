@@ -8,6 +8,7 @@ import type { Snapshot } from "@ohmland/sim";
 import { advanceGates, type FlowStyle, type GateCounts } from "./flow";
 import * as ops from "./ops";
 import type { StationState } from "./solder/station";
+import type { CableStyle } from "./cables/style";
 import type {
   Anchor,
   BenchAction,
@@ -90,6 +91,8 @@ export type BenchStoreState = {
   /** What drives the station's clock: the simulator's time (snapshots) when one runs, else the wall clock. */
   stationClock: "auto" | "wall" | "sim";
   overlay: BenchOverlay;
+  /** How clip leads and probe cords are drawn between their clips (set by the `cableStyle` prop). */
+  cableStyle: CableStyle;
   /** Dots each gate has counted so far (from the snapshots: a gate ticks once per dot that rides past). */
   gates: GateCounts;
   ui: BenchUi;
@@ -185,6 +188,7 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
       station: null,
       stationClock: "auto",
       overlay: { flow: "off", flowStyle: "dots", push: false, trace: null },
+      cableStyle: "classic",
       gates: {},
       ui: initialUi(),
       emit: () => {},

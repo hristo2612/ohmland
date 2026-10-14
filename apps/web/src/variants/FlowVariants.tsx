@@ -2,14 +2,15 @@
  * The flow try-out (/variants/flow, hidden): four benches drawn with each way of showing the flow, side by side, live.
  * Each row runs one simulator in this thread and hands its snapshots to every bench in the row, so the columns differ
  * only in how the flow is drawn (and what a gate counts as one unit). Controls: 3D or ink, current or electrons,
- * moving or still (reduced motion), close up or the whole bench, and running the tracer again.
+ * moving or still (reduced motion), close up or the whole bench, the cables as today or draped, and running the
+ * tracer again.
  *
- * URL: `view=ink`, `electrons=1`, `still=1`, `frame=whole`, `only=<style>` (one style, its four benches large),
+ * URL: `view=ink`, `electrons=1`, `still=1`, `frame=whole`, `cables=drape`, `only=<style>` (one style, its four benches large),
  * `pick=<style>` (the style a phone shows) and `big=<row>:<style>` (one bench open large). 3D benches are drawn only
  * for the rows most on screen (a page holds about sixteen WebGL contexts).
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { FLOW_STYLES, benchToNetlist, createBenchStore, previewStill, type BenchStore, type FlowStyle } from "@ohmland/bench/core";
+import { FLOW_STYLES, benchToNetlist, createBenchStore, previewStill, type BenchStore, type CableStyle, type FlowStyle } from "@ohmland/bench/core";
 import { BenchView, type BenchController } from "@ohmland/bench/view";
 import { createSimulation, type Simulation, type Snapshot } from "@ohmland/sim";
 import { m } from "../i18n";
@@ -78,7 +79,10 @@ const MAX_3D = 15;
 
 const isStyle = (s: string | null): s is FlowStyle => !!s && (FLOW_STYLES as readonly string[]).includes(s);
 
-function Cell({ row, sim, style, view, electrons, framing, traceAt, mounted, onOpen, big = false }: { row: FlowRow; sim: RowSim; style: FlowStyle; view: View; electrons: boolean; framing: "close" | "whole"; traceAt: number; mounted: boolean; onOpen?: () => void; big?: boolean }) {
+type Show = { view: View; electrons: boolean; framing: "close" | "whole"; cables: CableStyle; traceAt: number };
+
+function Cell({ row, sim, style, show, mounted, onOpen, big = false }: { row: FlowRow; sim: RowSim; style: FlowStyle; show: Show; mounted: boolean; onOpen?: () => void; big?: boolean }) {
+  const { view, electrons, framing, cables, traceAt } = show;
   const store = useMemo(() => {
     const s = createBenchStore(row.built.bench);
     s.getState().setOverlay({ flowStyle: style });
@@ -94,17 +98,17 @@ function Cell({ row, sim, style, view, electrons, framing, traceAt, mounted, onO
   useLayoutEffect(() => {
     if (!ready) return;
     ctrl.current?.focus(framing === "close" ? row.close : [], { instant: true, padding: big ? 24 : 6 });
-  }, [ready, framing, row.close, big, view]);
+  }, [ready, framing, row.close, big, view, cables]);
   const label = t.enlarge(t.styles[style].name, t.rows[row.id].name);
   return (
     <div className="fv-cell" data-style={style} data-row={row.id}>
-      {mounted && <BenchView view={view} store={store} readOnly frame={row.built.frame} quality="high" controllerRef={ctrl} onReady={() => setReady(true)} />}
+      {mounted && <BenchView key={cables} view={view} store={store} readOnly frame={row.built.frame} quality="high" cableStyle={cables} controllerRef={ctrl} onReady={() => setReady(true)} />}
       {onOpen && <button type="button" className="fv-cell__open" aria-label={label} onClick={onOpen} />}
     </div>
   );
 }
 
-function Row({ row, sim, styles, view, electrons, framing, traceAt, mounted, onVisible, onOpen }: { row: FlowRow; sim: RowSim; styles: FlowStyle[]; view: View; electrons: boolean; framing: "close" | "whole"; traceAt: number; mounted: boolean; onVisible: (row: RowId, share: number) => void; onOpen: (row: RowId, style: FlowStyle) => void }) {
+function Row({ row, sim, styles, show, mounted, onVisible, onOpen }: { row: FlowRow; sim: RowSim; styles: FlowStyle[]; show: Show; mounted: boolean; onVisible: (row: RowId, share: number) => void; onOpen: (row: RowId, style: FlowStyle) => void }) {
   const ref = useVisible<HTMLDivElement>((share) => onVisible(row.id, share));
   return (
     <section className="fv-row" ref={ref} aria-labelledby={`fv-row-${row.id}`}>
@@ -114,7 +118,7 @@ function Row({ row, sim, styles, view, electrons, framing, traceAt, mounted, onV
       </header>
       <div className="fv-row__cells" style={{ ["--cols" as string]: styles.length }}>
         {styles.map((style) => (
-          <Cell key={`${style}:${view}`} row={row} sim={sim} style={style} view={view} electrons={electrons} framing={framing} traceAt={traceAt} mounted={mounted} onOpen={() => onOpen(row.id, style)} />
+          <Cell key={`${style}:${show.view}`} row={row} sim={sim} style={style} show={show} mounted={mounted} onOpen={() => onOpen(row.id, style)} />
         ))}
       </div>
     </section>
@@ -142,6 +146,7 @@ export default function FlowVariants() {
   const [electrons, setElectrons] = useState(q.get("electrons") === "1");
   const [still, setStill] = useState(q.get("still") === "1");
   const [framing, setFraming] = useState<"close" | "whole">(q.get("frame") === "whole" ? "whole" : "close");
+  const [cables, setCables] = useState<CableStyle>(q.get("cables") === "drape" ? "drape" : "classic");
   const only = isStyle(q.get("only")) ? (q.get("only") as FlowStyle) : null;
   const [pick, setPick] = useState<FlowStyle>(isStyle(q.get("pick")) ? (q.get("pick") as FlowStyle) : (only ?? "barber"));
   const [traceAt, setTraceAt] = useState(0);
@@ -184,6 +189,7 @@ export default function FlowVariants() {
   previewStill(still);
 
   const styles: FlowStyle[] = phone ? [pick] : only ? [only] : [...FLOW_STYLES];
+  const show: Show = { view, electrons, framing, cables, traceAt };
   // Ink is cheap. A 3D bench needs a WebGL context: draw the rows most on screen, and none behind the large view.
   const [shares, setShares] = useState<Partial<Record<RowId, number>>>({});
   const onVisible = (id: RowId, share: number) => setShares((s) => (s[id] === share ? s : { ...s, [id]: share }));
@@ -228,6 +234,10 @@ export default function FlowVariants() {
           ["close", t.framing.close],
           ["whole", t.framing.whole],
         ])}
+        {seg(t.cables.label, cables, setCables, [
+          ["classic", t.cables.classic],
+          ["drape", t.cables.drape],
+        ])}
         <button type="button" className="btn btn--secondary btn--small" onClick={() => setTraceAt((n) => n + 1)}>
           {t.trace}
         </button>
@@ -254,7 +264,7 @@ export default function FlowVariants() {
       {rows && (
         <div className="fv-rows" key={still ? "still" : "moving"}>
           {rows.map((row) => (
-            <Row key={row.id} row={row} sim={sims.get(row.id)!} styles={styles} view={view} electrons={electrons} framing={framing} traceAt={traceAt} mounted={drawn.has(row.id)} onVisible={onVisible} onOpen={(r, s) => setOpen({ row: r, style: s })} />
+            <Row key={row.id} row={row} sim={sims.get(row.id)!} styles={styles} show={show} mounted={drawn.has(row.id)} onVisible={onVisible} onOpen={(r, s) => setOpen({ row: r, style: s })} />
           ))}
         </div>
       )}
@@ -268,7 +278,7 @@ export default function FlowVariants() {
               {t.shut}
             </button>
           </div>
-          <Cell key={`${open.style}:${view}:${still}`} row={openRow} sim={sims.get(openRow.id)!} style={open.style} view={view} electrons={electrons} framing={framing} traceAt={traceAt} mounted big />
+          <Cell key={`${open.style}:${view}:${still}`} row={openRow} sim={sims.get(openRow.id)!} style={open.style} show={show} mounted big />
         </div>
       )}
     </div>

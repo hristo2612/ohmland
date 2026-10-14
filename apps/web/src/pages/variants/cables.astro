@@ -1,0 +1,15 @@
+---
+/**
+ * Hidden (noindex, not in the nav): the cable approaches side by side on the most cluttered benches. See
+ * src/variants/cables/CableVariants.tsx.
+ */
+import Base from "../../layouts/Base.astro";
+import CableVariants from "../../variants/cables/CableVariants";
+import { m } from "../../i18n";
+---
+
+<Base title={m.cableVariants.title} description={m.cableVariants.lead} noindex>
+  <main id="main">
+    <CableVariants client:only="react" />
+  </main>
+</Base>

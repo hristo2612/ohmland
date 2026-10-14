@@ -50,11 +50,12 @@ interface BenchController {
   /**
    * Frame these parts or anchors nicely (smooth unless reduced motion). Empty array: frame the whole work area.
    * `inset`: CSS px of the view a docked panel covers at each edge; the framing keeps clear of it, and it holds (a
-   * resize, reset view) until the next focus. `read`: hands-on work, at least this many CSS px between neighbouring
-   * holes (2.54 mm) at the targets, when every target has leads or clip points (`needsReading`); what does not fit
-   * at that scale is cropped round the targets' anchors (`focalTargets`), and the learner pans for the rest.
+   * resize, reset view) until the next focus. `read`: hands-on work, framed no closer than this many CSS px between
+   * neighbouring holes (2.54 mm); targets that do not fit at that scale are fitted whole, and the touch loupe aims.
+   * `near`: CSS px per mm the work needs; with `withHome` the home view is taken in too while it still shows the work
+   * that close, else the view comes that close round the targets.
    */
-  focus(targets: string[], opts?: { padding?: number; instant?: boolean; inset?: { top?: number; right?: number; bottom?: number; left?: number }; read?: number }): void;
+  focus(targets: string[], opts?: { padding?: number; instant?: boolean; inset?: { top?: number; right?: number; bottom?: number; left?: number }; read?: number; near?: number; withHome?: boolean }): void;
   /** Temporarily emphasise parts (glow ring, dim the rest). */
   spotlight(targets: string[] | null): void;
 }
@@ -118,6 +119,27 @@ Teaching overlays draw over the bench in both views, from one state in the bench
 Parts shut in a sealed box are drawn in neither view and no pointer, clip or probe can reach them; the box's own
 terminals and knob stand for them. Open, the box shows them and the wires inside.
 
+## Cable styles
+
+How clip leads and probe cords run between their clips is a style, `cableStyle` on `<BenchView>` (or either
+renderer; it lives in the bench store), shared by both views (`src/cables`):
+
+- `classic` (the default): each view's original look, a loose curve out of each clip (in 3D a hanging rope).
+- `drape`: smooth curves with slack that grows with distance, routed round part bodies; clips on one terminal (or on
+  terminals side by side) fan out evenly, and parallel runs keep a constant gap.
+- `taped`: straight runs with rounded right-angle corners on an invisible grid; later runs keep off earlier ones.
+- `tidy`: short gentle arcs bowing away from the middle of the work, for benches laid out by the tidy pass
+  (`tidyBench`, `@ohmland/bench/core`), which nudges desk parts and loose clips so the loop reads clockwise from the
+  battery at the left. It never changes what is clipped to what, and keeps furniture and parts a lab marks `stay`.
+
+Every style keeps the anchors, clip points, `project()` and the netlist exactly as they are: only the drawn path
+between the clips changes (and, in the three new styles, which way a clip lies). Each view works the routes out when
+the bench changes, never per frame: ink from its drawn outlines (`buildModel(bench, style)`), 3D from the outlines
+its part models measure as they render, the cable then lifted off the desk (it leaves the clip, falls to whatever is
+under it and lies there). Flow dots, gates, the push hatching and the loop tracer ride the routes as drawn.
+`/variants/cables` (hidden) compares the styles on the most cluttered benches with a clutter score
+(`inkClutter`), and lets a device try a style in bench lessons (`CABLE_STYLE_KEY` in local storage).
+
 ## Interaction parity
 
 Everything a learner can do in one view works in the other: take parts from the tray, place and move them, stretch
@@ -130,10 +152,44 @@ a reading scale), both views pin them to the bench's edge beside their rows and 
 down the left and numbers along the top (the other way round on a board seen end on).
 
 A finger hides what it touches, so a touch drag of a clip, a probe tip, a part, a lead or a jumper end shows a loupe
-in both views (`view/Loupe.tsx`): a lens twice life size held above the finger (beside it near the top edge), the snap
-ring of the point a drop would land on inside it, and that point's name in blue ink above it ("D1 long leg", "a14",
-"c6 to c10") before the finger lifts. On touch a clip or probe tip snaps to the nearest drop point within 22 px
+in both views (`view/Loupe.tsx`): a lens twice life size held above the dragged item (beside it near the top edge),
+the snap ring of the point a drop would land on inside it, and that point's name in blue ink above it ("D1 long leg",
+"a14", "c6 to c10") before the finger lifts. On touch a clip or probe tip snaps to the nearest drop point within 22 px
 (`TOUCH_SNAP`). Ink fills the lens with a copy of its drawing; 3D copies its canvas after each frame.
+
+### Drag and drop
+
+Both views drag the same way, from one module (`view/drag.ts`, constants in `DRAG`), through the same store actions
+and bench ops, with the mouse and with a finger:
+
+- **Pick up.** A grab cursor over anything that moves (a grabbing hand while it is held). Small things have invisible
+  hit padding when nothing is right under the pointer: 22 px round them for a finger (44 px targets), 14 px for a
+  mouse; ink measures it on its shapes, 3D casts rings of rays round the pointer. A picked-up part lifts over about
+  120 ms (6% bigger, a soft shadow; in 3D a few mm off the bench), drawn off its place in the state by a transform,
+  so nothing re-renders as it follows. A grab keeps its hold: a clip taken by its jaws' side does not jump to the
+  pointer.
+- **While dragging,** `view/DragMarks.tsx` writes over the view where a drop would land: a part's legs as ghost
+  marks on the holes they would take, the terminal a clip or probe would bite, a plug's socket, all glowing in blue
+  ink (rings sized to the holes on screen), other drop points near a clip or probe tip glowing faintly, a quiet
+  graphite cross where a drop would not take (a part over the board where it fits nowhere, the tray), and the
+  target's name in ink above it (the loupe's naming; on touch the loupe names it). The loupe shows the same marks in
+  its lens. With a mouse a part, clip, probe tip or plug snaps to a drop point within about 12 px (a magnet); a part
+  further off floats under the pointer with its ghost marks showing where it would go.
+- **Touch.** A touch on a part, clip or probe drags it at once; a touch on the empty bench pans (one finger in both
+  views; three fingers orbit in 3D); two fingers pinch-zoom. The dragged thing rises 44 px above the finger
+  (`touchLift`) over the lift's 120 ms, so the finger never covers it, and the loupe sits above that. The bench never
+  scrolls the page (`touch-action: none`). The phone's tray strip lets a sideways swipe scroll it when it overflows
+  (`touch-action: pan-x`); a part comes out only once the drag heads up off the strip, and appears above the finger.
+- **Drop.** A drop that takes settles into place over 150 ms with a small haptic tick where `navigator.vibrate`
+  exists; a drop that does not take (the cross, or onto the tray) glides back to where the thing came from in 260 ms
+  (a part from the tray glides back into it), and nothing changes. `Escape` puts a drag down the same way. A dropped
+  clip, probe or plug leaves nothing selected, so no selection bar covers what to grab next. All of it is instant
+  under reduced motion.
+- **Edge auto-pan.** Held within 36 px of the bench's edge for a moment, a drag pans the view that way, faster the
+  nearer, and the thing in hand follows; the edges the tray covers do not pan.
+- **Dials and switches.** The meter's dial turns by dragging round it, or by tapping the knob where it should point
+  (tapping its middle steps it on); a switch flips on a tap or on a short drag of its lever (a longer drag moves a
+  switch that is not locked).
 
 Soldering (Unit 3) is one DOM overlay (`SolderOverlay`) that both renderers mount over their canvas. It places its
 handles (the iron, the solder's end, every pad, lead and splice) with the view's `project()` on `spot:` anchors, and
