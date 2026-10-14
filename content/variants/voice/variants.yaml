@@ -1,0 +1,20 @@
+# Try-out copies of two lessons in four voices, for choosing how the robot gives instructions (apps/web/src/content/
+# variants.ts). Each copy keeps the real lesson's lab, bench, tasks and solution; only the words and the guidance
+# change. Played at /variants/voice (hidden, not indexed, saved nowhere).
+title: How should the robot talk?
+intro: The same two lessons, written four ways. Play a few beats of each and see which one leaves you sure what to do, where to do it and what to look for.
+lessons: [welcome-to-the-bench, what-resists]
+variants:
+  - id: a-clear-sentences
+    name: A. Clear sentences
+    style: "Every line is one whole instruction: what to do, where, and often why, in up to about 20 words. New words are named as they appear."
+  - id: b-do-and-watch
+    name: B. Do + watch
+    style: "A short instruction, then a quieter grey line under it: what to look for, or why."
+  - id: c-show-then-say
+    name: C. Show, then say
+    style: "A short line, and the bench shows the move: an ink ghost draws where to drag, turn or tap, then fades. It comes back if you get stuck."
+    coach: true
+  - id: d-why-first
+    name: D. Why first
+    style: "One sentence of purpose, then the step. When it works, the robot says why it happened."

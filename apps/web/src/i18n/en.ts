@@ -1415,6 +1415,14 @@ export const en = {
     label: "Dev only",
   },
 
+  /** The hidden try-out pages (/variants/voice): lessons written other ways, played like real ones, saved nowhere. */
+  variants: {
+    kicker: "Try-out",
+    note: "Play each one like a real lesson. Nothing here is saved and no XP is earned.",
+    lessons: "Lessons",
+    finish: "Back to the variants",
+  },
+
   /** Hidden comparison pages (/variants/...): not linked from the site. */
   cableVariants: {
     title: "Cable variants",

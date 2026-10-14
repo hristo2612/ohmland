@@ -18,7 +18,8 @@ import literataLatinStrong from "@fontsource/literata/files/literata-latin-600-n
 import { HEAD_SCRIPT } from "../progress/prefs";
 import { m, lang } from "../i18n";
 
-type Props = { title?: string; description?: string; bodyClass?: string; /** Keep the page out of search engines (hidden pages). */ noindex?: boolean };
+/** `noindex`: a page search engines should leave out (the hidden try-out pages). */
+type Props = { title?: string; description?: string; bodyClass?: string; noindex?: boolean };
 const { title, description = m.meta.description, bodyClass, noindex = false } = Astro.props;
 const fullTitle = title ? `${title} · ${m.meta.titleSuffix}` : `${m.meta.siteName}: ${m.meta.tagline}`;
 ---

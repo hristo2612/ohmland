@@ -1,0 +1,54 @@
+---
+/**
+ * A hidden page (linked from nowhere, not indexed): two lessons written four ways (content/variants/voice), each
+ * playable like a real lesson and saved nowhere. For choosing how the robot talks.
+ */
+import Page from "../../../layouts/Page.astro";
+import { getCourse } from "../../../content/load";
+import { loadVariants } from "../../../content/variants";
+import { m } from "../../../i18n";
+
+const set = loadVariants("voice");
+const course = getCourse();
+const titleOf = (id: string) => course.lessons.find((l) => l.id === id)?.title ?? id;
+---
+
+<Page title={set.title} noindex>
+  <div class="sheet">
+    <div class="sheet__main variants">
+      <header class="page-head">
+        <p class="kicker">{m.variants.kicker}</p>
+        <h1>{set.title}</h1>
+        <p class="lead">{set.intro}</p>
+        <p class="muted">{m.variants.note}</p>
+      </header>
+      <ol class="variants__list">
+        {
+          set.variants.map((v) => (
+            <li class="variants__row">
+              <h2 class="variants__name">{v.name}</h2>
+              <p class="variants__style">{v.style}</p>
+              <ul class="variants__lessons" aria-label={`${v.name}: ${m.variants.lessons}`}>
+                {v.lessons.map((l) => (
+                  <li>
+                    <a href={l.href}>{titleOf(l.id)}</a>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </div>
+</Page>
+
+<style>
+  .variants { max-width: var(--text-col); }
+  .variants__list { display: grid; gap: 0; margin: var(--s-8) 0 0; padding: 0; list-style: none; border-top: var(--border-1) solid var(--rule); }
+  .variants__row { display: grid; gap: var(--s-2); padding: var(--s-6) 0; border-bottom: var(--border-1) solid var(--rule-soft); }
+  .variants__name { margin: 0; font-size: var(--text-lg); line-height: var(--lh-lg); }
+  .variants__style { margin: 0; color: var(--ink-2); }
+  .variants__lessons { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); margin: var(--s-1) 0 0; padding: 0; list-style: none; }
+  .variants__lessons a { font-weight: var(--weight-strong); }
+</style>

@@ -283,16 +283,15 @@ export const LESSON_MAX_WORDS = 150;
 /** The most words of on-demand text (hints and lines for wrong taps or picks) in the lesson file. */
 export const ON_DEMAND_MAX_WORDS = 60;
 
+/** A bench lesson's word budgets: per line (as in WORDS), on the main path, and for all its on-demand lines. */
+export type WordBudget = { readonly [K in keyof typeof WORDS]: number } & { readonly lesson: number; readonly onDemandAll: number };
+/** The course's budgets. A try-out copy of a lesson (content/variants, content/variants.ts) brings its own. */
+export const BUDGET: WordBudget = { ...WORDS, lesson: LESSON_MAX_WORDS, onDemandAll: ON_DEMAND_MAX_WORDS };
+
 export const countWords = (s: string): number => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
 
 /** One short line of plain text (no markdown), at most `max` words. */
 const words = (max: number) => text.refine((s) => countWords(s) <= max, `at most ${max} words`);
-/** A robot line (or a done line, a start button). */
-const line = words(WORDS.say);
-const noteLine = words(WORDS.note);
-const ruleLine = words(WORDS.rule);
-const chip = words(WORDS.chip);
-const onDemand = words(WORDS.onDemand);
 
 /**
  * Something on the bench, in the lab's shorthand: a part ("D1"), a part's lead ("D1.anode"), a hole ("e12",
@@ -311,10 +310,7 @@ const anchor = z
   );
 
 /** The lab part ids and task ids in a lab file. */
-const labId = z.string().trim().regex(/^[A-Za-z][A-Za-z0-9_-]*$/, "must be a lab part or task id");
-
-/** A discovery drawn onto the bench: an arrow from a short line of ink to `at`. `at: tap` means where the learner tapped. */
-const noteSchema = z.strictObject({ at: z.union([anchor, z.literal("tap")]), text: noteLine });
+export const labId = z.string().trim().regex(/^[A-Za-z][A-Za-z0-9_-]*$/, "must be a lab part or task id");
 
 export const POPUP_WIDGETS = ["resistor-slider"] as const;
 export type PopupWidget = (typeof POPUP_WIDGETS)[number];
@@ -335,19 +331,6 @@ const tapSchema = z
     const n = [t.answer, t.joinedTo, t.anyHole].filter((x) => x !== undefined).length;
     if (n !== 1) ctx.addIssue({ code: "custom", message: "a tap needs exactly one of answer, joinedTo or anyHole" });
     if (t.among && t.answer === undefined) ctx.addIssue({ code: "custom", message: "among only goes with answer", path: ["among"] });
-  });
-
-const pickSchema = z
-  .strictObject({
-    options: z.array(chip).min(2).max(4),
-    /** The right option (its text). Without one, the pick is an ungraded question. */
-    answer: chip.optional(),
-    /** Point at a part while asking ("What is this?"). */
-    on: anchor.optional(),
-  })
-  .superRefine((p, ctx) => {
-    if (p.answer !== undefined && !p.options.includes(p.answer)) ctx.addIssue({ code: "custom", message: "answer must be one of the options", path: ["answer"] });
-    if (new Set(p.options).size !== p.options.length) ctx.addIssue({ code: "custom", message: "options must differ", path: ["options"] });
   });
 
 const numberSchema = z
@@ -383,85 +366,186 @@ const benchStepSchema = z.looseObject({
   do: z.enum(["place", "move", "rotate", "remove", "lead", "clip", "wire", "unwire", "probe", "plug", "dial", "flip", "param", "action", "set", "control", "view", "trace"]),
 });
 
-/** A prediction right before an action: the learner guesses, then does it and sees. Never graded. */
-const guessSchema = z
-  .strictObject({ options: z.array(chip).min(2).max(3), answer: chip.optional() })
-  .superRefine((g, ctx) => {
-    if (g.answer !== undefined && !g.options.includes(g.answer)) ctx.addIssue({ code: "custom", message: "answer must be one of the options", path: ["answer"] });
+/**
+ * The bench lesson schemas for a word budget: the course's (BUDGET, just below) or a try-out copy's looser one
+ * (content/variants.ts). Only the word limits differ.
+ */
+export function benchSchemas(budget: WordBudget) {
+  /** A robot line (or a done line, a start button). */
+  const line = words(budget.say);
+  const ruleLine = words(budget.rule);
+  const chip = words(budget.chip);
+  const onDemand = words(budget.onDemand);
+
+  /** A discovery drawn onto the bench: an arrow from a short line of ink to `at`. `at: tap` means where the learner tapped. */
+  const noteSchema = z.strictObject({ at: z.union([anchor, z.literal("tap")]), text: words(budget.note) });
+
+  const pickSchema = z
+    .strictObject({
+      options: z.array(chip).min(2).max(4),
+      /** The right option (its text). Without one, the pick is an ungraded question. */
+      answer: chip.optional(),
+      /** Point at a part while asking ("What is this?"). */
+      on: anchor.optional(),
+    })
+    .superRefine((p, ctx) => {
+      if (p.answer !== undefined && !p.options.includes(p.answer)) ctx.addIssue({ code: "custom", message: "answer must be one of the options", path: ["answer"] });
+      if (new Set(p.options).size !== p.options.length) ctx.addIssue({ code: "custom", message: "options must differ", path: ["options"] });
+    });
+
+  /** A prediction right before an action: the learner guesses, then does it and sees. Never graded. */
+  const guessSchema = z
+    .strictObject({ options: z.array(chip).min(2).max(3), answer: chip.optional() })
+    .superRefine((g, ctx) => {
+      if (g.answer !== undefined && !g.options.includes(g.answer)) ctx.addIssue({ code: "custom", message: "answer must be one of the options", path: ["answer"] });
+    });
+
+  const beat = z
+    .strictObject({
+      /** The robot's line for this beat. */
+      say: line,
+      /** A quieter second line under it, in graphite, while the learner acts: what to look for, or why. */
+      watch: line.optional(),
+      /** Parts in play: spotlit and framed (part ids or attach points). */
+      spot: z.array(anchor).min(1).optional(),
+      /** Show the metal strips inside the breadboard during this beat. */
+      xray: z.boolean().optional(),
+      /**
+       * Run the loop tracer from this terminal (B1.neg) once the beat's action is done (the right tap), or as the beat
+       * begins when it has nothing to do. Its ink clears when the beat ends.
+       */
+      trace: anchor.optional(),
+      /**
+       * The one instrument or panel this beat needs: meter, scope, logger, stopwatch, tapper, controls, views (the lab's
+       * overlay toggles), or a lab panel id. Without it, a lab panel tied to the beat's task (its `show`) appears;
+       * otherwise none.
+       */
+      tool: toolSchema.optional(),
+      /**
+       * Unit 5, with `tool: code`: the blocks the code drawer's palette offers during this beat, each a block's name
+       * (delay, every, if) or one step in bench C ("digitalWrite(13, LOW);"). A beat without one offers none.
+       */
+      palette: z.array(z.string().trim().min(1)).min(1).max(6).optional(),
+      /** Unit 5, with `tool: code`: the program the drawer starts this beat from (bench C), in place of the learner's. */
+      program: z.string().trim().min(1).optional(),
+
+      // One thing to do (at most one of these; none means a plain Next).
+      /** The three-period lesson's first period: name a part ("This is an LED."). Tap it to go on. */
+      meet: labId.optional(),
+      /** A lab task id: the beat ends when its goal is met on the bench. */
+      do: labId.optional(),
+      tap: tapSchema.optional(),
+      pick: pickSchema.optional(),
+      number: numberSchema.optional(),
+      /** The lesson's one hands-on pop-up card, taped to a part. */
+      popup: popupSchema.optional(),
+
+      /** A guess before a `do` action. */
+      guess: guessSchema.optional(),
+      /**
+       * Bench steps (the lab's solution steps, in YAML) applied once a tap, pick or number check is answered right: a
+       * padlock wheel turned to the digit just found. Steps that set a state (param, flip with `to`, clip), so a resumed
+       * lesson can apply them again.
+       */
+      then: z.array(benchStepSchema).min(1).max(8).optional(),
+      /** A nudge after a wrong tap, pick or number (a `do` beat uses its lab task's hints). On demand. */
+      hint: onDemand.optional(),
+      /** Lines for particular wrong taps or picks, by anchor or option text. On demand. */
+      wrong: z.record(z.string(), onDemand).optional(),
+
+      // The discovery, shown when the beat is done.
+      /** The robot's reaction. */
+      done: line.optional(),
+      note: noteSchema.optional(),
+      /** A rule stamped into the margin and the notebook. */
+      rule: ruleLine.optional(),
+      /**
+       * Starts an objective: a short name that groups this beat and the ones after it (until the next objective). The
+       * robot's eyes fill in equal steps as objectives finish. Never shown as a list.
+       */
+      objective: words(5).optional(),
+    })
+    .superRefine((b, ctx) => {
+      const actions = (["meet", "do", "tap", "pick", "number", "popup"] as const).filter((k) => b[k] !== undefined);
+      if (actions.length > 1) ctx.addIssue({ code: "custom", message: `a beat does one thing (found ${actions.join(", ")})` });
+      if (b.guess && !b.do) ctx.addIssue({ code: "custom", message: "a guess goes before a do action", path: ["guess"] });
+      if (b.note?.at === "tap" && !b.tap) ctx.addIssue({ code: "custom", message: "at: tap needs a tap beat", path: ["note", "at"] });
+      if (b.wrong && !b.tap && !b.pick) ctx.addIssue({ code: "custom", message: "wrong lines go with a tap or a pick", path: ["wrong"] });
+      if (b.then && !b.tap && !b.pick && !b.number) ctx.addIssue({ code: "custom", message: "then goes with a tap, pick or number check", path: ["then"] });
+      if ((b.palette || b.program) && b.tool !== "code") ctx.addIssue({ code: "custom", message: "palette and program go with tool: code", path: [b.palette ? "palette" : "program"] });
+    });
+
+  const object = z.strictObject({
+    format: z.literal("bench"),
+    id: idSchema,
+    version: z.number().int().min(1),
+    title: text,
+    summary: text,
+    minutes: z.number().int().min(1).max(30),
+    unlocks: z
+      .strictObject({ parts: z.array(idSchema).default([]), isle: idSchema.optional() })
+      .default({ parts: [] }),
+    /** content/labs/<lab>.ts: the bench, its tasks and their solution. */
+    lab: idSchema,
+    /** The first screen: the mission's title, the robot's opening line and the button that opens the bench. */
+    start: z.strictObject({ title: words(5).optional(), say: line, go: chip.optional() }),
+    beats: z.array(beat).min(1).max(16),
+    /** The closing check: broken benches to fix. Relaxed by default; the learner may race a clock. */
+    fixit: z
+      .strictObject({
+        say: line,
+        /** Lab tasks, each with a `setup` that breaks the bench. */
+        tasks: z.array(z.strictObject({ task: labId, say: line.optional() })).min(1).max(3),
+        /** Seconds on the optional clock. */
+        timer: z.number().int().min(20).max(300).default(60),
+        /** The one instrument or panel the round needs (the meter, to change its range), as on a beat. */
+        tool: toolSchema.optional(),
+        /** Parts in play, as on a beat: spotlit and framed through every fix-it task. */
+        spot: z.array(anchor).min(1).optional(),
+      })
+      .optional(),
+    /** The secret bonus: a bonus lab task, offered at the end if the learner has not found it by then. */
+    secret: z
+      .strictObject({
+        task: labId,
+        say: line,
+        done: line.optional(),
+        note: noteSchema.optional(),
+        rule: ruleLine.optional(),
+        /** Parts in play, as on a beat: spotlit and framed while the secret is offered. */
+        spot: z.array(anchor).min(1).optional(),
+        /** The one instrument or panel the secret needs, as on a beat. */
+        tool: toolSchema.optional(),
+      })
+      .optional(),
+    /** The robot's last line, on the signed-off notebook page. */
+    end: z.strictObject({ say: line }),
   });
 
-export const beatSchema = z
-  .strictObject({
-    /** The robot's line for this beat. */
-    say: line,
-    /** Parts in play: spotlit and framed (part ids or attach points). */
-    spot: z.array(anchor).min(1).optional(),
-    /** Show the metal strips inside the breadboard during this beat. */
-    xray: z.boolean().optional(),
-    /**
-     * Run the loop tracer from this terminal (B1.neg) once the beat's action is done (the right tap), or as the beat
-     * begins when it has nothing to do. Its ink clears when the beat ends.
-     */
-    trace: anchor.optional(),
-    /**
-     * The one instrument or panel this beat needs: meter, scope, logger, stopwatch, tapper, controls, views (the lab's
-     * overlay toggles), or a lab panel id. Without it, a lab panel tied to the beat's task (its `show`) appears;
-     * otherwise none.
-     */
-    tool: toolSchema.optional(),
-    /**
-     * Unit 5, with `tool: code`: the blocks the code drawer's palette offers during this beat, each a block's name
-     * (delay, every, if) or one step in bench C ("digitalWrite(13, LOW);"). A beat without one offers none.
-     */
-    palette: z.array(z.string().trim().min(1)).min(1).max(6).optional(),
-    /** Unit 5, with `tool: code`: the program the drawer starts this beat from (bench C), in place of the learner's. */
-    program: z.string().trim().min(1).optional(),
-
-    // One thing to do (at most one of these; none means a plain Next).
-    /** The three-period lesson's first period: name a part ("This is an LED."). Tap it to go on. */
-    meet: labId.optional(),
-    /** A lab task id: the beat ends when its goal is met on the bench. */
-    do: labId.optional(),
-    tap: tapSchema.optional(),
-    pick: pickSchema.optional(),
-    number: numberSchema.optional(),
-    /** The lesson's one hands-on pop-up card, taped to a part. */
-    popup: popupSchema.optional(),
-
-    /** A guess before a `do` action. */
-    guess: guessSchema.optional(),
-    /**
-     * Bench steps (the lab's solution steps, in YAML) applied once a tap, pick or number check is answered right: a
-     * padlock wheel turned to the digit just found. Steps that set a state (param, flip with `to`, clip), so a resumed
-     * lesson can apply them again.
-     */
-    then: z.array(benchStepSchema).min(1).max(8).optional(),
-    /** A nudge after a wrong tap, pick or number (a `do` beat uses its lab task's hints). On demand. */
-    hint: onDemand.optional(),
-    /** Lines for particular wrong taps or picks, by anchor or option text. On demand. */
-    wrong: z.record(z.string(), onDemand).optional(),
-
-    // The discovery, shown when the beat is done.
-    /** The robot's reaction. */
-    done: line.optional(),
-    note: noteSchema.optional(),
-    /** A rule stamped into the margin and the notebook. */
-    rule: ruleLine.optional(),
-    /**
-     * Starts an objective: a short name that groups this beat and the ones after it (until the next objective). The
-     * robot's eyes fill in equal steps as objectives finish. Never shown as a list.
-     */
-    objective: words(5).optional(),
-  })
-  .superRefine((b, ctx) => {
-    const actions = (["meet", "do", "tap", "pick", "number", "popup"] as const).filter((k) => b[k] !== undefined);
-    if (actions.length > 1) ctx.addIssue({ code: "custom", message: `a beat does one thing (found ${actions.join(", ")})` });
-    if (b.guess && !b.do) ctx.addIssue({ code: "custom", message: "a guess goes before a do action", path: ["guess"] });
-    if (b.note?.at === "tap" && !b.tap) ctx.addIssue({ code: "custom", message: "at: tap needs a tap beat", path: ["note", "at"] });
-    if (b.wrong && !b.tap && !b.pick) ctx.addIssue({ code: "custom", message: "wrong lines go with a tap or a pick", path: ["wrong"] });
-    if (b.then && !b.tap && !b.pick && !b.number) ctx.addIssue({ code: "custom", message: "then goes with a tap, pick or number check", path: ["then"] });
-    if ((b.palette || b.program) && b.tool !== "code") ctx.addIssue({ code: "custom", message: "palette and program go with tool: code", path: [b.palette ? "palette" : "program"] });
+  const lesson = object.superRefine((l, ctx) => {
+    const main = benchLessonLines(l).reduce((n, s) => n + countWords(s), 0);
+    if (main > budget.lesson) ctx.addIssue({ code: "custom", message: `${main} words on the main path; a bench lesson stays under ${budget.lesson}`, path: ["beats"] });
+    const extra = benchLessonOnDemand(l).reduce((n, s) => n + countWords(s), 0);
+    if (extra > budget.onDemandAll) ctx.addIssue({ code: "custom", message: `${extra} words of hints and wrong lines; keep them under ${budget.onDemandAll}`, path: ["beats"] });
+    const rules = l.beats.filter((b) => b.rule).length + (l.secret?.rule ? 1 : 0);
+    if (rules > 3) ctx.addIssue({ code: "custom", message: `${rules} rules; stamp 1 or 2, 3 at most`, path: ["beats"] });
+    const popups = l.beats.filter((b) => b.popup).length;
+    if (popups > 1) ctx.addIssue({ code: "custom", message: "a lesson has at most one pop-up card", path: ["beats"] });
+    const tasks = [...l.beats.flatMap((b) => (b.do ? [b.do] : [])), ...(l.fixit?.tasks.map((t) => t.task) ?? []), ...(l.secret ? [l.secret.task] : [])];
+    const seen = new Set<string>();
+    for (const t of tasks) {
+      if (seen.has(t)) ctx.addIssue({ code: "custom", message: `task "${t}" is used twice`, path: ["beats"] });
+      seen.add(t);
+    }
   });
+
+  return { beat, object, lesson };
+}
+
+const course = benchSchemas(BUDGET);
+export const beatSchema = course.beat;
+const benchLessonObject = course.object;
+export const benchLessonSchema = course.lesson;
 
 /** Every line on a bench lesson's main path, for the word budget (hints and wrong lines are on demand). */
 export function benchLessonLines(l: Pick<z.infer<typeof benchLessonObject>, "start" | "beats" | "fixit" | "secret" | "end">): string[] {
@@ -470,6 +554,7 @@ export function benchLessonLines(l: Pick<z.infer<typeof benchLessonObject>, "sta
   if (l.start.go) out.push(l.start.go);
   for (const b of l.beats) {
     out.push(b.say);
+    if (b.watch) out.push(b.watch);
     if (b.done) out.push(b.done);
     if (b.note) out.push(b.note.text);
     if (b.rule) out.push(b.rule);
@@ -492,70 +577,6 @@ export function benchLessonOnDemand(l: Pick<z.infer<typeof benchLessonObject>, "
   return l.beats.flatMap((b) => [...(b.hint ? [b.hint] : []), ...Object.values(b.wrong ?? {})]);
 }
 
-const benchLessonObject = z.strictObject({
-  format: z.literal("bench"),
-  id: idSchema,
-  version: z.number().int().min(1),
-  title: text,
-  summary: text,
-  minutes: z.number().int().min(1).max(30),
-  unlocks: z
-    .strictObject({ parts: z.array(idSchema).default([]), isle: idSchema.optional() })
-    .default({ parts: [] }),
-  /** content/labs/<lab>.ts: the bench, its tasks and their solution. */
-  lab: idSchema,
-  /** The first screen: the mission's title, the robot's opening line and the button that opens the bench. */
-  start: z.strictObject({ title: words(5).optional(), say: line, go: chip.optional() }),
-  beats: z.array(beatSchema).min(1).max(16),
-  /** The closing check: broken benches to fix. Relaxed by default; the learner may race a clock. */
-  fixit: z
-    .strictObject({
-      say: line,
-      /** Lab tasks, each with a `setup` that breaks the bench. */
-      tasks: z.array(z.strictObject({ task: labId, say: line.optional() })).min(1).max(3),
-      /** Seconds on the optional clock. */
-      timer: z.number().int().min(20).max(300).default(60),
-      /** The one instrument or panel the round needs (the meter, to change its range), as on a beat. */
-      tool: toolSchema.optional(),
-      /** Parts in play, as on a beat: spotlit and framed through every fix-it task. */
-      spot: z.array(anchor).min(1).optional(),
-    })
-    .optional(),
-  /** The secret bonus: a bonus lab task, offered at the end if the learner has not found it by then. */
-  secret: z
-    .strictObject({
-      task: labId,
-      say: line,
-      done: line.optional(),
-      note: noteSchema.optional(),
-      rule: ruleLine.optional(),
-      /** Parts in play, as on a beat: spotlit and framed while the secret is offered. */
-      spot: z.array(anchor).min(1).optional(),
-      /** The one instrument or panel the secret needs, as on a beat. */
-      tool: toolSchema.optional(),
-    })
-    .optional(),
-  /** The robot's last line, on the signed-off notebook page. */
-  end: z.strictObject({ say: line }),
-});
-
-export const benchLessonSchema = benchLessonObject.superRefine((l, ctx) => {
-  const main = benchLessonLines(l).reduce((n, s) => n + countWords(s), 0);
-  if (main > LESSON_MAX_WORDS) ctx.addIssue({ code: "custom", message: `${main} words on the main path; a bench lesson stays under ${LESSON_MAX_WORDS}`, path: ["beats"] });
-  const extra = benchLessonOnDemand(l).reduce((n, s) => n + countWords(s), 0);
-  if (extra > ON_DEMAND_MAX_WORDS) ctx.addIssue({ code: "custom", message: `${extra} words of hints and wrong lines; keep them under ${ON_DEMAND_MAX_WORDS}`, path: ["beats"] });
-  const rules = l.beats.filter((b) => b.rule).length + (l.secret?.rule ? 1 : 0);
-  if (rules > 3) ctx.addIssue({ code: "custom", message: `${rules} rules; stamp 1 or 2, 3 at most`, path: ["beats"] });
-  const popups = l.beats.filter((b) => b.popup).length;
-  if (popups > 1) ctx.addIssue({ code: "custom", message: "a lesson has at most one pop-up card", path: ["beats"] });
-  const tasks = [...l.beats.flatMap((b) => (b.do ? [b.do] : [])), ...(l.fixit?.tasks.map((t) => t.task) ?? []), ...(l.secret ? [l.secret.task] : [])];
-  const seen = new Set<string>();
-  for (const t of tasks) {
-    if (seen.has(t)) ctx.addIssue({ code: "custom", message: `task "${t}" is used twice`, path: ["beats"] });
-    seen.add(t);
-  }
-});
-
 // Parts catalog ----------------------------------------------------------------------------------------------------
 
 export const partSchema = z.strictObject({
@@ -577,9 +598,9 @@ export type ModuleFile = z.infer<typeof moduleSchema>;
 export type LessonFile = z.infer<typeof lessonSchema>;
 export type BenchLessonFile = z.infer<typeof benchLessonObject>;
 export type Beat = z.infer<typeof beatSchema>;
-export type BeatNote = z.infer<typeof noteSchema>;
+export type BeatNote = NonNullable<Beat["note"]>;
 export type TapCheck = z.infer<typeof tapSchema>;
-export type PickCheck = z.infer<typeof pickSchema>;
+export type PickCheck = NonNullable<Beat["pick"]>;
 export type NumberCheck = z.infer<typeof numberSchema>;
 export type Popup = z.infer<typeof popupSchema>;
 export type PartFile = z.infer<typeof partSchema>;
