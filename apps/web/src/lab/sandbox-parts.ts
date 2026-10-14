@@ -2,7 +2,7 @@
  * The free-build bench's tray, from the learner's parts bin: each parts.yaml id unlocks one or more bench parts in
  * useful values. Ids with no bench part yet (pencil lines, AA and coin cells, the logger) add nothing.
  */
-import type { TrayItem } from "@ohmland/bench/core";
+import { benchOps, type BenchState, type TrayItem } from "@ohmland/bench/core";
 import { m } from "../i18n";
 
 const LEADS: TrayItem[] = (["red", "black", "green", "yellow", "blue"] as const).map((color) => ({ kind: "lead", params: { color } }));
@@ -33,6 +33,18 @@ const BY_PART: Record<string, TrayItem[]> = {
 
 /** Everyone starts with a battery and a few clip leads, so an empty bin still has something to try. */
 const STARTER: TrayItem[] = [{ kind: "battery" }, ...LEADS.slice(0, 3)];
+
+/**
+ * A new learner's desk (an empty bin): the starter battery and its three clip leads already out, side by side and ready
+ * to clip, instead of an empty desk and a tray.
+ */
+export function starterDesk(bench: BenchState): BenchState {
+  let [b] = benchOps.addPart(bench, "battery", undefined, { pos: [-56, 0] });
+  (["red", "black", "green"] as const).forEach((color, i) => {
+    [b] = benchOps.addLead(b, color, [44, -36 + i * 36]);
+  });
+  return b;
+}
 
 export type SandboxKit = { tray: TrayItem[]; meter: boolean; board: boolean; scope: boolean; empty: boolean };
 

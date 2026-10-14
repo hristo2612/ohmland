@@ -165,22 +165,27 @@ test("the bench view switches between 3D and ink mid-lesson and keeps the bench"
 test("the free-build bench builds, saves and clears", async ({ page }) => {
   await page.goto("/bench");
   await benchReady(page);
-  // The starter kit: a battery and clip leads, even with an empty parts bin.
-  await expect(page.locator(".ohb-tray .ohb-item")).toHaveCount(4);
-  const box = (await page.locator(".ohb-tray .ohb-item", { hasText: "battery" }).first().boundingBox())!;
-  const spot = await project(page, [0, 0, 0]);
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  for (let i = 1; i <= 10; i++) await page.mouse.move(box.x + ((spot.x - box.x) * i) / 10, box.y + ((spot.y - box.y) * i) / 10);
-  await page.mouse.up();
-  await expect.poll(async () => (await bench(page)).parts.length).toBe(1);
+  // The starter kit is already out on a new learner's desk: a battery and three clip leads, no tray. Nothing to clear
+  // or save yet.
+  const start = await bench(page);
+  expect(start.parts.map((p) => p.id)).toEqual(["B1"]);
+  expect(start.leads).toHaveLength(3);
+  await expect(page.locator(".ohb-tray")).toHaveCount(0);
+  await expect(page.locator("[data-clear], [data-save]")).toHaveCount(0);
 
-  await page.getByPlaceholder("My circuit").fill("One battery");
+  const batteryAt = async () => (await bench(page)).parts.find((p) => p.id === "B1")?.pos.join(",");
+  const home = await batteryAt();
+  await drag(page, await project(page, "part:B1"), await project(page, [-20, 0, 40]));
+  await expect.poll(batteryAt).not.toBe(home);
+  const moved = await batteryAt();
+
+  await page.getByPlaceholder("My circuit").fill("Moved battery");
   await page.locator("[data-save]").click();
-  await expect(page.locator(".sandbox__build")).toContainText("One battery");
+  await expect(page.locator(".sandbox__build")).toContainText("Moved battery");
 
   await page.locator("[data-clear]").click();
-  await expect.poll(async () => (await bench(page)).parts.length).toBe(0);
+  await expect.poll(batteryAt).toBe(home);
+  await expect(page.locator("[data-clear]")).toHaveCount(0);
   await page.locator(".sandbox__build").getByRole("button", { name: "Open" }).click();
-  await expect.poll(async () => (await bench(page)).parts.length).toBe(1);
+  await expect.poll(batteryAt).toBe(moved);
 });
