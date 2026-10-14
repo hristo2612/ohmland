@@ -377,3 +377,33 @@ parts:
       - Only a changing current makes sound. A steady current just heats the coil.
       - Always drive it through a series resistor or a proper amplifier, never straight across a battery.
       - It sounds louder in a box, because the box stops the waves from the front and back of the cone cancelling out.
+
+  # ------------------------------------------------------------------------------------------------------------------
+  # Unit 4: Chips, the 555 timer and the lighthouse (content/units/chips, CH1 to CH10). The parts-bin cards carry the
+  # datasheet names the lessons leave out (comparator, flip-flop, monostable, astable, bistable).
+  # ------------------------------------------------------------------------------------------------------------------
+
+  # description: A whole timing circuit in an 8-pin black block: two comparators watching a ladder of three equal
+  # resistors, a flip-flop, an output stage and a discharge transistor. Met pin by pin in CH1 to CH10.
+  - id: ic-555
+    name: 555 timer
+    icon: chip
+    blurb: Eight pins and a whole timer inside. It blinks, beeps, counts out delays and remembers.
+    facts:
+      - "Pins: 1 minus, 2 trigger, 3 output, 4 reset, 5 control, 6 threshold, 7 discharge, 8 plus. Pin 1 sits by the notch and dot."
+      - "Inside: three equal resistors set lines at 1/3 and 2/3 of the supply. Two comparators watch pins 2 and 6, and a flip-flop (the latch) remembers which fired last."
+      - "Three modes: monostable (one fixed pulse per trigger, about 1.1 × R × C), astable (it never rests) and bistable (set and reset)."
+      - "The bipolar 555 runs on 4.5 to 16 V; its output sits about 1.4 V below the supply. A CMOS 555 (7555) swings rail to rail."
+      - "Never join pin 7 straight to plus: keep 1 kΩ at least, 10 kΩ is usual. A 556 is two 555s in one 14-pin chip."
+
+  # description: The small glass signal diode: a one-way valve for small, fast currents. In CH9 it lets a 555's
+  # capacitor fill past R2, so the flash gets short.
+  - id: diode-1n4148
+    name: Signal diode (1N4148)
+    icon: diode
+    blurb: A small glass diode for small, fast currents. Steers a 555's filling current past a resistor.
+    facts:
+      - The black band marks the cathode, as on every diode.
+      - It drops about 0.6 to 0.7 V when it conducts a few milliamps.
+      - "Rated for about 100 V in reverse and 200 mA forward: a signal diode, not a power diode."
+      - "Across a 555's R2, band toward pin 6, it makes the flash shorter than the gap (a duty cycle under 50%)."

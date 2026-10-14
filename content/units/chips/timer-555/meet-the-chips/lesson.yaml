@@ -1,0 +1,80 @@
+# Blueprint: docs/curriculum/unit-4.md, CH1. A bench lesson (docs/LESSONS.md).
+# One idea: a chip's pins count from the notch, round the chip; the 555 takes plus on pin 8 and minus on pin 1.
+# New: the chip (a 555), pins 1 and 8. Lab: content/labs/meet-the-chips.ts (the x-ray draws pins 1 and 8).
+# The player has no multi-tap check, so "tap pins 1 to 8" became two taps: the dot, then pin 5 round the corner. The
+# bench prints pin numbers on a spotlit chip, so "which pin is this?" became a question the print cannot answer: which
+# pin faces pin 1 on a 14-pin chip. Turned round on this bench the lamp sits steady (the simulator's answer), so the
+# guess is about the blink.
+format: bench
+id: meet-the-chips
+version: 1
+title: Pin 1 by the notch
+summary: Seat a 555 timer by its notch, count its pins round the chip, and find where plus and minus go.
+minutes: 6
+lab: meet-the-chips
+unlocks:
+  parts: [ic-555]
+  isle: header-fence # TODO piece: chip-block
+
+start:
+  title: Pin 1 by the notch
+  say: This black block replaces my whole blinker.
+  go: Show me
+
+beats:
+  - say: It's a chip. Drop it across the middle gap.
+    objective: Seat it
+    do: drop-the-chip
+    done: It blinks!
+    note: { at: U1, text: "chip: a whole circuit inside" }
+
+  - say: Tap the pin by the dot.
+    objective: Count round
+    tap: { answer: U1.1, among: [U1.1, U1.2, U1.3, U1.4, U1.5, U1.6, U1.7, U1.8] }
+    hint: The dot sits beside the half-moon notch.
+    note: { at: U1.1, text: "pin 1: by the dot" }
+
+  - say: Count round the chip. Tap pin 5.
+    tap: { answer: U1.5, among: [U1.1, U1.2, U1.3, U1.4, U1.5, U1.6, U1.7, U1.8] }
+    hint: After pin 4, cross over and come back.
+    rule: Pins count from the notch, round the chip.
+
+  - say: Now look inside the chip.
+    objective: Find the power
+    tool: xray
+    do: xray-on
+    note: { at: U1.8, text: "pin 8 plus, pin 1 minus" }
+
+  - say: Turn it round, notch to the right.
+    guess: { options: [It keeps blinking, It stops blinking], answer: It stops blinking }
+    do: turn-it-round
+    note: { at: U1, text: "turned round: wrong pins, no blink" }
+
+  - say: Turn it back.
+    do: turn-it-back
+
+  - say: Show me the pin for plus.
+    tap: { answer: U1.8, among: [U1.1, U1.2, U1.3, U1.4, U1.5, U1.6, U1.7, U1.8] }
+
+  - say: What does pin 1 take?
+    pick: { on: U1.1, options: [Minus, Plus, The lamp], answer: Minus }
+
+  - say: A 14-pin chip. Which pin faces pin 1?
+    pick: { options: ["7", "8", "14"], answer: "14" }
+    wrong:
+      "7": That one sits at the far end of pin 1's row.
+      "8": "Count on: 8 starts the way back, at the far end."
+
+secret:
+  task: too-small
+  say: Curious? Try the tiny chip.
+  done: Too small. Its feet miss the holes.
+  note: { at: U9, text: "surface mount: tiny feet" }
+
+fixit:
+  say: My blinker went dark. Fix it.
+  tasks:
+    - task: fix-one-side
+
+end:
+  say: Eight legs, one blinker. Two pins on my map.
