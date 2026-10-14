@@ -6,6 +6,7 @@ import { createBenchStore } from "../store";
 import type { Vec3 } from "../types";
 import { createControllerHub, type BenchController, type BenchViewKind } from "./controller";
 import type { BenchRendererProps } from "./types";
+import { isCableStyle, type CableStyle } from "../cables/style";
 
 export type BenchViewProps = BenchRendererProps & {
   view: BenchViewKind;
@@ -34,8 +35,23 @@ export function preloadBenchView(view: BenchViewKind): Promise<unknown> {
 
 const SHEET: CSSProperties = { position: "absolute", inset: 0, background: "var(--paper, #F6F2E9)" };
 
+/** Where a cable style picked on this device is kept (the cable variants page sets it, to try a style in lessons). */
+export const CABLE_STYLE_KEY = "ohmland:cables";
+
+function deviceCableStyle(): CableStyle | undefined {
+  try {
+    const v = typeof localStorage === "undefined" ? null : localStorage.getItem(CABLE_STYLE_KEY);
+    return isCableStyle(v) ? v : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function BenchView(props: BenchViewProps) {
   const { view, fallback, controllerRef, store: given, initial, ...rest } = props;
+  // A style the page asks for wins; else one picked on this device; else the renderer's default.
+  const [device] = useState(deviceCableStyle);
+  const cableStyle = rest.cableStyle ?? device;
   // One store for the life of the view, whichever renderer draws it.
   const [store] = useState(() => given ?? createBenchStore(initial));
   // A controller that survives view switches: overlays subscribe once.
@@ -65,7 +81,7 @@ export function BenchView(props: BenchViewProps) {
   const Renderer = renderers[shown];
   return (
     <Suspense fallback={fallback ?? <div className="ohb-root ohb-loading" style={SHEET} />}>
-      <Renderer key={shown} {...rest} store={store} controllerRef={innerRef} />
+      <Renderer key={shown} {...rest} {...(cableStyle ? { cableStyle } : {})} store={store} controllerRef={innerRef} />
     </Suspense>
   );
 }

@@ -171,6 +171,9 @@ export function Bench(props: BenchProps) {
   useLayoutEffect(() => {
     store.setState({ frame: frameKey ? (frameKey.split(",").map(Number) as [number, number, number, number]) : null });
   }, [store, frameKey]);
+  useLayoutEffect(() => {
+    if (props.cableStyle) store.setState({ cableStyle: props.cableStyle });
+  }, [store, props.cableStyle]);
   useEffect(() => {
     // A drag changes the bench while its transaction is open and commits by closing it, so compare against the last
     // bench reported rather than the previous state.

@@ -887,7 +887,8 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
         };
       });
     },
-    settings: [{ key: "lid", values: [false, true] }],
+    // A cabinet shut by its padlock offers no lid switch until every wheel shows its answer.
+    settings: [{ key: "lid", values: [false, true], when: (pp) => !(pp.style === "cabinet" && pp.lock && !pp.lid && !padlockOpen(pp as PartParamsMap["box"])) }],
     // The lid: tap it to open it (a closed cabinet stays locked while its padlock has wheels to set).
     hotspots: (pp) => {
       const cab = pp.style === "cabinet";

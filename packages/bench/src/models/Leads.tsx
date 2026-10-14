@@ -231,9 +231,12 @@ export function Cable({
   /** The cable's points when the caller already worked them out (the same as these inputs give). */
   points?: THREE.Vector3[];
 }) {
-  const key = `${from.toArray().map((v) => v.toFixed(2))}|${to.toArray().map((v) => v.toFixed(2))}|${fromDir.toArray().map((v) => v.toFixed(2))}|${toDir
-    .toArray()
-    .map((v) => v.toFixed(2))}|${length}|${radius}`;
+  // Points given: the shape is theirs (a styled cable's route can change while its ends stay put).
+  const key = points
+    ? `${points.length}|${radius}|${points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)},${p.z.toFixed(1)}`).join(";")}`
+    : `${from.toArray().map((v) => v.toFixed(2))}|${to.toArray().map((v) => v.toFixed(2))}|${fromDir.toArray().map((v) => v.toFixed(2))}|${toDir
+        .toArray()
+        .map((v) => v.toFixed(2))}|${length}|${radius}`;
   const geometry = useMemo(() => {
     const pts = points ?? ropePoints(from, fromDir, to, toDir, length, radius, floor, stiff, bend);
     return smoothTube(pts, radius, 10, 0.6);
