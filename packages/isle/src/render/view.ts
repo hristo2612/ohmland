@@ -109,6 +109,8 @@ const spring = (k: number, big: boolean) => (big ? 1 - Math.exp(-4.2 * k) * Math
 /** The notebook's spring: it presses in like a stamp, one small overshoot (4 %, 7 % for a landmark) and settled. */
 const press = (k: number, big: boolean) => (big ? 1 - Math.exp(-5.5 * k) * Math.cos(6.5 * k) : 1 - Math.exp(-8 * k) * Math.cos(8 * k));
 const smooth = (x: number) => ease(Math.max(0, Math.min(1, x)));
+/** A pencil stroke: quick off the mark, slowing into its end. */
+const ringEase = (k: number) => 1 - (1 - k) * (1 - k);
 
 /** 0 by day, 1 at night, by local time: dusk from 18:30 to 20:30, dawn from 5:30 to 7:30. */
 export function nightOf(d: Date): number {
@@ -130,7 +132,8 @@ const SKY = {
 
 /**
  * How each look moves. The notebook's motion is calmer: the robot hovers in place with a slow, small bob, a teaser
- * sways less, nothing smokes or drifts, and a reveal is shorter, with springs that press in instead of bouncing.
+ * sways less, nothing smokes or drifts, and a reveal points at what is new: the camera glides to it (300 ms, eased),
+ * a red pencil ring is drawn round its spot, and it drops in and presses down like a stamp; the camera then stays.
  * Times in seconds, angles in degrees.
  */
 const MOTION = {
@@ -143,6 +146,9 @@ const MOTION = {
     /** How long the last thing takes to settle (lesson, module), and how long the camera lingers after. */
     settle: [0.9, 1.5],
     linger: 2.6,
+    /** A red pencil ring drawn round the new thing just before it lands (seconds to draw), and how far it drops in from. */
+    ring: 0,
+    drop: 0,
     /** How far a new island chunk rises from. */
     rise: 5,
     sway: 10,
@@ -155,11 +161,14 @@ const MOTION = {
     lively: true,
   },
   notebook: {
-    land: 0.6,
-    fly: [0.05, 0.55],
+    land: 0.65,
+    fly: [0, 0.3],
     gaps: [0.3, 0.4, 0.3],
     settle: [0.6, 1.0],
-    linger: 1.8,
+    // the camera stays on the ringed thing while its caption is read
+    linger: Infinity,
+    ring: 0.3,
+    drop: 1.2,
     rise: 3,
     sway: 4,
     swayRate: 0.08,
@@ -806,6 +815,11 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     }
   };
 
+  // The reveal's red pencil (its ring is drawn further down), red on the day page and lighter on the night page.
+  const ringMat = new THREE.MeshBasicMaterial({ color: NOTEBOOK.red, transparent: true, opacity: 0.92, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
+  const ringNight = new THREE.Color(NOTEBOOK.redNight);
+  const ringDay = new THREE.Color(NOTEBOOK.red);
+
   // Day and night.
   let clock = opts.time ?? null;
   let night = nightOf(clock ?? new Date());
@@ -832,6 +846,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     glowU.uNight.value = n;
     halos.fade.value = n;
     levels.ink.copy(PAGE.ink).lerp(PAGE.inkNight, n);
+    ringMat.color.copy(ringDay).lerp(ringNight, n);
     // by night the lines are light graphite on the dark page: the contour clear, the lines inside it faint
     levels.contour = 0.85 - 0.25 * n;
     levels.line = 0.78 - 0.43 * n;
@@ -964,7 +979,79 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   type Actor = { mesh: THREE.Mesh; glow: THREE.Mesh | null; t0: number; big: boolean; out?: boolean; x: number; y: number; z: number; ry: number; foot: number; kind: "part" | "chunk" | "marks"; done?: boolean };
   let actors: Actor[] = [];
   let rv: { t0: number; focus: THREE.Vector3; zoom: number; end: number; resolve: () => void; robot: THREE.Vector3; ground: number } | null = null;
-  let linger: { until: number; focus: THREE.Vector3; zoom: number } | null = null;
+  let linger: { until: number; focus: THREE.Vector3; zoom: number; robot: THREE.Vector3; ground: number } | null = null;
+
+  // The red pencil ring round a reveal's newest thing: a hand-drawn loop facing the camera, drawn on over `ring` seconds
+  // from t0. It stays until the isle is shown afresh.
+  let ring: { mesh: THREE.Mesh; t0: number; quads: number } | null = null;
+  const clearRing = () => {
+    if (!ring) return;
+    scene.remove(ring.mesh);
+    ring.mesh.geometry.dispose();
+    ring = null;
+    dirty = true;
+  };
+  /**
+   * Rings an item as it will stand at tier `tier`: an ellipse round its outline on screen (its footprint disc, up to its
+   * top), a little over one turn with a slight wobble and tapered ends, a 4 px pencil line when the camera's half
+   * height is `hh`.
+   */
+  const ringRound = (it: IsleItem, tier: number, t0: number, hh: number) => {
+    clearRing();
+    const w = worldOf(it);
+    const top = geoOf(it, tier).built.top;
+    let sx0 = Infinity;
+    let sx1 = -Infinity;
+    let sy0 = Infinity;
+    let sy1 = -Infinity;
+    for (let i = 0; i < 12; i++)
+      for (const y of [0, top]) {
+        const ang = (i / 12) * Math.PI * 2;
+        const [a, b] = onScreen(w.x + Math.cos(ang) * it.foot, w.y + y, w.z + Math.sin(ang) * it.foot);
+        sx0 = Math.min(sx0, a);
+        sx1 = Math.max(sx1, a);
+        sy0 = Math.min(sy0, b);
+        sy1 = Math.max(sy1, b);
+      }
+    const pad = 0.4 + 0.06 * Math.max(sx1 - sx0, sy1 - sy0);
+    const rx = (sx1 - sx0) / 2 + pad;
+    const ry = Math.max((sy1 - sy0) / 2 + pad * 0.8, rx * 0.62);
+    const perPx = (2 * hh) / (1 - cover()) / Math.max(1, heightPx);
+    const width = 4 * perPx;
+    const N = 84;
+    const turn = 1.12;
+    const a0 = Math.PI * 0.62;
+    const pos: number[] = [];
+    const idx: number[] = [];
+    for (let i = 0; i <= N; i++) {
+      const k = i / N;
+      const a = a0 - k * turn * Math.PI * 2;
+      // a hand's loop: not quite round, and the end overshoots a little outside the start
+      const r = 1 + 0.035 * Math.sin(a * 3 + 1.3) + 0.07 * k;
+      const half = (width / 2) * Math.min(1, k / 0.06 + 0.3, (1 - k) / 0.12 + 0.3);
+      const cx = Math.cos(a) * rx * r;
+      const cy = Math.sin(a) * ry * r;
+      // offset along the normal of the ellipse
+      const nx = Math.cos(a) * ry;
+      const ny = Math.sin(a) * rx;
+      const nl = Math.hypot(nx, ny) || 1;
+      pos.push(cx + (nx / nl) * half, cy + (ny / nl) * half, 0, cx - (nx / nl) * half, cy - (ny / nl) * half, 0);
+      if (i < N) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    const mesh = new THREE.Mesh(g, ringMat);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 20;
+    // the ellipse's centre, on screen where the item's outline is centred
+    const [ca, cb] = onScreen(w.x, w.y + top / 2, w.z);
+    mesh.position.set(w.x, w.y + top / 2, w.z).addScaledVector(RIGHT, (sx0 + sx1) / 2 - ca).addScaledVector(UPV, (sy0 + sy1) / 2 - cb);
+    scene.add(mesh);
+    ring = { mesh, t0, quads: N };
+    g.setDrawRange(0, 0);
+    dirty = true;
+  };
   let t = 0;
 
   const describe = (from: number, to: number): RevealInfo => {
@@ -1000,12 +1087,29 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     to = Math.max(from, Math.min(to, plan.events.length - 1));
     const info = describe(from, to);
     finishReveal();
+    clearRing();
+    linger = null;
     if (!muted) play(info.big, reduced ? 0 : mo.land - 0.4, opts.audio);
+    const changed = plan.items.filter((it) => it.tiers.some((x) => x > from && x <= to));
+    const lessonItems = changed.filter((it) => !it.landmark);
+    // the landmark built by this module leads; one that only rose follows
+    const moduleItems = changed.filter((it) => it.landmark).sort((a, b) => Number(b.tiers[0]! > from) - Number(a.tiers[0]! > from));
+    const lead = info.big ? moduleItems[0] ?? lessonItems[0] : lessonItems[lessonItems.length - 1] ?? moduleItems[0];
+    const leadTop = lead ? geoOf(lead, tierAt(lead, to)).built.top : 2;
+    const zoomIn = Math.max(1.2, Math.min(info.big ? 2.0 : 3.0, halfGoal / (info.big ? 7 : 5)));
+    const focusOn = (p: { x: number; y: number; z: number }) => new THREE.Vector3(p.x, p.y + Math.min(3, leadTop * 0.4), p.z);
+    const robotBy = (p: { x: number; y: number; z: number }) =>
+      new THREE.Vector3(p.x - 1.4 - (lead?.foot ?? 1) * 0.5, p.y + leadTop + 0.8, p.z + 1.2 + (lead?.foot ?? 1) * 0.5);
     if (reduced || to === from) {
       show(to);
+      // reduced motion: straight to the new thing, already ringed
+      if (lead && to !== from) {
+        const w = worldOf(lead);
+        if (mo.ring) ringRound(lead, tierAt(lead, to), -Infinity, halfGoal / zoomIn);
+        linger = { until: t + mo.linger, focus: focusOn(w), zoom: zoomIn, robot: robotBy(w), ground: w.y };
+      }
       return Promise.resolve(info);
     }
-    const changed = plan.items.filter((it) => it.tiers.some((x) => x > from && x <= to));
     const newLand = new Map<number, Set<number>>();
     plan.islands.forEach((isl, i) => {
       const s = new Set<number>();
@@ -1071,30 +1175,30 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
         }
       }
     };
-    const lessonItems = changed.filter((it) => !it.landmark);
-    const moduleItems = changed.filter((it) => it.landmark);
-    for (const it of lessonItems) put(it, tierAt(it, to), t0 + delay);
+    let leadAt = t0;
+    for (const it of lessonItems) {
+      put(it, tierAt(it, to), t0 + delay);
+      if (it === lead) leadAt = t0 + delay;
+    }
     if (lessonItems.length) delay += moduleItems.length ? mo.gaps[1] : 0;
-    // the landmark built by this module leads; one that only rose follows
-    moduleItems.sort((a, b) => Number(b.tiers[0]! > from) - Number(a.tiers[0]! > from));
     for (const it of moduleItems) {
       const before = tierAt(it, from);
       if (before >= 0) put(it, before, t0 + delay - 0.3, true);
       put(it, tierAt(it, to), t0 + delay);
+      if (it === lead) leadAt = t0 + delay;
       delay += mo.gaps[2];
     }
-    const lead = info.big ? moduleItems[0] ?? lessonItems[0] : lessonItems[lessonItems.length - 1] ?? moduleItems[0];
+    // the ring is drawn round the lead's spot just before it drops in
+    if (lead && mo.ring) ringRound(lead, tierAt(lead, to), leadAt - mo.ring - 0.05, halfGoal / zoomIn);
     const fw = lead ? worldOf(lead) : actors[0] ? { x: actors[0].x, y: actors[0].y, z: actors[0].z } : { x: 0, y: 0, z: 0 };
-    const leadTop = lead ? geoOf(lead, tierAt(lead, to)).built.top : 2;
     return new Promise<RevealInfo>((resolve) => {
-      const focusV = new THREE.Vector3(fw.x, fw.y + Math.min(3, leadTop * 0.4), fw.z);
       rv = {
         t0: t,
-        focus: focusV,
-        zoom: Math.max(1.2, Math.min(info.big ? 2.0 : 3.0, halfGoal / (info.big ? 7 : 5))),
+        focus: focusOn(fw),
+        zoom: zoomIn,
         end: t0 + delay + mo.settle[info.big ? 1 : 0],
         resolve: () => resolve(info),
-        robot: new THREE.Vector3(fw.x - 1.4 - (lead?.foot ?? 1) * 0.5, fw.y + leadTop + 0.8, fw.z + 1.2 + (lead?.foot ?? 1) * 0.5),
+        robot: robotBy(fw),
         ground: fw.y,
       };
     });
@@ -1191,7 +1295,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       focusGoal.lerp(rv.focus, f).add(lift);
       flying = true;
       if (t >= rv.end) {
-        linger = { until: t + mo.linger, focus: rv.focus.clone(), zoom: rv.zoom };
+        linger = { until: t + mo.linger, focus: rv.focus.clone(), zoom: rv.zoom, robot: rv.robot.clone(), ground: rv.ground };
         finishReveal();
       }
     } else if (linger) {
@@ -1203,7 +1307,8 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
         flying = true;
       }
     }
-    const e = reduced ? 1 : Math.min(1, dt * (flying ? 5 : 2.6));
+    // the notebook's glide follows its eased 300 ms path closely; the classic look trails behind it
+    const e = reduced ? 1 : Math.min(1, dt * (flying ? (mo.lively ? 5 : 14) : 2.6));
     const moving = Math.abs(hg - half) > 1e-3 || focus.distanceToSquared(focusGoal) > 1e-6;
     half += (hg - half) * e;
     focus.lerp(focusGoal, e);
@@ -1235,6 +1340,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
         const sp = (notebook ? press : spring)(k2, a.big);
         s = sp;
         if (a.kind === "chunk") yo = -mo.rise * (1 - sp);
+        else if (a.kind === "part") yo = mo.drop * Math.max(0, 1 - sp);
         if (!a.done) {
           a.done = true;
           if (a.foot > 0 && !reduced) burst(a.x, a.y, a.z, Math.min(5, a.foot), a.big && a.kind === "part");
@@ -1247,7 +1353,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       } else if (a.kind === "marks") compose(a.x, a.y, a.z, a.ry, Math.max(0, Math.min(1.05, s)), 1);
       else {
         const wob = mo.lively && k2 > 0 && !a.out ? 0.08 * Math.sin(k2 * 16) * Math.exp(-5 * k2) : 0;
-        compose(a.x, a.y, a.z, a.ry, s, s * (1 + wob));
+        compose(a.x, a.y + yo, a.z, a.ry, s, s * (1 + wob));
       }
       a.mesh.matrixAutoUpdate = false;
       a.mesh.matrix.copy(M);
@@ -1261,6 +1367,17 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     if (busy) {
       renderer.shadowMap.needsUpdate = true;
       dirty = true;
+    }
+    if (ring) {
+      // faces the camera, and draws itself on
+      ring.mesh.quaternion.copy(cam.quaternion);
+      const k = mo.ring ? Math.max(0, Math.min(1, (t - ring.t0) / mo.ring)) : 1;
+      const n = Math.round(ringEase(k) * ring.quads) * 6;
+      if (ring.mesh.geometry.drawRange.count !== n) {
+        ring.mesh.geometry.setDrawRange(0, n);
+        dirty = true;
+      }
+      if (!reduced && k < 1) dirty = true;
     }
 
     // level of detail: small pieces drop out when they would be a pixel or two
@@ -1276,6 +1393,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     const m0 = plan.islands[0]!;
     const rs = Math.max(1.5, Math.min(2.8, extent.r * 0.085));
     if (rv) robotWant.copy(rv.robot);
+    else if (linger) robotWant.copy(linger.robot);
     else robotWant.set(m0.x + Math.cos(t * 0.21) * mo.wander, m0.y + 2.6 + rs * 0.6, m0.z + Math.sin(t * 0.21) * mo.wander);
     robotAt.lerp(robotWant, reduced ? 1 : Math.min(1, dt * (rv ? 2.4 : 1.2)));
     const bob = reduced ? 0 : Math.sin(t * mo.bobRate) * mo.bob;
@@ -1283,7 +1401,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     robot.group.scale.setScalar(rs);
     robot.group.rotation.y = Math.atan2(cam.position.x - robotAt.x, cam.position.z - robotAt.z);
     robot.group.rotation.z = reduced ? 0 : Math.sin(t * 1.3) * mo.tilt;
-    robotShadow.position.set(robotAt.x, (rv ? rv.ground : m0.y) + 0.07, robotAt.z);
+    robotShadow.position.set(robotAt.x, (rv ? rv.ground : linger ? linger.ground : m0.y) + 0.07, robotAt.z);
     const hgt = Math.max(0.5, robotAt.y - robotShadow.position.y);
     robotShadow.scale.setScalar(rs * Math.max(0.5, 1.3 - hgt * 0.08));
     (robotShadow.material as THREE.MeshBasicMaterial).opacity = Math.max(0.06, 0.26 - hgt * 0.02);
@@ -1418,10 +1536,14 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     },
     show(k: number) {
       finishReveal();
+      clearRing();
+      linger = null;
       show(Math.max(-1, Math.min(k, plan.events.length - 1)));
     },
     update(next: IslePlan, k?: number) {
       finishReveal();
+      clearRing();
+      linger = null;
       plan = next;
       refs = designators(plan.items);
       show(Math.max(-1, Math.min(k ?? plan.events.length - 1, plan.events.length - 1)));
@@ -1452,6 +1574,8 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       canvas.removeEventListener("pointerup", onUp);
       controls?.dispose();
       finishReveal();
+      clearRing();
+      ringMat.dispose();
       clear();
       for (const g of geos.values()) {
         g.body?.dispose();

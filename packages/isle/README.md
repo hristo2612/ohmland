@@ -72,10 +72,12 @@ the page's theme: pass a time that matches the theme if the two should agree.
 - The robot hovers in place with a small, slow bob and blinks; nothing else moves on its own (no clouds, stars,
   smoke or sparks). A teaser sways 4 degrees instead of 10.
 - Slow idle motion is drawn on every other frame (30 a second), so an idle isle costs half as much.
-- The reveal is shorter and simpler: the camera glides to the new thing, which lands after 0.6 s (1.1 s in classic)
-  and presses in like a stamp (one small overshoot, no wobble) with a small ring of paper dust. A lesson's reveal
-  resolves after 1.2 s (2.0 s classic) and the camera lingers 1.8 s (2.6 s). Reduced motion shows the result at once
-  in both looks.
+- The reveal points at what is new: the camera glides to it (300 ms, eased), a red pencil ring draws itself round its
+  spot (300 ms, a hand's loop facing the camera, lighter red on the night page), and it drops in at 0.65 s (1.1 s in
+  classic, which has no ring) and presses in like a stamp (one small overshoot, no wobble) with a small ring of paper
+  dust. A lesson's reveal resolves after about 1.25 s (2.0 s classic). The notebook's camera then stays on the ringed
+  thing until the isle is shown afresh (classic lingers 2.6 s and pulls back). Reduced motion cuts straight to the
+  result: in the notebook, framed on the new thing and already ringed.
 
 ### Labels
 
