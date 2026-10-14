@@ -297,6 +297,7 @@ parts:
     blurb: A little can that stores a lot of charge for its size. It has a right way round.
     facts:
       - Values run from about 1 µF to thousands of µF. Tolerance is often ±20%.
+      - "Capacitance is in farads (F). 1 µF is a millionth of a farad, and 1,000 nF = 1 µF."
       - The stripe of minus signs and the shorter leg mark the negative side.
       - Reversed, or pushed past its voltage rating, it leaks, heats up and can vent.
       - "Symbol: two plates, one curved or hollow for the negative side, often with a + by the straight one."
@@ -321,6 +322,7 @@ parts:
       - It takes 20 samples per second.
       - A cursor reads the time and the value at any point on the plot.
       - Made for RC curves and other slow changes.
+      - "On an RC curve, one τ covers 63% of the gap; two, 86%; three, 95%; five, over 99%."
 
   - id: npn-transistor
     name: NPN transistor (2N3904)

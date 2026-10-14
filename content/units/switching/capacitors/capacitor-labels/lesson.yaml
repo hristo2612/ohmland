@@ -1,148 +1,65 @@
+# Blueprint: docs/curriculum/unit-2.md, Lesson 10; conversion: docs/curriculum/conversion-guide.md, C2 lesson 10.
+# A bench lesson (docs/LESSONS.md). One idea: an electrolytic has a minus stripe and a voltage limit, and fails when
+# you ignore them. The ceramic and blocking moved to kick-it-through, the three-digit code to flasher-to-tone.
+# Lab: content/labs/capacitor-labels.ts.
+format: bench
 id: capacitor-labels
-version: 1
-title: Reading the fine print
-summary: Decode capacitor markings, respect polarity and voltage ratings, and see a capacitor block steady current.
-minutes: 12
+version: 2
+title: Mind the stripe
+summary: Put an electrolytic in the right way and the wrong way, and read the voltage on its can.
+minutes: 6
+lab: capacitor-labels
 unlocks:
-  parts: [ceramic-capacitor]
+  parts: []
   isle: ceramic-cap
-steps:
-  - type: hook
-    body: |
-      Capacitors are bad at introducing themselves. A tiny yellow bead might say only "104". A bigger can says
-      "100 µF 16 V" and has a stripe of minus signs down one side.
 
-      Those few characters tell you the value, the tolerance, which way round it goes and how much voltage it can
-      take. Ignore them and things get dramatic. Today you learn to read the fine print, and then you get to ignore
-      it once, on purpose.
-    visual: { kind: part, part: ceramic-capacitor }
-    predict:
-      prompt: A ceramic capacitor is marked 104. What do you think it means?
-      options:
-        - 104 pF
-        - 100,000 pF
-        - 104 µF
-        - 104 volts
-    mascot: 104 is a code, not a price.
+start:
+  title: Mind the stripe
+  say: Electrolytics have a right way round. Let's test it.
+  go: Show me
 
-  - type: lab
-    lab: capacitor-labels
-    intro: The meter sits in series with a 10 kΩ resistor and an empty capacitor socket. Plug in, then watch the current.
+beats:
+  - say: Tap the 16 V can's minus leg.
+    objective: The right way round
+    tap: { answer: CB.neg, among: [CB.pos, CB.neg] }
+    wrong:
+      CB.pos: "That's the long leg, plus. Find the stripe."
+    note: { at: CB.neg, text: "stripe and short leg: minus" }
 
-  - type: explain
-    cards:
-      - title: Ceramic and electrolytic
-        body: |
-          **Ceramics** are small beads or discs, usually under 1 µF, and they fit either way round. **Electrolytics**
-          are little cans in a plastic sleeve, usually 1 µF and up, and they're polarized.
+  - say: Push it in. Long leg row 20, stripe row 21.
+    tool: meter
+    do: electrolytic-right-way
+    done: A gulp, then almost nothing.
+    note: { at: CB, text: "charged: just a tiny leak" }
 
-          The leg by the stripe of minus signs goes to the more negative side, and that leg is shorter. On
-          schematics, a curved or hollow plate marks the negative side.
-      - title: Three digits
-        body: |
-          Small ceramics use a code in picofarads: two digits, then how many zeros. 104 is 10 followed by four zeros:
-          100,000 pF = 100 nF = 0.1 µF. 473 is 47 nF. 222 is 2.2 nF.
+  - say: Now turn it round. Will the meter settle?
+    tool: meter
+    guess: { options: [Settles near zero, Never settles], answer: Never settles }
+    do: electrolytic-backwards
+    done: It never settles. It's cooking!
+    note: { at: CB, text: "backwards: leaks and heats" }
 
-          A letter may follow: J means ±5%, K ±10%, M ±20%. Here K never means kilo.
-        mascot: K means ten percent. It never means kilo here.
-      - title: Working voltage
-        body: |
-          Every capacitor has a maximum voltage its insulator can take. Exceed it and the insulator leaks or breaks
-          down.
+  - say: Pull it out before it pops.
+    spot: [CB]
+    do: pull-it-out
 
-          A higher rating than you need is always fine: a 16 V part is happy on 9 V. Electrolytics come rated as low
-          as 6.3 V, so read the can before you trust it.
-      - title: Blocking DC
-        body: |
-          Once a capacitor is charged, a steady voltage pushes no more current through it. Only a change in voltage
-          makes current flow.
+  - say: Our battery gives 9 V. Which can is safe?
+    objective: Read the can
+    pick: { options: [The 16 V can, The 6.3 V can], answer: The 16 V can }
+    wrong:
+      The 6.3 V can: "9 V is over its 6.3 V limit."
+    rule: Stay under the voltage on the can.
 
-          That's why a capacitor in series stops steady current but lets sudden changes through. You'll use that in
-          two lessons' time.
-        mascot: That pop goes straight to the Hall of Fried Parts. Bravo, scientist.
+secret:
+  task: blast-box
+  say: Curious? 6.3 V can, backwards, blast corner. Then slide S1.
+  done: Bang! Heated, bulged, vented.
 
-  - type: quiz
-    items:
-      - id: code-104
-        type: numeric
-        prompt: A ceramic is marked 104. What is its value in nF?
-        answer: 100
-        unit: nF
-        tolerance: 0
-        hint: 10, then four zeros, in picofarads.
-        explain: "100,000 pF = 100 nF = 0.1 µF."
+fixit:
+  say: Fix-it time. This can keeps leaking. Why?
+  tool: meter
+  tasks:
+    - task: fix-overvolt
 
-      - id: code-473
-        type: numeric
-        prompt: A ceramic is marked 473. What is its value in nF?
-        answer: 47
-        unit: nF
-        tolerance: 0
-        hint: 47, then three zeros, in picofarads.
-        explain: "47 followed by three zeros is 47,000 pF, which is 47 nF."
-
-      - id: code-223k
-        type: choice
-        prompt: What does 223K printed on a ceramic capacitor mean?
-        options:
-          - text: 223 kilofarads
-            why: That would be absurdly large. K is a tolerance letter.
-          - text: 22 nF, ±10%
-            correct: true
-            why: 22 and three zeros in pF is 22 nF, and K means 10% tolerance.
-          - text: 22 kΩ
-            why: That's resistor territory.
-        explain: On capacitors, the letter after the code is the tolerance. K means ±10%.
-
-      - id: which-rating
-        type: choice
-        prompt: Your circuit runs on 9 V. Which electrolytic can you use?
-        options:
-          - text: One rated 16 V
-            correct: true
-            why: Its rating is above the circuit voltage, so it's fine.
-          - text: One rated 6.3 V
-            why: 9 V exceeds its rating. It will leak and can fail.
-          - text: Either, the rating is just a suggestion
-            why: Exceed it and the insulator breaks down.
-        explain: Pick a working voltage comfortably above the highest voltage in the circuit.
-
-      - id: trimmed-legs
-        type: choice
-        prompt: Someone trimmed an electrolytic's legs to the same length. How do you find the negative leg now?
-        options:
-          - text: It's the leg on the side with the stripe of minus signs
-            correct: true
-            why: The stripe on the sleeve runs down the negative side.
-          - text: It's the leg nearer the printed value
-            why: The value can be printed anywhere on the sleeve.
-          - text: You can't tell any more
-            why: The stripe still tells you.
-        explain: The stripe of minus signs runs down the negative side, whatever length the legs are.
-
-      - id: backwards-ammeter
-        type: choice
-        prompt: An electrolytic is wired backwards in series with 10 kΩ across 9 V. What does an ammeter show?
-        options:
-          - text: Zero after a moment, just like the right way round
-            why: Backwards, the insulating layer breaks down.
-          - text: A current that never settles near zero
-            correct: true
-            why: It leaks badly and warms up.
-        explain: Reversed electrolytics conduct. With enough current they heat, bulge and vent.
-
-  - type: wrap
-    rules:
-      - "Ceramic code: two digits plus zeros, in picofarads. 104 means 100 nF."
-      - Electrolytics are polarized. The stripe and the short leg go to negative.
-      - Never exceed a capacitor's voltage rating. A higher rating is always fine.
-      - A charged capacitor blocks steady current.
-    realWorld:
-      parts:
-        - A 100 nF ceramic capacitor (marked 104)
-        - A 100 µF electrolytic capacitor rated 16 V
-        - A 10 kΩ resistor
-        - A multimeter and a 9 V battery
-      safety:
-        - Do not reverse or overvolt real electrolytics. They can burst and spray hot electrolyte.
-        - Wear eye protection if you experiment with capacitors.
+end:
+  say: Stripe to minus, volts to spare. You read the fine print.
