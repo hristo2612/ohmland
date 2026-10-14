@@ -5,4 +5,6 @@ summary: A quiz buzzer, lamps that count in binary, a die that stops at six, and
 landmark:
   id: dice-arcade
   name: The Dice Arcade
-lessons: []
+lessons:
+  - count-in-binary
+  - roll-a-six

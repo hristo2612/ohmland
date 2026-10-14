@@ -1,0 +1,77 @@
+# Blueprint: docs/curriculum/unit-4.md, CH24. A bench lesson (docs/LESSONS.md).
+# One idea: each lamp is worth double the one before: binary. New: the binary counter (74HC393; three periods: a note
+# as it counts, a tap among the chips, "What is this?") and the word "binary". The secret's falling edge is found
+# with the timing diagram's slow-motion replay. Lab: content/labs/count-in-binary.ts.
+format: bench
+id: count-in-binary
+version: 1
+title: Count in lamps
+summary: Watch four lamps count, give each lamp its worth, and read numbers in binary.
+minutes: 7
+lab: count-in-binary
+unlocks:
+  parts: [counter-74hc393]
+  isle: led-lamp
+
+start:
+  title: Count in lamps
+  say: This chip counts in lamps, not digits. Let's see.
+  go: Switch it on
+
+beats:
+  - say: Switch on the clock.
+    objective: Watch it
+    spot: [SW1, D1, D2, D3, D4]
+    do: count-on
+    note: { at: U2, text: "binary counter: lamps for digits" }
+
+  - say: Watch the right two lamps. After the second alone comes?
+    spot: [D1, D2]
+    guess: { options: [A third lamp, Both of them], answer: Both of them }
+    do: after-two
+    note: { at: D2, text: "1 + 1 makes 10: carry left" }
+
+  - say: Tag each lamp with its worth.
+    objective: Worth
+    tool: worth
+    spot: [D1, D2, D3, D4]
+    do: worth
+    rule: Each lamp is worth double the last.
+
+  - say: Lamps 8, 2 and 1 are lit. What number?
+    number: { answer: 11, tolerance: 0 }
+    hint: Add them up. 8 + 2 + 1.
+
+  - say: All four make 15. What comes next? Speed it up.
+    objective: Roll over
+    tool: controls
+    spot: [D1, D2, D3, D4]
+    guess: { options: ["16", "0"], answer: "0" }
+    do: roll-over
+    note: { at: U2, text: "15 rolls over to 0" }
+
+  - say: Show me the binary counter.
+    tap: { answer: U2, among: [U1, U2] }
+    hint: Not the clock. The chip the lamps hang on.
+
+  - say: What is this?
+    pick: { options: [A binary counter, A decade counter, A gate], answer: A binary counter, on: U2 }
+    wrong:
+      A decade counter: A decade counter stops at 9. This one reaches 15.
+      A gate: A gate answers right away. This one keeps count.
+
+secret:
+  task: on-the-fall
+  spot: [U2, D0]
+  say: "Secret: replay one tick in slow motion."
+  tool: td
+  done: It steps as the clock falls.
+  note: { at: U2, text: "the 393 steps on the fall" }
+
+fixit:
+  say: My counter keeps going back to 0. Fix it.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Lamps that count. I think in binary now.

@@ -12,4 +12,4 @@ modules:
   # - alarm
   - counters
   - logic
-  # - arcade
+  - arcade

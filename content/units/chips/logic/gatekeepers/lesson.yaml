@@ -13,7 +13,7 @@ minutes: 7
 lab: gatekeepers
 unlocks:
   parts: [logic-gates]
-  isle: breadboard-patch # TODO piece: logic-chip
+  isle: logic-chip
 
 start:
   title: Both keys or either
