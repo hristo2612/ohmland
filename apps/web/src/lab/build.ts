@@ -336,7 +336,7 @@ function attach(bench: BenchState, s: string | null, aliases: Record<string, Rec
   return resolveAttach(bench, s);
 }
 
-function parseLead(spec: LeadSpec): { id?: string; from: string | null; to: string | null; color?: LeadColor } {
+function parseLead(spec: LeadSpec): { id?: string; from: string | null; to: string | null; color?: LeadColor; lie?: string } {
   if (typeof spec !== "string") return spec;
   const [from, to] = spec.split(/\s*(?:->|→|\|| to )\s*/);
   return { from: from || null, to: to || null };
@@ -500,7 +500,15 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
     const to = attach(bench, s.to, aliases);
     if (s.from && !from) warnings.push(`lead ${s.id ?? i + 1}: nothing at "${s.from}", that clip lies on the desk`);
     if (s.to && !to) warnings.push(`lead ${s.id ?? i + 1}: nothing at "${s.to}", that clip lies on the desk`);
-    bench = addLeadBetween(bench, from, to, s.color ?? LEAD_COLORS[i % LEAD_COLORS.length]!, s.id)[0];
+    const [next, lid] = addLeadBetween(bench, from, to, s.color ?? LEAD_COLORS[i % LEAD_COLORS.length]!, s.id);
+    bench = next;
+    // Where a loose clip lies, when the lab says.
+    const lie = s.lie ? deskSpot(s.lie) : null;
+    if (s.lie && !lie) warnings.push(`lead ${s.id ?? i + 1}: cannot place "${s.lie}"`);
+    if (lie) {
+      if (!from) bench = benchOps.clipLead(bench, lid, "a", null, lie);
+      if (!to) bench = benchOps.clipLead(bench, lid, "b", null, from ? lie : [lie[0] + 50, lie[1]]);
+    }
   });
 
   for (const g of onLeads) {

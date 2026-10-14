@@ -18,8 +18,8 @@ const pressed = (lab: LabView) => lab.part("S1")?.extra?.["pressed"] === true;
 const LAMP_ON_NC: SolutionStep[] = [
   { do: "probe", red: null, black: null, mode: "off" },
   { do: "param", part: "K1", params: { peek: true } },
-  { do: "place", part: "R2", kind: "resistor", at: "desk:-14,56", params: { ohms: 1000 } },
-  { do: "place", part: "D2", kind: "led", at: "desk:32,52", rot: 180, params: { color: "green" } },
+  { do: "place", part: "R2", kind: "resistor", at: "desk:100,10", rot: 90, params: { ohms: 1000 } },
+  { do: "place", part: "D2", kind: "led", at: "desk:100,58", rot: 90, params: { color: "green" } },
   { do: "lead", id: "TL4", from: "B1.pos", to: "wired:K1.com1", color: "red" },
   { do: "lead", id: "TL5", from: "wired:K1.nc1", to: "R2.a", color: "green" },
   { do: "lead", id: "TL6", from: "R2.b", to: "D2.anode", color: "green" },
@@ -33,17 +33,17 @@ export default defineLab({
     board: "none",
     frame: ["desk:-140,-60", "desk:160,70"],
     parts: [
-      { id: "K1", kind: "relay", at: "desk:-20,-30", params: { base: true, tag: "K1", poles: 1, mystery: "shuffle", coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, locked: true, label: "Mystery relay" },
-      { id: "B1", kind: "battery", at: "desk:-118,20", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
-      { id: "S1", kind: "pushbutton", at: "desk:-48,40", params: { base: true, cap: "red", tag: "S1" }, locked: true, label: "Button S1" },
+      { id: "K1", kind: "relay", at: "desk:30,-40", params: { base: true, tag: "K1", poles: 1, mystery: "shuffle", coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, locked: true, label: "Mystery relay" },
+      { id: "B1", kind: "battery", at: "desk:-120,30", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "S1", kind: "pushbutton", at: "desk:-70,-40", params: { base: true, cap: "red", tag: "S1" }, locked: true, label: "Button S1" },
     ],
     leads: [
       { id: "TL1", from: "B1.pos", to: "S1.a1", color: "red" },
-      { id: "TL2", from: "S1.b1", to: null, color: "yellow" },
-      { id: "TL3", from: "B1.neg", to: null, color: "black" },
+      { id: "TL2", from: "S1.b1", to: null, color: "yellow", lie: "desk:-30,10" },
+      { id: "TL3", from: "B1.neg", to: null, color: "black", lie: "desk:-50,40" },
     ],
     tray: [],
-    instruments: [{ kind: "meter", at: "desk:118,-24", rot: -18, mode: "off" }],
+    instruments: [{ kind: "meter", at: "desk:180,-10", rot: -18, mode: "off" }],
   },
   panels: [
     {

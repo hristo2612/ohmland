@@ -26,11 +26,11 @@ export default defineLab({
     board: "none",
     frame: ["desk:-150,-70", "desk:200,70"],
     parts: [
-      { id: "B1", kind: "battery", at: "desk:-126,-10", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
-      { id: "P1", kind: "trimmer", at: "desk:-62,30", params: { base: true, tag: "P1", ohms: 1000, position: 0 }, locked: true, label: "Knob P1, 1 kΩ" },
-      { id: "K1", kind: "relay", at: "desk:0,-36", params: { base: true, tag: "K1", poles: 1, coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, locked: true, label: "Relay K1" },
-      { id: "R2", kind: "resistor", at: "desk:14,48", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor" },
-      { id: "D2", kind: "led", at: "desk:62,44", rot: 180, params: { color: "green" }, locked: true, label: "Green LED" },
+      { id: "B1", kind: "battery", at: "desk:-140,20", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "P1", kind: "trimmer", at: "desk:-80,-40", params: { base: true, tag: "P1", ohms: 1000, position: 0 }, locked: true, label: "Knob P1, 1 kΩ" },
+      { id: "K1", kind: "relay", at: "desk:10,-40", params: { base: true, tag: "K1", poles: 1, coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, locked: true, label: "Relay K1" },
+      { id: "R2", kind: "resistor", at: "desk:40,40", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor" },
+      { id: "D2", kind: "led", at: "desk:95,40", rot: 180, params: { color: "green" }, locked: true, label: "Green LED" },
     ],
     leads: [
       { id: "TL1", from: "B1.pos", to: "P1.b", color: "red" },
@@ -43,7 +43,7 @@ export default defineLab({
       { id: "TL8", from: "D2.cathode", to: "B1.neg", color: "black" },
     ],
     tray: [],
-    instruments: [{ kind: "meter", at: "desk:150,-24", rot: -18, mode: "dcv", probes: { red: "K1.coil1", black: "K1.coil2" } }],
+    instruments: [{ kind: "meter", at: "desk:170,-10", rot: -18, mode: "dcv", probes: { red: "K1.coil1", black: "K1.coil2" } }],
     controls: [{ id: "knob", label: "Knob P1", part: "P1", key: "position", min: 0, max: 1, value: 0, step: 0.005, unit: "%" }],
   },
   mascot: {

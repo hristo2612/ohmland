@@ -78,8 +78,11 @@ export type LegacyPart = PartCommon & { kind: BenchPartKind | PartKind; props?: 
 
 export type LabPart = BenchPart | LegacyPart;
 
-/** A crocodile clip lead joining two points: "B1.pos -> S1.a" (colours follow red, black, green, yellow ...). */
-export type LeadSpec = string | { id?: string; from: Attach | null; to: Attach | null; color?: LeadColor; locked?: boolean };
+/**
+ * A crocodile clip lead joining two points: "B1.pos -> S1.a" (colours follow red, black, green, yellow ...). `lie` puts
+ * a clip that starts loose ("desk:x,z"; with both loose, clip a there and clip b 50 mm to its right).
+ */
+export type LeadSpec = string | { id?: string; from: Attach | null; to: Attach | null; color?: LeadColor; locked?: boolean; lie?: Spot };
 
 /** A jumper wire between two breadboard holes: "a12 -> rail-:12". */
 export type WireSpec = string | { id?: string; from: string; to: string; color?: WireColor };

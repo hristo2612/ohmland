@@ -56,10 +56,10 @@ export default defineLab({
     board: "none",
     frame: ["desk:-150,-70", "desk:110,70"],
     parts: [
-      { id: "B1", kind: "battery", at: "desk:-112,8", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
-      { id: "S1", kind: "pushbutton", at: "desk:66,-40", params: { base: true, cap: "red", tag: "S1" }, locked: true, label: "Button S1" },
-      { id: "K1", kind: "relay", at: "desk:-14,-38", params: { base: true, tag: "K1", poles: 1, coilOhms: 540, pullIn: 6.0, dropOut: 1.8, coilHenries: 0.3 }, locked: true, label: "Relay K1" },
-      { id: "D3", kind: "diode", at: "desk:40,34", params: { model: "1N4001" }, label: "1N4001 diode" },
+      { id: "B1", kind: "battery", at: "desk:-120,10", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "S1", kind: "pushbutton", at: "desk:-50,-40", params: { base: true, cap: "red", tag: "S1" }, locked: true, label: "Button S1" },
+      { id: "K1", kind: "relay", at: "desk:40,-40", params: { base: true, tag: "K1", poles: 1, coilOhms: 540, pullIn: 6.0, dropOut: 1.8, coilHenries: 0.3 }, locked: true, label: "Relay K1" },
+      { id: "D3", kind: "diode", at: "desk:30,30", params: { model: "1N4001" }, label: "1N4001 diode" },
     ],
     leads: [
       { id: "TL1", from: "B1.pos", to: "S1.a1", color: "red", locked: true },

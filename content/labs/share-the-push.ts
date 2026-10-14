@@ -23,9 +23,9 @@ export default defineLab({
     // The meter sits in front of the loop, so the bench stacks up a phone screen too.
     frame: ["desk:-104,-104", "desk:92,166"],
     parts: [
-      { id: "B1", kind: "battery", at: "desk:-74,-36", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:-44,-56", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
       { id: "R1", kind: "resistor", at: "desk:-6,-66", params: { ohms: 470, watts: 0.25, actualOhms: 470 }, locked: true, label: "470 Ω resistor" },
-      { id: "D1", kind: "led", at: "desk:58,-28", rot: 180, params: { color: "red", maxmA: 50 }, label: "Red LED" },
+      { id: "D1", kind: "led", at: "desk:58,-28", rot: 90, params: { color: "red", maxmA: 50 }, label: "Red LED" },
     ],
     leads: [
       { id: "L1", from: "B1.pos", to: "R1.a", color: "red" },
