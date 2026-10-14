@@ -239,6 +239,8 @@ main:focus { outline: none; }
   .wordmark__mark { width: 28px; height: 28px; }
   .site-nav, .header-tools .nb { display: none; }
   .xp-tally { display: inline-flex; }
+  /* the landing's poster is the whole screen: the wordmark, and nothing else above it */
+  .site-header--bare .xp-tally { display: none; }
 
   /* room for the bottom bar, so the end of every page scrolls clear of it */
   body.has-bottom-nav { padding-bottom: calc(var(--bar-h) + env(safe-area-inset-bottom)); }
