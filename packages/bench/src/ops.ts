@@ -4,7 +4,7 @@
 import { parseAnchor } from "./anchors";
 import { PITCH, boardGeometry, boardOrigin, holeAtOffset, holeWorld, nearestHole } from "./board";
 import { AA, BATTERY, COIN } from "./dims";
-import { anchorPosition, gateSpot, isOnBoard, partPose } from "./layout";
+import { METER, anchorPosition, gateSpot, isOnBoard, partPose } from "./layout";
 import { chargeable, rub, settle } from "./static";
 import { canMountOnBoard, defaultParams, footprintOf, isFlying, partDef, rotateXZ } from "./parts";
 import { heldOf, holderOf, popSpot, seatFits, seatNear, seatPose, seatsOf } from "./seats";
@@ -450,6 +450,54 @@ export function dropOnto(bench: BenchState, id: string, targetId: string, from: 
   if (!part) return bench;
   const { holes: _h, ...rest } = part;
   return swapParts(replacePart(b, { ...rest, pos: from } as PlacedPart), id, targetId);
+}
+
+/** A loose part's desk box in the world (mm: x0, z0, x1, z1), turned with it. */
+function worldBox(part: PlacedPart, at: Vec2 = part.pos): [number, number, number, number] {
+  const [bx0, bz0, bx1, bz1] = looseBox(part);
+  let [x0, z0, x1, z1] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [cx, cz] of [[bx0, bz0], [bx1, bz0], [bx0, bz1], [bx1, bz1]] as const) {
+    const [wx, wz] = rotateXZ(cx, cz, part.rot);
+    [x0, z0, x1, z1] = [Math.min(x0, at[0] + wx), Math.min(z0, at[1] + wz), Math.max(x1, at[0] + wx), Math.max(z1, at[1] + wz)];
+  }
+  return [x0, z0, x1, z1];
+}
+
+/**
+ * Where a part set aside lands (the old part a fresh one took the place of): `near`, if the desk is clear there,
+ * else the nearest clear spot in a row just in front of the board (or through `near` without a board), clear of the
+ * board, the meter and every other part on the desk. `ignore`: parts that do not count (the fresh one).
+ */
+export function asideSpot(bench: BenchState, part: PlacedPart, near: Vec2, ignore: readonly string[] = []): Vec2 {
+  const keepOut: [number, number, number, number][] = [];
+  let front = -Infinity;
+  if (bench.board) {
+    const g = boardGeometry(bench.board);
+    const [bx, bz] = bench.board.pos ?? [0, 0];
+    keepOut.push([bx - g.width / 2, bz - g.depth / 2, bx + g.width / 2, bz + g.depth / 2]);
+    front = bz + g.depth / 2;
+  }
+  if (bench.meter) {
+    const m = bench.meter;
+    const [w, l] = [METER.width / 2, METER.length / 2];
+    keepOut.push([m.pos[0] - w, m.pos[1] - l, m.pos[0] + w, m.pos[1] + l]);
+  }
+  for (const q of bench.parts) if (q.id !== part.id && !ignore.includes(q.id) && !isOnBoard(bench, q)) keepOut.push(worldBox(q));
+  const clear = (at: Vec2) => {
+    const [x0, z0, x1, z1] = worldBox(part, at);
+    const e = 1e-6;
+    return keepOut.every(([a0, b0, a1, b1]) => x1 + POP_GAP <= a0 + e || x0 - POP_GAP >= a1 - e || z1 + POP_GAP <= b0 + e || z0 - POP_GAP >= b1 - e);
+  };
+  if (clear(near)) return near;
+  // The row: its far edge a gap in front of the board.
+  const [, bz0] = worldBox(part, [0, 0]);
+  const z = Math.max(near[1], front + POP_GAP - bz0);
+  for (let k = 0; k <= 60; k++)
+    for (const s of k ? [1, -1] : [1]) {
+      const at: Vec2 = [near[0] + s * k * 4, z];
+      if (clear(at)) return at;
+    }
+  return [near[0], z];
 }
 
 /** A part of the same kind lying under `id` (within `reach` mm), that dropping `id` there would swap with. */

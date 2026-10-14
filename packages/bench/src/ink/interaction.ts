@@ -355,7 +355,7 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
       // Dropped right on a part of the same kind: the two swap places and wiring (a fresh LED for a dead one).
       const target = ops.swapTarget(s.bench, d.id);
       if (target && !s.locked.includes(target.id)) {
-        const from = s.txBase?.parts.find((p) => p.id === d.id)?.pos ?? ([target.pos[0], target.pos[1] + 34] as Vec2);
+        const from = s.txBase?.parts.find((p) => p.id === d.id)?.pos ?? ops.asideSpot(s.bench, target, [target.pos[0], target.pos[1] + 34], [d.id]);
         s.apply((b) => ops.dropOnto(b, d.id, target.id, from));
       } else if (d.cable && d.to) {
         // A gate dropped on a cable as drawn: on that lead.
@@ -783,7 +783,7 @@ export function attachInteraction(ctx: InkInteractionCtx): { api: InkApi; detach
             // A fresh part dropped right on one of its kind takes its place and wiring; the old one moves aside.
             const id = g.drag.id;
             const target = ops.swapTarget(st.bench, id);
-            if (target && !st.locked.includes(target.id)) st.apply((b) => ops.dropOnto(b, id, target.id, [target.pos[0], target.pos[1] + 34]));
+            if (target && !st.locked.includes(target.id)) st.apply((b) => ops.dropOnto(b, id, target.id, ops.asideSpot(b, target, [target.pos[0], target.pos[1] + 34], [id])));
           }
           st.commit();
           if (g.drag?.kind === "part") emit({ type: "part:add", partId: g.drag.id, kind: item.kind as never });
