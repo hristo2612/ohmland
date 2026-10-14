@@ -68,6 +68,7 @@ beats:
 secret:
   task: too-small
   say: Curious? Try the tiny chip.
+  spot: [U9, U1]
   done: Too small. Its feet miss the holes.
   note: { at: U9, text: "surface mount: tiny feet" }
 

@@ -33,7 +33,7 @@ beats:
     do: door-shut
 
   - say: Swap the yellow jumper for the 0.47 µF.
-    spot: [W2, U1]
+    spot: [W2, U1, R1, D1]
     do: cap-in
 
   - say: Open it again, and leave it open.

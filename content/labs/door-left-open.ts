@@ -41,7 +41,7 @@ export default defineLab({
       { id: "R3", kind: "resistor", at: "h19-h24", params: { ohms: 27_000 }, locked: true, label: "27 kΩ resistor R3" },
       { id: "C1", kind: "electrolytic-cap", at: "j19-top-:20", params: { farads: 100e-6, volts: 16, leakOhms: 5e7, tolerance: 5 }, locked: true, label: "100 µF capacitor C1" },
       { id: "R2", kind: "resistor", at: "b19-rail+:19", params: { ohms: 100_000 }, locked: true, label: "100 kΩ pull-up R2" },
-      { id: "R1", kind: "resistor", at: "a17-rail-:17", params: { ohms: 10_000 }, locked: true, label: "10 kΩ resistor R1" },
+      { id: "R1", kind: "resistor", at: "b17-rail-:17", params: { ohms: 10_000 }, locked: true, label: "10 kΩ resistor R1" },
       { id: "R4", kind: "resistor", at: "b20-b24", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor R4" },
       { id: "D1", kind: "led", at: "c24", params: { color: "yellow", maxmA: 20 }, locked: true, label: "Yellow LED" },
     ],
@@ -58,7 +58,7 @@ export default defineLab({
     ],
     leads: [
       { id: "TL0", from: "DR1.a", to: "rail+:29", color: "red" },
-      { id: "TL1", from: "DR1.b", to: "c17", color: "yellow" },
+      { id: "TL1", from: "DR1.b", to: "a17", color: "yellow" },
     ],
     tray: [{ id: "C2", kind: "ceramic-cap", params: { farads: 0.47e-6 }, count: 1, label: "0.47 µF capacitor" }],
     instruments: [],
@@ -176,7 +176,7 @@ export default defineLab({
     // In series: plus, the door, the window, the loop.
     { do: "clip", lead: "TL1", end: "b", to: null },
     { do: "clip", lead: "TL3", end: "b", to: "DR1.b" },
-    { do: "clip", lead: "TL4", end: "b", to: "c17" },
+    { do: "clip", lead: "TL4", end: "b", to: "a17" },
     { do: "wait", seconds: 1 },
     { do: "param", part: "WN1", params: { open: true } },
     { do: "wait", seconds: 1 },
