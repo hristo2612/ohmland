@@ -1,143 +1,58 @@
+# Blueprint: docs/curriculum/unit-2.md, Lesson 1; conversion: docs/curriculum/conversion-guide.md, C2 (1).
+# A bench lesson (docs/LESSONS.md). One idea: a switch's pole moves between its throws.
+# Lab: content/labs/switch-anatomy.ts. Normally open and normally closed buttons moved to two-buttons.
+format: bench
 id: switch-anatomy
-version: 1
-title: What's inside a switch
-summary: Peek inside three kinds of switch and learn to describe any switch by its poles and throws.
-minutes: 10
+version: 2
+title: Poles and throws
+summary: Probe a slide switch in both positions and find the leg that moves.
+minutes: 6
+lab: switch-anatomy
 unlocks:
-  parts: [toggle-switch, slide-switch, pushbutton]
+  parts: [toggle-switch, slide-switch]
   isle: switch
-steps:
-  - type: hook
-    body: |
-      Every gadget you own is full of decisions: on or off, this way or that way. The humblest decision-maker is a
-      switch. Inside its plastic shell, a springy strip of metal either touches a contact or it doesn't.
 
-      Today you get a beeping tool that can hear the difference, and a handful of switches to question. Nothing here
-      can break, so poke at everything.
-    visual: { kind: part, part: slide-switch }
-    predict:
-      prompt: A slide switch has three legs. How many of them do you think connect to each other at once?
-      options:
-        - All three
-        - Two at a time
-        - None, it's a trick
-        - It depends on the position
-    mascot: That bare board drifting by needs a way to decide things. Switches first.
+start:
+  title: Poles and throws
+  say: Three legs, one slider. Which leg does the moving?
+  go: Grab the probes
 
-  - type: lab
-    lab: switch-anatomy
-    intro: Set the meter to continuity, then question each switch in every position it has.
+beats:
+  - say: Beep check. Dial to Beep, then touch the tips.
+    objective: Warm up the beeper
+    tool: meter
+    do: beep-test
 
-  - type: explain
-    cards:
-      - title: Pole, throw, actuator
-        body: |
-          The **pole** is the contact that moves. A **throw** is a place where it can land. The **actuator** is the
-          part your finger pushes: a lever, a slider or a button.
+  - say: Probe S2's three pairs, both positions. Who changes partner?
+    objective: Find the pole
+    spot: [S2]
+    guess: { options: [The left leg, The middle leg, The right leg], answer: The middle leg }
+    do: find-the-pole
+    done: The middle leg. It swaps partners at every slide.
+    note: { at: S2.com, text: "pole: the moving contact" }
+    rule: The pole moves. The throws stay put.
 
-          To describe a switch, count two things: how many separate poles move together, and how many throws each
-          one has. A wall light switch has one pole and one throw: SPST, single pole single throw.
-        mascot: Beep means yes. Silence means no. Switches can't lie to the beeper.
-      - title: SPDT and friends
-        body: |
-          Single pole, double throw (SPDT) means the pole always lands on one of two throws. That makes it a
-          chooser, not just an on-off.
+  - say: Show me the pole.
+    tap: { answer: S2.com, among: [S2.a, S2.com, S2.b] }
+    wrong:
+      S2.a: That end beeps in one position only.
+      S2.b: That end beeps in one position only.
 
-          Double pole (DP) switches have two separate poles moved by one actuator, so a DPDT has six legs and makes
-          two choices at once. On a schematic, a dashed line between poles means "these move together".
-        mascot: The middle leg is usually the boss.
-      - title: Momentary or staying put
-        body: |
-          A toggle or slide switch stays where you leave it. A pushbutton is **momentary**: a spring returns it.
+  - say: And this leg?
+    pick: { on: S2.b, options: [The pole, A throw], answer: A throw }
+    wrong: { The pole: "It never swaps partners. It's where the pole lands." }
+    note: { at: S2, text: "SPDT: one pole, two throws" }
 
-          A **normally open** (NO) button connects only while pressed, like a doorbell. A **normally closed** (NC)
-          button disconnects while pressed, like the switch in a fridge door frame: the closing door presses it and
-          the light goes off.
-        mascot: Press, hold, probe. Patience is a tool too.
-      - title: Ratings matter
-        body: |
-          A switch's contacts have a current rating. Every time contacts open under load, a tiny spark eats at
-          them.
+secret:
+  task: one-throw
+  say: Curious? S1 has only two legs. Probe it both ways.
+  done: Beep, then silence. Just on or off.
+  note: { at: S1, text: "SPST: one pole, one throw" }
 
-          Motors are the worst. As they start, they can gulp two or more times their running current, so pick a
-          switch rated well above the running current. A switch that is too small gets hot, pits its contacts and
-          eventually sticks.
+fixit:
+  say: My selector lights one lamp only. Fix it.
+  tasks:
+    - task: fix-selector
 
-  - type: quiz
-    items:
-      - id: dpdt-legs
-        type: choice
-        prompt: How many legs does a DPDT switch have?
-        options:
-          - text: "3"
-            why: That's an SPDT, one pole plus two throws.
-          - text: "4"
-            why: That would be a DPST, two poles with one throw each.
-          - text: "6"
-            correct: true
-            why: "Two poles, each with its own pair of throws: 2 × 3 = 6."
-          - text: "8"
-            why: No common switch has eight legs for two poles.
-        hint: Start from an SPDT and double it.
-        explain: Count each pole with its throws. A double pole, double throw switch is two separate SPDT switches sharing one actuator.
-
-      - id: slide-it
-        type: choice
-        prompt: Your meter beeps between a switch's middle leg and its left leg. You slide the actuator. What do you expect now?
-        options:
-          - text: Still a beep between middle and left
-            why: Then the slider did nothing. On an SPDT it moves the pole to the other throw.
-          - text: A beep between middle and right
-            correct: true
-            why: The pole moved to the other throw.
-          - text: A beep between left and right
-            why: The two throws of an SPDT never connect to each other.
-        explain: In an SPDT the middle leg is usually the pole. Each position joins it to one throw.
-
-      - id: where-it-lives
-        type: match
-        prompt: Match each switch to a job it suits.
-        pairs:
-          - { left: Normally open pushbutton, right: A doorbell }
-          - { left: Normally closed pushbutton, right: A fridge light that the closing door switches off }
-          - { left: SPST toggle, right: A simple on-off for a desk lamp }
-          - { left: SPDT slide, right: Choosing between two settings }
-        explain: NO connects only while pressed, NC disconnects while pressed, a toggle stays put, and an SPDT picks one of two.
-
-      - id: motor-rating
-        type: numeric
-        prompt: A small fan motor runs at 1.5 A. Suppose it gulps twice that as it starts. What is the smallest switch rating that covers the surge?
-        answer: 3
-        unit: A
-        tolerance: 0
-        hint: Double the running current.
-        explain: "2 × 1.5 A = 3 A. In a shop you'd round up to the next standard size, perhaps 5 A, for extra margin."
-
-      - id: which-pole
-        type: choice
-        prompt: On a three-legged slide switch, which leg is usually the pole?
-        options:
-          - text: The middle leg
-            correct: true
-            why: It sits between the two throws and connects to one or the other.
-          - text: The left leg
-            why: An outer leg is usually a throw.
-          - text: Whichever leg is longest
-            why: Switch legs are usually the same length. Position tells you more.
-        explain: On almost every slide switch the middle leg is the pole. When in doubt, a continuity table proves it.
-
-  - type: wrap
-    rules:
-      - A pole is the moving contact. Throws are where it can land.
-      - SPST is on or off. SPDT chooses between two.
-      - Normally open connects when pressed. Normally closed disconnects when pressed.
-      - A continuity beep means a path. OL means no path.
-    realWorld:
-      body: Any small switch from an old toy or gadget works for this.
-      parts:
-        - A multimeter with a continuity (beep) mode
-        - A slide switch
-        - A small tactile pushbutton
-      safety:
-        - Only test switches that are not wired into anything.
-        - Never open or test wall switches. Mains wiring can kill.
+end:
+  say: Poles and throws. You can read any switch now.
