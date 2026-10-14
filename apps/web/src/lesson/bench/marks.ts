@@ -104,16 +104,20 @@ export function namedParts(line: string, bench: BenchState, labels: Record<strin
 }
 
 /**
- * Lab shorthand as framing targets, each taken whole: a lead or a jumper named by its id (both ends in view), and a
- * part's lead or terminal with the part it belongs to (a battery's snap brings the battery).
+ * Lab shorthand as framing targets, each taken whole: a lead named by its id with the parts its clips bite, a jumper
+ * named by its id, and a part's lead or terminal with the part it belongs to (a battery's snap brings the battery).
  */
 export function wholeTargets(bench: BenchState, list: readonly string[] | undefined): string[] {
+  const partOf = (anchor: string | null) => {
+    const m = anchor ? /^pin:([^.]+)\./.exec(anchor) : null;
+    return m && bench.parts.some((p) => p.id === m[1]) ? [`part:${m[1]}`] : [];
+  };
   return (list ?? []).flatMap((s) => {
-    if (bench.leads.some((l) => l.id === s)) return [`lead:${s}`];
+    const lead = bench.leads.find((l) => l.id === s);
+    if (lead) return [`lead:${s}`, ...partOf(lead.a.to), ...partOf(lead.b.to)];
     if (bench.wires.some((x) => x.id === s)) return [`wire:${s}`];
     const a = resolveAnchor(bench, s);
     if (!a) return [];
-    const pin = /^pin:([^.]+)\./.exec(a);
-    return pin && bench.parts.some((p) => p.id === pin[1]) ? [a, `part:${pin[1]}`] : [a];
+    return [a, ...partOf(a)];
   });
 }
