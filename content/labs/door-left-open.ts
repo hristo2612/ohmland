@@ -76,7 +76,7 @@ export default defineLab({
       prompt: "Open the door.",
       goal: (lab) => open(lab, "DR1") && lit(lab),
       hints: ["Click the door to swing it open."],
-      highlight: ["DR1"],
+      highlight: ["part:DR1/leaf"],
       success: "The lamp lit.",
     },
     {
@@ -93,7 +93,7 @@ export default defineLab({
       prompt: "Shut the door.",
       goal: (lab) => !open(lab, "DR1"),
       hints: ["Click the door to swing it shut."],
-      highlight: ["DR1"],
+      highlight: ["part:DR1/leaf"],
       success: "Shut.",
     },
     {
@@ -127,7 +127,7 @@ export default defineLab({
         return Math.abs(fall - rise - T) <= 0.15 * T && !lit(lab);
       },
       hints: ["Open it, then wait. Watch the lamp."],
-      highlight: ["DR1"],
+      highlight: ["part:DR1/leaf"],
       success: "Out after three seconds, door still open.",
     },
     {

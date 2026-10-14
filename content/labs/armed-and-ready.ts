@@ -136,7 +136,7 @@ export default defineLab({
         return lab.memory["opened"] === true && lab.memory["yellow"] !== true && !lit(lab, "D1") && !lit(lab, "D2");
       },
       hints: ["Tap GO, the black button. Then open the door at once.", "Wait for the green lamp to go out."],
-      highlight: ["S1", "DR1"],
+      highlight: ["S1", "part:DR1/leaf"],
       success: "Green ended. Yellow never woke.",
     },
     {
@@ -149,7 +149,7 @@ export default defineLab({
         return fall !== undefined && lab.t - fall >= 2 && !alarm(lab);
       },
       hints: ["Shut it, then open it.", "Watch the yellow lamp. Then listen."],
-      highlight: ["DR1"],
+      highlight: ["part:DR1/leaf"],
       success: "Yellow ended. Silence.",
     },
     {
@@ -171,7 +171,7 @@ export default defineLab({
         return linked(lab) && alarm(lab) && rises.some(([r]) => falls.some(([f]) => Math.abs(r - f) <= 0.2));
       },
       hints: ["Shut, open, then wait for yellow to end."],
-      highlight: ["DR1"],
+      highlight: ["part:DR1/leaf"],
       success: "The alarm sings!",
     },
     {
