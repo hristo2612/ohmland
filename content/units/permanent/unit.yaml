@@ -10,3 +10,4 @@ isle:
 modules:
   - soldering
   - wires-and-power
+  - perfboard
