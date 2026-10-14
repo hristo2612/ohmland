@@ -1,62 +1,76 @@
-# A bench lesson (docs/LESSONS.md). One idea: hidden metal strips join some holes.
-# Lab: content/labs/how-a-breadboard-works.ts (the LED and rail tasks, and the secret).
+# Start here, case 10 (docs/curriculum/start-here.md, SH10, "holes-that-hold-hands"). A bench lesson (docs/LESSONS.md).
+# It keeps its first id, how-a-breadboard-works: progress and island pieces key on it.
+# One idea: hidden metal strips join the holes: strips of five, long rails, and a gap down the middle.
+# Lab: content/labs/how-a-breadboard-works.ts (the lamp on a half board with both LED legs in one strip).
 format: bench
 id: how-a-breadboard-works
-version: 1
-title: How a breadboard works
-summary: Find the hidden metal strips inside a breadboard, then use them to light an LED.
-minutes: 6
+version: 2
+title: The secret wiring
+summary: Find the hidden metal strips inside a breadboard, then use them to mend a dark lamp.
+minutes: 8
 lab: how-a-breadboard-works
 unlocks:
-  parts: [breadboard]
+  parts: [breadboard, jumper-wires]
   isle: breadboard-patch
 
 start:
   title: The secret wiring
-  say: This is a breadboard. Parts just push in.
-  go: Show me
+  say: This is a breadboard. My lamp's in, but dark.
+  go: Look inside
 
 beats:
-  - say: Tap any hole.
-    objective: Meet the board
-    tap: { anyHole: true }
-    note: { at: tap, text: "this is {hole}" }
-    done: Every hole has a name.
+  - say: Switch on X-ray.
+    objective: Look inside
+    do: xray-on
+    note: { at: c4, text: "five holes, one metal strip" }
 
-  - say: X-ray on. Tap a hole. See its strip.
+  - say: Tap a hole. See who it holds hands with.
     xray: true
     tap: { anyHole: true }
-    note: { at: tap, text: joined underneath }
-    rule: "Same number, same side: joined."
+    note: { at: tap, text: "{hole} holds hands with four" }
 
-  - say: Game time. Tap a hole joined to the red one.
-    objective: Which holes join?
+  - say: Why is my lamp dark?
+    objective: Mend the lamp
+    xray: true
+    spot: [D1]
+    pick: { options: ["Both legs, one strip", Lamp broken, No battery], answer: "Both legs, one strip" }
+    hint: Look at the metal under the lamp's legs.
+
+  - say: Move the short leg next door.
+    xray: true
+    do: fix-led
+    note: { at: D1, text: "each leg, its own strip" }
+    rule: A part needs its legs in different strips.
+
+  - say: Slide the black wire along the blue rail.
+    objective: The long way
+    xray: true
+    do: rail-slide
+    note: { at: W1.b, text: a rail runs the whole length }
+
+  - say: X-ray off. Tap a hole joined to the red one.
+    objective: Show me a strip
     tap: { joinedTo: b14 }
 
-  - say: Now this one. Careful near the middle.
+  - say: Now this one. Careful near the middle gap.
     tap: { joinedTo: e18 }
 
   - say: Last one. This hole sits on a rail.
     tap: { joinedTo: "rail+:21" }
-    rule: Rails run the whole length.
 
-  - say: Both legs share strip 10. Dark. Fix it.
-    objective: Light it up
-    do: fix-led
-    done: It glows! Each leg, its own strip.
-    note: { at: D1, text: "in at 10, out at 11" }
-    rule: Each leg needs its own strip.
-
-  - say: Slide the black wire along the blue rail.
-    do: rail-slide
-    done: Still glowing.
-    note: { at: W1.b, text: "still minus, way over here" }
+  - say: What is this?
+    xray: true
+    pick: { on: c4, options: [A strip, A rail, A jumper], answer: A strip }
 
 secret:
   task: short-the-rails
-  say: Curious? Draw a wire from plus to minus.
-  done: Whoa. A short. The battery gets hot.
-  note: { at: B1, text: "all current, no part" }
+  say: "Secret: join plus straight to minus with a wire."
+  note: { at: B1, text: "all flow, no part" }
+
+fixit:
+  say: My second lamp is dark. Fix it.
+  tasks:
+    - task: fix-it
 
 end:
-  say: You speak breadboard now. Most grown-ups don't.
+  say: Case closed. The holes hold hands in fives.
