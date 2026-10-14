@@ -481,6 +481,13 @@ export const en = {
     controls: {
       title: "Controls",
     },
+    /** Overlay toggles a lab offers (flow dots, electrons, push). */
+    views: {
+      title: "Show",
+      flow: "Flow",
+      electrons: "Electrons",
+      push: "Push",
+    },
     fried: {
       title: (label: string) => `Fried: ${label}`,
       hall: "Added to the Hall of Fried Parts.",

@@ -34,8 +34,32 @@ export { seatsOf, heldOf, holderOf, seatNear, SEAT_REACH } from "./seats";
 export { trayLeft, trayUsed } from "./tray";
 export { partPose, anchorPosition, benchBounds, fitCamera, isOnBoard, METER, DIAL_MODES, type PartPose } from "./layout";
 export { resistorBands, formatOhms, formatFarads } from "./colorCode";
+export {
+  DOT_SPACING,
+  dotSpeed,
+  dotRate,
+  flowMap,
+  gateAmps,
+  advanceGates,
+  formatGate,
+  expandPrefix,
+  tagText,
+  pushMap,
+  hatchSpacing,
+  traceLoop,
+  boxNets,
+  type FlowMap,
+  type GateCounts,
+  type PushMap,
+  type Trace,
+  type TraceStep,
+} from "./flow";
+export { symbolInk, slotTurn, tornOutline, type SymbolInk } from "./symbols";
+export { hiddenParts } from "./seats";
+export { materialOhms, conducts, schematicSlot, partSpots, partMarks, CLIP_PATH } from "./parts";
+export { gateSpot } from "./layout";
 // The store needs React and zustand but not three.js, so a host can own it before the 3D view loads.
-export { createBenchStore, type BenchStore, type BenchStoreState, type BenchUi, type InspectSpec } from "./store";
+export { createBenchStore, type BenchStore, type BenchStoreState, type BenchUi, type InspectSpec, type BenchOverlay } from "./store";
 export { DEFAULT_LABELS, type BenchLabels } from "./labels";
 
 export type {
@@ -68,4 +92,7 @@ export type {
   Held,
   BatterySize,
   Moisture,
+  SampleMaterial,
+  SymbolKind,
+  SchematicSymbol,
 } from "./types";

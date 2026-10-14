@@ -2,10 +2,10 @@
  * Builds the LabView goals read. Pure: the runtime and the headless solution replay both feed it the bench, the latest
  * snapshot, the recent snapshot history and the notebook.
  */
-import { isThrowSwitch, partLegs, type BenchNetlist, type BenchState, type MeterSocket, type PlacedPart } from "@ohmland/bench/core";
+import { gateAmps, isThrowSwitch, partLegs, slotTurn, tagText, traceLoop, type BenchNetlist, type BenchState, type GateCounts, type MeterSocket, type PlacedPart } from "@ohmland/bench/core";
 import type { NodeId, PartState, SimEvent, SimEventType, Snapshot } from "@ohmland/sim";
 import { resolveAttach } from "./anchors";
-import type { LabView, MeterView, PanelState, Reading, Stats, StopwatchRun, TaskStatus } from "./define";
+import type { DrawingState, LabView, LabViews, MeterView, PanelState, Reading, Stats, StopwatchRun, TaskStatus } from "./define";
 
 export type LabViewInput = {
   bench: BenchState;
@@ -40,7 +40,13 @@ export type LabViewInput = {
   onTrigger?: (name: string) => void;
   /** When each task was done in this visit, with the meter as it read then. */
   doneAt?: Readonly<Record<string, { t: number; meter: MeterView | null }>>;
+  /** The views and overlays that are on (the bench store's overlay and x-ray). */
+  views?: Readonly<LabViews>;
+  /** Dots each gate has counted. */
+  gates?: Readonly<GateCounts>;
 };
+
+const NO_VIEWS: LabViews = { flow: "off", push: false, xray: false, trace: null };
 
 const SPDT = { has: (kind: string) => isThrowSwitch(kind as PlacedPart["kind"]) };
 const EMPTY_PANEL: PanelState = { cells: {}, size: 0, answer: null, submissions: 0, wrong: 0, correct: false };
@@ -172,6 +178,7 @@ export function createLabView(input: LabViewInput): LabView {
     const key = source.slice(0, i);
     const target = source.slice(i + 1);
     if (key === "volts") return voltsAt(s, resolveNode(target));
+    if (key === "gate") return Math.abs(gateAmps(bench, s, target));
     const p = s.parts[target];
     if (!p) return undefined;
     switch (key) {
@@ -572,6 +579,46 @@ export function createLabView(input: LabViewInput): LabView {
     loggerStart: () => input.loggerStart ?? null,
     tapping: (id) => input.tapping === id,
 
+    gate: (id) => Math.abs(gateAmps(bench, snapshot, id)),
+    gateUnit(id) {
+      const p = partOf(id);
+      return p?.kind === "gate" ? (p.params.unit === "mA" ? "mA" : "A") : null;
+    },
+    gateTicks: (id) => input.gates?.[id] ?? 0,
+    lidOpen: (id) => {
+      const p = partOf(id);
+      return p?.kind === "box" && !!p.params.lid;
+    },
+    view(name) {
+      const v = input.views ?? NO_VIEWS;
+      if (name === "push") return v.push;
+      if (name === "flow" || name === "dots") return v.flow !== "off";
+      if (name === "electrons" || name === "dots:electrons") return v.flow === "electrons";
+      if (name === "xray") return v.xray;
+      if (name === "trace") return v.trace !== null;
+      if (name.startsWith("xray:")) {
+        const p = partOf(name.slice(5));
+        return !!(p?.params as { xray?: boolean } | undefined)?.xray;
+      }
+      return false;
+    },
+    tagShown(id) {
+      const p = partOf(id);
+      if (p?.kind === "tag") return tagText(p.params.text, p.params.alt);
+      if (p?.kind === "box" && p.params.tag) return tagText(p.params.tag, p.params.tagAlt);
+      return null;
+    },
+    drawing: (id) => drawingOf(bench, id),
+    trace(from) {
+      const a = resolveAttach(bench, from);
+      const t = traceLoop(bench, a ?? from, { snapshot });
+      return { closed: t.closed, gap: t.gap, parts: t.parts, leads: t.leads };
+    },
+    charge(id) {
+      const x = snapshot?.parts[id]?.extra?.["soc"];
+      return typeof x === "number" ? x : null;
+    },
+
     readingsLog: readings,
     logged(tag) {
       for (let i = readings.length - 1; i >= 0; i--) if (readings[i]!.tags.includes(tag)) return readings[i];
@@ -584,6 +631,28 @@ export function createLabView(input: LabViewInput): LabView {
     trigger: (name) => input.onTrigger?.(name),
   };
   return view;
+}
+
+/** A schematic card's pieces: where each sits, which way it is turned, and whether the drawing is whole. */
+export function drawingOf(bench: BenchState, id: string): DrawingState | null {
+  const card = bench.parts.find((p) => p.id === id);
+  if (card?.kind !== "schematic") return null;
+  const n = card.params.symbols.length;
+  const torn = card.params.torn;
+  const want = torn !== undefined ? card.params.symbols[torn] : undefined;
+  const inGap = card.params.held?.["torn"];
+  const pieces = bench.parts
+    .filter((p): p is Extract<PlacedPart, { kind: "piece" }> => p.kind === "piece")
+    .map((p) => {
+      const seated = inGap === p.id;
+      const turn = (((p.params.turn ?? 0) % 360) + 360) % 360;
+      const goal = torn !== undefined ? (((slotTurn(n, torn) % 360) + 360) % 360) : 0;
+      // A resistor or a lamp reads the same either way round; an LED or a battery has one right way.
+      const symmetric = p.params.symbol === "resistor" || p.params.symbol === "lamp";
+      const right = seated && !!want && want.kind === p.params.symbol && (turn === goal || (symmetric && (turn + 180) % 360 === goal));
+      return { id: p.id, seated, turn, right };
+    });
+  return { complete: torn === undefined || pieces.some((p) => p.right), pieces };
 }
 
 /** Tags for a stable reading: what the probes are across, what the meter is in series with. */

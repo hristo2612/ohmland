@@ -18,6 +18,10 @@ export type StepEffect = {
   panel?: { id: string; value: unknown };
   /** Switch the auto-tapper on or off. */
   tapper?: boolean;
+  /** Switch a view or overlay. */
+  view?: { name: "flow" | "electrons" | "push" | "xray"; on: boolean };
+  /** Run (or clear, with null) the loop tracer from an anchor. */
+  trace?: string | null;
   /** A task that must be done by now. */
   check?: string;
   /** Something did not apply (for test messages). */
@@ -161,6 +165,12 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
       return { bench, inputs: [], wait: SETTLE, panel: { id: step.id, value: step.value } };
     case "tapper":
       return { bench, inputs: [], wait: SETTLE, tapper: step.on };
+    case "view":
+      return { bench, inputs: [], wait: SETTLE, view: { name: step.name, on: step.on } };
+    case "trace": {
+      const from = step.from ? resolveAttach(bench, step.from) : null;
+      return { bench, inputs: [], wait: SETTLE, trace: from, ...(step.from && !from ? { problem: `trace: nothing at ${step.from}` } : {}) };
+    }
     case "wait":
       return { bench, inputs: [], wait: step.seconds };
     case "check":

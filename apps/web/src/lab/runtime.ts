@@ -12,7 +12,7 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 import { createBenchStore, type BenchAction, type BenchState, type BenchStore, type MeterMode } from "@ohmland/bench/core";
 import type { InputKey, InputValue, Netlist, SimClient, SimEvent, Snapshot } from "@ohmland/sim";
 import { controlTargets, type BuiltBench, type SimInput } from "./build";
-import { isOptional, type LabDefinition, type LabTask, type Reading, type TaskStatus } from "./define";
+import { isOptional, type LabDefinition, type LabTask, type LabViews, type OverlayName, type Reading, type TaskStatus } from "./define";
 import { parseNote } from "./notes";
 import { LabSession, type FriedRecord } from "./session";
 import { applyStep, solutionSegments } from "./steps";
@@ -42,6 +42,8 @@ export type RuntimeUi = {
   panels: number;
   /** The scope's single shot: armed and waiting, capturing, or a finished capture. */
   capture: Capture | null;
+  /** The views and overlays that are on (flow dots, push, x-ray, the tracer). */
+  views: LabViews;
 };
 
 /** A single-shot scope capture: times in seconds from the trigger, one series per trace. */
@@ -105,6 +107,8 @@ export class LabRuntime {
       if (c.key === "room") patch.ambient = c.value;
     }
     if (Object.keys(patch).length) this.store.setState(patch);
+    // Overlays the lab starts with; the store and the session stay in step from here on.
+    if (built.overlays) this.store.getState().setOverlay({ flow: built.overlays.flow, push: built.overlays.push });
     this.ui = createStore<RuntimeUi>()(() => ({
       ready: false,
       failed: false,
@@ -120,7 +124,13 @@ export class LabRuntime {
       lag: 0,
       panels: 0,
       capture: null,
+      views: { ...this.session.views },
     }));
+    this.store.subscribe((s, prev) => {
+      if (s.overlay === prev.overlay && s.ui.xray === prev.ui.xray) return;
+      this.session.views = { flow: s.overlay.flow, push: s.overlay.push, xray: s.ui.xray, trace: s.overlay.trace?.from ?? null };
+      this.ui.setState({ views: { ...this.session.views } });
+    });
     this.startInputs = start ? [...built.inputs, ...start.inputs] : built.inputs;
   }
 
@@ -362,6 +372,20 @@ export class LabRuntime {
     this.bumpPanels();
   }
 
+  /** Switches an overlay or the board's x-ray on or off (the toggles, a lesson, "Show me"). */
+  setView(name: OverlayName | "xray", on: boolean): void {
+    const st = this.store.getState();
+    if (name === "xray") st.setUi({ xray: on });
+    else if (name === "push") st.setOverlay({ push: on });
+    else if (name === "electrons") st.setOverlay({ flow: on ? "electrons" : st.overlay.flow === "electrons" ? "current" : st.overlay.flow });
+    else st.setOverlay({ flow: on ? (st.overlay.flow === "off" ? "current" : st.overlay.flow) : "off" });
+  }
+
+  /** Runs the loop tracer from an anchor ("pin:B1.neg"), or clears its ink with null. */
+  trace(from: string | null): void {
+    this.store.getState().trace(from);
+  }
+
   startLogger(): void {
     this.session.startLogger();
     this.bumpPanels();
@@ -493,6 +517,8 @@ export class LabRuntime {
         this.bumpPanels();
       }
       if (e.tapper !== undefined) this.setTapper(e.tapper);
+      if (e.view) this.setView(e.view.name, e.view.on);
+      if (e.trace !== undefined) this.trace(e.trace);
       // At least the step's own simulated time (a long press must end before the next step), and a beat to watch.
       await sleep(step.do === "wait" ? step.seconds * 1000 : Math.max(850, e.wait * 1000));
     }

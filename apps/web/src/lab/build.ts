@@ -29,7 +29,7 @@ import {
 } from "@ohmland/bench/core";
 import type { InputKey, InputValue } from "@ohmland/sim";
 import { deskSpot, resolveAttach, resolveHole, splitHoles } from "./anchors";
-import type { BenchConfig, ControlConfig, LabPart, LabTrayItem, LeadSpec, LoggerConfig, MeterConfig, ScopeConfig, StopwatchConfig, TapperConfig, WireSpec } from "./define";
+import type { BenchConfig, ControlConfig, LabPart, LabTrayItem, LeadSpec, LoggerConfig, MeterConfig, OverlayName, ScopeConfig, StopwatchConfig, TapperConfig, WireSpec } from "./define";
 
 export type SimInput = { id: string; key: InputKey; value: InputValue };
 
@@ -57,6 +57,8 @@ export type BuiltBench = {
   /** Readouts over parts (stress bars, temperatures). */
   inspect?: InspectSpec[];
   warnings: string[];
+  /** The overlays on at the start, and the toggles the lab offers. */
+  overlays?: { flow: "off" | "current" | "electrons"; push: boolean; offer: readonly OverlayName[] };
 };
 
 const LEAD_COLORS: LeadColor[] = ["red", "black", "green", "yellow", "blue", "white"];
@@ -87,6 +89,15 @@ const DESK_WIDTH: Partial<Record<BenchPartKind, number>> = {
   chart: 100,
   clock: 54,
   showcase: 124,
+  gate: 28,
+  box: 110,
+  schematic: 110,
+  piece: 26,
+  balloon: 34,
+  scarf: 110,
+  paper: 34,
+  comb: 70,
+  wall: 150,
 };
 
 type Normal = {
@@ -232,6 +243,14 @@ export function placePart(bench: BenchState, part: PlacedPart, at: string | unde
   }
   const spot = at ? deskSpot(at) : null;
   if (spot) return { part: { ...part, pos: spot }, desk: true };
+  // A gate on a clip lead: "lead:TL3", or "lead:TL3@0.3" for how far along it (from clip a).
+  const onLead = at ? /^lead:([A-Za-z][A-Za-z0-9_-]*)(?:@([\d.]+))?$/.exec(at.trim()) : null;
+  if (onLead && part.kind === "gate") {
+    if (!bench.leads.some((l) => l.id === onLead[1])) return { part: { ...part, pos: deskAuto() }, desk: true, warning: `${part.id}: no lead "${onLead[1]}" to clip onto` };
+    const withGate = { ...bench, parts: [...bench.parts.filter((p) => p.id !== part.id), part] };
+    const clipped = benchOps.clipGate(withGate, part.id, null, { lead: onLead[1]!, at: onLead[2] ? Number(onLead[2]) : 0.5 });
+    return { part: clipped.parts.find((p) => p.id === part.id)!, desk: true };
+  }
   const tokens = at && bench.board ? splitHoles(at).map((h) => resolveHole(bench.board, h)) : [];
   if (tokens.length && tokens.every(Boolean)) {
     const ids = tokens as string[];
@@ -361,6 +380,8 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
   const front: PlacedPart[] = [];
   const back: PlacedPart[] = [];
   const seats: { id: string; holder: string; seat?: string }[] = [];
+  // Gates that start clipped on a lead ("lead:TL3"): clipped on once the leads are on the bench.
+  const onLeads: { id: string; at: string }[] = [];
   for (const q of pending) {
     const params: Record<string, unknown> = { ...defaultParams(q.n.kind), ...q.n.params };
     // A mystery part's legs are shuffled per learner: "shuffle" becomes a permutation seeded by the learner and the id.
@@ -371,6 +392,12 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
     if (seat) {
       // Seated once every part is on the bench (the holder may come later in the list).
       seats.push({ id: q.id, ...seat });
+      bench = { ...bench, parts: [...bench.parts, part] };
+      continue;
+    }
+    if (q.n.kind === "gate" && q.at?.startsWith("lead:")) {
+      onLeads.push({ id: q.id, at: q.at });
+      front.push(part);
       bench = { ...bench, parts: [...bench.parts, part] };
       continue;
     }
@@ -430,6 +457,13 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
     bench = addLeadBetween(bench, from, to, s.color ?? LEAD_COLORS[i % LEAD_COLORS.length]!, s.id)[0];
   });
 
+  for (const g of onLeads) {
+    const part = bench.parts.find((p) => p.id === g.id)!;
+    const res = placePart({ ...bench, parts: bench.parts.filter((p) => p.id !== g.id) }, part, g.at, undefined, () => part.pos);
+    if (res.warning) warnings.push(res.warning);
+    bench = { ...bench, parts: bench.parts.map((p) => (p.id === g.id ? res.part : p)) };
+  }
+
   // The meter: to the right of the work area, turned a little toward it.
   if (meter) {
     const spot = meter.at ? deskSpot(meter.at) : null;
@@ -476,7 +510,8 @@ export function buildBench(config: BenchConfig, opts: BuildOptions = {}): BuiltB
   for (const c of config.controls ?? []) for (const id of controlTargets(bench, c)) inputs.push({ id, key: c.key as InputKey, value: c.value });
 
   const frame = frameOf(bench, config.frame, warnings);
-  return { bench, locked, tray, meter, scope, logger, stopwatch, tapper, controls: config.controls ?? [], nodes: config.nodes ?? {}, labels, inputs, spareFuses, inspect, warnings, frame };
+  const overlays = { flow: config.overlays?.flow ?? "off", push: !!config.overlays?.push, offer: config.overlays?.offer ?? [] } as const;
+  return { bench, locked, tray, meter, scope, logger, stopwatch, tapper, controls: config.controls ?? [], nodes: config.nodes ?? {}, labels, inputs, spareFuses, inspect, warnings, frame, overlays };
 }
 
 /** The rectangle spanned by holes and desk spots, with a little margin. */

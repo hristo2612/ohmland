@@ -445,3 +445,9 @@
   .dial__pos { font-size: var(--text-small); min-height: 40px; }
   .lcd { min-height: 60px; }
 }
+
+.views-panel__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

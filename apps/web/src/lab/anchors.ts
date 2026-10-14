@@ -52,6 +52,10 @@ export function resolveAttach(bench: BenchState, s: string | null | undefined): 
     const part = bench.parts.find((p) => p.id === rest.slice(0, dot));
     return part ? `pin:${part.id}.${physicalLeg(part, rest.slice(dot + 1))}` : null;
   }
+  // Insulated spots: "wrap:B1" (a battery's wrapper), "base:S1" (a switch's wooden block), "coat:PC1" (a paper
+  // clip's coating). A clip there joins nothing.
+  const spot = /^(wrap|base|coat):([A-Za-z][A-Za-z0-9_-]*)$/.exec(t);
+  if (spot) return bench.parts.some((p) => p.id === spot[2]) ? `pin:${spot[2]}.${spot[1]}` : null;
   if (/^(pin|hole|wire|lead|probe|socket):/.test(t)) {
     if (t.startsWith("hole:")) {
       const h = resolveHole(bench.board, t);
