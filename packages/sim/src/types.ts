@@ -20,7 +20,16 @@ export type PartSpec =
       tolerance?: number;
       actualOhms?: number; // forces the actual value, for example a part that is out of tolerance on purpose
     })
-  | (Base & { kind: "battery"; pins: { pos: NodeId; neg: NodeId }; emf: number; internalOhms: number; mAh?: number })
+  | (Base & {
+      kind: "battery";
+      pins: { pos: NodeId; neg: NodeId };
+      emf: number;
+      internalOhms: number;
+      mAh?: number;
+      // State of charge a new battery starts at, 0..1 (default 1: fresh). Only a part that is new to the circuit takes
+      // it; a rebuild keeps the charge a battery with the same id already has.
+      soc?: number;
+    })
   | (Base & { kind: "led"; pins: { anode: NodeId; cathode: NodeId }; color: LedColor; maxmA?: number })
   | (Base & { kind: "switch"; pins: { a: NodeId; b: NodeId }; closed: boolean; bounce?: Bounce })
   | (Base & {

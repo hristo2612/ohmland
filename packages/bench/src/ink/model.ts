@@ -8,7 +8,9 @@
 import { parseAnchor } from "../anchors";
 import { boardGeometry, boardOrigin, holeWorld } from "../board";
 import { DIAL_MODES, METER, anchorPosition, partPose, probeTip, socketWorld, workCenter, type PartPose } from "../layout";
-import { partDef, rotateXZ, type Hotspot } from "../parts";
+import { partDef, partMarks, rotateXZ, type Hotspot } from "../parts";
+import { GATE } from "../dims";
+import { hiddenParts } from "../seats";
 import type { Anchor, BenchState, MeterMode, MeterSocket, MeterState, PlacedPart, ProbeColor, TestLead, Vec2, Wire } from "../types";
 import { rectOfPoints, unionRect, type Rect } from "./camera";
 import { INK, boxCorners, toLocal, toWorld, type Box, type Frame } from "./frame";
@@ -78,6 +80,8 @@ export type PartInk = {
   span?: number;
   /** Draw order: furniture and holders first, then parts, then parts sitting in holders. */
   layer: number;
+  /** A gate on a clip lead: the cable's heading where it sits (degrees, as the page's x axis turns to it). */
+  along?: number;
 };
 
 export type WireInk = { wire: Wire; a: Vec2; b: Vec2; ctrl: Vec2 };
@@ -147,7 +151,7 @@ function partInk(bench: BenchState, part: PlacedPart, holder: PlacedPart | null)
   for (const [leg, p] of Object.entries(pose.legs)) legs[leg] = [p[0], p[2]];
   const kind = inkKind(part.kind);
   const held = !!pose.heldBy;
-  const ctx = { mount: pose.mount, held, ...(pose.span !== undefined ? { span: pose.span } : {}) };
+  const ctx = { mount: pose.mount, held, ...(pose.lie ? { lie: true } : {}), ...(pose.span !== undefined ? { span: pose.span } : {}) };
   const out: PartInk = {
     part,
     pose,
@@ -265,14 +269,42 @@ function outward(bench: BenchState, at: Vec2, toward: Vec2 | null, side: number)
   return norm(hx, hz);
 }
 
-export function cablePath(a: Vec2, da: Vec2, b: Vec2, db: Vec2, sag = 0.08): string {
+/** The cubic curve a cable makes from `a` (leaving along `da`) to `b` (arriving against `db`), sagging a little. */
+export function cableCurve(a: Vec2, da: Vec2, b: Vec2, db: Vec2, sag = 0.08): [Vec2, Vec2, Vec2, Vec2] {
   const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
   const k = Math.min(70, Math.max(10, len * 0.42));
   const drop = len * sag;
-  const c1: Vec2 = [a[0] + da[0] * k, a[1] + da[1] * k + drop];
-  const c2: Vec2 = [b[0] + db[0] * k, b[1] + db[1] * k + drop];
+  return [a, [a[0] + da[0] * k, a[1] + da[1] * k + drop], [b[0] + db[0] * k, b[1] + db[1] * k + drop], b];
+}
+
+export function cablePath(a: Vec2, da: Vec2, b: Vec2, db: Vec2, sag = 0.08): string {
+  const [, c1, c2] = cableCurve(a, da, b, db, sag);
   const f = (n: number) => Math.round(n * 100) / 100;
   return `M${f(a[0])} ${f(a[1])}C${f(c1[0])} ${f(c1[1])} ${f(c2[0])} ${f(c2[1])} ${f(b[0])} ${f(b[1])}`;
+}
+
+function bezier(c: [Vec2, Vec2, Vec2, Vec2], t: number): Vec2 {
+  const u = 1 - t;
+  const w = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
+  return [w[0]! * c[0][0] + w[1]! * c[1][0] + w[2]! * c[2][0] + w[3]! * c[3][0], w[0]! * c[0][1] + w[1]! * c[1][1] + w[2]! * c[2][1] + w[3]! * c[3][1]];
+}
+
+/** A point `t` of the way along a clip lead's cable (between the two clips), and the cable's heading there. */
+export function leadPoint(li: LeadInk, t: number): { at: Vec2; dir: Vec2 } {
+  const c = cableCurve(li.a.tail, li.a.dir, li.b.tail, li.b.dir);
+  const at = bezier(c, t);
+  const ahead = bezier(c, Math.min(1, t + 0.02));
+  const behind = bezier(c, Math.max(0, t - 0.02));
+  return { at, dir: norm(ahead[0] - behind[0], ahead[1] - behind[1]) };
+}
+
+/** The whole lead as a polyline from clip a's jaws to clip b's, along the cable (for dots, hatching, the tracer). */
+export function leadPolyline(li: LeadInk, n = 32): Vec2[] {
+  const c = cableCurve(li.a.tail, li.a.dir, li.b.tail, li.b.dir);
+  const out: Vec2[] = [li.a.tip];
+  for (let i = 0; i <= n; i++) out.push(bezier(c, i / n));
+  out.push(li.b.tip);
+  return out;
 }
 
 function leadsInk(bench: BenchState, parts: Map<string, PartInk>, probes: Map<string, { at: Vec2; dir: Vec2 }>): Map<string, LeadInk> {
@@ -370,7 +402,9 @@ function meterInk(bench: BenchState): MeterInk | null {
 
 export function buildModel(bench: BenchState): InkModel {
   const holders = holderMap(bench);
-  const list = bench.parts.map((p, i) => ({ pi: partInk(bench, p, holders.get(p.id) ?? null), i }));
+  // Parts shut inside a box are out of sight and out of reach: not drawn, not picked.
+  const hidden = hiddenParts(bench);
+  const list = bench.parts.filter((p) => !hidden.has(p.id)).map((p, i) => ({ pi: partInk(bench, p, holders.get(p.id) ?? null), i }));
   list.sort((a, b) => a.pi.layer - b.pi.layer || a.i - b.i);
   const parts = new Map<string, PartInk>();
   for (const { pi } of list) parts.set(pi.part.id, pi);
@@ -383,6 +417,14 @@ export function buildModel(bench: BenchState): InkModel {
   const probes = new Map<string, { at: Vec2; dir: Vec2 }>();
   if (meter) for (const c of ["red", "black"] as const) probes.set(`probe:${c}`, { at: meter.probes[c].tip, dir: meter.probes[c].dir });
   const leads = leadsInk(bench, parts, probes);
+  // A gate rides its lead's cable as drawn here: its frame is that point, upright on the page.
+  for (const [id, pi] of parts) {
+    if (pi.part.kind !== "gate" || !pi.part.params.on) continue;
+    const li = leads.get(pi.part.params.on);
+    if (!li) continue;
+    const { at, dir } = leadPoint(li, Math.max(0.08, Math.min(0.92, pi.part.params.at ?? 0.5)));
+    parts.set(id, { ...pi, f: { ox: at[0], oz: at[1], rot: 0 }, along: (Math.atan2(dir[1], dir[0]) * 180) / Math.PI, layer: 3 });
+  }
 
   // Hit items in draw order (later is on top).
   const hits: HitItem[] = [];
@@ -513,7 +555,12 @@ export function targetRect(model: InkModel, target: string): Rect | null {
   if (pi) {
     if (!sub) return partBounds(pi);
     const p = pi.legs[sub];
-    return p ? [p[0] - 1.5, p[1] - 1.5, p[0] + 1.5, p[1] + 1.5] : null;
+    if (p) return [p[0] - 1.5, p[1] - 1.5, p[0] + 1.5, p[1] + 1.5];
+    // A named mark: a drawing's symbol, a box's lid or knob, a gate's flag (in the drawing's own frame).
+    const m = partMarks(pi.part)[sub];
+    if (!m) return null;
+    const [x, z] = toWorld(pi.f, m[0], pi.part.kind === "gate" ? -GATE.lift : m[2]);
+    return [x - 3, z - 3, x + 3, z + 3];
   }
   // A bare id may also name a jumper or a test lead.
   if (!t.includes(":")) {

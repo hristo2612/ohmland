@@ -159,7 +159,7 @@ leaves out appear as `<id>.<pin>~float`.
 | `blown` | fuse | element melts | amps (peak), rating, seconds |
 | `meter-fuse` | multimeter | internal 200 mA fuse melts | amps, rating |
 | `shorted` | battery, cell | terminal voltage collapsed under load for 0.1 s (also with a forward diode straight across it) | amps, volts |
-| `reversed` | led (more than 5 V backwards), capacitor (polarised, reversed; `cause: "reverse"`), battery (forced backwards), npn (collector and emitter swapped), phototransistor (backwards) | | volts or amps |
+| `reversed` | led (more than 5 V backwards; `data.risk` is `"none"` or `"damage"`, see LED), capacitor (polarised, reversed; `cause: "reverse"`), battery (forced backwards), npn (collector and emitter swapped), phototransistor (backwards) | | volts or amps |
 | `clicked` | relay | contacts move; merged per snapshot with `data.count` | contact, `to` (`no` / `nc`), count |
 | `spark` | switch, pushbutton, spdt, dpdt, relay | opening contacts arc: something inductive drove the gap past about 300 V; merged per snapshot with `data.count` | volts, sparks, wear |
 | `warning` | multimeter, timer555, logic, regulator7805, mcuboard | no damage yet. Meter: the 10 A input has carried more than 1 A for over 10 s (`a10-heat`). 555: running below its minimum supply (`undervoltage`). Logic: an output over its current limit for 20 ms, shorted to a rail or fighting another output (`overload`, with `pin`); supply above the recommended maximum (`overvoltage`); an output fed back on itself oscillating at megahertz (`oscillating`, with `pin`). Regulator: thermal shutdown (`thermal-shutdown`). Board: a pin over 20 mA for 20 ms (`overload`, with `pin`), something wired to pins 0 or 1 (`serial-pins`), the USB fuse tripped (`usb-fuse`), the program printing before `Serial.begin` (`serial`), dividing by zero (`divide`), using a pin the board lacks (`pin`), the program stopping (`program`) | amps, volts, seconds, temp, cause |
@@ -264,7 +264,7 @@ Ambient is 25 °C. Thermal models are first order (`dT/dt` towards `25 + P x Rth
 - Health: hot above 100 °C, smoking above 250 °C (about 3.6 x rating sustained), burns open after sustained
   temperatures above 350 °C (a 15 Ω part across 9 V smokes after about 1 s and burns open after about 4 s).
 
-### Battery (`emf`, `internalOhms`, `mAh` optional) and cell (`emf`, `internalOhms`)
+### Battery (`emf`, `internalOhms`, `mAh` and `soc` optional) and cell (`emf`, `internalOhms`)
 
 - Norton source with internal resistance. Batteries add two polarisation states that pull the terminal voltage down
   under load: a fast one (up to 2 x `internalOhms`, 0.3 s) that only matters at amps (it fades steeply below about
@@ -275,6 +275,10 @@ Ambient is 25 °C. Thermal models are first order (`dT/dt` towards `25 + P x Rth
 - `mAh` (batteries only) drains; open-circuit voltage falls gently with charge then drops near empty, and internal
   resistance rises. A 500 mAh battery runs a 15 mA LED (470 Ω, red) for about 35 hours, slowly dimming, then fades
   out within a few hours. Without `mAh` the battery never drains.
+- `soc` (0..1, default 1) is the charge a battery starts at: a lab's tired battery. Only a battery new to the circuit
+  takes it; a rebuild keeps the charge a battery with the same id already has, and `replace` fits a full one. At
+  0.08 of 500 mAh a red LED on 1 kΩ falls under 2% charge after about 7.5 simulated hours and goes dark after about
+  17 (17 s of real time at 3600 x).
 - Heats from internal losses (`Rth` 20 °C/W, `tau` 200 s): hot above 50 °C, smoking above 110 °C. Event `shorted`.
 - Cells (fruit cells, emf about 0.9 V, internal about 1 kΩ) have no polarisation or capacity.
 
@@ -288,6 +292,10 @@ green 2.2 V, blue 3.1 V, white 3.1 V. Red sits near 1.75 V at 1 mA, 1.85 V at 5 
   100 Hz reads about 0.7). A brief pulse of 10 mA or more, even well under a millisecond (a coil's kickback through
   an LED), still shows as a blip of 0.25 that fades over about 80 ms, so a 30 Hz bench sees it. Dimmer when worn.
 - Reverse: blocks until about 5 V, then leaks through a soft 200 kΩ breakdown (no light, no damage, event `reversed`).
+  The event's message depends on the risk a real LED would face if it broke down: the engine works out the
+  resistance the rest of the circuit presents across the LED (`Ctx.drivingOhms`, one extra solve with the step's
+  factors), and the current it would allow past 5 V. Behind 1 kΩ on 9 V that is a few milliamps: "it takes no harm"
+  (`data.risk: "none"`). Straight across a battery it is amps: "it could be damaged" (`data.risk: "damage"`).
 - Damage starts above 2.5 x `maxmA` (50 mA): rate `((I / 50 mA)^2 - 1) / 3` per second, so about 1 s at 100 mA and a
   few milliseconds at the 1 A a 9 V battery pushes straight through it. Dead LEDs are open circuits.
 

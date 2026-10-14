@@ -43,6 +43,9 @@ export function InkDefs({ id }: { id: string }) {
       <pattern id={`${id}-hatch-big`} patternUnits="userSpaceOnUse" width="3.2" height="3.2" patternTransform="rotate(45)">
         <path d="M0 0V3.2" style={{ stroke: "var(--k-ink)", strokeWidth: 0.35, opacity: 0.3 }} />
       </pattern>
+      <pattern id={`${id}-push`} patternUnits="userSpaceOnUse" width="2.2" height="2.2" patternTransform="rotate(-35)">
+        <path d="M0 0V2.2" style={{ stroke: "var(--k-red)", strokeWidth: 0.4, opacity: 0.75 }} />
+      </pattern>
       <pattern id={`${id}-speckle`} patternUnits="userSpaceOnUse" width="5" height="5">
         <path d="M0.6 0.8h0.4M3.1 2.2h0.4M1.8 3.9h0.4M4.2 4.4h0.3" style={{ stroke: "var(--k-ink-3)", strokeWidth: 0.35, opacity: 0.5 }} />
       </pattern>

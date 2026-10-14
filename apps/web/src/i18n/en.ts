@@ -255,6 +255,13 @@ export const en = {
     failed: "This bench could not be loaded. You can still skip ahead.",
     tapHere: (label: string) => `Tap: ${label}`,
     legs: { anode: "anode, the long leg", cathode: "cathode, the short leg", pos: "plus terminal", neg: "minus terminal", a: "one end", b: "other end", com: "middle terminal" } as Record<string, string>,
+    /** Leg names that depend on the kind of part (a diode's band, an electrolytic's stripe); other parts use `legs`. */
+    legsByKind: {
+      diode: { anode: "anode, the plain end", cathode: "cathode, the band end" },
+      npn: { c: "collector", b: "base", e: "emitter" },
+      phototransistor: { c: "collector", e: "emitter" },
+      "electrolytic-cap": { pos: "plus, the long leg", neg: "minus, the stripe side" },
+    } as Record<string, Record<string, string>>,
     wrongTap: "Not that one. Look again.",
     right: ["Yep.", "Spot on.", "Right.", "That's it."],
     wrongPick: "Not quite. Try another.",
@@ -589,6 +596,13 @@ export const en = {
     controls: {
       title: "Controls",
     },
+    /** Overlay toggles a lab offers (flow dots, electrons, push). */
+    views: {
+      title: "Show",
+      flow: "Flow",
+      electrons: "Electrons",
+      push: "Push",
+    },
     fried: {
       title: (label: string) => `Fried: ${label}`,
       hall: "Added to the Hall of Fried Parts.",
@@ -762,6 +776,15 @@ export const en = {
       chart: "Colour chart",
       clock: "Clock",
       showcase: "Display case",
+      gate: "Gate",
+      box: "Sealed box",
+      schematic: "Drawing",
+      piece: "Torn piece",
+      balloon: "Balloon",
+      scarf: "Wool scarf",
+      paper: "Paper bits",
+      comb: "Comb",
+      wall: "Wall",
       "mcu-board": "Microcontroller board",
     } as Record<string, string>,
     colors: { red: "Red", black: "Black", blue: "Blue", green: "Green", yellow: "Yellow", orange: "Orange", white: "White", purple: "Purple" },
@@ -785,6 +808,9 @@ export const en = {
       "card.length": { label: "Line", unit: "cm" },
       "card.layers": { label: "Layers" },
       "card.wide": { label: "Width", values: { false: "Narrow", true: "Wide" } },
+      "gate.mode": { label: "Gate", values: { ticks: "Ticks", number: "Number" } },
+      "gate.unit": { label: "Unit", values: { A: "A", mA: "mA" } },
+      "box.lid": { label: "Lid", values: { false: "Shut", true: "Open" } },
     } as Record<string, { label: string; values?: Record<string, string>; unit?: string }>,
     actions: { "card.erase": "Erase" } as Record<string, string>,
     heat: { cool: "cool", warm: "warm", hot: "hot", ouch: "ouch" },
@@ -820,6 +846,9 @@ export const en = {
       phonePack: "Phone Li-ion pack. Never puncture, crush or short it.",
       carBattery: "Car battery, 12 V. Hundreds of amps into a short.",
       used: "USED",
+      conductors: "LETS FLOW THROUGH",
+      insulators: "STOPS FLOW",
+      cabinet: "PARTS",
     },
   },
 
