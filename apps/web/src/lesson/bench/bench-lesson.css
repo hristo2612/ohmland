@@ -233,6 +233,9 @@
   font-size: var(--bl-text-lg);
 }
 .bl-number__input--short { width: 5ch; }
+/* A lab notebook box: its label is the lab's own name for the number ("Charging τ"), kept as written (capitals would
+   turn τ into Τ). */
+.bl-number--note .bl-number__label { text-transform: none; letter-spacing: normal; }
 .bl-number__input:focus { outline: none; border-bottom-color: var(--bl-blue); }
 .bl-number__unit { font-family: var(--bl-mono); }
 /* The keyboard path for hole taps: there for keyboards and screen readers, out of sight until focused. */

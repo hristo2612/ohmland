@@ -88,6 +88,12 @@ Every beat has a robot line (`say`) and at most one thing to do:
 | `popup: { widget, at, props }` | plays with the lesson's one pop-up card | "Got it" |
 | nothing | reads, then taps Next | Next |
 
+A `do` beat whose lab task declares a `note` (a number read off the bench, `lab.note(id)` in `docs/LABS.md`) shows a
+box for it under the robot's line, labelled with the note's `label` and `unit`. The learner types the number and
+presses Enter (or Check); the task's goal judges it against the bench, and if the task is still open a moment later the
+robot nudges. Use it when the bench decides the right answer (a measured τ that depends on the parts); use `number`
+when one fixed answer is right.
+
 Optional, on any beat:
 
 - `objective`: starts an objective (a few words). The robot's eyes fill in equal steps as each objective (and the
