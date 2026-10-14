@@ -29,8 +29,8 @@ export interface BenchController {
     targets: string[],
     opts?: { padding?: number; instant?: boolean; inset?: { top?: number; right?: number; bottom?: number; left?: number }; read?: number },
   ): void;
-  /** Emphasises parts or anchors for a while; null clears it. */
-  spotlight(targets: string[] | null): void;
+  /** Emphasises parts or anchors for a while; null clears it. `pins: false`: the spotlit chips print no pin numbers. */
+  spotlight(targets: string[] | null, opts?: { pins?: boolean }): void;
 }
 
 /**
