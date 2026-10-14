@@ -1,10 +1,14 @@
 /**
- * Lab panels, the logic half (pure): continuity and truth tables that fill themselves from the bench, and answer
- * panels (pin map, tags, hole hunt, symbol) that check what the learner submits. The session keeps one PanelState
- * per panel; the UI lives in panels.tsx.
+ * Lab panels, the logic half (pure): continuity and truth tables that fill themselves from the bench, the chip
+ * x-ray's sightings, the dice reader, and answer panels (pin map, tags, hole hunt, symbol) that check what the learner
+ * submits. The session keeps one PanelState per panel; the UI lives in panels-ui.tsx and the chip panels' files.
  */
 import { boardGeometry, isThrowSwitch, partLegs, physicalLeg, terminalNumber, wiredAs, type BenchState, type PlacedPart } from "@ohmland/bench/core";
-import type { LabView, PanelConfig, PanelState, SymbolKind } from "./define";
+import type { PartState } from "@ohmland/sim";
+import type { LabView, PanelConfig, PanelState, SymbolKind, TruthInput, TruthOutput } from "./define";
+import { faceOf } from "./signals";
+
+type TruthTable = Extract<PanelConfig, { kind: "truth-table" }>;
 
 export const emptyPanel = (size = 0): PanelState => ({ cells: {}, size, answer: null, submissions: 0, wrong: 0, correct: false });
 
@@ -36,8 +40,93 @@ export function panelSize(cfg: PanelConfig, bench: BenchState): number {
     const p = bench.parts.find((x) => x.id === cfg.part);
     return p ? legPairs(p).length * 2 : 0;
   }
-  if (cfg.kind === "truth-table") return 2 ** cfg.inputs.length;
+  if (cfg.kind === "truth-table") return 2 ** cfg.inputs.length * Math.max(1, truthOutputs(cfg).length);
+  if (cfg.kind === "xray") return XRAY_SEEN.length;
   return 0;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Truth tables
+
+/** A table's outputs: `outputs`, or the single `output`. */
+export function truthOutputs(cfg: TruthTable): TruthOutput[] {
+  return cfg.outputs ?? (cfg.output ? [cfg.output] : []);
+}
+
+/** An input named by its two throws (a and b), as the first truth tables were. */
+export const isThrowInput = (inp: TruthInput): inp is Extract<TruthInput, { a: string }> => "a" in inp && "b" in inp;
+
+/** The two values an input takes, in table order. */
+export const inputValues = (inp: TruthInput): [string, string] => (isThrowInput(inp) ? ["a", "b"] : ["0", "1"]);
+
+/** Every row of a table (input values joined by commas), first input changing slowest. */
+export function truthRows(cfg: TruthTable): string[] {
+  let rows: string[][] = [[]];
+  for (const inp of cfg.inputs) rows = rows.flatMap((r) => inputValues(inp).map((v) => [...r, v]));
+  return rows.map((r) => r.join(","));
+}
+
+/** The cell key of output k in a row. */
+export const truthCell = (row: string, k: number): string => (k === 0 ? row : `${row}#${k}`);
+
+/** An input's value now: its throw, closed (1) or open (0), or its logic level; null while undefined or floating. */
+export function truthInput(inp: TruthInput, lab: LabView): string | null {
+  if ("node" in inp) {
+    const l = lab.logic(inp.node);
+    return l === "H" ? "1" : l === "L" ? "0" : null;
+  }
+  if (isThrowInput(inp)) {
+    const p = lab.benchPart(inp.part);
+    if (!p) return "?";
+    return isThrowSwitch(p.kind) ? (p.params as { to: string }).to : lab.closed(inp.part) ? "b" : "a";
+  }
+  return lab.closed(inp.part) ? "1" : "0";
+}
+
+/** An output's value now: an LED lit, a node high; null while a node is undefined or floating. */
+export function truthOutput(out: TruthOutput, lab: LabView): boolean | null {
+  if ("node" in out) {
+    const l = lab.logic(out.node);
+    return l === "H" ? true : l === "L" ? false : null;
+  }
+  return lab.isLit(out.part);
+}
+
+/** Every row has every output. */
+export function truthComplete(cfg: TruthTable, state: PanelState): boolean {
+  const outs = Math.max(1, truthOutputs(cfg).length);
+  return truthRows(cfg).every((r) => Array.from({ length: outs }, (_, k) => state.cells[truthCell(r, k)]).every((v) => v !== undefined));
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The chip x-ray and the dice
+
+/** What the x-ray of a 555 notes it has shown while open (cells): each watcher firing, the latch set, each output level. */
+export const XRAY_SEEN = ["trigger", "threshold", "reset", "discharge", "latch", "high", "low"] as const;
+
+/** Notes what the chip is doing into an open x-ray's cells (only new sightings change the state). */
+export function updateXrayPanel(state: PanelState, part: PartState | undefined): PanelState {
+  const x = part?.extra;
+  if (!x || x["powered"] === false) return state;
+  const seen: Record<string, boolean> = {
+    trigger: x["trigger"] === true,
+    threshold: x["threshold"] === true,
+    reset: x["reset"] === true,
+    discharge: x["discharge"] === true,
+    latch: x["latch"] === true,
+    high: x["output"] === "high",
+    low: x["output"] === "low",
+  };
+  const fresh = Object.entries(seen).filter(([k, v]) => v && !state.cells[k]);
+  if (!fresh.length) return state;
+  return { ...state, cells: { ...state.cells, ...Object.fromEntries(fresh.map(([k]) => [k, true])) } };
+}
+
+/** The faces the dice show now (pips lit, one number per die), or null when none of their pips is on the bench. */
+export function readFaces(cfg: Extract<PanelConfig, { kind: "histogram" }>, lab: LabView): number[] | null {
+  if (cfg.read) return cfg.read(lab);
+  if (!cfg.dice.some((pips) => pips.some((id) => lab.part(id)))) return null;
+  return cfg.dice.map((pips) => faceOf(pips.map((id) => lab.isLit(id, 0.3))));
 }
 
 /** A label for a leg in panels: its terminal number on a mystery part, else its name. */
@@ -93,21 +182,25 @@ export function updateAutoPanel(cfg: PanelConfig, state: PanelState, lab: LabVie
     return { ...state, cells: { ...state.cells, [cell]: beep } };
   }
   if (cfg.kind === "truth-table") {
-    const pos = cfg.inputs.map(({ part: id }) => {
-      const p = lab.benchPart(id);
-      if (!p) return "?";
-      return isThrowSwitch(p.kind) ? (p.params as { to: string }).to : lab.closed(id) ? "b" : "a";
-    });
-    const lit = lab.isLit(cfg.output.part);
-    const key = `${pos.join(",")}=${lit}`;
+    const pos = cfg.inputs.map((inp) => truthInput(inp, lab));
+    const outs = truthOutputs(cfg).map((o) => truthOutput(o, lab));
+    if (pos.some((v) => v === null)) {
+      mem.last = null;
+      return state;
+    }
+    const row = pos.join(",");
+    const key = `${row}=${outs.join(",")}`;
     if (!mem.last || mem.last.key !== key) {
       mem.last = { key, since: lab.t };
       return state;
     }
     if (lab.t - mem.last.since < STEADY + 0.05) return state;
-    const cell = pos.join(",");
-    if (state.cells[cell] === lit) return state;
-    return { ...state, cells: { ...state.cells, [cell]: lit } };
+    const add: Record<string, boolean> = {};
+    outs.forEach((v, k) => {
+      if (v !== null && state.cells[truthCell(row, k)] !== v) add[truthCell(row, k)] = v;
+    });
+    if (!Object.keys(add).length) return state;
+    return { ...state, cells: { ...state.cells, ...add } };
   }
   return state;
 }

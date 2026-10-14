@@ -158,17 +158,19 @@ then say `"D2"`). `kind: "lead"` is a clip lead.
 | Config | |
 |---|---|
 | `"meter"`, `{ kind: "meter", mode, range, red, black, probes, tips, at, rot, spareFuses }` | `probes: { red: "B1.pos" }` starts the tips on something; `tips: { red: "desk:x,z" }` lays loose tips near the circuit when the meter sits off to one side |
-| `{ kind: "scope", traces, window, range, capture, pitch }` | One or two traces: `{ label, volts: node, ref? }`, `{ label, amps: partId }` or `{ label, glow: ledId }`. `capture: { ms: 4, edge: "off" }` adds Arm: the next switch action (only switching off, with `edge: "off"`) is caught at a fast time base. `pitch: "SP1"` shows the speaker's pitch |
+| `{ kind: "scope", traces, window, range, capture, pitch, levels, duty }` | One or two traces: `{ label, volts: node, ref? }`, `{ label, amps: partId }` or `{ label, glow: ledId }`. `capture: { ms: 4, edge: "off" }` adds Arm: the next switch action (only switching off, with `edge: "off"`) is caught at a fast time base (`lab.capture()` reads it). `pitch: "SP1"` shows the speaker's pitch. `levels: [{ of: "U1.8", fraction: 2 / 3 }, { volts: 3 }]` draws dashed reference lines on the first trace's scale (a share of a node follows the supply as it sags). `duty: true` (or a trace index) adds a readout of high time, low time and duty; that trace's node is watched, so a kilohertz signal reads exactly |
 | `{ kind: "logger", traces, start, seconds, range }` | Plots from a trigger (`start`: one or a list of `{ part, to }`, `{ part, pressed }`, `{ part, contact: "no" }`) or its Start button, with a cursor. `lab.loggerStart()` |
-| `{ kind: "stopwatch", start, stop, watch? }` | Starts and stops by itself on those triggers and keeps every run; `watch` notes a node's volts at the start. `lab.runs()` |
+| `{ kind: "stopwatch", start, stop, watch? }` | Starts and stops by itself on those triggers and keeps every run; `watch` notes a node's volts at the start. Besides the logger's triggers, `{ part: "D1", lit: false }` (the moment an LED stops drawing current, timed halfway between snapshots) and `{ node: "U1.6", above: 6 }` or `{ node, below }` (the node is watched: the exact crossing). Switching a start switch back abandons a run; a start press, lamp or node is a moment, so a tapped button keeps timing. `lab.runs()` |
 | `{ kind: "tapper", part, hz? }` | Presses a pushbutton `hz` times a second while switched on. `lab.tapping(id)` |
 | `{ kind: "inspect", show: "stress" \| "heat", parts: ["led"] }` | Floats a readout over parts (by id or kind): an LED's current as a share of its maximum (green, amber past half, red past 90%), or a part's temperature with a touch-feel word (cool, warm, hot, ouch) |
 
-**Controls** are sliders bound to a simulator input (`light`, `ohms`, `position`): the lamp over a phototransistor,
+**Controls** are sliders bound to a simulator input (`light`, `ohms`, `position`, `proximity`): the lamp over a phototransistor,
 a fingertip on touch pads, a trimmer's knob. `part: "*"` drives every part that takes the input (one lamp for every
 phototransistor). `scale: "log"` suits resistances. Two more need no part: `key: "speed"` sets how fast the simulation
 runs (1 is real time, up to 3600 for a time-lapse; pair it with a `clock` prop), and `key: "room"` dims the room
-lights (1 bright down to 0.1) so a faint glow shows. Goals read them with `lab.control(id)`.
+lights (1 bright down to 0.1) so a faint glow shows. Goals read them with `lab.control(id)`. A `proximity` control is
+the hand near a chip (`{ id: "hand", label: "Hand", key: "proximity", part: "U1", min: 0, max: 1, value: 0 }`, or
+`part: "*"` for every chip): drawn as an ink hand moving toward the chip, it makes floating inputs pick up hum.
 
 **Panels** are small worksheets beside the tasks, `panels: [...]` on the lab (not the bench). `show: ["task-id"]`
 shows one only from that task on. Goals read `lab.panel(id)` (`cells`, `size`, `answer`, `submissions`, `wrong`,
@@ -177,11 +179,15 @@ shows one only from that task on. Goals read `lab.panel(id)` (`cells`, `size`, `
 | Panel | |
 |---|---|
 | `{ kind: "continuity", id, part }` | Every pair of the part's legs in each position, filled in as the meter (continuity mode) probes them |
-| `{ kind: "truth-table", id, inputs: [{ part, label, a, b }], output: { part } }` | Logs the LED for every switch combination tried; clears when the wiring changes |
+| `{ kind: "truth-table", id, inputs, output \| outputs, mystery?, name? }` | Logs the outputs for every input combination tried, once steady; clears when the wiring changes. Inputs: a switch by its throws `{ part, label, a, b }`, a button, switch or DIP position by closed `{ part, label, low?, high? }`, or a node by its logic level `{ node, label }`. Outputs: an LED `{ part }` (lit) or a node `{ node }` (high). The row the inputs are on now is marked. `name: "AND"` is written under the table, with `mystery: true` only once every row is filled. Cells: `"0,1"` for the first output, `"0,1#1"` for the second |
 | `{ kind: "pin-map", id, part, roles: [{ id, label, legs }], swap?, peek? }` | Name every terminal; counts wrong submissions; `swap` lets two role groups trade (which pole is "A"); `peek` opens the part once right |
 | `{ kind: "tags", id, items, options, answer }` | Tag each item with one option |
 | `{ kind: "hole-hunt", id, start, cols }` | Tap every hole joined to `start` on a map of the board |
 | `{ kind: "symbol", id, answer: { slots, linked } }` | Build a symbol from two slots and an optional link |
+| `{ kind: "xray", id, part, pins? }` | The chip x-ray (see Chips). Closed it is a "Look inside" button; open, `lab.view("xray:<part>")` is true and the cells note what the 555 did meanwhile: `trigger`, `threshold`, `reset`, `discharge`, `latch` (set), `high`, `low` |
+| `{ kind: "timing", id, channels, window?, quiet? }` | Up to 8 channels `{ label, node, level? }` (watched: exact edges) or `{ label, part }` (an LED lit, a button closed, from the snapshots), as high and low lines over the last `window` seconds (default 2). The latest burst (two or more edges each within `quiet`, default 0.02 s, of the next; `burst: false` leaves a free-running clock out) can be replayed in slow motion over 4 s, with a scrubber and marks on states under 1 µs. `lab.timing(id)` |
+| `{ kind: "histogram", id, button, dice, rolls?, hold?, settle?, read? }` | Every roll of `button` (let go, then `settle` s, default 0.3) is read from the pip LEDs (`dice: [["P1", ...]]`, one list per die: the face is the number of pips lit) or `read(lab)`, and tallied as faces, or sums and all 36 pairs for two dice, with a fair band (expected count plus or minus two standard deviations). "Roll for me" presses it with holds of 0.15 to 0.6 s (`hold`); a thousand rolls are sampled from 20 ms of the running dice recorded finely (exact for a clock of a few hundred hertz and up). `lab.rolls(id)` |
+| `{ kind: "keys", id, buttons: [{ part, key, label }] }` | Big on-screen keys for pushbuttons, each held while pressed, plus a keyboard key (`"a"`, `"l"`, `" "`) that works all through the lab, so two players can share a keyboard. "Pin down" holds a button for touch screens |
 
 **Nodes** name nodes for goals and scope traces: `nodes: { c: "C1.pos" }` makes `lab.volts("c")` work.
 
@@ -192,9 +198,46 @@ the other way and far slower; `push` hatches every lead by its voltage above the
 each battery and on each sealed box. The loop tracer has no switch: a lesson starts it from a terminal
 (`runtime.trace("pin:B1.neg")`, or `{ do: "trace", from: "B1.neg" }`).
 
+**Watch** lists nodes the simulator checks for edges after every solver step (`Netlist.watch`, see
+`packages/sim/README.md`): `watch: ["U1.3", { node: "clk", level: 2.5 }]`. Snapshots come 30 times a second; a
+watched node's edges in between are counted and timed exactly (a bounce, a ripple, a 1 kHz clock), for
+`lab.edges(node)` and exact `lab.widths` and `lab.duty`. A chip pin is watched at half its chip's supply unless a
+`level` is given. Timing diagram channels, stopwatch node triggers and the scope's duty trace are watched anyway.
+
 The first drafts of the Unit 1 and 2 labs used simulator kinds and `props` (`kind: "switch"`, `kind: "wire"` with
 `at: "B1.pos|S1.a"`, `kind: "multimeter"`). Those still load (see `LegacyPart` in `define.ts`), but write new labs
 with the forms above and move old ones over when you finish their goals.
+
+## Chips
+
+Unit 4's chips are bench parts with a `model` ("555", "555-cmos", "74HC08", "74HC393", "4026B" ...) run as the
+simulator's `timer555` or `logic` part under the same id. Goals and attach points name their pins by number or by
+name: `"U1.6"`, `"U1.thresh"`, `"U1.threshold"` and `lab.pin("U1", 6)` are the same pin; logic pins go by datasheet
+name either way round (`"U2.1A"`, `"U2.a1"`, `"DM1.CO"`), and `plus` and `minus` name the supply pins. They work in
+`lab.volts`, `lab.connected`, `lab.joins`, `lab.probed`, scope traces and watches, whatever leg names the bench gives
+the chip (numbers or datasheet names): the view goes through the netlist's pin table (`chips.ts`, `chipPinRef`).
+
+| Helper | |
+|---|---|
+| `lab.pin(chip, pin)` | `{ n, name, node, volts, level }` |
+| `lab.chipSeat(id)` | `{ seated, straddles, pin1: "left" \| "right", turned, columns, oneSide, shorted, holes }`: straddling the channel with every pin on its own strip; which end the notch (pin 1) is at, `turned` for notch right; `oneSide` and the pin pairs a strip `shorted`. Null off the board |
+| `lab.logic(node)` | `H`, `L`, `X` (between 30% and 70%) or `Z` (unpowered): a logic chip's pin as the chip reads it, a 555 pin against its supply, any other node against the supply of a chip on it (else the bench's highest voltage) |
+| `lab.view("xray:U1")` | The chip x-ray is open |
+| `lab.bench.rejected` | Parts the board refused to seat (a surface-mount lookalike dropped on holes), from the bench's `rejected` list or a refused-part action it reports (a `BenchAction` whose type contains "refus" or "reject", with `partId`) |
+
+**The x-ray** (`{ kind: "xray", part, pins }`) draws a 555 seen from above, notch left, with only the blocks of the
+pins in `pins` (the lesson's 555 map so far, section 2.4 of the Unit 4 blueprint): pins 1 and 8 the two rails; 2 the
+low watcher and its 1/3 line; 3 the output stage; 2, 3 or 6 the inside switch (named the latch once pin 4 is); 6 the
+high watcher and its 2/3 line; 7 the drain switch; 4 the reset line; 5 the ladder of three equal resistors with pin 5
+on its 2/3 tap. Live, each named pin shows its volts, a watcher shows "2.10 < 3.13 V" and turns amber while it fires,
+the latch dot lights when set, the drain switch closes, the reset line turns amber while it holds the latch off.
+Unnamed pins show only a dashed number. A screen reader hears one sentence per block, and the state changes as they
+happen. For a gate chip the x-ray shows which gate is which, wired to its pins, high pins amber. The notebook's still
+map is `<Chip555Map pins={[1, 8, 2, 3]} />` (`xray.tsx`), stamped "Complete" with all eight pins.
+
+The simulator places a chip's edges exactly, but a switch or button acting on a chip input is seen by the chip at the
+end of the solver's first 1 µs step after it, so a slow-motion replay of a button-clocked counter shows about half a
+microsecond between the clock edge and the ripple. Chip-driven clocks (a 555) are exact.
 
 ## Tasks
 
@@ -256,7 +299,12 @@ with the forms above and move old ones over when you finish their goals.
 | `lab.inSeries("M1", id)`, `lab.meterInSeriesWith(id)` | The meter on a current range, right socket, carrying the part's current |
 | `lab.meterReads(value, { tol, unit })` | The display within `tol` (default 5%), in its own unit or in `unit` |
 | `lab.heldFor(seconds, cond, key?)` | `cond` has held for that long in simulated time (per task) |
-| `lab.history("glow:D1", seconds)` | Recent samples of `glow:`, `i:`, `v:`, `temp:`, `p:` a part or `volts:` a node |
+| `lab.history("glow:D1", seconds)` | Recent samples of `glow:`, `i:`, `v:`, `temp:`, `p:` a part, `volts:` a node, `closed:` a button or switch (1 or 0), `count:` a counter (its `count` or `count1`), `logic:` a node (1 high, 0 low) or `extra:U1.<key>` |
+| `lab.presses(id, seconds?)`, `lab.values(source, seconds?)` | A button's closed spells `{ start, end }` (the last may still be on); the values a source went through, repeats removed (`lab.values("count:U2")`: `[3, 4, 5, 0]`) |
+| `lab.widths(source, level?, seconds?)`, `lab.duty(source, level?, seconds?)` | Lengths of the complete high stretches; `{ high, low, period, duty, cycles }` of the latest whole cycles. Exact from the edge log for a watched `volts:` node, else interpolated between snapshots |
+| `lab.edges(node, seconds?)` | `{ rises, falls, times, exact, high }`: a watched node's crossings (`exact: false` when counted from the snapshots, which miss fast edges) |
+| `lab.timing(id)`, `lab.rolls(id)`, `lab.capture()` | A timing diagram's latest `burst` (`start`, `end`, each channel's level and edges, `glitches` under 1 µs, `states`: every channel's level after each edge) and its `replays`; a histogram's `list` of rolls, `tally` (`faces`, `pairs`, `sums`), `rolling`, `sampled`; the scope's last single shot |
+| `lab.pin`, `lab.chipSeat`, `lab.logic`, `lab.bench.rejected` | Chips (see Chips) |
 | `lab.stats(source, seconds?)`, `lab.timeAbove(source, level, seconds?)` | Min, max, mean, span of a source; time spent at or above a level |
 | `lab.periods(source, level?, seconds?)` | Seconds between rising crossings (a blinking LED, a ticking node), oldest first |
 | `lab.blinkPeriod(id)`, `lab.toneHz(id)`, `lab.toneHistory(seconds?)` | Seconds between an LED's flashes; the speaker's pitch; pitch over time (a siren's glide) |
@@ -265,7 +313,7 @@ with the forms above and move old ones over when you finish their goals.
 | `lab.logged(tag)`, `lab.readings(tag?)`, `lab.readingsLog` | Stable meter readings in the notebook (see below) |
 | `lab.gate(id)`, `lab.gateUnit(id)`, `lab.gateTicks(id)` | The current through the lead a gate is on (amps, 0 off a lead); its number mode's unit; the dots it has counted. History source `gate:G1` (`lab.stats("gate:G1")`) |
 | `lab.lidOpen(id)` | A sealed box's (or the cabinet's) lid is open |
-| `lab.view(name)` | A view is on: `"push"`, `"flow"`, `"electrons"`, `"xray"` (the board's), `"xray:XA"` (that AA cut open), `"trace"` |
+| `lab.view(name)` | A view is on: `"push"`, `"flow"`, `"electrons"`, `"xray"` (the board's), `"xray:XA"` (that AA cut open), `"xray:U1"` (a chip's x-ray panel open), `"trace"` |
 | `lab.trace(from)` | The loop tracer from a terminal, worked out on the bench as it is: `{ closed, gap, parts, leads }` (`gap` is what the last clip bites, a loose clip, or an open switch's lead) |
 | `lab.tagShown(id)` | What a tag shows now ("10 kΩ" or, tapped, "10,000 Ω"); a sealed box's tag too |
 | `lab.drawing(id)` | A schematic card: `{ complete, pieces: [{ id, seated, turn, right }] }`, complete once the torn piece sits in its gap the right way round |
@@ -311,15 +359,16 @@ An empty solution is reported as skipped.
 | `{ do: "flip", part, to? }`, `{ do: "press", part, seconds? }`, `{ do: "set", part, key, value }` | Switches, buttons, raw inputs |
 | `{ do: "param", part, params }`, `{ do: "action", part, action }` | A prop's settings (`{ moisture: "wet" }`, `{ length: 5 }`) and one-shot actions (`"erase"`), as from its selection bar |
 | `{ do: "control", id, value }`, `{ do: "note", id, value }` | Sliders, notebook entries |
-| `{ do: "panel", id, value }`, `{ do: "tapper", on }` | Submit a panel answer (a pin map names the legs as wired inside, e.g. `{ coil1: "coil" }`); work the auto-tapper |
+| `{ do: "panel", id, value }`, `{ do: "tapper", on }` | Submit a panel answer (a pin map names the legs as wired inside, e.g. `{ coil1: "coil" }`); work the auto-tapper. The chip panels take `"open"` and `"close"` (x-ray), `"replay"` (timing), `{ roll: n }` and `"clear"` (histogram) |
+| `{ do: "roll", id, times? }` | Let a histogram's auto-roller roll (the replay waits until it is done) |
 | `{ do: "replace", part }`, `{ do: "replaceFuse" }`, `{ do: "wait", seconds }` | |
-| `{ do: "view", name, on }`, `{ do: "trace", from }` | Switch an overlay (`"flow"`, `"electrons"`, `"push"`, `"xray"`); run the tracer from a terminal (null clears it) |
+| `{ do: "view", name, on }`, `{ do: "trace", from }` | Switch an overlay (`"flow"`, `"electrons"`, `"push"`, `"xray"`) or a chip's x-ray panel (`"xray:U1"`); run the tracer from a terminal (null clears it) |
 | `{ do: "rub", part, on, strokes? }` | The static toy: rub a balloon (comb, spoon) back and forth on the scarf. A `move` to a desk spot moves it as a drag would (over the scarf it rubs, at the wall it sticks or falls) |
+| `{ do: "check", task }` | By here, this task is done. Also splits the solution for "Show me" |
 
 Start here props change through `param` as their taps do: `{ lid: true }` opens a box, `{ alt: true }` taps a tag open
 (`{ tagAlt: true }` on a box's tag), `{ turn: 90 }` turns a torn piece, `{ xray: true }` cuts an AA open, `{ mode:
 "number", unit: "mA" }` sets a gate; a gate is clipped on with `{ do: "move", part: "G1", at: "lead:TL3" }`.
-| `{ do: "check", task }` | By here, this task is done. Also splits the solution for "Show me" |
 
 Each step lets 0.25 s of simulated time pass. Put a `check` after the steps of each task: "Show me" rewinds to the
 bench at the previous check and plays the steps up to this one.
@@ -333,6 +382,13 @@ for toggles. Taps on a part's named spots use the controller's targets: `part:SD
 `part:BOXA/lid`, `part:KB/knob`, `part:KB/tag`, `part:CAB/wheel2`, `part:G1/unit`, `part:L1/text`, besides leads
 (`part:R1/a`) and anchors. The pure helpers (`traceLoop`, `flowMap`, `pushMap`, `gateAmps`, `expandPrefix`,
 `tagText`, `symbolInk`, `slotTurn`) come from `@ohmland/bench/core` for notebook sketches and checks.
+
+For Unit 4, `runtime.setView("xray:U1", on)` opens a chip's x-ray panel (the panel's own button does the same).
+`apps/web/src/lab/xray.tsx` exports `Chip555Map` (the notebook's 555 map for the pins named so far, stamped when all
+eight are) and the pure drawings `Chip555Drawing` and `LogicChipDrawing`; `apps/web/src/lab/chips.ts` has what a tap
+check needs to name a chip pin (`chipPinRef(anchor, bench, netlist)` gives its number from `U1.trig` or `pin:U1.2`,
+`pinCode` its datasheet label), so a wrong tap can show the pin's number, and its name once the lesson has named it.
+`runtime.holdButton(part, "pin")` and `runtime.releaseButton(part)` hold a button down from outside the keys panel.
 
 ## Trying a lab
 

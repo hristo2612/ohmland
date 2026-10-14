@@ -63,6 +63,8 @@ packages/sim/             circuit simulator: pure TS, no DOM; worker entry + asy
 packages/bench/           3D workbench: procedural part models, breadboard, meter, wires, interaction,
                           bench state -> netlist (React Three Fiber components)
 packages/isle/            the progress island: pure planner + three.js renderer (vanilla three, lazy)
+packages/code/            bench C, the microcontroller board's language: parser, checker, formatter, blocks <-> tree,
+                          an interpreter on virtual time (pure TS, no DOM; the simulator's board runs it in the worker)
 content/                  the course: units, modules, lessons (YAML), labs (TS), quiz items
 docs/                     ARCHITECTURE.md (this), CONTENT.md (writing + copyright rules), CURRICULUM.md,
                           ACCOUNTS.md (Firebase setup, emulators, the synced document)
@@ -71,7 +73,7 @@ firebase.json, .firebaserc, firestore.rules    Firebase Hosting, the project, th
 ```
 
 Packages are consumed from source (`"exports": { ".": "./src/index.ts" }`), no separate build step.
-Package names: `@ohmland/web`, `@ohmland/sim`, `@ohmland/bench`, `@ohmland/isle`.
+Package names: `@ohmland/web`, `@ohmland/sim`, `@ohmland/bench`, `@ohmland/isle`, `@ohmland/code`.
 
 ## Course structure
 
@@ -375,7 +377,12 @@ type PartSpec =                            // discriminated by kind; pins map pi
   | { id: string; kind: "logic"; model: LogicModel; pins: Partial<Record<string, NodeId>> }   // input: proximity
   | { id: string; kind: "sevenseg"; pins: Partial<Record<"a" | "b" | "c" | "d" | "e" | "f" | "g" | "dp" | "com" | "com2", NodeId>>;
       common: "cathode" | "anode"; color?: LedColor; maxmA?: number }
-  | { id: string; kind: "regulator7805"; pins: { in: NodeId; gnd: NodeId; out: NodeId }; heatsink?: boolean };
+  | { id: string; kind: "regulator7805"; pins: { in: NodeId; gnd: NodeId; out: NodeId }; heatsink?: boolean }
+  // Unit 5: an Uno-style board running a bench C program (@ohmland/code) on simulated time. Pins d0..d13, a0..a5,
+  // "5v", gnd, vin (MCU_PINS); a new upload number or program resets it. Snapshot: extra.modes/levels/volts/mA per
+  // pin (mcuPin(state, n)), the lamps as parts "<id>:L" and "<id>:ON", printed lines as "serial" events.
+  | { id: string; kind: "mcuboard"; pins: Partial<Record<McuPin, NodeId>>; program?: string; upload?: number;
+      power?: "usb" | "jack" | "off"; jackVolts?: number; clockStart?: number; seed?: number };  // input: power, reset, millis, proximity
 type MeterMode = "off" | "dcv" | "acv" | "dca-ma" | "dca-10a" | "ohm" | "continuity" | "diode";
 type Bounce = boolean | number;                // contact chatter: true 1 to 5 ms (seeded), or the longest in ms
 type LogicModel = "74HC00" | "74HC02" | "74HC04" | "74HC08" | "74HC14" | "74HC27" | "74HC32" | "74HC74" | "74HC86"
@@ -395,7 +402,8 @@ const sim = await createSimClient();            // createSimulation() is the sam
 sim.load(netlist);                               // full rebuild; keeps state (charge, damage, heat, wear) of parts whose id survives
 sim.setInput(partId, key, value);                // pressed, closed, to, position, light, ohms, mode, range,
                                                  // replaceFuse (meter: fit a new mA fuse), replace (any part: fresh part, same id),
-                                                 // bounce (contacts), proximity (chips: a hand near floating inputs, 0..1)
+                                                 // bounce (contacts), proximity (chips: a hand near floating inputs, 0..1),
+                                                 // power, reset, millis (the microcontroller board)
 sim.run({ speed: 1 });                           // real time; below 1 slow motion; up to 3600 time-lapse (audio muted above 4)
                                                  // in-thread step(dt, { speed }) takes a time-lapse's larger steps (replays)
 sim.onSnapshot((s: Snapshot) => ...);            // about 30 per second

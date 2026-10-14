@@ -1,0 +1,179 @@
+/*
+ * The chip panels (x-ray and 555 map, timing diagram, dice histogram, keys) in the Classic notebook's ink: graphite for
+ * everything, blue ink for what the learner moves (the playhead, a pinned key), red pencil for what the robot points
+ * out (a count outside the fair band, a glitch), amber for something lit or firing. Tokens only: the notebook's names
+ * with today's tokens as fallbacks, as in bench-lesson.css.
+ */
+.chip-panel,
+.xr-map {
+  --cp-ink: var(--ink);
+  --cp-ink-2: var(--ink-2);
+  --cp-ink-3: var(--ink-3);
+  --cp-paper: var(--paper-slip, var(--surface));
+  --cp-sunk: var(--paper-sunk, var(--surface-sunk));
+  --cp-grid: var(--grid, var(--line));
+  --cp-rule: var(--rule-soft, var(--line-strong));
+  --cp-blue: var(--blue, var(--info));
+  --cp-blue-wash: var(--blue-wash, var(--info-soft));
+  --cp-red: var(--red, var(--bad));
+  --cp-red-wash: var(--red-wash, var(--bad-soft));
+  --cp-amber: var(--amber, var(--glow));
+  --cp-amber-wash: var(--amber-wash, var(--glow-soft));
+  --cp-hand: var(--font-hand, "Kalam", var(--font-display));
+  --cp-mono: var(--font-mono);
+  --cp-line: 1.6px;
+}
+
+.chip-panel svg text { font-family: var(--cp-hand); fill: var(--cp-ink); }
+
+/* ---- X-ray and the 555 map ----------------------------------------------------------------------------------- */
+.xr__closed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.xr__sheet { display: block; }
+.xr__asleep { margin: 0; }
+.xr-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.xr-svg text { font-family: var(--cp-hand, var(--font-display)); fill: var(--cp-ink, var(--ink)); }
+.xr-body { fill: var(--cp-paper); stroke: var(--cp-ink); stroke-width: 2.2; stroke-linejoin: round; }
+.xr-dot { fill: var(--cp-ink); }
+.xr-print { font-family: var(--cp-mono) !important; font-size: 13px; fill: var(--cp-ink-3) !important; letter-spacing: 0.08em; }
+.xr-leg { fill: var(--cp-sunk); stroke: var(--cp-ink); stroke-width: 1.4; }
+.xr-tag { fill: var(--cp-paper); stroke: var(--cp-ink); stroke-width: 1.4; }
+.xr-num { font-family: var(--cp-mono) !important; font-size: 13px; font-weight: 600; }
+.xr-volts { font-family: var(--cp-mono) !important; font-size: 12.5px; fill: var(--cp-ink-2) !important; }
+.xr-name { font-size: 15px; }
+.xr-pin[data-dim] .xr-tag { stroke: var(--cp-rule); stroke-dasharray: 2 2.5; }
+.xr-pin[data-dim] .xr-num { fill: var(--cp-ink-3) !important; font-weight: 400; }
+.xr-pin[data-level="H"] .xr-tag { fill: var(--cp-amber-wash); stroke: var(--cp-amber); }
+.xr-label { font-size: 15px; }
+.xr-small { font-family: var(--cp-mono) !important; font-size: 12.5px; fill: var(--cp-ink-2) !important; }
+.xr-wire,
+.xr-line,
+.xr-ctl,
+.xr-arrow,
+.xr-blade { fill: none; stroke: var(--cp-ink); stroke-width: var(--cp-line); stroke-linecap: round; stroke-linejoin: round; }
+.xr-rail { fill: none; stroke: var(--cp-ink); stroke-width: 3.2; stroke-linecap: round; }
+.xr-line { stroke-dasharray: 4 3; stroke: var(--cp-ink-2); }
+.xr-ctl { stroke-dasharray: 2 3.5; stroke: var(--cp-ink-3); }
+.xr-blade { stroke-width: 2.4; }
+.xr-joint { fill: var(--cp-ink); }
+.xr-term { fill: var(--cp-paper); stroke: var(--cp-ink); stroke-width: 1.4; }
+.xr-headfill { fill: var(--cp-ink); }
+.xr-box { fill: var(--cp-paper); stroke: var(--cp-ink); stroke-width: var(--cp-line); }
+.xr-lamp { fill: var(--cp-paper); stroke: var(--cp-ink); stroke-width: var(--cp-line); }
+.xr-latch[data-on] .xr-lamp { fill: var(--cp-amber); stroke: var(--cp-ink); }
+.xr-buffer { fill: var(--cp-paper); stroke: var(--cp-ink); stroke-width: var(--cp-line); stroke-linejoin: round; }
+.xr-out[data-level="high"] .xr-buffer { fill: var(--cp-amber-wash); }
+/* A watcher firing, the reset line pulling: amber, a little heavier. */
+.xr-watch[data-fires] .xr-box { fill: var(--cp-amber-wash); stroke: var(--cp-amber); stroke-width: 2.6; }
+.xr-flow[data-fires] .xr-arrow { stroke: var(--cp-amber); stroke-width: 2.6; }
+.xr-reset[data-fires] .xr-reset-line { stroke: var(--cp-amber); stroke-width: 2.6; }
+.xr-drain[data-closed] .xr-blade { stroke-width: 3; }
+.xr-gatebody { fill: var(--cp-paper); stroke: var(--cp-ink); stroke-width: var(--cp-line); stroke-linejoin: round; }
+.xr-bubble { fill: var(--cp-paper); stroke: var(--cp-ink); stroke-width: 1.4; }
+.xr-gate .xr-wire[data-level="H"] { stroke: var(--cp-amber); stroke-width: 2.4; }
+.xr-gate[data-out="H"] .xr-gatebody { fill: var(--cp-amber-wash); }
+
+.xr-map { display: grid; margin: 0; }
+.xr-stamp {
+  justify-self: end;
+  margin-top: var(--space-2);
+  padding: 2px var(--space-3);
+  border: 2.5px solid var(--cp-red);
+  border-radius: 4px;
+  color: var(--cp-red);
+  font-family: var(--cp-hand);
+  font-size: var(--text-subheading);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transform: rotate(-12deg);
+  opacity: 0.9;
+}
+
+/* ---- Timing diagram -------------------------------------------------------------------------------------------- */
+.td__sheet { display: block; border-radius: var(--radius-s); background: var(--cp-paper); }
+.td-svg { display: block; width: 100%; height: auto; }
+.td-grid { stroke: var(--cp-grid); stroke-width: 1; }
+.td-tick { font-family: var(--cp-mono) !important; font-size: 10px; fill: var(--cp-ink-3) !important; }
+.td-label { font-size: 13px; }
+.td-base { stroke: var(--cp-grid); stroke-width: 1; stroke-dasharray: 1 3; }
+.td-trace { fill: none; stroke: var(--cp-ink); stroke-width: 2; stroke-linecap: square; stroke-linejoin: miter; }
+.td-busy { stroke: var(--cp-ink); stroke-width: 1; }
+.td-hatch { stroke: var(--cp-ink-2); stroke-width: 1.4; }
+.td-faint { opacity: 0.16; }
+.td-playhead { stroke: var(--cp-blue); stroke-width: 2; }
+.td-glitch { fill: var(--cp-red); }
+.td__stretch { margin: 0; color: var(--cp-blue); font-family: var(--cp-hand); font-size: var(--text-callout); }
+.td__scrub input { width: 100%; min-height: 32px; accent-color: var(--cp-blue); }
+.td__glitches { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); color: var(--cp-ink); }
+.td__glitches li { display: flex; align-items: center; gap: var(--space-2); }
+.td__glitch-mark { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid var(--cp-red); }
+
+/* ---- Dice histogram -------------------------------------------------------------------------------------------- */
+.hg__sheet { display: block; }
+.hg-svg { display: block; width: 100%; height: auto; }
+.hg-pairs { max-width: 280px; margin-inline: auto; }
+.hg-grid { stroke: var(--cp-grid); stroke-width: 1; }
+.hg-axis { stroke: var(--cp-ink); stroke-width: 1.6; }
+.hg-tick, .hg-count { font-family: var(--cp-mono) !important; font-size: 11px; fill: var(--cp-ink-2) !important; }
+.hg-face { font-size: 14px; }
+.hg-band { fill: var(--cp-blue-wash); opacity: 0.8; }
+.hg-fill { fill: var(--cp-ink-3); stroke: var(--cp-ink); stroke-width: 1.4; }
+.hg-bar[data-out] .hg-fill { fill: var(--cp-red-wash); stroke: var(--cp-red); stroke-width: 2.2; }
+.hg-bar[data-out] .hg-count { fill: var(--cp-red) !important; font-weight: 600; }
+.hg-cellbox { fill: var(--cp-ink-3); stroke: var(--cp-paper); stroke-width: 2; }
+.hg-cell[data-out] .hg-count { fill: var(--cp-red) !important; font-weight: 600; }
+.hg-cell .hg-count { fill: var(--cp-ink) !important; }
+.hg__verdict { display: flex; align-items: center; gap: var(--space-2); margin: 0; color: var(--cp-ink-2); }
+.hg__verdict[data-out] { color: var(--cp-red); }
+.hg__swatch { flex: none; width: 18px; height: 10px; border-radius: 2px; background: var(--cp-blue-wash); border: 1px solid var(--cp-rule); }
+.hg__times .select { min-width: 7.5em; }
+
+/* ---- Keys ------------------------------------------------------------------------------------------------------ */
+.ky__row { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.ky__key { display: grid; gap: var(--space-1); flex: 1 1 130px; }
+.ky__cap {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  min-height: 72px;
+  padding: var(--space-2) var(--space-3);
+  border: 2px solid var(--cp-ink);
+  border-radius: var(--radius-m);
+  background: var(--cp-paper);
+  box-shadow: 0 4px 0 var(--cp-ink);
+  color: var(--cp-ink);
+  font: inherit;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.ky__cap[aria-pressed="true"] { transform: translateY(3px); box-shadow: 0 1px 0 var(--cp-ink); background: var(--cp-amber-wash); }
+.ky__cap:focus-visible { outline: var(--focus-ring) solid var(--focus); outline-offset: 3px; }
+.ky__label { font-family: var(--cp-hand); font-size: var(--text-subheading); line-height: 1.1; }
+.ky__kbd { font-family: var(--cp-mono); font-size: var(--text-small); padding: 0 var(--space-2); border: 1px solid var(--cp-rule); border-radius: var(--radius-xs); background: var(--cp-sunk); }
+.ky__pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 36px;
+  border: 1px dashed var(--cp-rule);
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--cp-ink-2);
+  font: inherit;
+  cursor: pointer;
+}
+.ky__pin[aria-pressed="true"] { border-style: solid; border-color: var(--cp-blue); color: var(--cp-blue); background: var(--cp-blue-wash); }
+.ky__pin:focus-visible { outline: var(--focus-ring) solid var(--focus); outline-offset: 1px; }
+.ky__pinicon { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
+
+/* ---- Truth table, extended -------------------------------------------------------------------------------------- */
+.tt tr[data-now] td { background: var(--cp-blue-wash, var(--info-soft)); }
+.tt tr[data-now] td:first-child { box-shadow: inset 3px 0 0 var(--cp-blue, var(--info)); }
+.tt__name { margin: 0; font-family: var(--cp-hand, var(--font-display)); font-size: var(--text-subheading); color: var(--cp-blue, var(--info)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ky__cap { transition: none; }
+}
+:root[data-motion="reduce"] .ky__cap { transition: none; }
