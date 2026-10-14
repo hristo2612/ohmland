@@ -173,11 +173,12 @@ export function CupModel({ params, quality = "high" }: ModelProps<PartParamsMap[
       64,
     ),
   );
+  // Salt grains on the bottom: a salty cup, or the pinches stirred in (a few more with each one).
+  const count = params.water === "salty" ? 26 : Math.min(26, (params.salt ?? 0) * 6);
   const grains = useMemo(() => {
-    if (params.water !== "salty") return [];
     const r = rng(17);
-    return Array.from({ length: 26 }, () => [(r() - 0.5) * R * 1.2, 4.3, (r() - 0.5) * R * 1.2, r() * 3] as const);
-  }, [params.water, R]);
+    return Array.from({ length: count }, () => [(r() - 0.5) * R * 1.2, 4.3, (r() - 0.5) * R * 1.2, r() * 3] as const);
+  }, [count, R]);
   return (
     <group>
       <mesh geometry={waterGeo} material={water} renderOrder={1} />

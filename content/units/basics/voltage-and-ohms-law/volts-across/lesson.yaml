@@ -1,139 +1,52 @@
-# Blueprint: docs/curriculum/unit-1.md, L10.
+# Blueprint: docs/curriculum/unit-1.md, L10, split (docs/curriculum/conversion-guide.md, B3). A bench lesson
+# (docs/LESSONS.md). One idea: push is measured across a part, with the circuit running.
+# Lab: content/labs/volts-across.ts. The drops adding up moved to share-the-push.
+format: bench
 id: volts-across
-version: 1
+version: 2
 title: Across, not in
-summary: Measure voltage across each part of a running circuit and find that the drops add up.
-minutes: 11
+summary: Measure the push across each part of a running circuit, without cutting a thing.
+minutes: 6
+lab: volts-across
 unlocks:
-  parts: [led-color]
+  parts: []
   isle: jumper-arch
-steps:
-  - type: hook
-    body: |
-      Current flows through things. Voltage is different: it's a push measured between two points, like the height
-      difference between the top and bottom of a slide. To measure it you don't break anything. You just touch two
-      places in a running circuit. Today you'll measure the battery, the resistor and the LED one by one, and spot a
-      pattern hiding in the numbers.
-    visual: { kind: none }
-    predict:
-      prompt: In a battery, resistor and LED loop, you measure across the resistor and across the LED, then add the two readings. You get...
-      options:
-        - Less than the battery voltage
-        - About the battery voltage
-        - Twice the battery voltage
-    mascot: Current goes through. Voltage sits across. Let's measure the push.
 
-  - type: lab
-    lab: volts-across
+start:
+  title: Push across
+  say: My lamp's lit. Measure its push without cutting a thing?
+  go: Grab the meter
 
-  - type: explain
-    cards:
-      - title: Voltage is a difference
-        body: |
-          Voltage is always measured between two points. It's the difference in electrical push between them, a bit
-          like the height difference between the top and bottom of a slide. Saying "this point is at 5 V" only makes
-          sense compared with somewhere else, usually the battery's minus terminal. That's why the meter needs two
-          probes.
-        # widget (planned): pressure-map. Colours every node of the bench circuit by its voltage relative to battery
-        # minus.
-      - title: Across, not in
-        body: |
-          To measure voltage, leave the circuit alone and touch the probes to two points, **in parallel** with what
-          you're measuring. On volts the meter's input is about 10 MΩ, so it borrows almost no current and barely
-          disturbs anything. That's why a voltmeter can go straight across a battery safely, while a meter on amps
-          can't.
-      - title: The drops add up
-        body: |
-          Around any loop, the voltage drops add up to the voltage supplied. Your battery gave about 9.4 V, the
-          resistor took about 7.4 V and the LED about 2 V. This is **Kirchhoff's voltage law**, named after the
-          physicist who stated it in 1845. It makes a handy check: if your drops don't add up, one of your
-          measurements is off.
-      - title: Every LED has its voltage
-        body: |
-          An LED barely conducts until the voltage across it reaches its **forward voltage**, then holds close to that
-          value as the current rises. Red, orange and yellow LEDs sit around 1.8 to 2.2 V. Blue, white and bright green
-          ones need about 2.8 to 3.4 V. The crystal sets the colour of the light, and it sets the forward voltage too.
+beats:
+  - say: Red plug's still in mA from last time. Probe like that?
+    objective: Safe setup
+    guess: { options: [Sure, Pop goes the fuse], answer: Pop goes the fuse }
+    do: move-the-plug
+    done: It would pop. In mA, the meter is nearly a wire.
+    note: { at: "part:M1", text: "VΩ: sips almost nothing" }
 
-  - type: quiz
-    items:
-      - id: resistor-drop
-        type: numeric
-        prompt: A 9.0 V battery lights a red LED through a resistor. The LED drops 2.0 V. What voltage is across the resistor?
-        answer: 7.0
-        unit: V
-        tolerance: 1
-        hint: The drops around the loop add up to the battery voltage.
-        explain: The drops add up to the supply, so the resistor gets 9.0 − 2.0 = 7.0 V.
+  - say: "Now the dial: the V with the straight line."
+    do: reset-meter
 
-      - id: swapped-volts
-        type: numeric
-        prompt: The meter reads 7.40 V across a resistor. You swap the probes. What will it read?
-        answer: -7.4
-        unit: V
-        tolerance: 1
-        hint: Nothing about the resistor changed. Only the probes did.
-        explain: Same voltage, opposite sign. The meter reports red compared with black, so it reads -7.40 V.
+  - say: Probe across the resistor. Red on the end nearer plus.
+    objective: Measure across
+    do: resistor-volts
+    done: About 7.4 V. And the lamp never blinked.
+    note: { at: R1, text: "push: between its two ends" }
 
-      - id: volts-in-series
-        type: choice
-        prompt: Kai breaks the LED loop and puts the meter, set to DC volts, into the gap. What happens?
-        options:
-          - text: The LED goes out and the meter shows most of the battery voltage
-            correct: true
-            why: On volts the meter is about 10 MΩ, so almost no current flows. With no current, nearly all the push appears across the meter.
-          - text: The meter shows the current
-            why: On volts it measures voltage, wherever you put it.
-          - text: The meter's fuse blows
-            why: The volts input has a very high resistance, so only a tiny current flows.
-        explain: Voltmeters go across parts. In series, they block the current.
+  - say: Now across the LED. Red on the long leg.
+    do: led-volts
+    note: { at: D1, text: about 2 V across }
+    rule: Push across. Flow through.
 
-      - id: why-safe
-        type: choice
-        prompt: Why can a meter on DC volts go straight across a battery, but not a meter on mA?
-        options:
-          - text: On volts it has a very high resistance. On mA it has almost none
-            correct: true
-            why: High resistance lets only a trickle flow. Almost no resistance lets amps flow.
-          - text: The volts setting has a stronger fuse
-            why: The volts input doesn't rely on a fuse. Its high resistance keeps the current tiny.
-          - text: Batteries can't push current through a voltmeter
-            why: They push a tiny current, about 1 µA here, which is harmless.
-        explain: The meter's input resistance decides how much current flows through it.
+  - say: Quick one. For push, where do the probes go?
+    pick: { options: [Across a part, Into a gap], answer: Across a part }
+    wrong: { Into a gap: "That's for flow. Push needs no cutting." }
 
-      - id: how-to-measure
-        type: match
-        prompt: Match each quantity to how you measure it.
-        pairs:
-          - { left: voltage, right: "probes across two points, circuit running" }
-          - { left: current, right: "meter in series, loop broken" }
-          - { left: resistance, right: "part on its own, power off" }
-        explain: Across for volts, in series for amps, unpowered for ohms.
+fixit:
+  say: My lamp died the moment I measured. Fix it.
+  tasks:
+    - task: fix-in-gap
 
-      - id: blue-led
-        type: choice
-        prompt: You swap the red LED for a blue one in the same circuit. Its forward voltage will be about...
-        options:
-          - text: 3 V
-            correct: true
-            why: Blue LEDs need roughly 2.8 to 3.4 V.
-          - text: 2 V
-            why: That is typical for red. Blue needs more.
-          - text: 9 V
-            why: The LED takes its forward voltage. The resistor takes the rest.
-        explain: The LED's colour comes from its crystal, and so does its forward voltage.
-
-  - type: wrap
-    rules:
-      - Voltage is measured between two points, with the circuit running.
-      - Voltmeters go across. Ammeters go in series.
-      - Around a loop, the voltage drops add up to the supply.
-      - Red LEDs drop about 2 V. Blue and white drop about 3 V.
-    realWorld:
-      parts:
-        - A multimeter
-        - A 9 V battery
-        - A 470 Ω resistor
-        - A red LED
-        - Clip leads
-      safety:
-        - Before measuring volts, check the red lead is in VΩ. Left in mA, it shorts the battery through the meter.
+end:
+  say: Push measured, nothing cut. Tidy work.
