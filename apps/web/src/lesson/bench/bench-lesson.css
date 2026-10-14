@@ -636,6 +636,9 @@
   .bl-tool .dial { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 2px; }
   .bl-tool .dial__pos { min-height: var(--bl-tap); padding: 0; font-size: var(--bl-text-xs); }
   .bl-tool .meter-panel__range .select { min-height: var(--bl-tap); }
+  /* While a tool is docked along the bottom, a selected part's bar (Add salt, Rotate) moves up under the undo buttons. */
+  .bl-stage.bl-stage:has(> .bl-tool) .ohb-sel,
+  .bl-stage.bl-stage:has(> .bl-tool) .ohi-sel { top: 64px; bottom: auto; }
   .bl--finale .bl-main--finale { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; }
   .bl-margin--finale { order: 0; display: flex; max-height: none; border-top: 0; border-bottom: 1.5px solid var(--bl-rose); }
   .bl-finale__page { padding: var(--bl-s-4) var(--bl-s-4) var(--bl-s-12); }
