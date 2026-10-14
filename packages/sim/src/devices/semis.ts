@@ -187,11 +187,19 @@ export class LedDevice extends JunctionDevice {
       this.reverseTime += h;
       if (this.reverseTime > 0.05 && !this.reversedSent) {
         this.reversedSent = true;
+        // Real LEDs block only about 5 V in reverse; past that one may break down and pass whatever the rest of the
+        // circuit lets through. Judge that from what the circuit presents across the LED: behind a resistor it is a
+        // few milliamps and harmless, straight across a battery it could be enough to damage it.
+        const ohms = ctx.drivingOhms?.(this.an, this.ca) ?? Infinity;
+        const worst = (-v - this.P.bv) / Math.max(ohms, 1e-3);
+        const risky = worst > 2.5 * this.maxA;
         ctx.emit(
           this.id,
           "reversed",
-          `The LED has ${fmtV(-v)} across it the wrong way round. LEDs only block about 5 V in reverse, so it does not light and a stiff source could damage it. Turn it around: the longer lead goes to the + side.`,
-          { volts: -v },
+          risky
+            ? `The LED has ${fmtV(-v)} across it the wrong way round. LEDs only block about 5 V in reverse, and nothing in this circuit would limit the current if it gave way, so it could be damaged. Turn it around: the longer lead goes to the + side.`
+            : `The LED is in backwards, with ${fmtV(-v)} across it the wrong way round. It blocks the flow, so it stays dark. The rest of the circuit keeps the current small, so it takes no harm. Turn it around: the longer lead goes to the + side.`,
+          { volts: -v, risk: risky ? "damage" : "none", amps: Number.isFinite(worst) ? Math.max(0, worst) : 0 },
         );
       }
     } else if (v > 0) {

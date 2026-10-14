@@ -59,7 +59,18 @@ export type BenchPartKind =
   | "bin"
   | "chart"
   | "clock"
-  | "showcase";
+  | "showcase"
+  // Start here: a clip-on flow counter, sealed boxes and the parts cabinet, a drawing with a torn piece, and the static
+  // toy (a balloon, a wool scarf, paper bits, a comb, a spoon, a wall).
+  | "gate"
+  | "box"
+  | "schematic"
+  | "piece"
+  | "balloon"
+  | "scarf"
+  | "paper"
+  | "comb"
+  | "wall";
 
 export type WaterKind = "distilled" | "tap" | "salty";
 
@@ -67,6 +78,20 @@ export type WaterKind = "distilled" | "tap" | "salty";
 export type Held = Partial<Record<string, string>>;
 
 export type BatterySize = "9v" | "aa" | "coin";
+
+/**
+ * What a material sample is: a bare copper wire and a plastic ruler (Unit 1), and the junk drawer's everyday objects
+ * (Start here): a key, a coin, a foil strip, a pencil lead, a plastic spoon, a rubber eraser, a glass marble, a dry
+ * wooden stick, a piece of string, a plastic-coated paper clip (bare only at its cut ends), and a metal spoon (the
+ * static toy's).
+ */
+export type SampleMaterial = "copper" | "plastic" | "key" | "coin" | "foil" | "pencil" | "spoon" | "metal-spoon" | "eraser" | "marble" | "wood" | "string" | "clip";
+
+/** Symbols drawn in ink: on a drawer's face, a schematic card, a torn piece of one. */
+export type SymbolKind = "battery" | "cell" | "resistor" | "led" | "switch" | "lamp";
+
+/** One symbol on a schematic card's loop, with the bench part it stands for (tapping it spotlights that part). */
+export type SchematicSymbol = { kind: SymbolKind; part?: string; text?: string };
 export type Moisture = "dry" | "damp" | "wet" | "salty";
 
 /**
@@ -113,6 +138,13 @@ export type PartParamsMap = {
     chem?: "alkaline" | "nimh" | "lithium";
     /** A scuffed, used-looking battery. */
     worn?: boolean;
+    /** State of charge it starts at, 0..1 (default full): a tired battery for a time-lapse. */
+    charge?: number;
+    /**
+     * A cutaway (AA): the can cut open to show the two chemicals and the separator. When it is set (true or false) a
+     * tap on the cell toggles it; left out, the cell is a plain battery.
+     */
+    xray?: boolean;
   };
   pushbutton: { cap?: "black" | "red" | "blue" | "yellow" | "white"; /** Connected until pressed. */ normallyClosed?: boolean } & Base;
   "slide-switch": { to: "a" | "b" } & Base;
@@ -166,23 +198,83 @@ export type PartParamsMap = {
    * resistances plus the bulk per centimetre, both set by moisture and probe pressure.
    */
   skin: { moisture: Moisture; pressure: "light" | "firm" };
-  /** A material sample with a probe point at each end: a bare copper wire or a plastic ruler. */
-  sample: { material: "copper" | "plastic"; /** overrides the material's resistance */ ohms?: number };
+  /**
+   * A material sample with a clip point at each end (`a`, `b`): a bare copper wire, a plastic ruler or an everyday
+   * object. The coated paper clip also has `coat`, a spot on its plastic coating that joins nothing.
+   */
+  sample: { material: SampleMaterial; /** overrides the material's resistance */ ohms?: number; /** static charge in marks (see static.ts) */ charge?: number };
   /**
    * A white card with a pencil line drawn from its 0 mark: `length` in cm (0 to 10, 0.5 cm steps), `layers` of
    * graphite (0 to 4), narrow or wide. Probe points every 0.5 cm along the line (legs p0 to p20).
    */
   card: { length: number; layers: number; wide?: boolean };
-  /** A paper value label to drag next to a part. */
-  tag: { text: string };
-  /** A small reject bin; parts dropped in it sit in its seats. */
-  bin: { held?: Held; label?: string };
+  /**
+   * A paper value label to drag next to a part. Tapping it toggles `alt`, which writes the value without its prefix
+   * ("10 kΩ" becomes "10,000 Ω", "20 mA" becomes "0.02 A"): see `expandPrefix`.
+   */
+  tag: { text: string; alt?: boolean };
+  /**
+   * A small reject bin; parts dropped in it sit in its seats. `style: "tray"` is a big sorting tray (the junk drawer's
+   * objects lie in it), `style: "drawer"` a parts drawer with a symbol `face` instead of a word. `accepts` limits the
+   * bench kinds that drop in: anything else stays out on the desk (a wrong part will not go into the drawer).
+   */
+  bin: { held?: Held; label?: string; style?: "bin" | "tray" | "drawer"; face?: SymbolKind; accepts?: BenchPartKind[] };
   /** The resistor colour code on a card. */
   chart: { bands?: 4 | 5 };
   /** A desk clock that shows simulated time (for time-lapse runs). */
   clock: { from?: number };
   /** A glass display case with a phone battery pack and a car battery: look, don't touch. */
   showcase: Record<string, never>;
+  /**
+   * A counting gate: a ring that clips round a clip lead (`on`, its id; `at`, how far along it, 0..1) and ticks once for
+   * every flow dot that passes, with a rate bar. `mode: "number"` shows the current instead ("0.0075 A"); tapping the
+   * unit switches between A and mA. Off a lead it lies on the desk and reads nothing.
+   */
+  gate: { on?: string; at?: number; mode?: "ticks" | "number"; unit?: "A" | "mA" };
+  /**
+   * A sealed box: parts sit inside (seats `s1` to `s4`) under a lid, and only its two terminals (`t1` on the left,
+   * `t2` on the right) or a knob show. `wiring` joins the held parts' leads to the terminals and to each other inside:
+   * "<seat>.<lead>" -> "t1", "t2" or a junction "j1" to "j4". While the lid is shut the parts inside cannot be seen,
+   * picked or clipped. `marks: "plain"` makes the two terminals identical brass posts (which is plus?). `knob` puts a
+   * knob on the front that follows the trimmer inside. `style: "cabinet"` is the parts cabinet: no terminals, room for
+   * a handful of parts, and a three-wheel padlock (`lock`) when it is locked.
+   */
+  box: {
+    held?: Held;
+    /** The lid is open. */
+    lid?: boolean;
+    wiring?: Record<string, string>;
+    marks?: "pm" | "plain";
+    knob?: boolean;
+    /** A big name on the lid ("A", "B"). */
+    label?: string;
+    /** A value tag tied to the box ("10 kΩ"); tapping it toggles `tagAlt` (written out without the prefix). */
+    tag?: string;
+    tagAlt?: boolean;
+    style?: "box" | "cabinet";
+    /** The cabinet's padlock: one wheel per answer, each showing its answer once `set`. Gone once the lid is open. */
+    lock?: { wheels: string[]; set: boolean[] };
+  };
+  /**
+   * A schematic drawn in ink on a card: the symbols round one loop, the first on the left (a battery, plus at the top),
+   * the rest clockwise. `torn` is the index of a symbol torn off; its place is a seat for a `piece`.
+   */
+  schematic: { symbols: SchematicSymbol[]; torn?: number; held?: Held; title?: string };
+  /** A torn-off piece of a schematic card with one symbol, turned by `turn` degrees (tap it to turn it a quarter). */
+  piece: { symbol: SymbolKind; turn?: number; text?: string };
+  /**
+   * The static toy (docs/curriculum/start-here.md, SH3): a balloon on a string. `charge` is its static charge in marks
+   * (negative: minus marks), which rubbing it on the scarf builds up (see static.ts).
+   */
+  balloon: { color?: "red" | "blue" | "yellow"; charge?: number };
+  /** A wool scarf to rub things on (it keeps the plus marks it gives away). */
+  scarf: { charge?: number };
+  /** A little heap of paper bits. */
+  paper: Record<string, never>;
+  /** A plastic comb. */
+  comb: { charge?: number };
+  /** A strip of wall (wallpaper) a charged balloon can stick to. */
+  wall: Record<string, never>;
 };
 
 type PartOf<K extends BenchPartKind> = {

@@ -6,6 +6,7 @@ import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { BAND_HEX } from "../colorCode";
 import { BIN, CARD, CHART, CLOCK, ELECTRODE, HOLDER, SAMPLE, SHOWCASE, SKIN, STATION, TAG } from "../dims";
+import { tagText } from "../flow";
 import { useLabels } from "../labels";
 import type { Moisture, PartParamsMap, Quality } from "../types";
 import { FONT, MONO, canvasTexture, makeCanvas, rng } from "../three/canvas";
@@ -462,7 +463,8 @@ function tagTexture(text: string): THREE.Texture {
 }
 
 export function TagModel({ params }: ModelProps<PartParamsMap["tag"]>) {
-  const tex = useMemo(() => tagTexture(params.text), [params.text]);
+  const text = tagText(params.text, params.alt);
+  const tex = useMemo(() => tagTexture(text), [text]);
   return (
     <group>
       <mesh geometry={memoGeo("tag-card", () => roundedSlab(TAG.w, TAG.d, 0.4, 1.2, 0.1))} material={mat.white()} castShadow receiveShadow />
