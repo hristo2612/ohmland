@@ -1,0 +1,63 @@
+# Blueprint: docs/curriculum/unit-3.md, MP8. A bench lesson (docs/LESSONS.md).
+# One idea: an adapter's label shows its plus, and plus must meet plus. New: the wall adapter (part) and centre plus
+# (the label's polarity drawing). The blueprint's wall-side card is not a widget yet: one pick carries its safety line.
+# Lab: content/labs/bench-supply.ts.
+format: bench
+id: bench-supply
+version: 1
+title: The flat batteries
+summary: Plug a wall adapter into a jack, find its plus with the meter and on its label, and power a lamp plus to plus.
+minutes: 6
+lab: bench-supply
+unlocks:
+  parts: [wall-adapter, barrel-jack]
+  isle: fuse
+
+start:
+  title: The flat batteries
+  say: Third flat battery this week. Let's power me from the wall.
+  go: Let's plug in
+
+beats:
+  - say: This is a wall adapter. Plug it into this jack.
+    objective: Find plus
+    do: plug-in
+    note: { at: J1, text: "9 V waiting on two pins" }
+
+  - say: Which pin is plus? Ask the meter.
+    do: find-plus
+    tool: meter
+    note: { at: J1.tip, text: "reads plus: red is on plus" }
+
+  - say: The label knows too. Plus goes to the dot.
+    pick: { on: AD1, options: [Centre plus, Centre minus], answer: Centre plus }
+    wrong: { Centre minus: "Follow the plus sign. Where does it go?" }
+    note: { at: AD1, text: "dot in the middle: centre plus" }
+
+  - say: Plus pin into the plus rail.
+    objective: Plus meets plus
+    do: plug-in-right
+    rule: Plus meets plus. Check before you plug.
+
+  - say: Show me the centre-minus adapter.
+    tap: { answer: AD3, among: [AD1, AD3] }
+    wrong: { AD1: "Its plus goes to the dot. Look again." }
+
+  - say: Its other end is mains. Open the case?
+    pick: { options: [Never, If it's unplugged], answer: Never }
+    wrong: { "If it's unplugged": "Never. Parts inside can stay charged." }
+    rule: Never open an adapter.
+
+secret:
+  task: ac-wave
+  say: Curious? Plug the AC adapter into the spare jack.
+  tool: scope
+  note: { at: AD2, text: "AC: flips plus and minus" }
+
+fixit:
+  say: Fix-it time. My lamp is dark again. Why?
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. No more flat batteries.

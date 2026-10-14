@@ -9,3 +9,4 @@ isle:
   seed: 3
 modules:
   - soldering
+  - wires-and-power
