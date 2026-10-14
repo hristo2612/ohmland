@@ -1,0 +1,72 @@
+# Start here, case 10 (docs/curriculum/start-here.md, SH10, "holes-that-hold-hands"). A bench lesson (docs/LESSONS.md).
+# It keeps its first id, how-a-breadboard-works: progress and island pieces key on it.
+# One idea: hidden metal strips join the holes: strips of five, long rails, and a gap down the middle.
+# Lab: content/labs/how-a-breadboard-works.ts (the lamp on a half board with both LED legs in one strip).
+format: bench
+id: how-a-breadboard-works
+version: 2
+title: The secret wiring
+summary: Find the hidden metal strips inside a breadboard, then use them to mend a dark lamp.
+minutes: 8
+lab: how-a-breadboard-works
+unlocks:
+  parts: [breadboard, jumper-wires]
+  isle: breadboard-patch
+
+start:
+  title: The secret wiring
+  say: This is a breadboard. My lamp's in, but dark.
+  go: Look inside
+
+beats:
+  - say: Switch on X-ray.
+    objective: Look inside
+    do: xray-on
+    note: { at: c4, text: "five holes, one metal strip" }
+
+  - say: Tap a hole. See who it holds hands with.
+    xray: true
+    tap: { anyHole: true }
+    note: { at: tap, text: "{hole} holds hands with four" }
+
+  - say: Why is my lamp dark?
+    objective: Mend the lamp
+    xray: true
+    spot: [D1]
+    pick: { options: ["Both legs, one strip", Lamp broken, No battery], answer: "Both legs, one strip" }
+    hint: Look at the metal under the lamp's legs.
+
+  - say: Move the short leg next door.
+    xray: true
+    do: fix-led
+    note: { at: D1, text: "each leg, its own strip" }
+    rule: A part needs its legs in different strips.
+
+  - say: Slide the black wire along the blue rail.
+    objective: The long way
+    xray: true
+    do: rail-slide
+    note: { at: W1.b, text: a rail runs the whole length }
+
+  - say: X-ray off. Tap a hole joined to the red one.
+    objective: Show me a strip
+    tap: { joinedTo: b14 }
+
+  - say: Now this one. Careful near the middle gap.
+    tap: { joinedTo: e18 }
+
+  - say: Last one. This hole sits on a rail.
+    tap: { joinedTo: "rail+:21" }
+
+secret:
+  task: short-the-rails
+  say: "Secret: join plus straight to minus with a wire."
+  note: { at: B1, text: "all flow, no part" }
+
+fixit:
+  say: My second lamp is dark. Fix it.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. The holes hold hands in fives.

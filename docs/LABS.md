@@ -5,9 +5,10 @@ solution that proves the tasks can be done. This guide covers the lab file. For 
 `docs/ARCHITECTURE.md` (Labs, Workbench, Simulator); for wording rules see `docs/CONTENT.md`.
 
 The reference labs are `content/labs/welcome-to-the-bench.ts` (a pre-wired loop on the desk),
-`content/labs/first-glow.ts` (a loop built from the tray, a part to burn out, a fix-it bench) and
-`content/labs/how-a-breadboard-works.ts` (parts that come into play on a breadboard). They are bench lessons' labs
-(`docs/LESSONS.md`). Copy one to start.
+`content/labs/first-glow.ts` (a torn drawing to mend, a breadboard build from the tray, a fix-it bench),
+`content/labs/how-a-breadboard-works.ts` (a breadboard lamp that starts wrong, a jumper to slide) and, for Start here's
+props, `content/labs/milli-and-kilo.ts` (a gate, tags, the padlocked cabinet) and `content/labs/parts-drawer.ts`
+(symbol drawers and a tester with a gap). They are bench lessons' labs (`docs/LESSONS.md`). Copy one to start.
 
 ## The file
 

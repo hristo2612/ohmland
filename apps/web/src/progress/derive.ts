@@ -29,17 +29,38 @@ export const totalXp = (state: LearnerState, outline: CourseOutline): number => 
 
 export type LessonState = "done" | "current" | "open" | "locked";
 
+/** The course's on-ramp. A learner who has finished a lesson in any later unit came in past it. */
+const ON_RAMP = "start-here";
+
+/** Whether a lesson is in the on-ramp and the learner has moved past it: open to them, never their current lesson. */
+function passedOnRamp(state: LearnerState, outline: CourseOutline): (id: string) => boolean {
+  const past = Object.keys(state.lessons).some((id) => {
+    const unit = outline.lessons[id]?.unit;
+    return unit !== undefined && unit !== ON_RAMP;
+  });
+  return (id) => past && outline.lessons[id]?.unit === ON_RAMP;
+}
+
+/** The learner's current lesson: the first one not done in course order, skipping an on-ramp they moved past. */
+export function currentLesson(state: LearnerState, outline: CourseOutline): string | undefined {
+  const passed = passedOnRamp(state, outline);
+  return outline.order.find((id) => !state.lessons[id] && !passed(id));
+}
+
 /**
- * Course-map states. The current lesson is the first one not done in course order. A lesson whose predecessor is done
- * is open; everything after the current lesson that is not reachable yet is locked. Locks are a suggestion of order,
- * not a wall: a locked lesson's page still works.
+ * Course-map states. The current lesson is the first one not done in course order, except that Start here never holds
+ * it for a learner who has finished a lesson in a later unit: its lessons left undone are open to them. A lesson whose
+ * predecessor is done is open; everything after the current lesson that is not reachable yet is locked. Locks are a
+ * suggestion of order, not a wall: a locked lesson's page still works.
  */
 export function lessonStates(state: LearnerState, outline: CourseOutline): Record<string, LessonState> {
   const out: Record<string, LessonState> = {};
-  const current = outline.order.find((id) => !state.lessons[id]);
+  const current = currentLesson(state, outline);
+  const passed = passedOnRamp(state, outline);
   outline.order.forEach((id, i) => {
     if (state.lessons[id]) out[id] = "done";
     else if (id === current) out[id] = "current";
+    else if (passed(id)) out[id] = "open";
     else if (i > 0 && state.lessons[outline.order[i - 1] as string]) out[id] = "open";
     else if (state.inProgress[id]) out[id] = "open";
     else out[id] = "locked";
@@ -53,5 +74,5 @@ export function resumeTarget(state: LearnerState, outline: CourseOutline): strin
     .filter(([id]) => outline.lessons[id] && !state.lessons[id])
     .sort((a, b) => b[1].at.localeCompare(a[1].at))[0];
   if (touched) return touched[0];
-  return outline.order.find((id) => !state.lessons[id]);
+  return currentLesson(state, outline);
 }

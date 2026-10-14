@@ -7,8 +7,9 @@ the notebook page fills itself in and is signed off.
 
 Read `docs/DESIGN-PRINCIPLES.md` first: it decides how much goes on a screen and how much we say. Wording rules are in
 `docs/CONTENT.md`, the lab file in `docs/LABS.md`. The reference lessons are
-`content/units/basics/current-and-leds/first-glow`, `content/units/basics/your-meter/welcome-to-the-bench` and
-`content/units/basics/your-meter/how-a-breadboard-works`, each with its lab in `content/labs/<id>.ts`.
+`content/units/start-here/first-cases/welcome-to-the-bench` and Start here's Tool cases in
+`content/units/start-here/tool-cases/` (meet-the-meter, milli-and-kilo, how-a-breadboard-works, parts-drawer,
+first-glow), each with its lab in `content/labs/<id>.ts`.
 
 ## Two files
 
@@ -149,8 +150,9 @@ the broken bench matches them from the start, and a nudge before the learner has
 ## Fix-it benches and parts that come into play
 
 A lab task's `setup` is a list of solution steps the lesson applies when the task's beat begins, on top of the bench
-the solution reaches at the previous check: the fix-it round's broken circuit, or parts that come into play halfway
-(the breadboard's LED). The solution must start that task's steps with the same steps: spread one const into both.
+the solution reaches at the previous check: the fix-it round's broken circuit (first-glow's LED turned round), or parts
+that come into play halfway (milli-and-kilo's padlock wheels, all set before the lid can lift). The solution must start
+that task's steps with the same steps: spread one const into both.
 
 ```ts
 const SWAP_BATTERY: SolutionStep[] = [{ do: "clip", lead: "TL1", end: "a", to: "B1.neg" }, { do: "clip", lead: "TL3", end: "b", to: "B1.pos" }];

@@ -96,19 +96,15 @@ const allTasks = (...tasks: TaskRef[]): Pick<Achievement, "refs" | "check"> => (
 });
 
 /**
- * The secrets of Basics (each bench lesson's `secret`, and meet-the-meter's bonus task) as lessonId and taskId. The
- * test keeps it complete: a Basics lesson that offers a bonus not listed here fails it.
+ * The secrets of Basics (each bench lesson's `secret`) as lessonId and taskId. The test keeps it complete: a Basics
+ * lesson that offers a bonus not listed here fails it. The lessons that moved to Start here took theirs along.
  */
 const BASICS_SECRETS: readonly TaskRef[] = [
-  ["how-a-breadboard-works", "short-the-rails"],
-  ["welcome-to-the-bench", "swap-battery-leads"],
-  ["meet-the-meter", "tired-battery"],
   ["tiny-and-huge-numbers", "two-hundred"],
   ["what-resists", "double-spacing"],
   ["draw-a-resistor", "slide-along"],
   ["reading-the-stripes", "tiny-gold"],
   ["the-liar", "probe-tips"],
-  ["first-glow", "no-resistor"],
   ["measure-the-flow", "other-side"],
   ["share-the-push", "blue-led"],
   ["use-the-law", "ten-k"],
