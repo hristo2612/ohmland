@@ -621,6 +621,21 @@
   .bl-stamp { width: 40px; height: 40px; }
   .bl-target--part { width: 64px; height: 48px; margin: -24px 0 0 -32px; }
   .ann__text { font-size: 18px; }
+  /* The meter as a slim strip (the reading, the dial, the range), so the bench stays in view above it. Warnings and
+     the fuse card still show; the explaining lines give way to the robot. */
+  .bl-tool { left: var(--bl-s-2); right: var(--bl-s-2); bottom: var(--bl-s-2); width: auto; padding: var(--bl-s-1); }
+  .bl-tool .meter-panel { gap: var(--bl-s-1); padding: var(--bl-s-2); }
+  .bl-tool .meter-panel .instrument__head,
+  .bl-tool .meter-panel__explain,
+  .bl-tool .meter-panel__sockets,
+  .bl-tool .meter-panel__hint { display: none; }
+  .bl-tool .lcd { min-height: 0; padding: var(--bl-s-1) var(--bl-s-3); }
+  .bl-tool .lcd__value { font-size: 28px; }
+  .bl-tool .lcd__unit { font-size: var(--bl-text-sm); }
+  .bl-tool .meter-panel__controls { gap: var(--bl-s-1); }
+  .bl-tool .dial { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 2px; }
+  .bl-tool .dial__pos { min-height: var(--bl-tap); padding: 0; font-size: var(--bl-text-xs); }
+  .bl-tool .meter-panel__range .select { min-height: var(--bl-tap); }
   .bl--finale .bl-main--finale { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; }
   .bl-margin--finale { order: 0; display: flex; max-height: none; border-top: 0; border-bottom: 1.5px solid var(--bl-rose); }
   .bl-finale__page { padding: var(--bl-s-4) var(--bl-s-4) var(--bl-s-12); }
