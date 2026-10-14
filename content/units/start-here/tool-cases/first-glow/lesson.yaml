@@ -24,10 +24,11 @@ beats:
     do: mend-blueprint
     note: { at: "part:CARD/D1", text: the triangle points away from plus }
 
-  # The board's working strips, from the plus jumper (strip 5) to the minus one (strip 10), framed at a size to build on.
+  # The working strips, from the plus jumper (strip 5) to the minus one (strip 10), framed at a size to build on, and
+  # the two parts the learner brings from the tray.
   - say: Build it on the board. Follow the lines.
     objective: Build it
-    spot: [W1, W2]
+    spot: [W1, W2, R1, D1]
     do: build-loop
     done: It glows! Built from a drawing.
     note: { at: R1, text: "each line: a connection" }
