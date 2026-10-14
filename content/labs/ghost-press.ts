@@ -99,7 +99,8 @@ export default defineLab({
       id: "clean-tap",
       prompt: "Now press the button.",
       goal: (lab) => {
-        const since = (lab.memory["since"] ??= lab.t) as number;
+        // A little grace for a press made while the robot was still talking.
+        const since = ((lab.memory["since"] ??= lab.t) as number) - 3;
         const run = cleanRun(lab);
         return !!run && run.start >= since && runNear(lab, oneShotT(lab, "R1", "C1"), 0.08, run);
       },
@@ -137,6 +138,8 @@ export default defineLab({
     { do: "check", task: "ghost" },
     { do: "wait", seconds: 1 },
     { do: "check", task: "hum" },
+    // A fresh bench ("Show me") starts with the hand away: bring it close again.
+    { do: "control", id: "hand", value: 0.9 },
     { do: "move", part: "R2", at: "b15-rail+:15" },
     { do: "wait", seconds: 6.5 },
     { do: "check", task: "pull-up-back" },

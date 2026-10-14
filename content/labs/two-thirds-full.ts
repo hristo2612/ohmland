@@ -144,6 +144,10 @@ export default defineLab({
     { do: "press", part: "S1", seconds: 0.2 },
     { do: "wait", seconds: 3.3 },
     { do: "check", task: "xray-threshold" },
+    // Its own segment, so "Show me" can play it from a fresh bench.
+    { do: "view", name: "xray:U1", on: true },
+    { do: "press", part: "S1", seconds: 0.2 },
+    { do: "wait", seconds: 3.3 },
     { do: "check", task: "xray-discharge" },
     { do: "press", part: "S1", seconds: 5 },
     { do: "wait", seconds: 1 },

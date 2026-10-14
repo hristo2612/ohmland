@@ -152,6 +152,8 @@ export default defineLab({
     { do: "control", id: "knob", value: 1 },
     { do: "wait", seconds: 6 },
     { do: "check", task: "try-the-knob" },
+    // A fresh bench ("Show me") starts with the knob where the lab starts it: turn it to the top again.
+    { do: "control", id: "knob", value: 1 },
     { do: "place", part: "D2", kind: "diode", at: "j15-j19", params: { model: "1N4148" } },
     { do: "wait", seconds: 3 },
     { do: "check", task: "diode-in" },

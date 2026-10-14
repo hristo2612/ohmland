@@ -93,7 +93,8 @@ export default defineLab({
       prompt: "Drop the 22 µF onto the 10 µF, then tap.",
       goal: (lab) => {
         if (!timing(lab, "C2") || timing(lab, "C1")) return false;
-        const since = (lab.memory["since"] ??= lab.t) as number;
+        // Counted from the swap, with a little grace for a tap made while the robot was still talking.
+        const since = ((lab.memory["since"] ??= lab.t) as number) - 3;
         const run = cleanRun(lab);
         return !!run && run.start >= since && runNear(lab, T(lab, "C2"), 0.15, run);
       },
@@ -125,14 +126,19 @@ export default defineLab({
       setup: SHORTED_R1,
       goal: (lab) => {
         if (lab.connected("R1.a", "R1.b")) lab.memory["brokeAt"] = lab.t;
-        const at = lab.memory["brokeAt"] as number | undefined;
-        if (at === undefined || lab.connected("R1.a", "R1.b") || !alive(lab) || knob(lab) > 0.02) return false;
-        // A 0.11 s glow fills the capacitor a little before the stopwatch notes it, so no `fromEmpty` here.
-        const t = T(lab, "C1");
-        if (runsSince(lab, at).some((r) => runNear(lab, t, 0.3, r))) return true;
-        // A blink this short can fall between two frames of a slow screen; pin 3's own edges time it exactly.
+        if (lab.memory["brokeAt"] === undefined || lab.connected("R1.a", "R1.b") || !alive(lab)) return false;
+        // The knob turned right down after the fix: blinks from then on count.
+        if (knob(lab) > 0.02) {
+          delete lab.memory["zeroAt"];
+          return false;
+        }
+        const at = (lab.memory["zeroAt"] ??= lab.t) as number;
+        // A short blink: about 0.11 s, or as long as the tap holds pin 2 low if that is longer. The stopwatch may miss
+        // one this short on a slow screen, so pin 3's own edges count too.
+        const short = (s: number) => s > 0.02 && s < 0.6;
+        if (runsSince(lab, at).some((r) => short(r.seconds))) return true;
         const e = lab.edges("U1.3").times.filter(([x]) => x >= at);
-        return e.some(([x, d], i) => d === 1 && e[i + 1]?.[1] === 0 && Math.abs(e[i + 1]![0] - x - t) <= 0.3 * t);
+        return e.some(([x, d], i) => d === 1 && e[i + 1]?.[1] === 0 && short(e[i + 1]![0] - x));
       },
       hints: ["Fix first, turn second.", "A jumper skips R1. Take it out, then turn the knob to zero."],
       highlight: ["W10"],

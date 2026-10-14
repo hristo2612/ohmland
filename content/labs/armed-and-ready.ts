@@ -161,10 +161,11 @@ export default defineLab({
       id: "alarm",
       prompt: "Shut the door, then open it.",
       goal: (lab) => {
-        const since = (lab.memory["since"] ??= lab.t) as number;
-        const fall = edges(lab, "U2.3", since).find(([, d]) => d === 0)?.[0];
-        const rise = edges(lab, "U3.3", since).find(([, d]) => d === 1)?.[0];
-        return linked(lab) && fall !== undefined && rise !== undefined && Math.abs(rise - fall) <= 0.2 && alarm(lab);
+        // Yellow's end and the alarm's start at the same moment (a little grace for a door opened mid-sentence).
+        const since = ((lab.memory["since"] ??= lab.t) as number) - 3;
+        const falls = edges(lab, "U2.3", since).filter(([, d]) => d === 0);
+        const rises = edges(lab, "U3.3", since).filter(([, d]) => d === 1);
+        return linked(lab) && alarm(lab) && rises.some(([r]) => falls.some(([f]) => Math.abs(r - f) <= 0.2));
       },
       hints: ["Shut, open, then wait for yellow to end."],
       highlight: ["DR1"],
@@ -202,7 +203,7 @@ export default defineLab({
       prompt: "Drop the 270 kΩ onto yellow's 27 kΩ, then time the yellow lamp.",
       goal: (lab) => {
         if (!lab.joins("R29", "U2.7", "top+:34")) return false;
-        const since = (lab.memory["since"] ??= lab.t) as number;
+        const since = ((lab.memory["since"] ??= lab.t) as number) - 3;
         const e = edges(lab, "U2.3", since);
         const rise = e.find(([, d]) => d === 1)?.[0];
         const fall = e.find(([t, d]) => d === 0 && rise !== undefined && t > rise)?.[0];
@@ -229,7 +230,10 @@ export default defineLab({
     { do: "unwire", wire: "WT" },
     { do: "wire", id: "WT", from: "a33", to: "a46", color: "green" },
     { do: "check", task: "link-it" },
+    // From a fresh bench ("Show me") with the door open, the chain has already run and the alarm sings: clear it.
     { do: "param", part: "DR1", params: { open: false } },
+    { do: "press", part: "S2", seconds: 0.2 },
+    { do: "wait", seconds: 1 },
     { do: "wait", seconds: 0.5 },
     { do: "param", part: "DR1", params: { open: true } },
     { do: "wait", seconds: 3.6 },
