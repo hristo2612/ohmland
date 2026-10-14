@@ -21,7 +21,7 @@ import {
 import { RESISTOR_HOT_C } from "./basic";
 import { Contact, ContactDevice } from "./contacts";
 import { spread, toleranced } from "../util/rng";
-import { fmtF, fmtV, fmtW, fmtX } from "../util/format";
+import { fmtF, fmtOhm, fmtV, fmtW, fmtX } from "../util/format";
 
 type Spec<K extends PartSpec["kind"]> = Extract<PartSpec, { kind: K }>;
 
@@ -65,7 +65,10 @@ export class CapacitorDevice extends Device {
     const forced = finiteOr(spec.actualFarads, 0);
     this.C = forced > 0 ? forced : toleranced(this.nominal, this.tolerance, spec.id, "capacitor", seed);
     this.volts = Math.max(0, finiteOr(spec.volts, 0));
-    const leak = finiteOr(spec.leakOhms, this.polarized ? 1e6 : 0);
+    // Electrolytic leakage grows with capacitance (datasheets give it as a multiple of C x V): 1 MΩ from 100 µF
+    // up, more for smaller parts (10 MΩ at 10 µF, 100 MΩ at 1 µF), so a 470 kΩ, 10 µF timer still times.
+    const leakDefault = this.polarized ? Math.min(1e9, 1e6 * Math.max(1, 1e-4 / Math.max(1e-12, this.nominal))) : 0;
+    const leak = finiteOr(spec.leakOhms, leakDefault);
     this.leakG = leak > 0 ? 1 / leak : 0;
     // Electrolytic ESR: about 0.1 Ω for 1000 µF, 0.3 Ω for 100 µF, 1 Ω for 10 µF (at most 2 Ω).
     const esrDefault = this.polarized && this.C > 0 ? clamp(0.1 * Math.sqrt(1e-3 / this.C), 0.1, 2) : 0;
@@ -554,6 +557,122 @@ export class SpeakerDevice extends Device {
     this.dead = false;
     this.smoked = false;
     this.damagedSent = false;
+    this.peakW = 0;
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Inductor (a coil): winding resistance in series with the inductance, plus a large resistance across the
+// inductance (core loss and the winding's own capacitance) that bounds the kickback when nothing else carries the
+// current: a switch interrupting a coil still arcs near 300 V. The winding heats like a resistor (I² R): its
+// thermal model puts it near 200 °C at its rated watts, and sustained overload burns it open.
+
+const COIL_HOT_C = 100;
+const COIL_SMOKE_C = 250;
+const COIL_BURN_C = 350;
+
+export class InductorDevice extends Device {
+  a = -1;
+  b = -1;
+  mid = -1;
+  readonly L: number;
+  readonly R: number;
+  readonly Rp: number;
+  readonly watts: number;
+  ind!: IndCompanion;
+  thermal: Thermal;
+  damage = 0;
+  dead = false;
+  private smoked = false;
+  private savedI = 0;
+  private peakW = 0;
+
+  constructor(spec: Spec<"inductor">) {
+    super(spec);
+    this.L = Math.max(1e-9, finiteOr(spec.henries, 1e-3));
+    this.R = Math.max(1e-3, finiteOr(spec.ohms, 1));
+    this.watts = Math.max(0.01, finiteOr(spec.watts, 1));
+    this.Rp = 1e5;
+    // 175 C/W per rated watt above ambient (the rating sits near 200 C), time constant growing with size.
+    this.thermal = new Thermal(175 / this.watts, 8 * Math.pow(this.watts, 0.4));
+  }
+  bind(bd: Binder): void {
+    this.a = bd.node(this.pin("a"));
+    this.b = bd.node(this.pin("b"));
+    this.mid = bd.internal(`${this.id}#L`);
+    this.ind = new IndCompanion(this.mid, this.b, this.L);
+    this.ind.i = this.dead ? 0 : this.savedI;
+    bd.reactive(this.ind);
+  }
+  override stampLinear(A: Float64Array, n: number): void {
+    stampG(A, n, this.a, this.mid, this.dead ? G_OPEN : 1 / this.R);
+    stampG(A, n, this.mid, this.b, 1 / this.Rp);
+  }
+  private current(x: Float64Array): number {
+    return (volt(x, this.a) - volt(x, this.mid)) * (this.dead ? G_OPEN : 1 / this.R);
+  }
+  pinCurrents(x: Float64Array): number[] {
+    const i = this.current(x);
+    return [i, -i];
+  }
+  override accept(x: Float64Array, ctx: Ctx): void {
+    const i = this.current(x);
+    const p = i * i * this.R;
+    this.thermal.update(p, ctx.h);
+    if (this.dead) return;
+    const T = this.thermal.temp;
+    if (T > COIL_SMOKE_C && !this.smoked) {
+      this.smoked = true;
+      ctx.emit(
+        this.id,
+        "smoke",
+        `The coil is smoking: its winding is turning ${fmtW(p)} into heat, ${fmtX(p / this.watts)} what it can shed. Only its ${fmtOhm(this.R)} of wire limits a steady current; inductance does not. Keep contact brief or add resistance.`,
+        { watts: p, rating: this.watts, cause: "overpower" },
+      );
+    }
+    if (T > COIL_BURN_C) {
+      this.peakW = Math.max(this.peakW, p);
+      this.damage += ((T - COIL_BURN_C) / 300) * ctx.h;
+      if (this.damage >= 1) {
+        this.dead = true;
+        this.damage = 1;
+        ctx.markDirty();
+        ctx.markBreak();
+        ctx.emit(
+          this.id,
+          "died",
+          `The coil's winding burned open after taking up to ${fmtW(this.peakW)}. A coil on a battery is nearly a short circuit once its current has built up.`,
+          { watts: this.peakW, rating: this.watts, cause: "overpower" },
+        );
+      }
+    }
+  }
+  state(x: Float64Array): PartState {
+    const i = this.current(x);
+    const v = volt(x, this.a) - volt(x, this.b);
+    const T = this.thermal.temp;
+    const health: Health = this.dead ? "dead" : T > COIL_SMOKE_C ? "smoking" : T > COIL_HOT_C ? "hot" : "ok";
+    const iL = this.ind.stateOf(x);
+    const s = baseState(i, v, i * i * this.R, T, health);
+    s.extra = { henries: this.L, ohms: this.R, iL, energy: 0.5 * this.L * iL * iL, damage: this.damage, watts: this.watts };
+    return s;
+  }
+  override save(): Record<string, unknown> {
+    return { temp: this.thermal.temp, damage: this.damage, dead: this.dead, smoked: this.smoked, iL: this.ind ? this.ind.i : this.savedI };
+  }
+  override restore(s: Record<string, unknown>): void {
+    this.thermal.temp = finiteOr(s.temp as number, AMBIENT);
+    this.damage = finiteOr(s.damage as number, 0);
+    this.dead = s.dead === true;
+    this.smoked = s.smoked === true;
+    this.savedI = this.dead ? 0 : finiteOr(s.iL as number, 0);
+    if (this.ind) this.ind.i = this.savedI;
+  }
+  override replace(): void {
+    this.thermal.temp = AMBIENT;
+    this.damage = 0;
+    this.dead = false;
+    this.smoked = false;
     this.peakW = 0;
   }
 }
