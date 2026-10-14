@@ -279,6 +279,7 @@ export const DEFAULT_LABELS: BenchLabels = {
   },
   actions: {
     "card.erase": "Erase",
+    "cup.salt": "Add salt",
     "solder-braid.snip": "Snip used end",
     "wire-stripper.strip": "Strip",
     "hookup-wire.twist": "Twist",

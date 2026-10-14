@@ -1,9 +1,10 @@
-// Blueprint: docs/curriculum/unit-1.md, L4. A skin patch (moisture tabs, probe marks 1 cm apart, probe pressure),
-// three cups of water, a bare copper wire and a plastic ruler, all measured on the Ω setting. The skin's resistance
-// is two contact resistances plus the skin between the marks (packages/bench, `skin`). The blueprint's ±4% drift
-// once a second is left out: steady readings let the notebook log them.
-import { defineLab, type LabView } from "@ohmland/lab";
-import { latest, rangeIs, readsIn, showsOL, si, siIn } from "./lib/meter";
+// Blueprint: docs/curriculum/unit-1.md, L4, split for a bench lesson (docs/curriculum/conversion-guide.md, B3): this is
+// the skin half, content/units/basics/resistance/what-resists/lesson.yaml; the cups moved to salt-and-water.
+// One idea: the Ω setting measures squeeze, even your skin's. A skin patch (moisture tabs, probe marks 1 cm apart,
+// probe pressure) with the probes already on the 0 and 2 cm marks and the meter off but set to its 2M range. The
+// skin's resistance is two contact resistances plus the skin between the marks (packages/bench, `skin`).
+import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
+import { latest, rangeIs, readsIn, showsOL, siIn } from "./lib/meter";
 
 /** The skin mark index a probe touches (m0 to m4), or null. */
 const mark = (at: string | null | undefined): number | null => {
@@ -19,6 +20,7 @@ const spacing = (lab: LabView): number | null => {
 };
 
 const skin = (lab: LabView) => lab.prop("P1") as { moisture: string; pressure: string };
+const ohms = (lab: LabView) => lab.meter?.mode === "ohm";
 
 /** Notebook tags such as "skin:wet:2cm:light": what the skin was like and how far apart the probes were. */
 const SKIN_TAGS = Object.fromEntries(
@@ -32,118 +34,91 @@ const SKIN_TAGS = Object.fromEntries(
   ),
 );
 
-/** The probes dip into this cup (or touch both ends of this sample). */
-const on = (id: string) => (lab: LabView) => lab.across(id, "either");
-
 /** A logged reading with this tag that is a real number (not OL). */
 const loggedValue = (lab: LabView, tag: string) => {
   const r = latest(lab, tag);
   return r && Number.isFinite(r.value) ? r : undefined;
 };
 
+/** The fix-it bench: dry skin again, on the 200k range, where it reads OL. */
+const TOO_SMALL: SolutionStep[] = [
+  { do: "param", part: "P1", params: { moisture: "dry" } },
+  { do: "dial", mode: "ohm", range: "200k" },
+];
+
 export default defineLab({
   id: "what-resists",
   title: "What resists?",
   bench: {
     board: "none",
-    parts: [
-      { id: "P1", kind: "skin", at: "desk:-108,-42", params: { moisture: "dry", pressure: "light" }, locked: true, label: "Skin patch" },
-      { id: "P2", kind: "cup", at: "desk:-6,-66", params: { water: "distilled", ohms: 1_200_000 }, locked: true, label: "Distilled water" },
-      { id: "P3", kind: "cup", at: "desk:62,-66", params: { water: "tap", ohms: 40_000 }, locked: true, label: "Tap water" },
-      { id: "P4", kind: "cup", at: "desk:130,-66", params: { water: "salty", ohms: 1_500 }, locked: true, label: "Salty water" },
-      { id: "P5", kind: "sample", at: "desk:-100,38", params: { material: "copper" }, locked: true, label: "Copper wire" },
-      { id: "P6", kind: "sample", at: "desk:-14,72", params: { material: "plastic" }, locked: true, label: "Plastic ruler" },
-    ],
+    frame: ["desk:-150,-60", "desk:110,40"],
+    parts: [{ id: "P1", kind: "skin", at: "desk:-70,-10", params: { moisture: "dry", pressure: "light" }, locked: true, label: "Skin patch" }],
     tray: [],
-    instruments: [{ kind: "meter", at: "desk:196,56", mode: "off" }],
+    instruments: [{ kind: "meter", at: "desk:70,4", mode: "off", range: "2M", probes: { red: "P1.m0", black: "P1.m2" } }],
   },
-  notebook: {
-    tags: {
-      ...SKIN_TAGS,
-      "cup-distilled": on("P2"),
-      "cup-tap": on("P3"),
-      "cup-salty": on("P4"),
-      "copper-wire": on("P5"),
-      ruler: on("P6"),
-    },
-  },
+  notebook: { tags: SKIN_TAGS },
   mascot: {
-    start: "Everything resists a little. Let's find out who resists a lot.",
-    hint: "OL just means bigger than this range. Step the dial up.",
-    success: "Distilled water, terrible conductor. Salty water, much better. Science!",
+    hint: "OL just means bigger than this range. Step the range up.",
   },
   tasks: [
     {
       id: "dry-skin",
-      prompt: "Ω, **200k** range. Probe the dry skin, 2 cm apart.",
-      goal: (lab) => lab.meter?.mode === "ohm" && skin(lab).moisture === "dry" && spacing(lab) === 2 && rangeIs(lab, "2M") && readsIn(lab, 0.3, 1.9),
-      hints: ["OL on 200k? The skin is over 200 kΩ. Step up a range.", "2M reads up to just under 2 MΩ."],
-      highlight: ["pin:P1.m0", "pin:P1.m2"],
-      success: "Hundreds of kilohms. Dry skin barely conducts.",
+      prompt: "Turn the dial to Ω.",
+      goal: (lab) => ohms(lab) && skin(lab).moisture === "dry" && spacing(lab) === 2 && rangeIs(lab, "2M") && readsIn(lab, 0.3, 1.9),
+      hints: ["Ω is on the dial, between V and the beeper.", "Keep the probes on the 0 and 2 cm marks."],
+      highlight: ["part:M1/dial"],
+      nudges: [{ when: (lab) => ohms(lab) && showsOL(lab), say: "OL? Step the range up to 2M." }],
+      success: "Almost a million ohms.",
     },
     {
       id: "wet-skin",
-      prompt: "Tap **Wet**. Measure again, same spacing.",
-      goal: (lab) => lab.meter?.mode === "ohm" && skin(lab).moisture === "wet" && spacing(lab) === 2 && !showsOL(lab) && siIn(lab, 0, 100_000),
-      hints: ["The tabs on the skin patch set how wet it is.", "A smaller range gives more digits."],
+      prompt: "Tap Wet on the patch. Measure again, same spacing.",
+      goal: (lab) => ohms(lab) && skin(lab).moisture === "wet" && spacing(lab) === 2 && siIn(lab, 0, 100_000),
+      hints: ["The tabs on the patch set how wet it is.", "A smaller range shows more digits."],
       highlight: ["P1"],
-      success: "Tens of kilohms. Water lets current in far more easily.",
+      nudges: [{ when: (lab) => ohms(lab) && spacing(lab) !== 2 && skin(lab).moisture === "wet", say: "Keep the probes 2 cm apart." }],
+      success: "Tens of kilohms.",
+    },
+    {
+      id: "fix-dry",
+      prompt: "Dry skin reads OL. Get a number.",
+      setup: TOO_SMALL,
+      // OL first (the setup), then a number on dry skin: a bench that never showed OL does not count.
+      goal: (lab) => {
+        if (showsOL(lab)) lab.memory["ol"] = true;
+        return lab.memory["ol"] === true && ohms(lab) && skin(lab).moisture === "dry" && spacing(lab) !== null && readsIn(lab, 0, 1e9);
+      },
+      hints: ["OL: the skin is over 200 kΩ.", "Step the range up one at a time."],
+      highlight: ["part:M1/dial"],
+      success: "Fixed.",
     },
     {
       id: "double-spacing",
       prompt: "Wet skin: measure at 2 cm, then at 4 cm. Double?",
-      goal: (lab) =>
-        ["light", "firm"].some((p) => !!loggedValue(lab, `skin:wet:2cm:${p}`) && !!loggedValue(lab, `skin:wet:4cm:${p}`)),
+      goal: (lab) => ["light", "firm"].some((p) => !!loggedValue(lab, `skin:wet:2cm:${p}`) && !!loggedValue(lab, `skin:wet:4cm:${p}`)),
       hints: ["Hold each reading still until the notebook logs it.", "Move one probe to the 4 cm mark."],
       highlight: ["pin:P1.m0", "pin:P1.m4"],
-      success: "Up, but nowhere near double. Most of it is where the probes touch.",
-      notice: "Contact resistance dominates. Distance adds only a little.",
-    },
-    {
-      id: "three-cups",
-      prompt: "Measure all three cups: distilled, tap and salty.",
-      goal: (lab) => !!loggedValue(lab, "cup-distilled") && !!loggedValue(lab, "cup-tap") && !!loggedValue(lab, "cup-salty"),
-      hints: ["Dip both probes in a cup. Hold still until it logs.", "Distilled water may need 2M.", "Salty water reads low. Try 2k."],
-      highlight: ["P2", "P3", "P4"],
-      success: "Pure water barely conducts. What's dissolved in it carries the current.",
-    },
-    {
-      id: "extremes",
-      prompt: "Last two: the copper wire and the plastic ruler.",
-      goal: (lab) => {
-        const copper = loggedValue(lab, "copper-wire");
-        const ruler = latest(lab, "ruler");
-        return !!copper && si(copper) < 1 && !!ruler && ruler.range === "2M" && ruler.value === Infinity;
-      },
-      hints: ["Copper reads best on the 200 range.", "Plastic: try 2M. Even that won't be enough."],
-      highlight: ["P5", "P6"],
-      success: "Copper: almost nothing, mostly your probe leads. Plastic: OL. A conductor and an insulator.",
+      success: "Up, but nowhere near double.",
+      notice: "Most of it is where the probes touch.",
       bonus: true,
     },
   ],
   solution: [
-    { do: "dial", mode: "ohm", range: "200k" },
-    { do: "probe", red: "P1.m0", black: "P1.m2" },
-    { do: "dial", mode: "ohm", range: "2M" },
+    { do: "dial", mode: "ohm" },
     { do: "check", task: "dry-skin" },
     { do: "param", part: "P1", params: { moisture: "wet" } },
+    { do: "dial", mode: "ohm", range: "200k" },
+    { do: "wait", seconds: 1 },
     { do: "check", task: "wet-skin" },
+    ...TOO_SMALL,
+    { do: "dial", mode: "ohm", range: "2M" },
+    { do: "check", task: "fix-dry" },
+    // The secret: wet skin at 2 cm, then 4 cm.
+    { do: "param", part: "P1", params: { moisture: "wet" } },
     { do: "dial", mode: "ohm", range: "200k" },
     { do: "wait", seconds: 1 },
     { do: "probe", black: "P1.m4" },
     { do: "wait", seconds: 1 },
     { do: "check", task: "double-spacing" },
-    { do: "probe", red: "P2.a", black: "P2.b", range: "2M" },
-    { do: "wait", seconds: 1 },
-    { do: "probe", red: "P3.a", black: "P3.b", range: "200k" },
-    { do: "wait", seconds: 1 },
-    { do: "probe", red: "P4.a", black: "P4.b", range: "2k" },
-    { do: "wait", seconds: 1 },
-    { do: "check", task: "three-cups" },
-    { do: "probe", red: "P5.a", black: "P5.b", range: "200" },
-    { do: "wait", seconds: 1 },
-    { do: "probe", red: "P6.a", black: "P6.b", range: "2M" },
-    { do: "wait", seconds: 1 },
-    { do: "check", task: "extremes" },
   ],
 });

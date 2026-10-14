@@ -1,0 +1,55 @@
+# Blueprint: docs/curriculum/unit-1.md, L4 (the water half). A bench lesson (docs/LESSONS.md), split from what-resists
+# per docs/curriculum/conversion-guide.md, B3 (4b). One idea: pure water barely conducts; what is dissolved in it does.
+# Lab: content/labs/salt-and-water.ts.
+format: bench
+id: salt-and-water
+version: 1
+title: Salt and water
+summary: Measure three cups of water, then stir a pinch of salt into one and watch the ohms fall.
+minutes: 6
+lab: salt-and-water
+unlocks:
+  parts: []
+  isle: cell-jar
+
+start:
+  title: The three cups
+  say: Three cups of water. Which one squeezes the flow most?
+  go: Let's test
+
+beats:
+  - say: Measure all three cups. Guess first.
+    objective: Three cups
+    tool: meter
+    guess: { options: [distilled, tap, salty], answer: distilled }
+    do: three-cups
+    done: Distilled wins. 1.2 MΩ!
+    note: { at: WC1, text: "pure water: hardly conducts" }
+
+  - say: Fair test? What changed from cup to cup?
+    pick: { options: [the water, the probes, both], answer: the water }
+    wrong: { the probes: "Same probes, same marks. Look again.", both: "The probes stayed the same. Only one thing changed." }
+    note: { at: WC2, text: "same probes, only the water changes" }
+    rule: Change one thing at a time.
+
+  - say: Probes in the tap water. Then add salt.
+    objective: A pinch of salt
+    tool: meter
+    guess: { options: [more ohms, about the same, fewer ohms], answer: fewer ohms }
+    do: pinch-of-salt
+    done: 40 kΩ down to about 6 kΩ. One pinch!
+    note: { at: WC2, text: "salt: more ions, less squeeze" }
+    rule: What's dissolved carries the flow.
+
+  - say: Quick one. Which cup has the fewest ions?
+    pick: { options: [distilled, tap, salty], answer: distilled }
+    hint: Fewest ions, least flow, most ohms.
+
+fixit:
+  say: Fix-it time. My salty cup reads OL. Fix it.
+  tool: meter
+  tasks:
+    - task: fix-salty
+
+end:
+  say: Water's a fake conductor. The salt does the work.
