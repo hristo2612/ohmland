@@ -279,11 +279,19 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
       setNumberText("");
       setHoleText("");
       setNotebookText({});
+      const done = isMomentDone(mo, a, t);
+      // A setup puts a fresh bench down: ticks and names from earlier checks would read as hints about it. A fix-it
+      // bench starts clean of every mark (even the dots of earlier finds): the learner reads the bench, not the ink.
+      const setup = !!mo.task && !done && !!state.current.api?.task(mo.task)?.setup?.length;
       // The last moment's notes fade to small marks; pencil rings, warnings and the Hall's notes go.
       setMarks((ms) =>
-        ms.filter((k) => k.kind !== "ring" && k.kind !== "strip" && !k.id.startsWith("notice-") && !k.id.startsWith("hall-")).map((k) => (k.kind === "note" || k.kind === "label" ? { ...k, faded: true } : k)),
+        mo.kind === "fix" && !done
+          ? []
+          : ms
+              .filter((k) => k.kind !== "ring" && k.kind !== "strip" && !k.id.startsWith("notice-") && !k.id.startsWith("hall-"))
+              .filter((k) => !setup || (k.kind !== "tick" && k.kind !== "label"))
+              .map((k) => (k.kind === "note" || k.kind === "label" ? { ...k, faded: true } : k)),
       );
-      const done = isMomentDone(mo, a, t);
       if (done) setPhase("done");
       else if (mo.beat?.guess && typeof a[answerKeys.guess(mo.key)] !== "number") setPhase("guess");
       else setPhase("act");
