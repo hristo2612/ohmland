@@ -1,0 +1,72 @@
+# Start here, case 9 (docs/curriculum/start-here.md, SH9). A bench lesson (docs/LESSONS.md).
+# One idea: a prefix moves the decimal point three places. k is a thousand, m is a thousandth.
+# Lab: content/labs/milli-and-kilo.ts (the lamp loop with a gate in number mode, a locked parts cabinet, three tags).
+format: bench
+id: milli-and-kilo
+version: 1
+title: The prefix padlock
+summary: Tap the m and the k off a number, then crack a three-wheel padlock with them.
+minutes: 5
+lab: milli-and-kilo
+unlocks:
+  isle: header-fence
+
+start:
+  title: The prefix padlock
+  say: The parts cabinet is locked. Three wheels, three numbers.
+  go: Crack it
+
+beats:
+  - say: This gate counts flow in amps. Tap the A.
+    objective: Milli
+    spot: [G1]
+    do: tap-the-a
+    note: { at: G1, text: "m: milli, a thousandth" }
+
+  - say: Now tap the k on the resistor's tag.
+    objective: Kilo
+    spot: [L0, R1]
+    do: tap-the-k
+    note: { at: L0, text: "k: kilo, a thousand" }
+    rule: k is a thousand. m is a thousandth.
+
+  - say: Show me a milli.
+    tap: { answer: L2, among: [L1, L2, L3] }
+    wrong: { L1: "That's a k, a thousand. Find the m.", L3: No prefix on that one. }
+
+  - say: "Wheel one: 4.7 kΩ is..."
+    objective: Open the padlock
+    spot: [CAB, L1]
+    pick: { on: L1, options: ["47 Ω", "470 Ω", "4,700 Ω"], answer: "4,700 Ω" }
+    hint: k means times a thousand.
+
+  - say: "Wheel two: 20 mA is..."
+    spot: [CAB, L2]
+    pick: { on: L2, options: ["0.2 A", "0.02 A", "0.002 A"], answer: "0.02 A" }
+    hint: m means a thousandth. Three places left.
+
+  - say: "Wheel three: 9 V is..."
+    spot: [CAB, L3]
+    pick: { on: L3, options: ["90 mV", "900 mV", "9,000 mV"], answer: "9,000 mV" }
+    hint: A volt is a thousand millivolts.
+
+  - say: Three wheels set. Lift the lid.
+    spot: [CAB]
+    do: open-padlock
+    done: Open! Parts for our last case.
+
+  - say: What does k mean?
+    pick: { options: [A thousand, A thousandth], answer: A thousand }
+
+secret:
+  task: mega
+  say: "Secret: find the tag with a capital M."
+  note: { at: L4, text: "M: mega, a million. Case matters!" }
+
+fixit:
+  say: Someone filed the wrong tag in this bin. Fix it.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. Three wheels, three thousands.
