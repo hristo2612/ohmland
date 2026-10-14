@@ -340,7 +340,7 @@ export const INK_CSS = `
 .ohi-root:focus-visible{box-shadow:inset 0 0 0 2px var(--k-focus)}
 .ohi-svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:hidden}
 .ohi-root svg text{font-family:var(--font-serif,"Literata",Georgia,serif)}
-.ohi-root .hand{font-family:var(--font-hand,"Kalam","Segoe Print","Bradley Hand",cursive)}
+.ohi-root .ohi-hand{font-family:var(--font-hand,"Kalam","Segoe Print","Bradley Hand",cursive)}
 
 /* Lines: outlines keep their pen width at every zoom; physical things (leads, wires, cables) scale with the desk. */
 .ohi-root .ln{fill:none;stroke:var(--k-ink);stroke-width:var(--lw,1.6px);vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}
