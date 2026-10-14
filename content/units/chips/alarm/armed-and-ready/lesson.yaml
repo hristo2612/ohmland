@@ -1,0 +1,66 @@
+# Blueprint: docs/curriculum/unit-4.md, CH12. A bench lesson (docs/LESSONS.md).
+# One idea: timers in a chain: when one timer's glow ends, its falling edge, passed on by a capacitor, starts the next.
+# Nothing new. Lab: content/labs/armed-and-ready.ts. Changes from the blueprint: the TEST / LIVE switch became a 270 kΩ
+# to swap in (the secret), the alarm latch wakes cleared (10 µF on its pin 4, like a careful design), and the fix-it is
+# a DISARM wire slipped into pin 2's strip (a fresh power-up of three 555s is a coin toss for every timer, so the
+# blueprint's switch-on false alarm would not come back the same way twice).
+format: bench
+id: armed-and-ready
+version: 1
+title: Exit, wait, alarm
+summary: Chain three 555s into a door guard, an exit delay, a last chance and a latched alarm that sings until disarmed.
+minutes: 9
+lab: armed-and-ready
+unlocks:
+  parts: []
+  isle: wire-spool
+
+start:
+  title: Exit, wait, alarm
+  say: Let's arm my door guard.
+  go: Arm it
+
+beats:
+  - say: Press GO, then open the door while green glows.
+    objective: Exit delay
+    do: exit-delay
+    note: { at: D9, text: "green on: the door is ignored" }
+
+  - say: Shut the door. Now green is off, open it again.
+    objective: The chain
+    do: silent-end
+    note: { at: U3, text: "yellow ended, but nobody told" }
+
+  - say: Run the green wire from yellow's capacitor to the alarm's pin 2.
+    spot: [C5, WT, U3]
+    do: link-it
+
+  - say: Shut the door, then open it. The alarm sounds...
+    guess: { options: [At once, When yellow ends], answer: When yellow ends }
+    do: alarm
+    note: { at: C5, text: "yellow's end: a falling edge" }
+    rule: Each timer's end starts the next.
+
+  - say: Shut the door. Will the singing stop?
+    objective: Latched
+    pick: { options: ["Yes", "No"], answer: "No" }
+    wrong: { "Yes": "The latch holds it. Shutting the door can't clear it." }
+
+  - say: Press DISARM.
+    do: disarm
+    note: { at: S2, text: "latched: only reset stops it" }
+
+secret:
+  task: live-delays
+  say: Curious? Swap the 270 kΩ into yellow's timer.
+  spot: [DR1, R22, D2]
+  done: Thirty seconds of last chance.
+  note: { at: R29, text: "270 kΩ × 100 µF: 30 s" }
+
+fixit:
+  say: My DISARM button sets the alarm off. Fix it.
+  tasks:
+    - task: fix-disarm
+
+end:
+  say: My lighthouse guards the island now.

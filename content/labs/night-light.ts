@@ -86,9 +86,9 @@ export default defineLab({
     },
     {
       id: "plug-pt2",
-      prompt: "Plug PT2 into rows 30 and 31.",
+      prompt: "Plug PT2 into strips 30 and 31.",
       goal: pt2In,
-      hints: ["PT2 is in the tray. Its legs go in b30 and b31.", "Its collector goes in row 31, Q1's base row."],
+      hints: ["PT2 is in the tray. Its legs go in b30 and b31.", "Its collector goes in strip 31, Q1's base strip."],
       highlight: ["hole:b30", "hole:b31"],
       nudges: [{ when: pt2Backwards, say: "Backwards, it barely conducts. Turn it round." }],
       success: "Across Q1's base.",

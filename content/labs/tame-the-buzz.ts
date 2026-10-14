@@ -78,20 +78,20 @@ export default defineLab({
   tasks: [
     {
       id: "tame-it",
-      prompt: "Push the 1,000 µF in: long leg in row 11, stripe in row 13. Power on.",
+      prompt: "Push the 1,000 µF in: long leg in strip 11, stripe in strip 13. Power on.",
       goal: (lab) => powered(lab) && capAcross(lab, 1000e-6) && ticking(lab, 3, 0.5, 1.4),
-      hints: ["The stripe of minus signs marks the short leg.", "Long leg row 11, stripe row 13, then S2 on."],
+      hints: ["The stripe of minus signs marks the short leg.", "Long leg strip 11, stripe strip 13, then S2 on."],
       highlight: ["C1", "hole:b11", "hole:b13"],
-      nudges: [{ when: (lab) => capBackwards(lab), say: "Stripe in row 13, please. That's the minus strip." }],
+      nudges: [{ when: (lab) => capBackwards(lab), say: "Stripe in strip 13, please. That's the minus strip." }],
       success: "Tick, tock.",
     },
     {
       id: "faster-ticks",
       prompt: "Swap the 1,000 µF for the 470 µF.",
       goal: (lab) => powered(lab) && capAcross(lab, 470e-6) && !capAcross(lab, 1000e-6) && ticking(lab, 3, 0.2, 0.45),
-      hints: ["Pull the big one out first.", "Same spot, same way round: stripe in row 13."],
+      hints: ["Pull the big one out first.", "Same spot, same way round: stripe in strip 13."],
       highlight: ["C2", "hole:b11", "hole:b13"],
-      nudges: [{ when: (lab) => capBackwards(lab), say: "Stripe in row 13, please. That's the minus strip." }],
+      nudges: [{ when: (lab) => capBackwards(lab), say: "Stripe in strip 13, please. That's the minus strip." }],
       success: "Faster.",
     },
     {
@@ -103,7 +103,7 @@ export default defineLab({
         if (capBackwards(lab)) lab.memory["backwards"] = true;
         return lab.memory["backwards"] === true && powered(lab) && capAcross(lab) && ticking(lab, 3, 0.2, 1.4);
       },
-      hints: ["Find the stripe. Which row is it in?", "Turn it round: long leg row 11, stripe row 13."],
+      hints: ["Find the stripe. Which strip is it in?", "Turn it round: long leg strip 11, stripe strip 13."],
       highlight: ["C2"],
       success: "Fixed.",
     },
@@ -111,7 +111,7 @@ export default defineLab({
       id: "soften-the-surge",
       prompt: "Put the 100 Ω between NC and the coil, in place of the green wire.",
       goal: (lab) => powered(lab) && capAcross(lab) && lab.joins("R4", "K1.nc1", "K1.coil1") && !lab.connected("K1.nc1", "K1.coil1") && ticking(lab, 3, 0.2, 1.4),
-      hints: ["Swap the green wire for the resistor: row 16 to row 11."],
+      hints: ["Swap the green wire for the resistor: strip 16 to strip 11."],
       highlight: ["wire:W9", "R4"],
       success: "Gentler on the contacts.",
       bonus: true,

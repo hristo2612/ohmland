@@ -61,7 +61,8 @@ speaker, touch-pads, cup, lemon, and the lab props below. `params` are typed per
 resistor `ohms` (the bands), `actualOhms` (an out-of-spec part, whose body then looks slightly darkened), `tolerance`
 (percent, default 5: the simulator spreads each part's value by its id), `watts` (1 W parts are bigger, 2 W and up
 are white ceramic blocks); capacitors `actualFarads` and `span` (holes between the legs, 1 to 7: the legs bend to
-reach); pushbutton `normallyClosed`; battery `snap` (leads that go into the board), `size` (`"aa"` in a cradle,
+reach); electrolytics `tolerance` (percent, default 20) and `leakOhms` (default 1 MΩ from 100 µF up: a lab that times
+a long 555 delay sets 5 and 5e7 so the delay matches 1.1 × R × C); pushbutton `normallyClosed`; battery `snap` (leads that go into the board), `size` (`"aa"` in a cradle,
 `"coin"` in a holder), `chem` (`"nimh"`, `"lithium"`) and `worn` (a scuffed, used one); relay `poles: 1` (one
 changeover: `coil1 coil2 com1 nc1 no1`), `coilOhms`, `coilHenries` (a kickback worth catching); toggle-switch
 `throws: 1` (on/off only).
@@ -93,7 +94,7 @@ shows the inside.
 | `sample` | More `material`s, the junk drawer's everyday objects: `key`, `coin`, `foil` (0.01 Ω), `pencil` (a pencil lead, 5 Ω), `spoon` (plastic), `metal-spoon`, `eraser`, `marble` (glass), `wood` (a dry stick, 1 TΩ), `string`, `clip` (a coated paper clip: `a` and `b` are its bare cut ends, `coat:PC1` its coating) | `a b` |
 | `gate` | A counting gate: clips round a clip lead (`at: "lead:TL3"`, or dropped on one) and ticks once per flow dot that passes, with a rate bar; `mode: "number"` shows the current, its unit (`"A"`, `"mA"`) a button | none |
 | `box` | A sealed box: parts sit inside (`at: "in:BOXA.s1"`, seats `s1` to `s4`) under a lid, only two brass terminals (or a knob) show. `wiring` joins what is inside: `{ "s1.pos": "t1", "s1.neg": "t2" }`, junctions `j1` to `j4` join parts to each other (`{ "s1.wiper": "j1", "s2.a": "j1" }`). `marks: "plain"` hides which terminal is plus; `knob: true` shows a knob that turns the trimmer inside; `tag: "10 kΩ"` ties a value tag to it; `label: "A"`. Tapping the lid opens it (`lid: true`); while it is shut, nothing inside can be seen, picked or clipped. A 9 V battery inside lies on its back | `t1 t2` |
-| `box` with `style: "cabinet"` | The parts cabinet: no terminals, eight seats, a three-wheel padlock `lock: { wheels: ["4,700 Ω", "0.02 A", "9,000 mV"], set: [false, false, false] }` (each wheel shows its answer once set; the lid stays shut while one is unset) | none |
+| `box` with `style: "cabinet"` | The parts cabinet: no terminals, eight seats, a three-wheel padlock `lock: { wheels: ["4,700 Ω", "0.02 A", "9,000 mV"], set: [false, false, false] }` (each wheel shows its answer once set; the lid stays shut while one is unset). With `faces: [["47 Ω", "470 Ω", "4,700 Ω"], ...]` a tap turns a wheel to its next face (params `wheel1`, `wheel2` ...: the face index, "?" before the first tap) and a wheel counts as set while it shows its answer | none |
 | `bin` with `style: "tray"` | A big sorting tray with a `label` on its front (the junk drawer's "lets flow through", "stops flow") | none |
 | `bin` with `style: "drawer"` | A parts drawer with a symbol `face` (`battery`, `switch`, `resistor`, `led`) instead of a word; it takes only its own kind of part (`accepts` overrides: a wrong part stays out on the desk) | none |
 | `schematic` | A drawing on a card: `symbols` round one loop (the first on the left, a battery with plus at the top, the rest clockwise), each `{ kind, part?, text? }`; `torn: 2` tears that symbol off, leaving a gap a `piece` fits into | none |
@@ -218,6 +219,8 @@ shows one only from that task on. Goals read `lab.panel(id)` (`cells`, `size`, `
 | `{ kind: "xray", id, part, pins? }` | The chip x-ray (see Chips). Closed it is a "Look inside" button; open, `lab.view("xray:<part>")` is true and the cells note what the 555 did meanwhile: `trigger`, `threshold`, `reset`, `discharge`, `latch` (set), `high`, `low` |
 | `{ kind: "timing", id, channels, window?, quiet? }` | Up to 8 channels `{ label, node, level? }` (watched: exact edges) or `{ label, part }` (an LED lit, a button closed, from the snapshots), as high and low lines over the last `window` seconds (default 2). The latest burst (two or more edges each within `quiet`, default 0.02 s, of the next; `burst: false` leaves a free-running clock out) can be replayed in slow motion over 4 s, with a scrubber and marks on states under 1 µs. `lab.timing(id)` |
 | `{ kind: "histogram", id, button, dice, rolls?, hold?, settle?, read? }` | Every roll of `button` (let go, then `settle` s, default 0.3) is read from the pip LEDs (`dice: [["P1", ...]]`, one list per die: the face is the number of pips lit) or `read(lab)`, and tallied as faces, or sums and all 36 pairs for two dice, with a fair band (expected count plus or minus two standard deviations). "Roll for me" presses it with holds of 0.15 to 0.6 s (`hold`); a thousand rolls are sampled from 20 ms of the running dice recorded finely (exact for a clock of a few hundred hertz and up). `lab.rolls(id)` |
+| `{ kind: "chart", id }` | The resistor colour code as a slip of real text (each colour's digit; gold and silver in third place and on the right). It reads at any bench size: dock it with a beat's `tool` while the learner reads stripes |
+| `{ kind: "readings", id, rows: [{ label, note, by }], heads, multiply }` | A table that writes itself from the numbers the learner types (`lab.note(note)`); from the task `multiply` on, a third column grows and tapping a row writes its number times `by`. Goals read `lab.panel(id).cells["r1"]`; solutions tap with `{ do: "panel", id, value: { row: 1 } }` |
 | `{ kind: "keys", id, buttons: [{ part, key, label }] }` | Big on-screen keys for pushbuttons, each held while pressed, plus a keyboard key (`"a"`, `"l"`, `" "`) that works all through the lab, so two players can share a keyboard. "Pin down" holds a button for touch screens |
 
 **Nodes** name nodes for goals and scope traces: `nodes: { c: "C1.pos" }` makes `lab.volts("c")` work.
@@ -486,7 +489,10 @@ Start here props change through `param` as their taps do: `{ lid: true }` opens 
 "number", unit: "mA" }` sets a gate; a gate is clipped on with `{ do: "move", part: "G1", at: "lead:TL3" }`.
 
 Each step lets 0.25 s of simulated time pass. Put a `check` after the steps of each task: "Show me" rewinds to the
-bench at the previous check and plays the steps up to this one.
+bench at the previous check and plays the steps up to this one. It starts the circuit afresh (capacitors empty, a
+relay let go, the auto-tapper off, sliders where the lab starts them) and a resumed lesson has no readings or typed
+notes from earlier beats, so each task's steps must finish it on their own: a fade task fills the capacitor first. The
+solution test plays every required task's Show me from its checkpoint (`replayShowMe`).
 
 ## For the lesson player
 

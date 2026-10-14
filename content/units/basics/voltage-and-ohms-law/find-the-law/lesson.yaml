@@ -3,7 +3,7 @@
 # Lab: content/labs/find-the-law.ts (it still fires the lawmaker trigger). Turning the law round moved to use-the-law.
 format: bench
 id: find-the-law
-version: 2
+version: 3
 title: Find the law yourself
 summary: Measure the current through four resistors and discover V = I × R from your own data.
 minutes: 9
@@ -23,18 +23,19 @@ beats:
     do: battery-first
     note: { at: B1, text: "9.4 V: remember this" }
 
-  - say: Meter in series, 1 kΩ in the holder. Then mA times kΩ.
+  - say: Meter in series, 1 kΩ in the holder. Type the mA.
     objective: Fill the table
     do: first-row
-    note: { at: H1, text: "row one: 9.2 mA × 1" }
+    note: { at: H1, text: "row one: about 9.2 mA" }
 
   - say: Now 1.5, 2.2 and 3.3 kΩ. Double the squeeze, and the flow...
     guess: { options: [Doubles, Halves, Stays the same], answer: Halves }
     do: fill-the-table
     note: { at: H1, text: "more squeeze, less flow" }
 
-  - say: Look at your four answers. What keeps turning up?
+  - say: Multiply each row on the slip. What keeps turning up?
     objective: Spot the pattern
+    tool: data
     do: spot-the-pattern
     done: Your battery's push. Every single row!
     note: { at: B1, text: "every row: about 9.4" }
@@ -42,6 +43,7 @@ beats:
 
   - say: Predict the flow through 4.7 kΩ. Type it first.
     objective: Prove it
+    tool: data
     do: predict-4k7
 
   - say: Now drop it in. Were you right?

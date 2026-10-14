@@ -188,7 +188,7 @@ export default defineLab({
         const s = swing(lab, 3);
         return r >= 1.15 && r <= 1.8 && s !== null && s >= 0.6 && s <= 1.4;
       },
-      hints: ["Both fast bases are in row 21, near and far. Q1's collector strip is row 16.", "Then hold the siren button."],
+      hints: ["Both fast bases are in strip 21, near and far. Q1's collector is on strip 16.", "Then hold the siren button."],
       highlight: ["hole:c21", "hole:h21", "hole:c16"],
       success: "Nee-naw!",
       notice: "The slow LED glows faintly when off: the bridge borrows current.",
@@ -197,7 +197,7 @@ export default defineLab({
       id: "wail",
       prompt: "Make it glide: put R10 and C5 between Q1 and the bridge.",
       goal: (lab) => held(lab) && filtered(lab) && gliding(lab),
-      hints: ["Move both 100 kΩ ends from row 16 to row 17.", "10 kΩ from row 17 to row 16; 22 µF from row 17 to minus."],
+      hints: ["Move both 100 kΩ ends from strip 16 to strip 17.", "10 kΩ from strip 17 to strip 16; 22 µF from strip 17 to minus."],
       highlight: ["hole:c17", "hole:d17"],
       success: "Now it swoops.",
     },
@@ -222,7 +222,7 @@ export default defineLab({
         const s = swing(lab, 2);
         return s !== null && 1 / s >= 6 && 1 / s <= 16 && range(lab, 2) > 1.08;
       },
-      hints: ["Same places: each from a collector (row 12) to the other base.", "C5 smooths fast swings away too. Without it, the steps pass."],
+      hints: ["Same places: each from a collector (strip 12) to the other base.", "C5 smooths fast swings away too. Without it, the steps pass."],
       success: "A frantic trill.",
       bonus: true,
     },

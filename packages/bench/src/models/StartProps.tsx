@@ -6,11 +6,11 @@ import { useContext, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { Billboard } from "@react-three/drei";
 import { useStore } from "zustand";
-import { AA, BOX, CABINET, DRAWER, GATE, OBJECT, SCHEM, STATIC, TRAY } from "../dims";
+import { AA, BOX, CABINET, DRAWER, GATE, OBJECT, PADLOCK, SCHEM, STATIC, TRAY } from "../dims";
 import { dotRate, formatGate, gateAmps, tagText } from "../flow";
 import { lifting, stuckTo } from "../static";
 import { useLabels } from "../labels";
-import { CLIP_PATH, schematicSlot } from "../parts";
+import { CLIP_PATH, padlockFaces, schematicSlot } from "../parts";
 import { BenchStoreContext, type BenchStore, type BenchStoreState } from "../store";
 import { slotTurn, symbolInk, tornOutline } from "../symbols";
 import type { PartParamsMap, SampleMaterial, SymbolKind } from "../types";
@@ -215,18 +215,19 @@ function ScrewPost() {
   );
 }
 
-function Padlock3D({ lock }: { lock: { wheels: string[]; set: boolean[] } }) {
-  const n = lock.wheels.length;
-  const w = 24;
-  const key = `${lock.wheels.join("|")}:${lock.set.join(",")}`;
+/** The padlock on the cabinet's front strip: each wheel shows its face (or its answer once set), "?" before. */
+function Padlock3D({ shown }: { shown: (string | null)[] }) {
+  const n = shown.length;
+  const w = PADLOCK.wheel;
+  const key = shown.map((s) => s ?? "?").join("|");
   const tex = useMemo(
     () =>
       canvasTexture(`padlock:${key}`, 768, 160, (ctx, cw, ch) => {
         ctx.fillStyle = "#d6ad55";
         ctx.fillRect(0, 0, cw, ch);
-        lock.wheels.forEach((label, i) => {
+        shown.forEach((label, i) => {
           const x = (i + 0.5) * (cw / n);
-          const set = !!lock.set[i];
+          const set = label !== null;
           ctx.fillStyle = set ? PAPER : "#EEE8DC";
           ctx.fillRect(x - cw / n / 2 + 10, 14, cw / n - 20, ch - 28);
           ctx.strokeStyle = INK;
@@ -236,10 +237,10 @@ function Padlock3D({ lock }: { lock: { wheels: string[]; set: boolean[] } }) {
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.font = `800 ${set ? 44 : 84}px ${FONT}`;
-          ctx.fillText(set ? label : "?", x, ch / 2 + 4);
+          ctx.fillText(label ?? "?", x, ch / 2 + 4);
         });
       }),
-    [key, lock.wheels, lock.set, n],
+    [key, shown, n],
   );
   return (
     <group>
@@ -329,7 +330,7 @@ export function BoxModel({ params }: { params: PartParamsMap["box"] }) {
       )}
       {lock && (
         <group position={[0, H, zs]}>
-          <Padlock3D lock={lock} />
+          <Padlock3D shown={padlockFaces(params)} />
         </group>
       )}
       {/* The lid, hinged at the back: shut it lies on the box; open it stands up behind. */}

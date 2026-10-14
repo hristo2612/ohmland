@@ -103,7 +103,13 @@ Optional, on any beat:
   guess is made.
 - `objective`: starts an objective (a few words). The robot's eyes fill in equal steps as each objective (and the
   fix-it round) finishes, and the current objective's name shows as a quiet kicker. Objectives are never listed.
-- `spot: [parts]`: the parts in play. The bench frames and spotlights them. Meet, tap and pick beats spot their part by
+- `spot: [parts]`: the parts in play. The bench frames and spotlights them. While a beat's task is open (and its tool,
+  if any, is the meter), the parts its line names stay in view too, the meter's probe tips with them, and the view
+  comes no closer than a reading scale (holes about 20 px apart on a phone). On a phone a work beat also frames its
+  task's `highlight` (a lead with the parts it bites, a terminal or mark with its part), else where the hands last
+  worked, else the circuit on the board; it comes only as close as its choices need (neighbouring holes, or the
+  closest terminals of two different parts) and shows the lab's whole view when that is close enough. A drawing on
+  the bench (`schematic`) is docked as a slip above it while the work is framed. Meet, tap and pick beats spot their part by
   themselves; leave `spot` out when the result shows somewhere else (a switch that lights a lamp). The secret and the fix-it
   take a `spot` too (`secret: { spot: [R1, D1], ... }`, `fixit: { spot: [R3, D1], ... }`, framed through every fix-it
   task).
@@ -137,10 +143,11 @@ Optional, on any beat:
 
 Anchors (`at`, `answer`, `among`, `on`, `spot`, `trace`) use the lab's shorthand: a part `D1`, a lead `D1.anode`, a
 hole `e12` or `rail+:21`, a clip lead end `TL1.a`, a jumper end `W1.b`, or a raw bench anchor (`pin:D1.anode`,
-`part:D1`). A named mark on a part is `part:<id>/<mark>`: the meter's `part:M1/dial`, `part:M1/display` and sockets
-(`part:M1/com`), a drawing's symbol `part:SD1/R1`, a box's `lid`, `knob`, `tag` and padlock wheels
-(`part:CAB/wheel1`), a gate's `flag` and `unit`, an LED's stress bar (`part:D1/stress`). Taps, notes and the spotlight work on marks in both views; a tapped
-mark that is wrong writes its own name ("dial", "wheel 2").
+`part:D1`). A named mark on a part is `part:<id>/<mark>`: the meter's `part:M1/dial`, `part:M1/display`, sockets
+(`part:M1/com`) and the dial's letters by mode (`part:M1/dcv`, `part:M1/ohm`, `part:M1/dca-ma`), a drawing's symbol
+`part:SD1/R1`, a box's `lid`, `knob`, `tag` and padlock wheels (`part:CAB/wheel1`), a gate's `flag` and `unit`, an LED's
+stress bar (`part:D1/stress`) and a resistor's colour bands (`part:R3/band1` to `band4`). Taps, notes and the
+spotlight work on marks in both views; a tapped mark that is wrong writes its own name ("dial", "wheel 2", "stripe 4").
 
 ## Control of error
 

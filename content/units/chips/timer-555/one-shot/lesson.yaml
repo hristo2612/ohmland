@@ -1,0 +1,65 @@
+# Blueprint: docs/curriculum/unit-4.md, CH2. A bench lesson (docs/LESSONS.md).
+# One idea: a dip on pin 2 starts one glow of fixed length on pin 3, however long the tap.
+# New: pin 2 (trigger) and pin 3 (output), a pair. Lab: content/labs/one-shot.ts (the x-ray adds pins 2 and 3).
+format: bench
+id: one-shot
+version: 1
+title: One tap, one glow
+summary: Tap a 555's button, time its glow, and meet pin 2, the way in, and pin 3, the way out.
+minutes: 6
+lab: one-shot
+unlocks:
+  parts: []
+  isle: capacitor
+
+start:
+  title: One tap, one glow
+  say: Tap my button once. Time the glow.
+  go: Start the clock
+
+beats:
+  - say: Tap the red button once.
+    objective: Tap it
+    tool: stopwatch
+    do: one-glow
+    note: { at: D1, text: "one tap: three seconds" }
+
+  - say: Now hold it for one second.
+    objective: Hold it
+    tool: stopwatch
+    guess: { options: [About 1 second, About 3 seconds], answer: About 3 seconds }
+    do: hold-one-second
+    note: { at: S1, text: "short or long: same glow" }
+    rule: One dip in, one fixed glow out.
+
+  - say: Look inside the chip, then tap again.
+    objective: Look inside
+    tool: xray
+    do: xray-trigger
+    note: { at: U1.2, text: "pin 2: trigger, dips start it" }
+
+  - say: Pin 3 is the way out.
+    note: { at: U1.3, text: "pin 3: output, the glow leaves" }
+
+  - say: Show me the output.
+    tap: { answer: U1.3, among: [U1.1, U1.2, U1.3, U1.4, U1.5, U1.6, U1.7, U1.8] }
+    hint: The glow leaves the chip there.
+
+  - say: What is pin 2?
+    pick: { on: U1.2, options: [Trigger, Output, Plus], answer: Trigger }
+    wrong: { Output: "The output is next door, pin 3." }
+
+secret:
+  task: double-tap
+  tool: stopwatch
+  say: Curious? Tap twice, fast.
+  done: Still one glow. Taps mid-glow are ignored.
+  note: { at: D1, text: "taps mid-glow: ignored" }
+
+fixit:
+  say: My lamp never lights now. Fix it.
+  tasks:
+    - task: fix-lamp
+
+end:
+  say: One tap, one glow. Pins 2 and 3 are on my map.

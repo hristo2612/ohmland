@@ -5,4 +5,5 @@ export { BenchView, CABLE_STYLE_KEY, preloadBenchView, type BenchViewProps } fro
 export { createControllerHub, type BenchController, type BenchControllerHub, type BenchViewKind, type FocusOptions, type SpotlightOptions, type Inset, type ScreenPoint } from "./controller";
 export { parseTarget, targetPoint, meterSpot, METER_SPOTS, type ParsedTarget } from "./targets";
 export type { BenchRendererProps } from "./types";
+export { DrawingSlip } from "./DrawingSlip";
 export { COMPACT_WIDTH, trayCoverOf } from "./tray-cover";

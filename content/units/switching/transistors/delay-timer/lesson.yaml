@@ -31,7 +31,7 @@ beats:
     hint: Red on C1's long leg, black on its stripe.
     note: { at: C1, text: "drained by the coil: 3 V" }
 
-  - say: Pull the yellow jumper. Plug Q1 into rows 20 to 22.
+  - say: Pull the yellow jumper. Plug Q1 into strips 20 to 22.
     objective: Add a buffer
     do: buffer-in
     done: Click!
@@ -45,7 +45,7 @@ beats:
   - say: Red on Q1's base, black on its emitter. Reading?
     tool: meter
     number: { answer: 0.74, unit: V, tolerance: 10 }
-    hint: Base is row 21, emitter row 20. Keep S1 on.
+    hint: Base is strip 21, emitter strip 20. Keep S1 on.
     rule: The emitter follows the base, 0.7 V lower.
 
 secret:

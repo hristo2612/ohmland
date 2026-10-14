@@ -92,7 +92,7 @@ export default defineLab({
       id: "flutter",
       prompt: "Swap both caps for the 105 beads, crossed the same way.",
       goal: (lab) => on(lab) && crossed(lab, 1e-6) && hz(lab) >= 6 && hz(lab) <= 16,
-      hints: ["Ceramics fit either way round.", "Each goes from a collector (row 12) to the other base (row 11)."],
+      hints: ["Ceramics fit either way round.", "Each goes from a collector (strip 12) to the other base (strip 11)."],
       highlight: ["C1", "C2"],
       nudges: [{ when: (lab) => on(lab) && (crossed(lab, 100e-9) || crossed(lab, 10e-9)), say: "Those aren't 105. Check the code on the bead." }],
       success: "A rattle.",
@@ -121,7 +121,7 @@ export default defineLab({
         if (!speakerIn(lab)) lab.memory["loose"] = true;
         return lab.memory["loose"] === true && speakerIn(lab) && on(lab) && hz(lab) >= 800 && hz(lab) <= 1600;
       },
-      hints: ["Follow the speaker's two leads to the board.", "One lead belongs in Q3's collector row, far row 18."],
+      hints: ["Follow the speaker's two leads to the board.", "One lead belongs in Q3's collector strip, far strip 18."],
       highlight: ["SP1", "pin:Q3.c"],
       success: "It sings again.",
     },

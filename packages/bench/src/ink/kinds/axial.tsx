@@ -25,6 +25,18 @@ export function diodeSize(c: Pick<ShapeCtx, "mount">): { len: number; dia: numbe
 const BANDS4 = [0.16, 0.31, 0.46, 0.8];
 const BANDS5 = [0.13, 0.26, 0.39, 0.52, 0.8];
 
+/**
+ * Where band `i` (0 first) sits along a resistor as the ink view draws it: local x in the part's drawing frame, for
+ * `part:R1/band1` targets. Null for a ceramic block or a band the part does not have.
+ */
+export function resistorBandX(params: PartParamsMap["resistor"], c: Pick<ShapeCtx, "mount" | "span">, i: number): number | null {
+  const { len, block } = resistorSize(params, c);
+  const f = ((params.bands ?? 4) === 5 ? BANDS5 : BANDS4)[i];
+  if (block || f === undefined) return null;
+  const k = c.mount === "board" ? ((c.span ?? 4) * P) / 2 : 0;
+  return k - len / 2 + len * f;
+}
+
 /** The real value lies outside the tolerance (a part overheated once): the body is a little darker. */
 const offSpec = (p: PartParamsMap["resistor"]) => p.actualOhms !== undefined && Math.abs(p.actualOhms - p.ohms) > (p.ohms * (p.tolerance ?? 5)) / 100;
 
