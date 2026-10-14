@@ -148,7 +148,7 @@ function Chip(props: DrawProps<"chip">) {
       {pp.hidden ? (
         <g transform={`rotate(-2.5 ${n3(cx + 0.4)} ${n3(cz)})`}>
           <rect x={n3(cx + 0.4 - Math.min(len * 0.31, 5.5))} y={n3(cz - w * 0.43)} width={n3(Math.min(len * 0.62, 11))} height={n3(w * 0.86)} className="f-tape ln-thin" />
-          <text x={n3(cx + 0.4)} y={n3(cz + 0.15)} fontSize={2.6} fontWeight={700} textAnchor="middle" dominantBaseline="central" className="hand f-ink">
+          <text x={n3(cx + 0.4)} y={n3(cz + 0.15)} fontSize={2.6} fontWeight={700} textAnchor="middle" dominantBaseline="central" className="ohi-hand f-ink">
             {pp.label ?? "?"}
           </text>
         </g>
