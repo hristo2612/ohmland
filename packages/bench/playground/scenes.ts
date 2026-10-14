@@ -1,6 +1,6 @@
 // Ready-made benches for the playground and the screenshot script.
 
-import { defaultMeter, emptyBench, type BenchState, type TrayItem } from "../src";
+import { defaultMeter, emptyBench, type BenchState, type TrayItem } from "../src/core";
 
 /** A red LED with a 470 ohm resistor on the board, fed by a 9 V battery, with the meter across the LED. */
 export function demoBench(): BenchState {
@@ -86,6 +86,44 @@ export function propsBench(): BenchState {
     p("CH1", "chart", {}, [260, -80]),
     p("CK1", "clock", {}, [260, 20]),
     p("SC1", "showcase", {}, [270, 110]),
+  ];
+  return b;
+}
+
+/** The first-glow desk: a 9 V battery, a 1.5 kΩ resistor and a red LED joined by clip leads (`?scene=glow`). */
+export function glowBench(): BenchState {
+  const b = emptyBench(null);
+  b.parts = [
+    { id: "B1", kind: "battery", params: { emf: 9.4 }, pos: [-74, 6], rot: 0 },
+    { id: "R1", kind: "resistor", params: { ohms: 1500 }, pos: [0, -20], rot: 0 },
+    { id: "D1", kind: "led", params: { color: "red", maxmA: 50 }, pos: [58, 12], rot: 180 },
+  ];
+  b.leads = [
+    { id: "TL1", color: "red", a: { to: "pin:B1.pos", pos: [0, 0] }, b: { to: "pin:R1.a", pos: [0, 0] } },
+    { id: "TL2", color: "green", a: { to: "pin:R1.b", pos: [0, 0] }, b: { to: "pin:D1.anode", pos: [0, 0] } },
+    { id: "TL3", color: "black", a: { to: "pin:D1.cathode", pos: [0, 0] }, b: { to: "pin:B1.neg", pos: [0, 0] } },
+  ];
+  return b;
+}
+
+/** Unit 2 desk modules and board odds and ends (`?scene=blocks`). */
+export function blocksBench(): BenchState {
+  const b = emptyBench({ kind: "bb400", pos: [0, 70] });
+  const p = (id: string, kind: BenchState["parts"][number]["kind"], params: Record<string, unknown>, pos: [number, number], rot = 0, holes?: Record<string, string>) =>
+    ({ id, kind, params, pos, rot, ...(holes ? { holes } : {}) }) as BenchState["parts"][number];
+  b.parts = [
+    p("K1", "relay", { base: true, tag: "K1" }, [-120, -40]),
+    p("K2", "relay", { base: true, poles: 1, mystery: "31402", tag: "K2" }, [-30, -40]),
+    p("K3", "relay", { base: true, poles: 1, mystery: "31402", peek: true, tag: "K3" }, [55, -40]),
+    p("S1", "slide-switch", { base: true, to: "b", tag: "S1" }, [-120, -90]),
+    p("S2", "dpdt-switch", { to: "a", tag: "S2" }, [-40, -90]),
+    p("S3", "pushbutton", { base: true, cap: "red", tag: "S3" }, [40, -90]),
+    p("RV1", "trimmer", { base: true, ohms: 10000, position: 0.7, tag: "RV1" }, [110, -90]),
+    p("S4", "toggle-switch", { base: true, to: "b", throws: 1, tag: "S4" }, [130, -40]),
+    p("C1", "ceramic-cap", { farads: 100e-9 }, [0, 0], 0, { a: "c5", b: "c10" }),
+    p("C2", "electrolytic-cap", { farads: 470e-6 }, [0, 0], 0, { pos: "h6", neg: "h11" }),
+    p("TP1", "touch-pads", {}, [0, 0], 0, { a: "c16", b: "c18" }),
+    p("K4", "relay", { poles: 1 }, [0, 0], 0, { coil1: "e21", com1: "e24", nc1: "e26", no1: "e28", coil2: "f21" }),
   ];
   return b;
 }
