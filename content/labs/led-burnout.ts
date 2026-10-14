@@ -94,6 +94,19 @@ export default defineLab({
       success: "Dead LEDs stay dead.",
     },
     {
+      id: "brightest-survivor",
+      prompt: "Fit the resistor for the brightest LED that survives.",
+      // The bench answers: 15 Ω cooks the fresh LED, 470 Ω lives but is not the brightest, 150 Ω is.
+      goal: (lab) => loopOhms(lab) === 150 && leds(lab).some((id) => inPlace(lab, id) && lab.isLit(id)),
+      hints: ["Not the one that cooked it.", "Of the two that lived, which was brighter?"],
+      highlight: ["R2", "R3"],
+      nudges: [
+        { when: (lab) => loopOhms(lab) === 470 && leds(lab).some((id) => inPlace(lab, id) && lab.isLit(id)), say: "It lives. Did another one live, brighter?" },
+        { when: twoAtOnce, say: "Two side by side. Pull the old one out." },
+      ],
+      success: "Bright, and alive.",
+    },
+    {
       id: "fix-hot-lamp",
       prompt: "This lamp runs right at its limit. Calm it down.",
       setup: AT_THE_LIMIT,
@@ -127,6 +140,9 @@ export default defineLab({
     { do: "move", part: "D1", at: "desk:52,44" },
     { do: "place", part: "D2", kind: "led", params: { color: "red", maxmA: 50 }, at: "e10" },
     { do: "check", task: "no-comeback" },
+    { do: "move", part: "R1", at: "desk:-30,46" },
+    { do: "move", part: "R3", at: "c6-c10" },
+    { do: "check", task: "brightest-survivor" },
     ...AT_THE_LIMIT,
     { do: "move", part: "R3", at: "desk:10,46" },
     { do: "move", part: "R2", at: "c6-c10" },

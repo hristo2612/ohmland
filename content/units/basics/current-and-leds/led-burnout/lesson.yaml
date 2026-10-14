@@ -3,7 +3,7 @@
 # One idea: less squeeze means more flow, and past its limit an LED dies for good. Lab: content/labs/led-burnout.ts.
 format: bench
 id: led-burnout
-version: 2
+version: 3
 title: One LED, too much current
 summary: Swap in smaller and smaller resistors until the LED gives up, and learn why every LED needs one.
 minutes: 8
@@ -45,9 +45,9 @@ beats:
     done: Fresh LED, happy glow.
     note: { at: D1, text: dead stays dead }
 
-  - say: Quick one. Brightest LED that survives?
-    pick: { options: [470 Ω, 150 Ω, 15 Ω], answer: 150 Ω }
-    wrong: { 15 Ω: "That one cooked it.", 470 Ω: "It lives, but 150 Ω is brighter." }
+  - say: Fit the resistor for the brightest LED that survives.
+    do: brightest-survivor
+    done: Bright, and still alive.
 
   - say: Which current for a lamp that lasts years?
     pick: { options: [15 mA, 45 mA, 60 mA], answer: 15 mA }
