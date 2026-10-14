@@ -2,7 +2,7 @@ import type { CourseOutline } from "../content/outline";
 import { m } from "../i18n";
 import { PartIcon } from "../parts/PartIcon";
 import type { PartIconKind } from "../parts/kinds";
-import { ACHIEVEMENTS } from "../progress/achievements";
+import { ACHIEVEMENTS, describeAchievement } from "../progress/achievements";
 import { useDerived, useLearner, useLearnerReady } from "../progress/useLearner";
 import { Button } from "./Button";
 import { MascotSay } from "./MascotSay";
@@ -77,7 +77,7 @@ export function AchievementGrid({ outline }: { outline: CourseOutline }) {
                 {secret ? m.achievements.hiddenTitle : a.title}
                 <span className="sr-only">, {got ? m.achievements.unlockedOn(m.common.date(got.at)) : m.achievements.locked}</span>
               </h3>
-              {!got && <p className="stamps__how">{secret ? m.achievements.hiddenBody : a.description}</p>}
+              {!got && <p className="stamps__how">{secret ? m.achievements.hiddenBody : describeAchievement(a, outline)}</p>}
             </li>
           );
         })}

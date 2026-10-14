@@ -1,6 +1,6 @@
 id: capacitors
 title: Capacitors and time
-summary: What capacitors store, units, codes, polarity and ratings, RC charging, the time constant, smoothing, coupling and blocking DC.
+summary: What capacitors store, polarity and ratings, RC charging, the time constant, smoothing, and passing changes while blocking steady pushes.
 # Reveal caption: It fills fast, drains slow, and keeps the lamps steady when the supply stutters.
 landmark:
   id: capacitor-water-tower
@@ -10,3 +10,4 @@ lessons:
   - capacitor-labels
   - rc-time-constant
   - smoothing-and-coupling
+  - kick-it-through

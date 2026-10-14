@@ -908,7 +908,7 @@ export const en = {
       "gate.unit": { label: "Unit", values: { A: "A", mA: "mA" } },
       "box.lid": { label: "Lid", values: { false: "Shut", true: "Open" } },
     } as Record<string, { label: string; values?: Record<string, string>; unit?: string }>,
-    actions: { "card.erase": "Erase" } as Record<string, string>,
+    actions: { "card.erase": "Erase", "cup.salt": "Add salt" } as Record<string, string>,
     heat: { cool: "cool", warm: "warm", hot: "hot", ouch: "ouch" },
     /** Words printed on lab props. */
     print: {
@@ -965,7 +965,7 @@ export const en = {
     toast: (title: string) => `Achievement unlocked: ${title}`,
     items: {
       "first-spark": { title: "First spark", description: "Finish your first lesson." },
-      "clean-sweep": { title: "Clean sweep", description: "Get every question in a lesson right on the first try." },
+      "clean-sweep": { title: "Clean sweep", description: "Get every check in a lesson right first time." },
       "warmed-up": { title: "Warmed up", description: "Finish five lessons." },
       landmark: { title: "Landmark", description: "Finish a whole module and build its landmark." },
       "bench-hand": { title: "Bench hand", description: "Complete five lab tasks." },
@@ -977,7 +977,7 @@ export const en = {
       "fuse-whisperer": { title: "Fuse whisperer", description: "Blow a fuse." },
       // Unit 1: Basics (docs/curriculum/unit-1.md, section 10).
       "first-reading": { title: "First reading", description: "Measure a battery's voltage with your own meter." },
-      "stripe-sharp": { title: "Stripe sharp", description: "Finish Reading the stripes with every quiz answer right first time." },
+      "stripe-sharp": { title: "Stripe sharp", description: "Finish Reading the stripes with every check right first time." },
       "glow-getter": { title: "Glow getter", description: "Light an LED in a loop you wired yourself." },
       "meter-bites-back": { title: "The meter bites back", description: "Blow your meter's own fuse." },
       curator: { title: "Curator of crispy things", description: "Fill the Hall with an LED, a resistor, a fuse and a meter fuse." },
@@ -989,9 +989,9 @@ export const en = {
       bracketed: { title: "Bracketed", description: "Blow the 1 A fuse, keep the 3 A fuse alive, and measure the current in between." },
       "sour-power": { title: "Sour power", description: "Light an LED using nothing but fruit." },
       "upside-down": { title: "Upside down", description: "Flip one cell in a four-cell stack and measure what's left." },
-      "curious-mind": { title: "Curious mind", description: "Complete 8 bonus tasks in Basics." },
-      "spotless-module": { title: "Spotless module", description: "Finish a whole Basics module with every quiz answer right first time." },
-      "island-founder": { title: "Island founder", description: "Complete all 18 lessons of Basics and bring Bareboard Isle to life." },
+      "curious-mind": { title: "Curious mind", description: (n: number) => `Find ${n} secrets in Basics.` },
+      "spotless-module": { title: "Spotless module", description: "Finish a whole Basics module with every check right first time." },
+      "island-founder": { title: "Island founder", description: (n: number) => `Finish all ${n} lessons of Basics and bring Bareboard Isle to life.` },
 
       // Unit 2: Switching (docs/curriculum/unit-2.md, section 5).
       "either-way": { title: "Either way up", description: "Wire a light that either of two switches can flip." },
@@ -1000,14 +1000,14 @@ export const en = {
       "spark-catcher": { title: "Spark catcher", description: "See a coil's kickback spark, then tame it with a diode." },
       "buzzed-to-bits": { title: "Buzzed to bits", description: "Wear out a relay's contacts by letting it buzz." },
       "wrong-way-round": { title: "Wrong way round", description: "Vent an electrolytic capacitor by connecting it backwards." },
-      "tau-tamer": { title: "Tau tamer", description: "Measure every time constant in the RC lab within 5%." },
+      "tau-tamer": { title: "Tau tamer", description: "Measure all four time constants in Counting in taus within 5%." },
       "feather-touch": { title: "Feather touch", description: "Light a lamp at full brightness with the lightest touch." },
       "five-second-club": { title: "Five-second club", description: "Tune your delay timer to five seconds, three times in a row, within 5%." },
-      "night-shift": { title: "Night shift", description: "Build your own dusk-activated light on the free-build bench." },
-      "tuning-fork": { title: "Tuning fork", description: "Make a speaker sing concert A." },
+      "night-shift": { title: "Night shift", description: "Trim a night light so it wakes at dusk." },
+      "tuning-fork": { title: "Tuning fork", description: "On the free bench, tune a speaker to concert A: 440 Hz." },
       wailer: { title: "Wailer", description: "Make the Siren Tower wail." },
       "smoke-shelf": { title: "Shelf of smoke", description: "Burn out five different kinds of part, at least one of them a relay, a capacitor or a transistor." },
-      "two-islands": { title: "Two islands", description: "Finish every lesson on Switchback Isle." },
+      "two-islands": { title: "Two islands", description: (n: number) => `Finish all ${n} lessons of Switching and complete Switchback Isle.` },
     },
     hall: {
       title: "Hall of Fried Parts",

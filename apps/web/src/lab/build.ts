@@ -222,6 +222,11 @@ function fitAt(bench: BenchState, part: PlacedPart, hole: string, rot: number): 
 
 export type PlaceResult = { part: PlacedPart; desk: boolean; warning?: string };
 
+/** A part put into board holes sits where its legs are (as a drag leaves it), not at the desk spot it came from. */
+function onBoard(bench: BenchState, part: PlacedPart): PlacedPart {
+  return { ...part, pos: benchOps.partCenter({ ...bench, parts: [part] }, part) } as PlacedPart;
+}
+
 /**
  * Puts a part where `at` says on the bench (without adding it). Desk parts without a spot get `deskAuto`.
  */
@@ -263,11 +268,11 @@ export function placePart(bench: BenchState, part: PlacedPart, at: string | unde
         legs.forEach((leg, i) => {
           if (ids[i]) h[leg] = ids[i]!;
         });
-        if (Object.keys(h).length === legs.length || flying) return { part: { ...part, holes: h, pos: flying ? sideOfBoard(bench) : part.pos } as PlacedPart, desk: false };
+        if (Object.keys(h).length === legs.length || flying) return { part: flying ? ({ ...part, holes: h, pos: sideOfBoard(bench) } as PlacedPart) : onBoard(bench, { ...part, holes: h } as PlacedPart), desk: false };
       }
     }
     const fit = fitAt(bench, part, ids[0]!, part.rot);
-    if (fit) return { part: { ...part, holes: fit } as PlacedPart, desk: false };
+    if (fit) return { part: onBoard(bench, { ...part, holes: fit } as PlacedPart), desk: false };
     return { part: { ...part, pos: deskAuto() }, desk: true, warning: `${part.id}: does not fit at "${at}", left on the desk` };
   }
   return { part: { ...part, pos: deskAuto() }, desk: true };
