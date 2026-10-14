@@ -65,7 +65,10 @@ export class CapacitorDevice extends Device {
     const forced = finiteOr(spec.actualFarads, 0);
     this.C = forced > 0 ? forced : toleranced(this.nominal, this.tolerance, spec.id, "capacitor", seed);
     this.volts = Math.max(0, finiteOr(spec.volts, 0));
-    const leak = finiteOr(spec.leakOhms, this.polarized ? 1e6 : 0);
+    // Electrolytic leakage grows with capacitance (datasheets give it as a multiple of C x V): 1 MΩ from 100 µF
+    // up, more for smaller parts (10 MΩ at 10 µF, 100 MΩ at 1 µF), so a 470 kΩ, 10 µF timer still times.
+    const leakDefault = this.polarized ? Math.min(1e9, 1e6 * Math.max(1, 1e-4 / Math.max(1e-12, this.nominal))) : 0;
+    const leak = finiteOr(spec.leakOhms, leakDefault);
     this.leakG = leak > 0 ? 1 / leak : 0;
     // Electrolytic ESR: about 0.1 Ω for 1000 µF, 0.3 Ω for 100 µF, 1 Ω for 10 µF (at most 2 Ω).
     const esrDefault = this.polarized && this.C > 0 ? clamp(0.1 * Math.sqrt(1e-3 / this.C), 0.1, 2) : 0;

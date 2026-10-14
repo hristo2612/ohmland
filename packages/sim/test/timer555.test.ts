@@ -118,6 +118,24 @@ describe("555 timer", () => {
     expect(last(s).parts.D1!.glow).toBeLessThan(0.01);
   });
 
+  test("monostable: 470 kΩ and a 10 µF electrolytic give about 5.2 s, a little more from the capacitor's leakage", () => {
+    const net = monostable555(470e3, 10e-6);
+    net.parts = net.parts.map((p) => (p.id === "C1" ? { id: "C1", kind: "capacitor", pins: { pos: "th", neg: "gnd" }, farads: 10e-6, polarized: true, volts: 16, tolerance: 0 } : p));
+    const s = simulateFor(net, 14, {
+      sampleEvery: 0.01,
+      actions: [
+        { t: 6.5, id: "S1", key: "pressed", value: true },
+        { t: 6.6, id: "S1", key: "pressed", value: false },
+      ],
+    });
+    const out: [number, number][] = s.map((x) => [x.t, x.nodes.out!]);
+    const up = risingCrossings(out, 4).filter((t) => t > 6.4);
+    const down = risingCrossings(out.map(([t, v]) => [t, -v]), -4).filter((t) => t > 6.4);
+    const T = down[0]! - up[0]!;
+    expect(T / (1.1 * 470e3 * 10e-6)).toBeGreaterThan(1.0);
+    expect(T / (1.1 * 470e3 * 10e-6)).toBeLessThan(1.08);
+  });
+
   test("monostable: the power-up pulse is random per chip, and a capacitor on reset suppresses it", () => {
     const fired = (id: string, resetCap: boolean) => {
       const net = monostable555(100e3, 10e-6);

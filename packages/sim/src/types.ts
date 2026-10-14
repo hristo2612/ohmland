@@ -45,7 +45,7 @@ export type PartSpec =
       farads: number;
       volts?: number;
       polarized?: boolean;
-      leakOhms?: number; // parallel leakage resistance; default none (polarized: 1 MΩ)
+      leakOhms?: number; // parallel leakage resistance; default none (polarized: 1 MΩ from 100 µF up, 100 µF / C x 1 MΩ below)
       esrOhms?: number; // series resistance; default 0 (polarized: 0.1 Ω for 1000 µF up to 2 Ω for small ones)
       tolerance?: number; // like resistor.tolerance; default 0.2 for polarized parts, 0.1 otherwise
       actualFarads?: number; // forces the actual value
