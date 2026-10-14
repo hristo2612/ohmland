@@ -3,7 +3,7 @@
  * @ohmland/bench), so it is its own lazy chunk; the panels render before it arrives.
  */
 import { useEffect, useRef } from "react";
-import { Bench, prepareBench, type BenchController, type TrayItem } from "@ohmland/bench";
+import { Bench, prepareBench, type Bench3DController, type TrayItem } from "@ohmland/bench";
 import { m } from "../i18n";
 import type { Quality } from "./quality";
 import type { LabRuntime } from "./runtime";
@@ -15,6 +15,8 @@ export type BenchViewProps = {
   readOnly?: boolean;
   highlight?: string[] | undefined;
   locked?: string[];
+  /** The desk rectangle to frame, from the lab's bench config. */
+  frame?: [number, number, number, number] | null;
   onReady?: () => void;
 };
 
@@ -28,6 +30,14 @@ type LabHook = {
   part(id: string): unknown;
   /** Simulated time and lag (0..1) of the latest snapshot. */
   sim(): { t: number; lag: number } | null;
+  /** Plays a task's part of the solution on the bench ("Show me"), for tests and screenshots. */
+  showMe(taskId: string): Promise<void>;
+  /** A lab panel's state. */
+  panel(id: string): unknown;
+  /** Applies one solution step to the bench, as a learner's move would (bench lessons; for scripts on small screens). */
+  step?(s: unknown): void;
+  /** Which view draws the bench ("3d" or "ink"; bench lessons). */
+  view?(): string;
 };
 
 declare global {
@@ -39,11 +49,11 @@ declare global {
 /** Draws the bench's procedural textures ahead of time (prefetch.ts calls it while the browser is idle). */
 export const prepare = prepareBench;
 
-export default function BenchView({ runtime, tray, quality, readOnly, highlight, locked, onReady }: BenchViewProps) {
-  const ctrl = useRef<BenchController | null>(null);
+export default function BenchView({ runtime, tray, quality, readOnly, highlight, locked, frame, onReady }: BenchViewProps) {
+  const ctrl = useRef<Bench3DController | null>(null);
   useEffect(() => {
     window.ohmlandLab = {
-      project: (anchor) => ctrl.current?.project(anchor) ?? null,
+      project: (anchor) => ctrl.current?.projectClient(anchor) ?? null,
       pickAt: (x, y) => ctrl.current?.pickAt(x, y) ?? null,
       bench: () => runtime.store.getState().bench,
       status: () => ({ ...runtime.session.status }),
@@ -53,6 +63,8 @@ export default function BenchView({ runtime, tray, quality, readOnly, highlight,
         const s = runtime.store.getState().snapshot;
         return s ? { t: s.t, lag: s.lag ?? 0 } : null;
       },
+      showMe: (taskId) => runtime.showMe(taskId),
+      panel: (id) => runtime.session.panels[id] ?? null,
     };
     return () => {
       delete window.ohmlandLab;
@@ -66,6 +78,7 @@ export default function BenchView({ runtime, tray, quality, readOnly, highlight,
       readOnly={!!readOnly}
       highlight={highlight}
       locked={locked}
+      frame={frame ?? null}
       labels={m.benchUi}
       onAction={runtime.onAction}
       controllerRef={ctrl}

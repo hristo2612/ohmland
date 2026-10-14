@@ -2,7 +2,7 @@
  * Lab shorthand for bench places: holes ("e12", "rail+:12"), attach points ("R1.a", "W1.b"), spots ("desk:left").
  * Pure: shared by the bench builder, solution replays and the LabView.
  */
-import { boardGeometry, parseHole, type BenchState, type BoardSpec, type HoleId, type Vec2 } from "@ohmland/bench/core";
+import { boardGeometry, parseHole, physicalLeg, type BenchState, type BoardSpec, type HoleId, type Vec2 } from "@ohmland/bench/core";
 
 const RAIL_ALIAS: Record<string, string> = { "rail+": "bp", "rail-": "bn", "top+": "tp", "top-": "tn" };
 
@@ -45,6 +45,17 @@ export function splitHoles(s: string): string[] {
 export function resolveAttach(bench: BenchState, s: string | null | undefined): string | null {
   if (!s) return null;
   const t = s.trim();
+  // "wired:K1.coil1": whichever terminal of a mystery part is wired inside as coil1 (solutions know the secret).
+  if (t.startsWith("wired:")) {
+    const rest = t.slice(6);
+    const dot = rest.lastIndexOf(".");
+    const part = bench.parts.find((p) => p.id === rest.slice(0, dot));
+    return part ? `pin:${part.id}.${physicalLeg(part, rest.slice(dot + 1))}` : null;
+  }
+  // Insulated spots: "wrap:B1" (a battery's wrapper), "base:S1" (a switch's wooden block), "coat:PC1" (a paper
+  // clip's coating). A clip there joins nothing.
+  const spot = /^(wrap|base|coat):([A-Za-z][A-Za-z0-9_-]*)$/.exec(t);
+  if (spot) return bench.parts.some((p) => p.id === spot[2]) ? `pin:${spot[2]}.${spot[1]}` : null;
   if (/^(pin|hole|wire|lead|probe|socket):/.test(t)) {
     if (t.startsWith("hole:")) {
       const h = resolveHole(bench.board, t);

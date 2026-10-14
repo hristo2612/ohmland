@@ -132,8 +132,9 @@ export function drawLcd(ctx: CanvasRenderingContext2D, w: number, h: number, c: 
     const x = x0 + i * pitch;
     const segs = segmentPaths(x, dy, dh, slant);
     const cell = cells[i]!;
-    const lit = new Set(c.on ? GLYPHS[cell.ch] ?? GLYPHS[cell.ch.toUpperCase()] ?? [] : []);
-    // The leading half digit only has segments b and c.
+    // The leading half digit only has segments b and c: it shows a 1 or nothing (a leading 0 stays blank).
+    const shown = i > 0 || cell.ch === "1";
+    const lit = new Set(c.on && shown ? GLYPHS[cell.ch] ?? GLYPHS[cell.ch.toUpperCase()] ?? [] : []);
     const avail: Seg[] = i === 0 ? ["b", "c"] : ["a", "b", "c", "d", "e", "f", "g"];
     for (const s of avail) {
       ctx.fillStyle = lit.has(s) ? ON : GHOST;

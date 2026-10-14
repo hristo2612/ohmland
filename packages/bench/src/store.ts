@@ -5,6 +5,7 @@ import { createContext, useContext } from "react";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
 import type { Snapshot } from "@ohmland/sim";
+import { advanceGates, type GateCounts } from "./flow";
 import * as ops from "./ops";
 import type {
   Anchor,
@@ -48,6 +49,19 @@ export type BenchUi = {
   pressed: Record<string, boolean>;
 };
 
+/**
+ * Teaching overlays drawn over the bench in both views (docs/BENCH-VIEWS.md, "Overlays"):
+ * - `flow`: dots riding every lead and part at a speed from its current ("current", plus to minus), or electrons
+ *   drifting the other way, slowly ("electrons");
+ * - `push`: ink hatching along every lead by its voltage, and a hill on every battery and sealed box;
+ * - `trace`: the loop tracer inking the path from a terminal (`at` is when it started, performance.now() ms).
+ */
+export type BenchOverlay = {
+  flow: "off" | "current" | "electrons";
+  push: boolean;
+  trace: { from: Anchor; at: number } | null;
+};
+
 export type BenchStoreState = {
   bench: BenchState;
   past: BenchState[];
@@ -56,7 +70,16 @@ export type BenchStoreState = {
   txBase: BenchState | null;
   /** Part ids the learner cannot move, rotate or remove (set by the `locked` prop). */
   locked: readonly string[];
+  /** The desk rectangle the camera frames at the start and on "reset view" (set by the `frame` prop), or null for all. */
+  frame: readonly [number, number, number, number] | null;
   snapshot: Snapshot | null;
+  /** Readouts drawn over parts: an LED's stress bar, a resistor's temperature (lab instruments). */
+  inspect: readonly InspectSpec[];
+  /** Room lighting, 1 bright to about 0.1 dim (faint LED glows show up in a dim room). */
+  ambient: number;
+  overlay: BenchOverlay;
+  /** Dots each gate has counted so far (from the snapshots: a gate ticks once per dot that rides past). */
+  gates: GateCounts;
   ui: BenchUi;
   /** Set by <Bench>: receives every BenchAction. */
   emit: (action: BenchAction) => void;
@@ -93,9 +116,20 @@ export type BenchStoreState = {
   deleteSelected: () => void;
   /** Momentary input (pushbutton), not stored in the bench. */
   press: (id: string, pressed: boolean) => void;
+  /** Switch overlays on or off (flow dots, the push view). */
+  setOverlay: (patch: Partial<Omit<BenchOverlay, "trace">>) => void;
+  /** Start the loop tracer from an anchor ("pin:B1.neg"), or clear it with null. */
+  trace: (from: Anchor | null) => void;
 };
 
 export type BenchStore = StoreApi<BenchStoreState>;
+
+/**
+ * A readout over parts. `parts` lists part ids or kinds ("D1", "resistor"). "stress" is a bar of an LED's current
+ * as a share of its maximum (green, amber past half, red past 90%); "heat" a part's temperature with a touch-feel
+ * word (cool, warm, hot, ouch).
+ */
+export type InspectSpec = { show: "stress" | "heat"; parts: readonly string[] };
 
 const HISTORY = 100;
 
@@ -114,8 +148,10 @@ const initialUi = (): BenchUi => ({
   pressed: {},
 });
 
+const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
 export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchStore {
-  return createStore<BenchStoreState>()((set, get) => {
+  const store = createStore<BenchStoreState>()((set, get) => {
     const record = (next: BenchState, action?: BenchAction) => {
       const { bench, txBase, past } = get();
       if (next === bench) return;
@@ -129,7 +165,12 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
       future: [],
       txBase: null,
       locked: [],
+      frame: null,
       snapshot: null,
+      inspect: [],
+      ambient: 1,
+      overlay: { flow: "off", push: false, trace: null },
+      gates: {},
       ui: initialUi(),
       emit: () => {},
 
@@ -240,8 +281,17 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
         set({ ui: { ...get().ui, pressed: { ...cur, [id]: pressed } } });
         get().emit({ type: "input", partId: id, key: "pressed", value: pressed });
       },
+      setOverlay: (patch) => set({ overlay: { ...get().overlay, ...patch } }),
+      trace: (from) => set({ overlay: { ...get().overlay, trace: from ? { from, at: now() } : null } }),
     };
   });
+  // Gates count the dots that ride past them, snapshot by snapshot (simulated time).
+  store.subscribe((s, prev) => {
+    if (s.snapshot === prev.snapshot || !s.bench.parts.some((p) => p.kind === "gate")) return;
+    const dt = s.snapshot && prev.snapshot ? s.snapshot.t - prev.snapshot.t : 0;
+    store.setState({ gates: advanceGates(s.gates, s.bench, s.snapshot, dt) });
+  });
+  return store;
 }
 
 export const BenchStoreContext = createContext<BenchStore | null>(null);

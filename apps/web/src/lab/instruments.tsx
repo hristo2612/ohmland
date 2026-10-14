@@ -5,10 +5,10 @@
  */
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { DIAL_MODES, partDef, type MeterMode, type MeterSocket } from "@ohmland/bench/core";
+import { DIAL_MODES, partLegs, terminalNumber, type MeterMode, type MeterSocket } from "@ohmland/bench/core";
 import { Icon } from "../components/Icon";
 import { m } from "../i18n";
-import type { ControlConfig, Reading, ScopeConfig, ScopeTrace } from "./define";
+import type { ControlConfig, OverlayName, Reading, ScopeConfig, ScopeTrace } from "./define";
 import type { LabRuntime } from "./runtime";
 
 const RANGES: Partial<Record<MeterMode, string[]>> = {
@@ -152,12 +152,21 @@ function readTrace(runtime: LabRuntime, trace: ScopeTrace, seconds: number): Ser
 
 const TRACE_TOKENS = ["--scope-a", "--scope-b"];
 
+/** "1.24 kHz", "440 Hz", "12.1 Hz". */
+export function formatHz(hz: number): string {
+  if (hz >= 1000) return `${(hz / 1000).toFixed(2)} kHz`;
+  return `${hz >= 100 ? Math.round(hz) : hz.toFixed(1)} Hz`;
+}
+
 export function ScopePanel({ runtime, config }: { runtime: LabRuntime; config: ScopeConfig }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [paused, setPaused] = useState(false);
   const [latest, setLatest] = useState<string[]>([]);
+  const [pitch, setPitch] = useState<string>("");
+  const capture = useStore(runtime.ui, (s) => s.capture);
   const seconds = config.window ?? 5;
   const id = useId();
+  const shot = capture?.state === "done" ? capture : null;
   useEffect(() => {
     if (paused) return;
     let raf = 0;
@@ -168,6 +177,21 @@ export function ScopePanel({ runtime, config }: { runtime: LabRuntime; config: S
       last = now;
       const c = canvas.current;
       if (!c) return;
+      if (config.pitch) {
+        const hz = runtime.session.view().toneHz(config.pitch);
+        setPitch(hz ? m.lab.pitch(formatHz(hz)) : m.lab.silent);
+      }
+      if (shot) {
+        // A single shot: times in seconds after the switch, drawn across the capture window.
+        const span = (config.capture?.ms ?? 2) / 1000;
+        const series: Series[] = shot.series.map((s) => ({ label: s.label, unit: "V", points: s.points.map(([t, v]) => [t - span, v] as [number, number]) }));
+        paint(c, series, span, config.range);
+        setLatest(series.map((_, i) => {
+          const lo = Math.min(...shot.series[i]!.points.map((p) => p[1]));
+          return Number.isFinite(lo) ? m.lab.capture.min(`${lo.toFixed(Math.abs(lo) < 10 ? 2 : 0)} V`) : "";
+        }));
+        return;
+      }
       const series = config.traces.slice(0, 2).map((t) => readTrace(runtime, t, seconds));
       paint(c, series, seconds, config.range);
       setLatest(series.map((s) => {
@@ -177,20 +201,22 @@ export function ScopePanel({ runtime, config }: { runtime: LabRuntime; config: S
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [runtime, config, paused, seconds]);
+  }, [runtime, config, paused, seconds, shot]);
   return (
     <section className="instrument scope-panel" aria-labelledby={`${id}-t`}>
       <header className="instrument__head">
         <h3 id={`${id}-t`} className="instrument__title">
           {m.lab.scope.title}
         </h3>
-        <span className="instrument__tag">{m.lab.scope.window(seconds)}</span>
-        <button type="button" className="btn btn--small btn--tertiary" aria-pressed={paused} onClick={() => setPaused((p) => !p)}>
-          <Icon name={paused ? "play" : "minus"} size={16} />
-          {paused ? m.lab.scope.resume : m.lab.scope.pause}
-        </button>
+        <span className="instrument__tag">{shot ? m.lab.capture.span(config.capture?.ms ?? 2) : m.lab.scope.window(seconds)}</span>
+        {!shot && (
+          <button type="button" className="btn btn--small btn--tertiary" aria-pressed={paused} onClick={() => setPaused((p) => !p)}>
+            <Icon name={paused ? "play" : "minus"} size={16} />
+            {paused ? m.lab.scope.resume : m.lab.scope.pause}
+          </button>
+        )}
       </header>
-      <canvas ref={canvas} className="scope-panel__screen" role="img" aria-label={m.lab.scope.label} data-scope />
+      <canvas ref={canvas} className="scope-panel__screen" role="img" aria-label={m.lab.scope.label} data-scope data-capture={capture?.state} />
       <ul className="scope-panel__legend small">
         {config.traces.slice(0, 2).map((t, i) => (
           <li key={i} data-trace={i}>
@@ -199,7 +225,39 @@ export function ScopePanel({ runtime, config }: { runtime: LabRuntime; config: S
             <span className="mono">{latest[i] ?? ""}</span>
           </li>
         ))}
+        {config.pitch && (
+          <li data-pitch>
+            <span className="mono">{pitch}</span>
+          </li>
+        )}
       </ul>
+      {config.capture && (
+        <div className="scope-panel__shot">
+          {capture?.state === "armed" ? (
+            <button type="button" className="btn btn--small btn--soft" aria-pressed="true" onClick={() => runtime.armCapture(false)} data-capture-arm>
+              <Icon name="target" size={16} />
+              {m.lab.capture.armed}
+            </button>
+          ) : capture?.state === "running" ? (
+            <span className="small muted">{m.lab.capture.running}</span>
+          ) : shot ? (
+            <>
+              <button type="button" className="btn btn--small btn--soft" onClick={() => runtime.armCapture(true)} data-capture-arm>
+                <Icon name="target" size={16} />
+                {m.lab.capture.arm}
+              </button>
+              <button type="button" className="btn btn--small btn--tertiary" onClick={() => runtime.armCapture(false)}>
+                {m.lab.capture.live}
+              </button>
+            </>
+          ) : (
+            <button type="button" className="btn btn--small btn--soft" onClick={() => runtime.armCapture(true)} data-capture-arm>
+              <Icon name="target" size={16} />
+              {m.lab.capture.arm}
+            </button>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -265,6 +323,29 @@ function paint(c: HTMLCanvasElement, series: Series[], seconds: number, fixed?: 
     });
     ctx.stroke();
   });
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Views: the overlays a lab offers (flow dots, electrons, push), as toggles
+
+export function ViewsPanel({ runtime, offer }: { runtime: LabRuntime; offer: readonly OverlayName[] }) {
+  const views = useStore(runtime.ui, (s) => s.views);
+  if (!offer.length) return null;
+  const on = (name: OverlayName) => (name === "push" ? views.push : name === "electrons" ? views.flow === "electrons" : views.flow !== "off");
+  return (
+    <section className="instrument views-panel">
+      <header className="instrument__head">
+        <h3 className="instrument__title">{m.lab.views.title}</h3>
+      </header>
+      <div className="views-panel__row" role="group" aria-label={m.lab.views.title}>
+        {offer.map((name) => (
+          <button key={name} type="button" className="btn btn--small btn--tertiary" aria-pressed={on(name)} onClick={() => runtime.setView(name, !on(name))}>
+            {m.lab.views[name]}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -366,7 +447,12 @@ export function ConnectionsPanel({ runtime }: { runtime: LabRuntime }) {
   const id = useId();
   const options = useMemo(() => {
     const out: { value: string; label: string }[] = [];
-    for (const p of bench.parts) for (const leg of partDef(p.kind).legs) out.push({ value: `pin:${p.id}.${leg}`, label: `${p.id} ${m.lab.legs[leg] ?? leg}` });
+    for (const p of bench.parts)
+      for (const leg of partLegs(p)) {
+        // A mystery part's terminals are known only by their numbers.
+        const n = terminalNumber(p, leg);
+        out.push({ value: `pin:${p.id}.${leg}`, label: `${p.id} ${n !== null ? m.lab.terminal(n) : m.lab.legs[leg] ?? leg}` });
+      }
     return out;
   }, [bench.parts]);
   if (!bench.leads.length && !bench.meter) return null;

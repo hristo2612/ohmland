@@ -5,6 +5,7 @@
  * calls.
  */
 import * as THREE from "three";
+import type { Grade } from "./look";
 
 /** The isle's colours. Builders use these keys (or a raw hex string). */
 export const PAL = {
@@ -204,15 +205,22 @@ export class Shape {
   lights: Light[] = [];
   smoke: [number, number, number][] = [];
   pads: [number, number][] = [];
-  /** With bottoms, boxes keep their bottom faces (only the robot needs them: the isle is never seen from below). */
-  constructor(private readonly opts: { bottoms?: boolean } = {}) {}
+  /**
+   * With bottoms, boxes keep their bottom faces (only the robot needs them: the isle is never seen from below). A grade
+   * redraws every colour for a look (a glowing box keeps its lit colour; its day colour is graded).
+   */
+  constructor(private readonly opts: { bottoms?: boolean; grade?: Grade | null } = {}) {}
 
   private put(w: number, h: number, d: number, col: Col, x: number, y: number, z: number, o: BoxOpts): this {
-    tmpC.set(colorOf(col));
+    const grade = this.opts.grade;
+    if (grade && !o.glow) grade(colorOf(col), tmpC);
+    else tmpC.set(colorOf(col));
     let day: THREE.Color | null = null;
     if (o.glow) {
-      if (o.day) tmpD.set(colorOf(o.day));
-      else {
+      if (o.day) {
+        if (grade) grade(colorOf(o.day), tmpD);
+        else tmpD.set(colorOf(o.day));
+      } else {
         const hsl = { h: 0, s: 0, l: 0 };
         tmpC.getHSL(hsl);
         tmpD.setHSL(hsl.h, hsl.s * 0.85, hsl.l * 0.62);

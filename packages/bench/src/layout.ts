@@ -2,8 +2,9 @@
 
 import { parseAnchor } from "./anchors";
 import { PITCH, boardGeometry, boardOrigin, holeWorld } from "./board";
-import { BOARD_TOP, BOARD_CLIP_LIFT, LED, NPN, CERAMIC, electrolyticSize, RESISTOR, DIODE } from "./dims";
-import { canMountOnBoard, footprintOf, isFlying, partDef, rotateXZ } from "./parts";
+import { BOARD_TOP, BOARD_CLIP_LIFT, LED, NPN, CERAMIC, electrolyticSize, RESISTOR, DIODE, blockWidth, OBJECT, GATE } from "./dims";
+import { canMountOnBoard, footprintOf, isFlying, partDef, partLegs, partSpots, rotateXZ } from "./parts";
+import { hiddenParts, holderOf, seatPose } from "./seats";
 import type { Anchor, BenchState, MeterSocket, MeterState, PlacedPart, ProbeColor, Vec2, Vec3 } from "./types";
 
 export type PartPose = {
@@ -18,7 +19,14 @@ export type PartPose = {
   legs: Record<string, Vec3>;
   /** Flexible leads: where each free end lies or which hole it is in (world). */
   ends?: Record<string, { pos: Vec3; inHole: boolean }>;
+  /** Sitting in a holder's seat (the holder's id). */
+  heldBy?: string;
+  /** Laid on its back in its seat (a 9 V battery in a sealed box): turned a quarter about x, top toward -z. */
+  lie?: boolean;
 };
+
+/** A local point of a part laid on its back: its top (+y) now points to the back (-z). */
+export const lieDown = (p: Vec3): Vec3 => [p[0], p[2], -p[1]];
 
 const add3 = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 
@@ -49,23 +57,43 @@ function boardClipLift(part: PlacedPart): number {
 export function isOnBoard(bench: BenchState, part: PlacedPart): boolean {
   if (!bench.board || !canMountOnBoard(part) || !part.holes) return false;
   const geom = boardGeometry(bench.board);
-  return partDef(part.kind).legs.every((leg) => {
+  return partLegs(part).every((leg) => {
     const h = part.holes?.[leg];
     return !!h && geom.holes.has(h);
   });
 }
 
+/**
+ * Where a gate clipped onto a lead sits: `at` of the way along the lead, between its two clips (a straight line: each
+ * view draws the gate on its own drawing of the cable at that fraction), turned along it. Null when it is on nothing.
+ */
+export function gateSpot(bench: BenchState, gate: PlacedPart): { origin: Vec3; rot: number; lead: string } | null {
+  if (gate.kind !== "gate" || !gate.params.on) return null;
+  const id = gate.params.on;
+  const a = anchorPosition(bench, `lead:${id}.a`);
+  const b = anchorPosition(bench, `lead:${id}.b`);
+  if (!a || !b) return null;
+  const t = Math.max(0.08, Math.min(0.92, gate.params.at ?? 0.5));
+  const origin: Vec3 = [a[0] + (b[0] - a[0]) * t, 0, a[2] + (b[2] - a[2]) * t];
+  const rot = (Math.atan2(-(b[2] - a[2]), b[0] - a[0]) * 180) / Math.PI;
+  return { origin, rot, lead: id };
+}
+
 export function partPose(bench: BenchState, part: PlacedPart): PartPose {
   const def = partDef(part.kind);
+  if (part.kind === "gate") {
+    const g = gateSpot(bench, part);
+    if (g) return { mount: "desk", origin: g.origin, rot: g.rot, legs: {} };
+  }
   if (bench.board && isOnBoard(bench, part)) {
     const board = bench.board;
     const legs: Record<string, Vec3> = {};
     const lift = boardClipLift(part);
-    for (const leg of def.legs) {
+    for (const leg of partLegs(part)) {
       const p = holeWorld(board, part.holes![leg]!)!;
       legs[leg] = [p[0], BOARD_TOP + lift, p[1]];
     }
-    const first = holeWorld(board, part.holes![def.legs[0]!]!)!;
+    const first = holeWorld(board, part.holes![partLegs(part)[0]!]!)!;
     let rot = part.rot;
     let span: number | undefined;
     if (def.span) {
@@ -81,13 +109,30 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
     return pose;
   }
 
+  const seat = holderOf(bench, part.id);
+  if (seat) {
+    const sp = seatPose(seat.holder, seat.seat, part);
+    const local = ((def.heldLegs ?? def.deskLegs) as (p: unknown) => Record<string, Vec3>)(part.params);
+    const legs: Record<string, Vec3> = {};
+    for (const leg of def.legs) {
+      const l0 = local[leg];
+      if (!l0) continue;
+      const l = sp.lie ? lieDown(l0) : l0;
+      const [rx, rz] = rotateXZ(l[0], l[2], sp.rot);
+      legs[leg] = add3(sp.origin, [rx, l[1], rz]);
+    }
+    const pose: PartPose = { mount: "desk", origin: sp.origin, rot: sp.rot, legs, heldBy: seat.holder.id };
+    if (sp.lie) pose.lie = true;
+    return pose;
+  }
+
   const origin: Vec3 = [part.pos[0], 0, part.pos[1]];
   const local = (def.deskLegs as (p: unknown) => Record<string, Vec3>)(part.params);
   const legs: Record<string, Vec3> = {};
   const pose: PartPose = { mount: "desk", origin, rot: part.rot, legs };
   if (isFlying(part)) {
     const ends: Record<string, { pos: Vec3; inHole: boolean }> = {};
-    for (const leg of def.legs) {
+    for (const leg of partLegs(part)) {
       const hole = part.holes?.[leg];
       const hp = hole && bench.board ? holeWorld(bench.board, hole) : null;
       if (hp) {
@@ -109,7 +154,7 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
     pose.ends = ends;
     return pose;
   }
-  for (const leg of def.legs) {
+  for (const leg of partLegs(part)) {
     const l = local[leg]!;
     const [rx, rz] = rotateXZ(l[0], l[2], part.rot);
     legs[leg] = add3(origin, [rx, l[1], rz]);
@@ -175,7 +220,8 @@ export function anchorPosition(bench: BenchState, anchor: Anchor, depth = 0): Ve
     case "pin": {
       const part = bench.parts.find((p) => p.id === a.part);
       if (!part) return null;
-      return partPose(bench, part).legs[a.leg] ?? null;
+      const pose = partPose(bench, part);
+      return pose.legs[a.leg] ?? spotWorld(pose, partSpots(part)[a.leg]);
     }
     case "wire": {
       const w = bench.wires.find((x) => x.id === a.wire);
@@ -211,14 +257,39 @@ export function probeTip(bench: BenchState, color: ProbeColor, depth = 0): Vec3 
   return [tip.pos[0], 6.5, tip.pos[1]];
 }
 
+/** An insulated spot (local, as `PartDef.spots` gives it) in world coordinates, for a part's pose. */
+function spotWorld(pose: PartPose, local0: Vec3 | undefined): Vec3 | null {
+  if (!local0) return null;
+  const local = pose.lie ? lieDown(local0) : local0;
+  const [rx, rz] = rotateXZ(local[0], local[2], pose.rot);
+  return [pose.origin[0] + rx, pose.origin[1] + local[1], pose.origin[2] + rz];
+}
+
+/** A part's insulated spots (a battery's wrapper, a switch's block, a paper clip's coating) in world coordinates. */
+export function partSpotsWorld(bench: BenchState, part: PlacedPart): Record<string, Vec3> {
+  const pose = partPose(bench, part);
+  const out: Record<string, Vec3> = {};
+  for (const [name, local] of Object.entries(partSpots(part))) {
+    const p = spotWorld(pose, local);
+    if (p) out[name] = p;
+  }
+  return out;
+}
+
 export type ClipTarget = { anchor: Anchor; pos: Vec3; kind: "pin" | "hole" | "wire" | "probe" | "lead" };
 
-/** Every point a crocodile clip or probe tip can attach to. */
+/** Every point a crocodile clip or probe tip can attach to (parts shut inside a box are out of reach). */
 export function clipTargets(bench: BenchState, opts: { holes?: boolean; probes?: boolean; leads?: boolean } = {}): ClipTarget[] {
   const out: ClipTarget[] = [];
+  const hidden = hiddenParts(bench);
   for (const part of bench.parts) {
+    if (hidden.has(part.id)) continue;
     const pose = partPose(bench, part);
     for (const [leg, pos] of Object.entries(pose.legs)) out.push({ anchor: `pin:${part.id}.${leg}`, pos, kind: "pin" });
+    for (const [name, local] of Object.entries(partSpots(part))) {
+      const pos = spotWorld(pose, local);
+      if (pos) out.push({ anchor: `pin:${part.id}.${name}`, pos, kind: "pin" });
+    }
   }
   if (bench.board) {
     for (const w of bench.wires) {
@@ -233,17 +304,13 @@ export function clipTargets(bench: BenchState, opts: { holes?: boolean; probes?:
       for (const h of geom.holes.values()) out.push({ anchor: `hole:${h.id}`, pos: [ox + h.x, BOARD_TOP + 0.15, oz + h.z], kind: "hole" });
     }
   }
+  // Probe tips and clips can be touched together, wherever they are (on something or lying on the desk).
   if (opts.probes && bench.meter) {
-    for (const c of ["red", "black"] as const) {
-      if (!bench.meter.probes[c].tip.to) continue;
-      out.push({ anchor: `probe:${c}`, pos: probeTip(bench, c), kind: "probe" });
-    }
+    for (const c of ["red", "black"] as const) out.push({ anchor: `probe:${c}`, pos: probeTip(bench, c), kind: "probe" });
   }
   if (opts.leads) {
     for (const l of bench.leads) {
       for (const end of ["a", "b"] as const) {
-        const e = end === "a" ? l.a : l.b;
-        if (!e.to) continue;
         const p = anchorPosition(bench, `lead:${l.id}.${end}`);
         if (p) out.push({ anchor: `lead:${l.id}.${end}`, pos: p, kind: "lead" });
       }
@@ -298,6 +365,33 @@ export function outwardHeading(bench: BenchState, at: Vec3, toward?: Vec3, bias 
   return [hx, hz];
 }
 
+/** Room each desk part needs around its position when framing the bench (mm). */
+const PROP_REACH: Partial<Record<PlacedPart["kind"], number>> = {
+  cup: 52,
+  lemon: 38,
+  fruit: 38,
+  battery: 30,
+  speaker: 24,
+  holder: 34,
+  station: 58,
+  skin: 42,
+  card: 70,
+  bin: 40,
+  chart: 54,
+  clock: 32,
+  showcase: 66,
+  tag: 14,
+  gate: 12,
+  box: 56,
+  schematic: 58,
+  piece: 16,
+  balloon: 26,
+  scarf: 58,
+  paper: 22,
+  comb: 38,
+  wall: 80,
+};
+
 /** Desk rectangle covering the board, parts and meter: [x0, z0, x1, z1]. */
 export function benchBounds(bench: BenchState): [number, number, number, number] {
   let x0 = Infinity;
@@ -319,8 +413,23 @@ export function benchBounds(bench: BenchState): [number, number, number, number]
   for (const p of bench.parts) {
     if (isOnBoard(bench, p)) continue;
     // Tall props reach up toward the camera, so give them more room than their footprint.
+    const block = p.kind === "dpdt-switch" || (p.params as { base?: boolean }).base;
     const big =
-      p.kind === "cup" ? 52 : p.kind === "lemon" ? 38 : p.kind === "battery" ? 30 : p.kind === "speaker" ? 24 : p.kind === "toggle-switch" && p.params.base ? 26 : 14;
+      block
+        ? Math.max(26, blockWidth(partLegs(p).length) / 2 + 4)
+        : p.kind === "sample"
+          ? p.params.material === "plastic"
+            ? 80
+            : p.params.material === "copper"
+              ? 54
+              : OBJECT[p.params.material].len / 2 + 6
+          : p.kind === "bin" && p.params.style === "tray"
+            ? 70
+            : p.kind === "box" && p.params.style === "cabinet"
+              ? 92
+          : p.kind === "battery" && p.params.size && p.params.size !== "9v"
+            ? 28
+            : (PROP_REACH[p.kind] ?? 14);
     grow(p.pos[0], p.pos[1], big);
   }
   // An empty desk still has a work area to frame (otherwise a lone meter fills the view).
@@ -358,10 +467,12 @@ export function fitCamera(
   top = false,
   pad: { left?: number; bottom?: number } = {},
   fovDeg = 32,
+  /** A desk rectangle [x0, z0, x1, z1] to frame instead of the whole bench (a lab's working area). */
+  frame?: readonly [number, number, number, number] | null,
 ): { position: Vec3; target: Vec3 } {
   // On a tall, narrow screen frame the board alone (the learner can zoom out to reach the meter).
   const portrait = aspect < 0.85 && !!bench.board;
-  const [x0, z0, x1, z1] = portrait ? benchBounds({ ...bench, parts: [], leads: [], meter: null }) : benchBounds(bench);
+  const [x0, z0, x1, z1] = frame ?? (portrait ? benchBounds({ ...bench, parts: [], leads: [], meter: null }) : benchBounds(bench));
   // `pad` gives the fractions of the view covered by panels; fit into what is left and shift away from them.
   const visible = 1 - Math.min(0.6, Math.max(0, pad.left ?? 0));
   const visibleY = 1 - Math.min(0.5, Math.max(0, pad.bottom ?? 0));

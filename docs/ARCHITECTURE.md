@@ -9,7 +9,9 @@ same commit.
 
 ## Principles
 
-1. **Discover first.** Every lesson starts with something to try (and often to break), then explains it.
+1. **Discover first.** Every lesson starts with something to try (and often to break), then explains it. Bench
+   lessons (below) keep the learner at the bench the whole time; `docs/DESIGN-PRINCIPLES.md` sets how much goes on a
+   screen and how much we say.
 2. **The simulator is the teacher.** LEDs glow because current flows, parts burn out because power exceeds a rating,
    capacitors charge along a real curve. Labs check goals against simulated state, never against scripted fakes.
 3. **Local first.** Guests can do everything with no account. Progress lives on the device and syncs to Firebase
@@ -113,8 +115,44 @@ upcoming:                     # planned units, shown as "coming soon" until thei
   - { id: switching, title: Switching, summary: "..." }
 ```
 
-`lesson.yaml` (fields marked md accept a small markdown subset: paragraphs, `-`/`1.` lists, `**bold**`, `*italic*`,
-`` `code` ``, `[links](https://...)`; everything else is escaped):
+A lesson comes in one of two formats. **Bench lessons** (`format: bench`) are the format every lesson is moving to:
+the lab is the lesson, a short run of beats, each a robot line plus one thing to do on the bench plus an optional
+discovery. **Stepper lessons** (no `format`) are the classic hook, lab, explain, quiz and wrap. The loader reads both
+during the migration (`lessonSchema` and `benchLessonSchema` in `schema.ts`, told apart by `format`); `LessonData` is
+their union.
+
+A bench lesson (full guide: `docs/LESSONS.md`):
+
+```yaml
+format: bench
+id: first-glow                # globally unique, kebab-case, stable forever
+version: 2
+title: Your first glow
+summary: One sentence for the course map.
+minutes: 8
+lab: first-glow               # content/labs/first-glow.ts: the bench, the tasks (goals, setups, nudges), the solution
+unlocks: { parts: [led-red], isle: led-lamp }
+start: { title: "Wake the robot's face", say: "My face is one LED. Dark for weeks. Wire me a glow?", go: "Let's wire it" }
+beats:                        # 1 to 16; each: say + at most one of meet | do | tap | pick | number | popup
+  - { say: "This is an LED. Tap it.", objective: Make it glow, meet: D1, note: { at: D1, text: LED } }
+  - { say: "Clip a loop. Plus, resistor, LED, minus.", do: build-loop, done: "It glows!", note: { at: R1, text: "holds it to about 5 mA" } }
+  - { say: "Quick one. Tap the long leg.", tap: { answer: D1.anode, among: [D1.anode, D1.cathode] }, rule: "LED: long leg to plus." }
+  - { say: "Swap the LED's legs. Guess first.", guess: { options: [...], answer: It goes dark }, do: flip-led }
+secret: { task: no-resistor, say: "Curious? Leave the resistor out.", done: "...", note: { ... }, rule: "..." }   # a bonus task
+fixit: { say: "Fix-it time.", tasks: [{ task: fix-reversed }], timer: 60 }   # tasks with a `setup`; the clock is opt-in
+end: { say: "You built that from scratch." }
+```
+
+Optional on a beat: `objective` (groups beats; the robot's eyes fill per objective), `spot` (parts to frame and
+spotlight), `xray`, `tool` (the one instrument or panel shown), `guess` (before a `do`), `done`, `note`, `rule`,
+`hint` and `wrong` (on demand). Word limits per kind of line (robot line 12, note 6, rule 8, chip 4), at most 3 rules
+and one pop-up card, and the budgets (main path under 150 words, on-demand text under 60) are build errors. The
+loader checks the lab file exists; `apps/web/src/lesson/bench/lessons.test.ts` checks a bench lesson against its lab
+(tasks exist, the lab's required tasks are the beats' and fix-it's tasks in order, setups open their solution
+segments, tools and anchors exist).
+
+A stepper `lesson.yaml` (fields marked md accept a small markdown subset: paragraphs, `-`/`1.` lists, `**bold**`,
+`*italic*`, `` `code` ``, `[links](https://...)`; everything else is escaped):
 
 ```yaml
 id: meet-the-meter            # globally unique, kebab-case, stable forever (progress keys on it)
@@ -208,8 +246,11 @@ type LearnerState = {
 ```
 
 `inProgress[id].version` is the lesson version the answers belong to; answers for another version are not resumed.
-`answers` keys are the player's own (`item:<quizItemId>`, `predict:<step>`, `card:<step>`, `quiz:<step>`,
-`tasks:<labId>`). Theme and motion are also mirrored to `localStorage` (`ohmland:theme`, `ohmland:motion`) so an
+`answers` keys are the player's own: stepper lessons use `item:<quizItemId>`, `predict:<step>`, `card:<step>`,
+`quiz:<step>` and `tasks:<labId>`; bench lessons save `step` as the current beat plus one (0 is the start screen) and
+`check:<beatKey>` (`{ first, done, at? }`), `guess:<beatKey>`, `tasks:<labId>` and `fixit:clock`. Bench lessons
+record XP like stepper lessons: graded checks are `items`, those right on the first try are `firstTry`, lab tasks are
+`tasks`. Theme and motion are also mirrored to `localStorage` (`ohmland:theme`, `ohmland:motion`) so an
 inline head script can apply them before the first paint.
 
 Derived, never stored:
@@ -269,7 +310,7 @@ some) is asked whether to add it; a guest signing in to a new account is not ask
 `[A-Za-z0-9_-]{1,64}` to sync.
 
 The lesson player reports to the island through `IsleHooks` (`lesson/isle-hooks.ts`): `prefetch()` once the learner
-moves past the quiz (never on a lesson's first load), `prime()` inside the tap on "Finish lesson" (the isle's
+moves past the quiz, or in a bench lesson reaches the fix-it round or the sign-off (never on a lesson's first load), `prime()` inside the tap on "Finish lesson" (the isle's
 `primeAudio()`), and `reveal({ before, after, outline, muted, signal, onShow })` after a first finish is saved. The
 reveal frames the island above its caption card (`inset`). The reveal is a modal
 dialog (`isle/reveal.tsx`, loaded on demand) that resolves with what it showed once the learner closes it. Through
@@ -283,6 +324,15 @@ A Modified Nodal Analysis engine with Newton-Raphson for nonlinear parts and com
 inductors, run in a Web Worker. Small circuits (under about 60 nodes) must run in real time; the heaviest Unit 2
 circuit (the five-transistor siren) runs at about 4 x real time. Models, defaults and numbers: `packages/sim/README.md`.
 
+It is mixed-signal for the later units. The 555 and logic chips are behavioural: comparators and logic levels are read
+from node voltages, internal state (a latch, a count) changes as events, and the solver sees only what the pins do (an
+output is a source behind a resistance, an input is a protection diode to each rail plus a very weak pickup, so an
+unconnected input reads noise, not 0). The engine locates threshold crossings in time (`Device.crossing`), applies
+output changes after their propagation delay as soft breaks (`Ctx.markEdge`: a nanosecond settle step, then a
+moderate restart), lets many-pin devices declare sparse coupling (`Binder.group`), and has a watchdog that skips ahead
+if a circuit ever pins it to nanosecond steps. A 1 kHz 555 clock into three 4026B counters and displays (89 unknowns)
+runs at about 3.7 x real time.
+
 Netlist contract (stable; `packages/bench` and `content/labs` depend on it):
 
 ```ts
@@ -293,12 +343,12 @@ type PartSpec =                            // discriminated by kind; pins map pi
       tolerance?: number; actualOhms?: number }        // tolerance default 0.05; actualOhms forces the real value
   | { id: string; kind: "battery"; pins: { pos: NodeId; neg: NodeId }; emf: number; internalOhms: number; mAh?: number }
   | { id: string; kind: "led"; pins: { anode: NodeId; cathode: NodeId }; color: LedColor; maxmA?: number }
-  | { id: string; kind: "switch"; pins: { a: NodeId; b: NodeId }; closed: boolean }        // input: closed
+  | { id: string; kind: "switch"; pins: { a: NodeId; b: NodeId }; closed: boolean; bounce?: Bounce }  // input: closed
   | { id: string; kind: "pushbutton"; pins: { a: NodeId; b: NodeId }; pressed?: boolean;
-      normallyClosed?: boolean }                                                            // input: pressed
-  | { id: string; kind: "spdt"; pins: { com: NodeId; a: NodeId; b: NodeId }; to: "a" | "b" }  // input: to
+      normallyClosed?: boolean; bounce?: Bounce }                                           // input: pressed
+  | { id: string; kind: "spdt"; pins: { com: NodeId; a: NodeId; b: NodeId }; to: "a" | "b"; bounce?: Bounce }  // input: to
   | { id: string; kind: "dpdt"; pins: { com1: NodeId; a1: NodeId; b1: NodeId; com2: NodeId; a2: NodeId; b2: NodeId };
-      to: "a" | "b" }                                       // two SPDT poles on one actuator; input: to
+      to: "a" | "b"; bounce?: Bounce }                      // two SPDT poles on one actuator; input: to
   | { id: string; kind: "fuse"; pins: { a: NodeId; b: NodeId }; amps: number }
   | { id: string; kind: "capacitor"; pins: { pos: NodeId; neg: NodeId }; farads: number; volts?: number; polarized?: boolean;
       leakOhms?: number; esrOhms?: number; tolerance?: number; actualFarads?: number }
@@ -315,8 +365,20 @@ type PartSpec =                            // discriminated by kind; pins map pi
       mode: MeterMode; range?: string }                     // input: mode, range, replaceFuse
   | { id: string; kind: "probe-resistance"; pins: { a: NodeId; b: NodeId }; ohms: number }  // skin, water; input: ohms
   | { id: string; kind: "cell"; pins: { pos: NodeId; neg: NodeId }; emf: number; internalOhms: number }  // fruit cell etc.
-  | { id: string; kind: "wire"; pins: { a: NodeId; b: NodeId }; ohms?: number };  // ohms: clip and test leads
+  | { id: string; kind: "wire"; pins: { a: NodeId; b: NodeId }; ohms?: number }   // ohms: clip and test leads
+  // Later units. Chip pins are named (pin-number order: TIMER555_PINS, LOGIC_PINOUTS[model], SEVENSEG_PINS) and may
+  // be left out; an unconnected chip input floats.
+  | { id: string; kind: "inductor"; pins: { a: NodeId; b: NodeId }; henries: number; ohms?: number; watts?: number }
+  | { id: string; kind: "timer555"; pins: Partial<Record<"gnd" | "trig" | "out" | "reset" | "ctrl" | "thresh" | "dis" | "vcc", NodeId>>;
+      cmos?: boolean }                                      // input: proximity
+  | { id: string; kind: "logic"; model: LogicModel; pins: Partial<Record<string, NodeId>> }   // input: proximity
+  | { id: string; kind: "sevenseg"; pins: Partial<Record<"a" | "b" | "c" | "d" | "e" | "f" | "g" | "dp" | "com" | "com2", NodeId>>;
+      common: "cathode" | "anode"; color?: LedColor; maxmA?: number }
+  | { id: string; kind: "regulator7805"; pins: { in: NodeId; gnd: NodeId; out: NodeId }; heatsink?: boolean };
 type MeterMode = "off" | "dcv" | "acv" | "dca-ma" | "dca-10a" | "ohm" | "continuity" | "diode";
+type Bounce = boolean | number;                // contact chatter: true 1 to 5 ms (seeded), or the longest in ms
+type LogicModel = "74HC00" | "74HC02" | "74HC04" | "74HC08" | "74HC14" | "74HC27" | "74HC32" | "74HC74" | "74HC86"
+  | "74HC393" | "4026B";                       // each model has its own pin-name type in types.ts
 ```
 
 The sim package owns the exact types (`packages/sim/src/types.ts`) and may add kinds and optional params, but must
@@ -331,8 +393,10 @@ import { createSimClient } from "@ohmland/sim/client"; // main thread: no engine
 const sim = await createSimClient();            // createSimulation() is the same API in-thread
 sim.load(netlist);                               // full rebuild; keeps state (charge, damage, heat, wear) of parts whose id survives
 sim.setInput(partId, key, value);                // pressed, closed, to, position, light, ohms, mode, range,
-                                                 // replaceFuse (meter: fit a new mA fuse), replace (any part: fresh part, same id)
+                                                 // replaceFuse (meter: fit a new mA fuse), replace (any part: fresh part, same id),
+                                                 // bounce (contacts), proximity (chips: a hand near floating inputs, 0..1)
 sim.run({ speed: 1 });                           // real time; below 1 slow motion; up to 3600 time-lapse (audio muted above 4)
+                                                 // in-thread step(dt, { speed }) takes a time-lapse's larger steps (replays)
 sim.onSnapshot((s: Snapshot) => ...);            // about 30 per second
 type Snapshot = {
   t: number;                                     // simulated seconds
@@ -345,7 +409,7 @@ type PartState = {
   i: number; v: number; p: number;               // current through (first pin to second), voltage across, power
   temp: number;                                  // degrees C
   health: "ok" | "hot" | "smoking" | "dead";     // dead parts become open
-  glow?: number;                                 // LEDs: 0..1 perceived brightness (30 ms average, brief flashes held)
+  glow?: number;                                 // LEDs, displays: 0..1 perceived brightness (30 ms average, brief flashes held)
   closed?: boolean;                              // relays, switches
   display?: string;                              // multimeter: "9.12", "OL", "-0.42", " .000"
   unit?: string;                                 // multimeter annunciator
@@ -353,30 +417,55 @@ type PartState = {
 };
 type SimEventType = "damaged" | "died" | "blown" | "clicked" | "shorted" | "reversed" | "smoke" | "meter-fuse"
   | "spark" | "warning";                        // data.cause on damage events: reverse, overvoltage, overcurrent,
-                                                 // overheat, overpower, worn; clicked has data.to ("no" | "nc")
+                                                 // overheat, overpower, worn; on warnings: a10-heat, overload,
+                                                 // oscillating, undervoltage, overvoltage, thermal-shutdown;
+                                                 // clicked has data.to ("no" | "nc"); a display's events data.segment
 ```
 
 Sign conventions worth knowing: a battery's `i` flows from `pos` to `neg` through the part, so it is negative while
 the battery discharges; `extra.out` is the current it delivers from its + terminal. For transistors `i` is the
-collector current and `v` is Vce (collector minus emitter), not the first-pin-to-second-pin rule.
+collector current and `v` is Vce (collector minus emitter), not the first-pin-to-second-pin rule. For a 555 `i` is
+the current pin 3 sources (negative while sinking) and `v` its voltage above ground; for a logic chip `i` is its
+supply current and `v` its supply voltage, and `extra` holds each pin's level by name (`L`, `H`, `X` for the undefined
+band, `Z` floating, `~` held by the oscillation guard) plus counts (`count`, `count1`, `digit`); a display's `extra`
+has each segment's glow (`a` to `g`, `dp`) and the `digit` they make.
 
 Audio: speakers expose an audio-rate sample stream (`sim.onAudio`, 44.1 kHz with the rate passed along) for an
 AudioWorklet.
 
 Damage is part of the lesson design: LEDs die above their current rating, resistors smoke above their power rating,
 fuses blow on I squared t, the meter's mA input fuse blows, batteries heat when shorted, electrolytics vent when
-reversed or over-volted, speakers cook above their rating, contacts spark and wear out. Every damage event carries
-enough context for the lab to explain what happened.
+reversed or over-volted, speakers cook above their rating, contacts spark and wear out, coils cook on a battery, a
+555 dies with pin 7 tied to + or its output shorted, 9 V destroys a 74HC chip, a backwards chip dies, shorted or
+fighting logic outputs warn and then wear out, a 7805 without a heat sink goes into thermal shutdown. Every damage
+event carries enough context for the lab to explain what happened.
 
 ## Workbench (`packages/bench`)
 
-React Three Fiber components and logic for the lab bench:
+React Three Fiber components and logic for the lab bench, in two interchangeable views of one store
+(docs/BENCH-VIEWS.md): the 3D bench on grid paper and the 2D ink bench. `<BenchView view>` (from
+`@ohmland/bench/view`, which has no three.js) lazy-loads the renderer and hands out a `BenchController` (`project`,
+`onViewChange`, `focus`, `spotlight`) that stays the same object across view switches.
 
+- The 3D view is drawn as a page of the Lab Notebook: an unlit grid-paper desk in the page colour, soft paper-matched
+  light, matte materials, contact shadows redrawn only when the bench changes, and on high quality a depth-based ink
+  outline pass. It follows the page's notebook tokens (light and night pages).
 - Procedural low-poly part models built in code (no downloaded models), clean and readable: resistor with correct
-  colour bands for its value, LEDs (3 and 5 mm, colours, glow + bloom), 9 V battery and snap, alligator test leads,
+  colour bands for its value, LEDs (3 and 5 mm, colours, glow + bloom), 9 V battery and snap, mini clip test leads,
   jumper wires, solderless breadboard, multimeter (rotary dial, LCD, banana sockets, probes), pushbutton, slide and
-  toggle switches, fuse, capacitors (electrolytic, ceramic), potentiometer, relay, NPN transistor (TO-92),
-  phototransistor, small speaker, plus lab props (cups of water, fruit cells).
+  toggle switches, fuse, capacitors (electrolytic, ceramic, with legs that bend to reach holes up to seven apart),
+  potentiometer, relay (DPDT, or single changeover with `poles: 1`), NPN transistor (TO-92), phototransistor, small
+  speaker, touch pads, AA and coin cells, 1 W and 5 W resistors, plus lab props: cups of water, fruit cells, a
+  resistor holder, a battery tester, a lemon half with copper and zinc electrodes, a skin patch, a copper wire and a
+  plastic ruler, a pencil card, value labels, a reject bin, a colour chart, a desk clock, a display case.
+- Desk modules for circuits built with clip leads: a pushbutton, slide or toggle switch, panel pot, relay or DPDT
+  switch (`dpdt-switch`) mounted on a wooden block with brass screw terminals (`base: true`, `tag` prints a name on
+  its front). A relay or DPDT switch can be a mystery (`mystery`: its terminals are wired inside in a shuffled order
+  and show only numbers; `peek` shows the inside). `partLegs(part)` gives the leads a part actually has.
+- Holders have seats (`PartDef.seats`, who sits where in `params.held`): a part dropped on one goes in and its leads
+  join the holder's contacts. Props have settings and actions on the selection bar and clickable spots on the model
+  (`PartDef.settings`, `actions`, `hotspots`). A part dropped right on one of its kind swaps places and wiring.
+- The store also holds `inspect` (stress and heat readouts drawn over parts) and `ambient` (room lights, 1 to 0.1).
 - Interaction: drag from a tray, snap leads into breadboard holes, rotate, delete, wire hole to hole, clip alligator
   leads and meter probes onto leads or terminals. Mouse, touch and keyboard.
 - `benchToNetlist(bench: BenchState): { netlist: Netlist; nodeOf(anchor): NodeId }` using union-find over the
@@ -387,7 +476,10 @@ React Three Fiber components and logic for the lab bench:
 
 `@ohmland/bench/core` exports the pure half (BenchState ops, layout, `benchToNetlist`, the store) without React Three
 Fiber or three.js, for lab runtimes, solution replays and tests. `benchToNetlist` gives each crocodile lead 0.15 Ω
-(`leadOhms`, 0 merges the clips into one node). `<Bench locked>` keeps parts in place; `<Bench store>` without a
+(`leadOhms`, 0 merges the clips into one node) and each plugged-in meter probe lead 0.1 Ω (`probeOhms`, parts
+`<meter>:red` and `<meter>:black`). Part mappings may build small internal networks (the skin's and the pencil
+line's resistor ladders, internal nodes named `<id>#k`) and look at other parts (`NetContext`: a fruit cell reads its
+electrodes). `<Bench locked>` keeps parts in place; `<Bench store>` without a
 `snapshot` prop leaves the snapshot to whoever owns the store (each part model subscribes to its own state).
 
 ## Labs (`content/labs/*.ts`)
@@ -418,21 +510,63 @@ export default defineLab({
 ```
 
 Places (`at`) are shorthand: holes (`"e12"`, `"e5-e9"`, `"rail+:12"`), `"rails"` for a snap battery, desk spots
-(`"desk:x,z"` in mm). Attach points are `"R1.a"`, `"e12"`, `"W1.b"`, `"TL1.a"`, `"red"`. `defineLab` checks the
-cheap invariants (kebab-case id, unique task and part ids, checkpoints that name real tasks) when the lab loads. The
-first-draft form of the Unit 1 and 2 stubs (simulator kinds, `props`, `kind: "wire"` leads) still loads.
+(`"desk:x,z"` in mm), a holder's seat (`"in:H1"`), and in solutions another part's place (`"on:B1"`, a swap).
+Attach points are `"R1.a"`, `"e12"`, `"W1.b"`, `"TL1.a"`, `"red"`, and in solutions `"wired:K1.coil1"` (the terminal
+of a mystery part wired as that lead). `frame` names the desk rectangle the camera frames. `defineLab` checks the
+cheap invariants (kebab-case id, unique task, part and panel ids, checkpoints and panel answers that name real tasks
+and panels) when the lab loads. The first-draft form of the Unit 1 and 2 stubs (simulator kinds, `props`,
+`kind: "wire"` leads) still loads.
+
+Labs can declare panels (worksheets beside the tasks, `panels.ts` logic and `panels-ui.tsx`): continuity and truth
+tables that fill themselves from the bench, a pin map that counts wrong submissions, tags, a hole hunt and a symbol
+builder. Instruments beyond the meter and scope: a data logger (plot from a trigger, with a cursor), a stopwatch
+(starts on a switch, stops on a relay's contact, keeps runs), an auto-tapper (works a pushbutton in simulated time)
+and `{ kind: "inspect" }` readouts over parts. The scope can take a single shot: the runtime pauses the worker,
+applies the learner's switch action and steps the simulator in sub-microsecond to tens-of-microsecond steps through
+the next few milliseconds (a coil's kickback).
 
 `goal` receives a read-only `LabView` (`createLabView(...)`, pure): the bench, the latest snapshot, the event log and
 recent history, the meter (mode, range, sockets, parsed value), the notebook, and helpers for the blueprint's checks
-(`isLit`, `closed`, `fried`, `died`, `event`, `count`, `volts`, `amps`, `connected`, `seriesLoop`, `loopOpen`,
-`across`, `inSeries`, `meterReads`, `heldFor`, `history`, `blinkPeriod`, `toneHz`, `relayClicks`, `logged`, `note`,
-`control`, `trigger`, per-task `memory`). Required tasks are checked in order, one at a time; bonus tasks all the
+(`isLit`, `closed`, `fried`, `died`, `event`, `count`, `volts`, `amps`, `connected`, `joins`, `legs`, `seriesLoop`,
+`chain`, `parallel`, `loopOpen`, `across`, `probed`, `inSeries`, `meterReads`, `heldFor`, `history`, `stats`,
+`timeAbove`, `periods`, `blinkPeriod`, `relayPeriods`, `toneHz`, `toneHistory`, `relayClicks`, `actual`, `panel`,
+`runs`, `loggerStart`, `tapping`, `logged`, `note`, `control`, `holds`, `heldBy`, `distance`, `doneAt`, `trigger`,
+per-task `memory` and lab-wide `shared`). Required tasks are checked in order, one at a time; bonus tasks all the
 time. Every lab ships a `solution` (bench actions with `check` points); `apps/web/src/lab/solutions.test.ts` replays
-each one headlessly (`replay.ts`: bench ops + the in-thread simulator) and fails when a required task is not done.
+each one headlessly (`replay.ts`: bench ops + the in-thread simulator) and fails when a required task is not done or
+a lab has no solution. Controls can drive a part's input (every part of a kind with `part: "*"`), the run speed
+(`key: "speed"`, a time-lapse the replay fast-forwards too) or the room lights (`key: "room"`).
+
+Bench lessons (`apps/web/src/lesson/bench`):
+
+- `LessonPlayer` hands a `format: bench` lesson to `BenchLesson`, the shell: the bar (close, title, the 3D or ink
+  toggle, the notebook button), the margin (the robot, whose eyes are the progress; its one line; the current
+  objective as a kicker; the one action: a button, chips, a number box, Hint and Show me) and the bench. On phones the
+  bench is on top and the margin is a strip under it; the notebook page is a sheet. The flow is pure (`flow.ts`:
+  moments, first tries, score, rules, the eyes) and tested.
+- The first screen is the mission (title, the robot's line, one button) over a paper placeholder. The `Stage` chunk
+  (the lab runtime, the bench, the ink layer) and the bench renderer warm on the learner's first gesture (pointer
+  move, tap or key) or after 3 s, so a lesson's first load has no three.js and no simulator.
+- `Stage` runs a `LabRuntime` on a gated copy of the lab: only the current beat's task (and the secret) can complete,
+  so the session's in-order task checks follow the beats. Entering a beat applies its task's `setup` on top of the
+  task's solution checkpoint (`runtime.checkpoint`), frames and spotlights its parts (`controller.focus`,
+  `spotlight`), toggles the x-ray and shows its one tool. Task nudges are checked about five times a second and said
+  once a mistake has held for 0.8 s of simulated time. The tray shows only during task beats with something left in
+  it, decided per beat so the bench never reframes under the learner's hand.
+- The ink layer (`Annotations.tsx`) draws notes (an arrow and one line that write themselves, then fade to a dot),
+  part names, ticks, pencil rings and breadboard strip outlines in an SVG over the bench, placed with
+  `BenchController.project()`, so it is the same over both views. Tap targets (spread apart with leader lines when
+  they would overlap), the hole layer (nearest hole; a hole's name is the keyboard path) and the one pop-up card sit
+  over it as HTML.
+- The bench comes through the adapter `lab/bench-view.ts` (the view preference, `ohmland:bench-view` in
+  `localStorage`: ink on phones, 3D on desktops; the controller contract; the `BenchSurface` chunk, which renders
+  packages/bench's `<BenchView>` and passes its controller hub on).
+- Finishing: `completeLesson` with the score, the island reveal through `IsleHooks`, then `BenchFinale`: the robot's
+  eyes full, the XP tally in blue ink, the level, and the notebook page (`NotebookPage.tsx`) signed off.
 
 Runtime (`apps/web/src/lab`):
 
-- `LabStepHost` (lesson player) lazy-loads `LabStep` and the lab module (`import.meta.glob`, one chunk per lab);
+- `LabStepHost` (stepper lesson player) lazy-loads `LabStep` and the lab module (`import.meta.glob`, one chunk per lab);
   `LabStep` lazy-loads `BenchView`, the only module that imports three.js. `prefetch.ts` warms all three, spawns
   the simulator worker and draws the bench's desk texture (`prepareBench()`, when idle) on the learner's first tap on
   the step before the lab (or after 4 s), never during first load; a lesson resumed at its lab starts them all at
@@ -449,13 +583,17 @@ Runtime (`apps/web/src/lab`):
   `task` lab event; dead parts go to `recordFried(kind, label, lessonId, { silent: true })` with an in-lab card and
   "Replace part" (`replace` input) or "Replace meter fuse" (`replaceFuse`); triggers go to `labEvent`.
 - Instruments panel: the meter readout (mirrors the LCD, dial and range settable), the scope (canvas, two traces of
-  history), sliders, the notebook and a connections panel (every clip and probe as selects: the keyboard path).
-- Sound: short synthesised cues and the speaker stream through an AudioWorklet (ScriptProcessor fallback), created
-  on the learner's first tap, silent when muted.
+  history, a single shot, a pitch readout), the logger, stopwatch and tapper, sliders (a slider can drive every part
+  of a kind: the desk lamp lights every phototransistor), the lab's panels, the notebook and a connections panel
+  (every clip and probe as selects: the keyboard path).
+- Sound: short synthesised cues, relay clicks synthesised from `clicked` events (a buzz when they come fast) and the
+  speaker stream through an AudioWorklet (ScriptProcessor fallback), created on the learner's first tap, silent when
+  muted.
 - Layout: bench beside the panel on desktops; on phones the bench takes 55% and the panel is a bottom sheet. Quality
   is automatic (low on phones, small or weak devices and software WebGL) with a toggle remembered in
   `localStorage` (`ohmland:bench-quality`).
-- `window.ohmlandLab` (`project`, `pickAt`, `bench`, `status`, `part`, `meter`, `sim`) is a test and tutorial hook.
+- `window.ohmlandLab` (`project`, `pickAt`, `bench`, `status`, `part`, `meter`, `sim`, `showMe`, `panel`, and in bench
+  lessons `step` (apply one solution step) and `view`) is a test and tutorial hook.
 
 The free-build bench (`/bench`, `Sandbox.tsx`) is the same runtime with no tasks: the tray comes from the parts bin
 (`sandbox-parts.ts`, a battery and three clip leads for everyone), the meter and scope come with their parts, builds
@@ -479,7 +617,12 @@ latest events added. Each unit is its own island in an archipelago, linked by ca
 
 Look: a floating circuit board. Matte solder-mask green land, copper trace roads with vias, white silkscreen marks,
 components as buildings (capacitor towers, IC factories, resistor rows, LED street lamps), layered FR4 edges, dangling
-wire roots, clouds. The mascot (a small voxel robot with an LED face) floats over the square.
+wire roots. The mascot (a small voxel robot with an LED face) floats over the square.
+
+- `opts.look: "notebook" | "classic"` (default `"notebook"`): notebook draws the island on grid paper with graphite ink
+  outlines, a pencil shadow and calmer motion, and a "night page" at night; classic is the original sky look.
+- `opts.paper: "grid" | "plain" | "clear"` (notebook only): `"clear"` leaves the canvas transparent so a page that
+  already has grid paper shows through and the grids line up.
 
 ## Routes
 
@@ -506,8 +649,9 @@ wire roots, clouds. The mascot (a small voxel robot with an LED face) floats ove
 
 Vitest for pure logic that is easy to get wrong: simulator golden circuits, netlist building, XP/levels, progress
 merge, island determinism, SI parsing, the resistor colour code, the cloud document packing and the sync write queue.
-Playwright for a few critical paths: finish a lesson as a guest, a guest's pages load no Firebase, complete a lab,
-island reveal. Plus `pnpm lint:copy` (no em dashes), the content check (the web build fails on invalid content) and
+Playwright for a few critical paths: finish the first lesson (a bench lesson) as a guest, a lesson's first load has no
+three.js, a guest's pages load no Firebase, play the two other reference bench lessons through on the real bench,
+switch the bench view mid-lesson, the island reveal, the free-build bench. Plus `pnpm lint:copy` (no em dashes), the content check (the web build fails on invalid content) and
 `pnpm --filter @ohmland/web lint:colors` (no raw colours or durations outside `tokens.css`).
 
 With the Firebase emulators (Java 21+, `docs/ACCOUNTS.md`): `pnpm test:rules` runs `apps/web/rules` (Vitest and
@@ -515,8 +659,9 @@ With the Firebase emulators (Java 21+, `docs/ACCOUNTS.md`): `pnpm test:rules` ru
 (sign in with the Auth emulator's fake Google user, sync, offline, a second device, the "progress from before"
 question, account deletion, a change sent while the tab closes) against an emulator build.
 
-`apps/web/scripts/screenshots.mjs` takes screenshots of every page and lesson step in both themes at 1440x900 and
-390x844 for visual review; a curated set lives in `apps/web/screenshots/` (with the lab shots from
+`apps/web/scripts/lesson-shots.mjs` plays the reference bench lessons on the real bench and screenshots every moment
+(desktop and phone, light and dark, 3D and ink). `apps/web/scripts/screenshots.mjs` takes screenshots of every page
+and stepper lesson step in both themes at 1440x900 and 390x844 for visual review; a curated set lives in `apps/web/screenshots/` (with the lab shots from
 `scripts/lab-shots.mjs`). Headless Chromium gets WebGL from SwiftShader (`--use-angle=swiftshader
 --enable-unsafe-swiftshader`). The island's clock is pinned (`?time=12:00` in light shots, `22:00` in dark ones),
 seeded learners (`scripts/seed.mjs`: one lesson done, the first module done, or one lesson short of it) use fixed

@@ -5,11 +5,14 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useThree } from "@react-three/fiber";
 import type { CameraControls as CameraControlsImpl } from "@react-three/drei";
+import { parseAnchor } from "../anchors";
 import { BOARD_PRINT, boardGeometry, boardOrigin, nearestHole } from "../board";
 import { BOARD_TOP } from "../dims";
 import { DIAL_MODES, METER, anchorPosition, clipTargets, fitCamera, meterLocalToWorld, nearestSocket, partPose, workCenter } from "../layout";
+import { BOX, CARD } from "../dims";
 import * as ops from "../ops";
-import { canMountOnBoard, footprintOf, partDef, rotateXZ } from "../parts";
+import { penStroke, settingParams } from "../ops";
+import { canMountOnBoard, footprintOf, isThrowSwitch, partDef, rotateXZ } from "../parts";
 import type { BenchStore } from "../store";
 import type { Anchor, BenchAction, BenchState, MeterMode, Selection, TrayItem, Vec2 } from "../types";
 import { PICK_LAYER, pickOf, type Pick } from "./pick";
@@ -41,7 +44,8 @@ type Drag =
   | { kind: "dial" }
   | { kind: "rotor"; id: string }
   | { kind: "press"; id: string }
-  | { kind: "lead"; id: string };
+  | { kind: "lead"; id: string }
+  | { kind: "draw"; id: string; base: { length: number; layers: number }; reach: number };
 
 type Gesture = {
   pointerId: number;
@@ -65,6 +69,7 @@ export function useInteraction({
   api,
   emit,
   viewPad,
+  view,
 }: {
   store: BenchStore;
   element: HTMLElement | null;
@@ -73,6 +78,8 @@ export function useInteraction({
   emit: (a: BenchAction) => void;
   /** Pixels covered by overlay panels, so camera fits avoid them. */
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
+  /** Camera framing from the view rig (home view, focus on targets). */
+  view?: React.MutableRefObject<{ home(top: boolean, smooth?: boolean): void; focus(targets: string[]): void } | null>;
 }) {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as unknown as CameraControlsImpl | null;
@@ -118,6 +125,8 @@ export function useInteraction({
     const PRIORITY: Record<Pick["type"], number> = {
       press: 3,
       flip: 3,
+      setting: 3,
+      draw: 1.5,
       rotor: 3,
       leg: 3,
       wireEnd: 3,
@@ -162,7 +171,11 @@ export function useInteraction({
     };
     /** Nearest attach point to the pointer in screen space. */
     const snapTarget = (cx: number, cy: number, touch: boolean, opts: { probes?: boolean; leads?: boolean; exclude?: string }): Anchor | null => {
-      const targets = clipTargets(bench(), { holes: true, probes: opts.probes, leads: opts.leads });
+      const b = bench();
+      const targets = clipTargets(b, { holes: true, probes: opts.probes, leads: opts.leads }).filter(
+        // Never onto something that already hangs off the thing being dragged (a probe touching this clip, say).
+        (t) => !opts.exclude || !(t.kind === "probe" || t.kind === "lead") || !hangsOn(b, t.anchor, opts.exclude),
+      );
       const radius = touch ? 40 : 26;
       let best: Anchor | null = null;
       let bestD = radius;
@@ -210,6 +223,13 @@ export function useInteraction({
           }
         case "rotor":
           return { kind: "rotor", id: p.id };
+        case "draw": {
+          const card = b.parts.find((x) => x.id === p.id);
+          if (card?.kind !== "card") return null;
+          return { kind: "draw", id: p.id, base: { length: card.params.length, layers: card.params.layers }, reach: 0 };
+        }
+        case "setting":
+          return null;
         case "leg":
           if (locked.includes(p.id)) return null;
           return { kind: "leg", id: p.id, leg: p.leg, flying: p.flying };
@@ -284,7 +304,8 @@ export function useInteraction({
           break;
         }
         case "probe": {
-          const t = snapTarget(cx, cy, g.touch, { leads: true, exclude: `probe:${d.color}` });
+          // Probe tips land on leads, holes, clips (even one lying loose) or the other probe's tip.
+          const t = snapTarget(cx, cy, g.touch, { leads: true, probes: true, exclude: `probe:${d.color}` });
           const wp = planePoint(cx, cy, 0);
           setUi({ snapTarget: t });
           s.apply((b) => ops.touchProbe(b, d.color, t, wp ? [wp.x, wp.z] : undefined));
@@ -312,12 +333,28 @@ export function useInteraction({
           if (mode) s.apply((b) => ops.setMeterMode(b, mode));
           break;
         }
+        case "draw": {
+          // The pencil runs from the card's 0 mark to the farthest point the stroke reaches (0.5 cm steps).
+          const card = s.bench.parts.find((p) => p.id === d.id);
+          if (card?.kind !== "card") return;
+          const wp = planePoint(cx, cy, CARD.t);
+          if (!wp) return;
+          const [lx] = rotateXZ(wp.x - card.pos[0], wp.z - card.pos[1], -card.rot);
+          d.reach = Math.max(d.reach, Math.max(0, Math.min(10, Math.round(((lx - CARD.x0) / 10) * 2) / 2)));
+          const next = penStroke(d.base, d.reach);
+          if (next.length !== card.params.length || next.layers !== card.params.layers) s.apply((b) => ops.setPartParams<"card">(b, d.id, next));
+          break;
+        }
         case "rotor": {
           const b = s.bench;
           const part = b.parts.find((p) => p.id === d.id);
           if (!part) return;
           const pose = partPose(b, part);
-          const c = ops.partCenter(b, part);
+          // A box's knob sits on its front strip: turn round the knob, not the box's middle.
+          const c: [number, number] =
+            part.kind === "box"
+              ? ((([x, z]) => [part.pos[0] + x, part.pos[1] + z] as [number, number])(rotateXZ(0, BOX.d / 2 - BOX.strip / 2, pose.rot)))
+              : ops.partCenter(b, part);
           const wp = planePoint(cx, cy, pose.origin[1] + 5);
           if (!wp) return;
           const [lx, lz] = rotateXZ(wp.x - c[0], wp.z - c[1], -pose.rot);
@@ -349,6 +386,14 @@ export function useInteraction({
           setUi({ wireDraft: null });
         }
         return;
+      }
+      if (d.kind === "part") {
+        // Dropped right on a part of the same kind: the two swap places and wiring (a fresh LED for a dead one).
+        const target = ops.swapTarget(s.bench, d.id);
+        if (target && !s.locked.includes(target.id)) {
+          const from = s.txBase?.parts.find((p) => p.id === d.id)?.pos ?? ([target.pos[0], target.pos[1] + 34] as Vec2);
+          s.apply((b) => ops.dropOnto(b, d.id, target.id, from));
+        }
       }
       const before = s.txBase;
       s.commit();
@@ -391,9 +436,26 @@ export function useInteraction({
       }
     };
 
+    // A second tap (or click) on the same part soon after the first frames it; on empty desk, the whole bench.
+    let lastTap: { t: number; x: number; y: number; part: string | null } | null = null;
+    const doubleTap = (g: Gesture, cx: number, cy: number): boolean => {
+      const now = performance.now();
+      const p = g.pick;
+      const part = p && (p.type === "part" || p.type === "leg" || p.type === "rotor") ? p.id : p?.type === "meter" ? (store.getState().bench.meter?.id ?? null) : p ? "" : null;
+      const prev = lastTap;
+      lastTap = { t: now, x: cx, y: cy, part };
+      if (!prev || now - prev.t > 360 || Math.hypot(prev.x - cx, prev.y - cy) > (g.touch ? 24 : 8) || prev.part !== part || part === "") return false;
+      lastTap = null;
+      if (!view?.current) return false;
+      if (part) view.current.focus([`part:${part}`]);
+      else view.current.home(false);
+      return true;
+    };
+
     const click = (g: Gesture, cx: number, cy: number) => {
       const s = store.getState();
       const p = g.pick;
+      if (!s.ui.armed && s.ui.mode !== "wire" && doubleTap(g, cx, cy)) return;
       if (s.ui.menu) setUi({ menu: null });
       // Placing an armed tray item.
       if (s.ui.armed && !readOnly) {
@@ -421,7 +483,11 @@ export function useInteraction({
         case "part":
         case "leg":
         case "rotor":
+        case "draw":
           s.select({ type: "part", id: p.id });
+          break;
+        case "setting":
+          if (!readOnly) s.setParams(p.id, settingParams(s.bench, p.id, p.key, p.value) as never);
           break;
         case "press":
           s.select({ type: "part", id: p.id });
@@ -429,8 +495,8 @@ export function useInteraction({
         case "flip": {
           if (readOnly) break;
           const part = s.bench.parts.find((x) => x.id === p.id);
-          if (part && (part.kind === "slide-switch" || part.kind === "toggle-switch")) {
-            s.setParams<"slide-switch">(p.id, { to: part.params.to === "a" ? "b" : "a" });
+          if (part && isThrowSwitch(part.kind)) {
+            s.setParams<"slide-switch">(p.id, { to: (part.params as { to: string }).to === "a" ? "b" : "a" });
           }
           // Flipping is the whole action: no selection bar popping up over what the switch just turned on.
           break;
@@ -467,7 +533,7 @@ export function useInteraction({
       const p = g.pick;
       if (!p || readOnly) return;
       let sel: Selection;
-      if (p.type === "part" || p.type === "leg" || p.type === "press" || p.type === "flip" || p.type === "rotor") sel = { type: "part", id: p.id };
+      if (p.type === "part" || p.type === "leg" || p.type === "press" || p.type === "flip" || p.type === "rotor" || p.type === "draw" || p.type === "setting") sel = { type: "part", id: p.id };
       else if (p.type === "wire" || p.type === "wireEnd") sel = { type: "wire", id: p.id };
       else if (p.type === "clip") sel = { type: "lead", id: p.id };
       else sel = { type: "meter", id: s.bench.meter?.id ?? "M1" };
@@ -622,7 +688,15 @@ export function useInteraction({
           if (target !== s.ui.wireDraft.target) setUi({ wireDraft: { ...s.ui.wireDraft, target } });
         }
         if (hover !== s.ui.hover) setUi({ hover });
-        element.style.cursor = p ? (p.type === "press" || p.type === "flip" || p.type === "dialMode" ? "pointer" : "grab") : hover && s.ui.mode === "wire" ? "crosshair" : "";
+        element.style.cursor = p
+          ? p.type === "press" || p.type === "flip" || p.type === "dialMode" || p.type === "setting"
+            ? "pointer"
+            : p.type === "draw"
+              ? "crosshair"
+              : "grab"
+          : hover && s.ui.mode === "wire"
+            ? "crosshair"
+            : "";
         invalidate();
       });
     };
@@ -661,9 +735,9 @@ export function useInteraction({
       const kind = item.kind;
       const params = (item.params ?? {}) as never;
       const id = s.addPart(kind, params, { pos: [at.x, at.z] }, item.id);
-      // Let it snap into the board if it lands there.
+      // Let it snap into the board, or into a holder, if it lands there.
       const part = store.getState().bench.parts.find((p) => p.id === id);
-      if (part && canMountOnBoard(part)) store.getState().apply((b) => ops.movePart(b, id, [at.x, at.z]));
+      if (part) store.getState().apply((b) => ops.movePart(b, id, [at.x, at.z]));
       return id;
     };
     api.current = {
@@ -728,6 +802,12 @@ export function useInteraction({
                 return ops.clipLead(b, id, "a", null, pos);
               });
             }
+            if (g.drag?.kind === "part") {
+              // A fresh part dropped right on one of its kind takes its place and wiring; the old one moves aside.
+              const id = g.drag.id;
+              const target = ops.swapTarget(st.bench, id);
+              if (target && !st.locked.includes(target.id)) st.apply((b) => ops.dropOnto(b, id, target.id, [target.pos[0], target.pos[1] + 34]));
+            }
             st.commit();
             if (g.drag?.kind === "part") emit({ type: "part:add", partId: g.drag.id, kind: item.kind as never });
             else if (g.drag?.kind === "clip") emit({ type: "lead:add", leadId: g.drag.id });
@@ -771,16 +851,18 @@ export function useInteraction({
         return sp.behind ? null : { x: sp.x, y: sp.y };
       },
       topView: () => {
+        if (view?.current) return view.current.home(true);
         if (!controls) return;
         const r = element.getBoundingClientRect();
-        const f = fitCamera(bench(), r.width / Math.max(1, r.height), true, { left: viewPad.current.left / r.width, bottom: viewPad.current.bottom / r.height });
+        const f = fitCamera(bench(), r.width / Math.max(1, r.height), true, { left: viewPad.current.left / r.width, bottom: viewPad.current.bottom / r.height }, 32, store.getState().frame);
         void controls.setLookAt(...f.position, ...f.target, true);
         invalidate();
       },
       resetView: () => {
+        if (view?.current) return view.current.home(false);
         if (!controls) return;
         const r = element.getBoundingClientRect();
-        const f = fitCamera(bench(), r.width / Math.max(1, r.height), false, { left: viewPad.current.left / r.width, bottom: viewPad.current.bottom / r.height });
+        const f = fitCamera(bench(), r.width / Math.max(1, r.height), false, { left: viewPad.current.left / r.width, bottom: viewPad.current.bottom / r.height }, 32, store.getState().frame);
         void controls.setLookAt(...f.position, ...f.target, true);
         invalidate();
       },
@@ -795,7 +877,21 @@ export function useInteraction({
       element.removeEventListener("contextmenu", onContext);
       api.current = null;
     };
-  }, [element, camera, controls, scene, gl, store, readOnly, invalidate, api, emit, viewPad]);
+  }, [element, camera, controls, scene, gl, store, readOnly, invalidate, api, emit, viewPad, view]);
+}
+
+/** Whether an attach point is, or hangs off (clip on a probe tip, tip on a clip ...), something starting with `prefix`. */
+function hangsOn(b: BenchState, anchor: string, prefix: string, depth = 0): boolean {
+  if (anchor.startsWith(prefix)) return true;
+  if (depth > 4) return false;
+  const a = parseAnchor(anchor);
+  let to: string | null = null;
+  if (a?.type === "probe" && b.meter) to = b.meter.probes[a.color].tip.to;
+  else if (a?.type === "lead") {
+    const l = b.leads.find((x) => x.id === a.lead);
+    to = l ? (a.end === "a" ? l.a.to : l.b.to) : null;
+  }
+  return !!to && hangsOn(b, to, prefix, depth + 1);
 }
 
 function selectionFor(p: Pick, b: BenchState) {
@@ -805,6 +901,8 @@ function selectionFor(p: Pick, b: BenchState) {
     case "press":
     case "flip":
     case "rotor":
+    case "draw":
+    case "setting":
       return { type: "part" as const, id: p.id };
     case "wire":
     case "wireEnd":
@@ -870,8 +968,8 @@ export function handleBenchKey(e: KeyboardEvent, store: BenchStore, api: Interac
         s.press(part.id, e.type === "keydown");
         return true;
       }
-      if (part.kind === "slide-switch" || part.kind === "toggle-switch") {
-        if (e.type === "keydown" && !e.repeat) s.setParams<"slide-switch">(part.id, { to: part.params.to === "a" ? "b" : "a" });
+      if (isThrowSwitch(part.kind)) {
+        if (e.type === "keydown" && !e.repeat) s.setParams<"slide-switch">(part.id, { to: (part.params as { to: string }).to === "a" ? "b" : "a" });
         return true;
       }
       return false;

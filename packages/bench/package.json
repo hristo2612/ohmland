@@ -6,19 +6,21 @@
   "description": "Ohmland 3D lab workbench: procedural part models, breadboard, multimeter, interaction and bench-to-netlist.",
   "exports": {
     ".": "./src/index.ts",
-    "./core": "./src/core.ts"
+    "./core": "./src/core.ts",
+    "./view": "./src/view/index.ts",
+    "./ink": "./src/ink/index.ts"
   },
   "scripts": {
     "dev": "vite playground",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "shots": "playwright test -c e2e/playwright.config.ts"
+    "shots": "playwright test -c e2e/playwright.config.ts",
+    "shots:ink": "playwright test -c e2e/ink.config.ts"
   },
   "dependencies": {
     "@ohmland/sim": "workspace:*",
     "@react-three/drei": "10.7.9",
     "@react-three/fiber": "9.8.1",
-    "@react-three/postprocessing": "3.2.0",
     "postprocessing": "6.39.5",
     "zustand": "5.0.15"
   },

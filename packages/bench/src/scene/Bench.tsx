@@ -1,85 +1,125 @@
-// <Bench />: the interactive 3D workbench.
+// <Bench />: the interactive 3D workbench, on a sheet of grid paper.
 
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { CameraControls } from "@react-three/drei";
-import { Bloom, EffectComposer, Outline, Selection, ToneMapping } from "@react-three/postprocessing";
-import { ToneMappingMode } from "postprocessing";
-import type { Snapshot } from "@ohmland/sim";
 import { boardGeometry, boardOrigin, holeWorld } from "../board";
 import { BOARD_TOP } from "../dims";
-import { LabelsContext, mergeLabels, type BenchLabels } from "../labels";
-import { anchorPosition, fitCamera, workCenter } from "../layout";
+import { LabelsContext, mergeLabels } from "../labels";
+import { anchorPosition, benchBounds, fitCamera, workCenter } from "../layout";
 import { connectivity } from "../netlist";
 import { BenchStoreContext, createBenchStore, useBench, type BenchStore } from "../store";
-import type { BenchAction, BenchState, Quality, TrayItem } from "../types";
+import { heldOf, hiddenParts } from "../seats";
+import type { BenchAction, BenchState, PlacedPart, Quality, Vec3 } from "../types";
 import { Breadboard, XRAY_HEX } from "../models/Breadboard";
+import { RoomLight } from "../models/common";
 import { JumperWire } from "../models/Leads";
-import { BACKGROUND, Desk, StudioEnvironment, StudioLights } from "./Studio";
+import { installPaperTone, paperizeScene, type PaperPalette } from "../three/paper";
+import { Spotlight } from "../three/post";
+import type { BenchController, ScreenPoint } from "../view/controller";
+import type { BenchRendererProps } from "../view/types";
+import { Desk, StudioEnvironment, StudioLights } from "./Studio";
 import { useInteraction, handleBenchKey, type InteractionApi } from "./Interaction";
-import { Overlay } from "./Overlay";
-import { ACCENT, LeadView, MeterView, PartView, SELECT_HEX, TargetMarker, WireView, makeFloor, snapshotKey } from "./views";
+import { Overlay, trayCover } from "./Overlay";
+import { PaletteContext, useReadPalette } from "./palette";
+import { Readouts, inspectKey } from "./Readouts";
+import type { Pick } from "./pick";
+import { PaperRenderer, PaperUpkeep, SoftShadows, type ShadowArea } from "./Render";
+import { SpotlightRig, ViewRig, type ViewApi } from "./viewRig";
+import { LeadView, MeterView, PartView, TargetMarker, WireView, makeFloor, snapshotKey } from "./views";
+import { BoxWires3D, Overlays3D } from "./Overlays3D";
 
-export type BenchProps = {
-  /** Starting bench (ignored when `store` is given). */
-  initial?: BenchState;
-  /** Drive the bench from your own store (see createBenchStore). */
-  store?: BenchStore;
-  /** Parts the learner can drag in. */
-  tray?: TrayItem[];
-  /** Latest simulator snapshot: LED glow, damage, relay state, meter display. */
-  snapshot?: Snapshot | null;
-  /** Called after every committed change (not during drags). */
-  onChange?: (bench: BenchState) => void;
-  /** Every user action, including inputs to forward to the simulator. */
-  onAction?: (action: BenchAction) => void;
-  quality?: Quality;
-  readOnly?: boolean;
-  /** Part ids the learner cannot move, rotate or delete (switches still flip and buttons still press). */
-  locked?: string[];
-  /** Part ids or anchors ("hole:e12", "pin:R1.a") to point out, for lab hints. */
-  highlight?: string[];
-  /** Translated UI strings. */
-  labels?: Partial<BenchLabels>;
-  /** Initial camera. Defaults to a three-quarter view of the work area. */
-  camera?: { position: [number, number, number]; target: [number, number, number] };
-  className?: string;
-  style?: CSSProperties;
-  /** Called once the first frame has rendered. */
-  onReady?: () => void;
-  /** Receives camera helpers (top view, reset view, project an anchor to page coordinates). */
-  controllerRef?: React.MutableRefObject<BenchController | null>;
+export type BenchProps = BenchRendererProps & {
+  /** Initial camera. Defaults to a framing of the work area. */
+  camera?: { position: Vec3; target: Vec3 };
+  /** Draw the notebook's margin line left of the work area (default true). */
+  margin?: boolean;
 };
 
-export type BenchController = Pick<InteractionApi, "topView" | "resetView" | "project" | "stats" | "pickAt">;
+/** The 3D view's controller: the shared BenchController plus camera and test helpers. */
+export type Bench3DController = BenchController & {
+  /** Element-relative CSS px of a target, or of a world point [x, y, z] in mm. */
+  project(target: string | Vec3): ScreenPoint | null;
+  /** Page (client) coordinates of a target or world point, for tests and tutorials. */
+  projectClient(target: string | Vec3): { x: number; y: number } | null;
+  topView(): void;
+  resetView(): void;
+  /** True while the camera shows the default framing of the work area. */
+  atHome(): boolean;
+  /** What the pointer would grab at a client point. */
+  pickAt(clientX: number, clientY: number): Pick | null;
+  /** Renderer statistics of the last frame (draw calls, triangles) for performance checks. */
+  stats(): { calls: number; triangles: number; geometries: number; textures: number };
+};
 
 export function Bench(props: BenchProps) {
   const { tray = [], snapshot = null, quality = "high", readOnly = false, highlight, className, style } = props;
   const [store] = useState(() => props.store ?? createBenchStore(props.initial));
   const labels = useMemo(() => mergeLabels(props.labels), [props.labels]);
   const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const elementRef = useRef<HTMLDivElement | null>(null);
+  elementRef.current = element;
+  const palette = useReadPalette(element, props.theme);
   const api = useRef<InteractionApi | null>(null);
+  const view = useRef<ViewApi | null>(null);
   const viewPad = useRef({ left: 0, bottom: 0 });
   const onAction = useRef(props.onAction);
   const onChange = useRef(props.onChange);
   onAction.current = props.onAction;
   onChange.current = props.onChange;
   const emit = useCallback((a: BenchAction) => onAction.current?.(a), []);
+  const [spotTargets, setSpotTargets] = useState<string[] | null>(null);
+  // Listeners live here, not in the canvas, so a subscription made before the first frame still hears it.
+  const listeners = useMemo(() => new Set<() => void>(), []);
+  const notify = useCallback(() => {
+    for (const cb of [...listeners]) {
+      try {
+        cb();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [listeners]);
+  const pendingFocus = useRef<{ targets: string[]; opts?: { padding?: number; instant?: boolean } } | null>(null);
+
+  const controller = useMemo<Bench3DController>(
+    () => ({
+      project: (t) => view.current?.project(t) ?? null,
+      // Any target (a part, a mark, an anchor) in page coordinates, as the ink view's projectClient gives it.
+      projectClient: (t) => {
+        const p = typeof t === "string" ? view.current?.project(t) : null;
+        if (p && elementRef.current) {
+          const r = elementRef.current.getBoundingClientRect();
+          return { x: p.x + r.left, y: p.y + r.top };
+        }
+        return api.current?.project(t as string) ?? null;
+      },
+      onViewChange: (cb) => {
+        listeners.add(cb);
+        return () => listeners.delete(cb);
+      },
+      focus: (targets, opts) => {
+        if (view.current) view.current.focus(targets, opts);
+        else pendingFocus.current = { targets: [...targets], opts };
+      },
+      spotlight: (targets) => setSpotTargets(targets && targets.length ? [...targets] : null),
+      topView: () => api.current?.topView(),
+      resetView: () => api.current?.resetView(),
+      atHome: () => view.current?.atHome() ?? true,
+      pickAt: (x, y) => api.current?.pickAt(x, y) ?? null,
+      stats: () => api.current?.stats() ?? { calls: 0, triangles: 0, geometries: 0, textures: 0 },
+    }),
+    [listeners],
+  );
   const controllerRef = props.controllerRef;
   useEffect(() => {
     if (!controllerRef) return;
-    controllerRef.current = {
-      topView: () => api.current?.topView(),
-      resetView: () => api.current?.resetView(),
-      project: (t) => api.current?.project(t) ?? null,
-      stats: () => api.current?.stats() ?? { calls: 0, triangles: 0, geometries: 0, textures: 0 },
-      pickAt: (x, y) => api.current?.pickAt(x, y) ?? null,
-    };
+    controllerRef.current = controller;
     return () => {
-      controllerRef.current = null;
+      if (controllerRef.current === controller) controllerRef.current = null;
     };
-  }, [controllerRef]);
+  }, [controllerRef, controller]);
 
   useLayoutEffect(() => {
     store.setState({ emit });
@@ -91,6 +131,10 @@ export function Bench(props: BenchProps) {
   useEffect(() => {
     store.setState({ locked: lockedKey ? lockedKey.split(",") : [] });
   }, [store, lockedKey]);
+  const frameKey = props.frame ? props.frame.join(",") : "";
+  useLayoutEffect(() => {
+    store.setState({ frame: frameKey ? (frameKey.split(",").map(Number) as [number, number, number, number]) : null });
+  }, [store, frameKey]);
   useEffect(() => {
     // A drag changes the bench while its transaction is open and commits by closing it, so compare against the last
     // bench reported rather than the previous state.
@@ -117,45 +161,62 @@ export function Bench(props: BenchProps) {
   // so the first frame does not stall on them one by one.
   const [held, setHeld] = useState(true);
   const release = useCallback(() => setHeld(false), []);
-  viewPad.current = { left: showTray && !compact ? 204 : 0, bottom: showTray && compact ? 104 : 0 };
+  viewPad.current = showTray ? trayCover(tray.length, compact) : { left: 0, bottom: 0 };
 
   const onKey = (e: React.KeyboardEvent) => {
     if ((e.target as HTMLElement).closest("select,input,textarea")) return;
     if (handleBenchKey(e.nativeEvent, store, api.current, readOnly)) e.preventDefault();
   };
+  installPaperTone();
 
   return (
     <BenchStoreContext.Provider value={store}>
       <LabelsContext.Provider value={labels}>
-        <div
-          ref={setElement}
-          className={className ? `ohb-root ${className}` : "ohb-root"}
-          tabIndex={0}
-          role="application"
-          aria-label={labels.canvas}
-          onKeyDown={onKey}
-          onKeyUp={(e) => {
-            if (e.key === " " || e.key === "Enter") handleBenchKey(e.nativeEvent, store, api.current, readOnly);
-          }}
-          style={{ position: "relative", width: "100%", height: "100%", touchAction: "none", outline: "none", overflow: "hidden", background: BACKGROUND, ...style }}
-        >
-          <Canvas
-            frameloop={held ? "never" : "demand"}
-            shadows={quality === "high" ? "percentage" : false}
-            dpr={[1, quality === "high" ? 2 : 1.5]}
-            camera={{ fov: 32, near: 2, far: 6000, position: [0, 320, 360] }}
-            gl={{ antialias: quality === "low", toneMapping: THREE.NeutralToneMapping, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
-            onCreated={({ scene }) => {
-              scene.background = new THREE.Color(BACKGROUND);
-              scene.fog = new THREE.Fog(BACKGROUND, 1300, 3000);
+        <PaletteContext.Provider value={palette}>
+          <div
+            ref={setElement}
+            className={className ? `ohb-root ${className}` : "ohb-root"}
+            tabIndex={0}
+            role="application"
+            aria-label={labels.canvas}
+            onKeyDown={onKey}
+            onKeyUp={(e) => {
+              if (e.key === " " || e.key === "Enter") handleBenchKey(e.nativeEvent, store, api.current, readOnly);
             }}
-            style={{ position: "absolute", inset: 0 }}
+            style={{ position: "relative", width: "100%", height: "100%", touchAction: "none", outline: "none", overflow: "hidden", background: palette.paper, ...style }}
           >
-            <BenchScene store={store} element={element} api={api} readOnly={readOnly} quality={quality} highlight={highlight} emit={emit} camera={props.camera} onReady={props.onReady} viewPad={viewPad} />
-            <Warmup held={held} offscreen={quality === "high"} onWarm={release} />
-          </Canvas>
-          <Overlay tray={tray} readOnly={readOnly} compact={compact} api={api} size={size} />
-        </div>
+            <Canvas
+              frameloop={held ? "never" : "demand"}
+              shadows={quality === "high" ? "percentage" : false}
+              dpr={[1, quality === "high" ? 2 : 1.5]}
+              camera={{ fov: 32, near: 2, far: 6000, position: [0, 320, 360] }}
+              gl={{ antialias: quality === "low", alpha: false, toneMapping: THREE.CustomToneMapping, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
+              style={{ position: "absolute", inset: 0 }}
+            >
+              <BenchScene
+                store={store}
+                element={element}
+                api={api}
+                view={view}
+                readOnly={readOnly}
+                quality={quality}
+                highlight={highlight}
+                emit={emit}
+                camera={props.camera}
+                onReady={props.onReady}
+                viewPad={viewPad}
+                palette={palette}
+                margin={props.margin ?? true}
+                spotTargets={spotTargets}
+                setSpotTargets={setSpotTargets}
+                notify={notify}
+                pendingFocus={pendingFocus}
+              />
+              <Warmup held={held} offscreen={quality === "high"} dark={palette.dark} onWarm={release} />
+            </Canvas>
+            <Overlay tray={tray} readOnly={readOnly} compact={compact} api={api} size={size} controller={controller} />
+          </div>
+        </PaletteContext.Provider>
       </LabelsContext.Provider>
     </BenchStoreContext.Provider>
   );
@@ -173,26 +234,32 @@ function CameraRig({
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
 }) {
   const set = useRef(false);
+  const frame = useBench((s) => s.frame);
   const size = useThree((s) => s.size);
   return (
     <CameraControls
       makeDefault
-      minDistance={45}
+      minDistance={36}
       maxDistance={1100}
       minPolarAngle={0}
       maxPolarAngle={1.3}
       minAzimuthAngle={-1.75}
       maxAzimuthAngle={1.75}
       dollyToCursor
-      smoothTime={0.18}
+      smoothTime={0.16}
       draggingSmoothTime={0.08}
       ref={(c) => {
         if (!c || set.current) return;
         set.current = true;
-        const fit = fitCamera(bench, size.width / Math.max(1, size.height), false, {
-          left: viewPad.current.left / Math.max(1, size.width),
-          bottom: viewPad.current.bottom / Math.max(1, size.height),
-        });
+        // A first guess; the view rig frames the real models on the first frame.
+        const fit = fitCamera(
+          bench,
+          size.width / Math.max(1, size.height),
+          false,
+          { left: viewPad.current.left / Math.max(1, size.width), bottom: viewPad.current.bottom / Math.max(1, size.height) },
+          32,
+          frame,
+        );
         const pos = initial?.position ?? fit.position;
         const tgt = initial?.target ?? fit.target;
         void c.setLookAt(...pos, ...tgt, false);
@@ -211,23 +278,6 @@ function CameraRig({
     />
   );
 }
-
-const EDGE_HEX = new THREE.Color(SELECT_HEX).getHex();
-
-/**
- * Outline, bloom and tone mapping, memoised so they never re-render with the scene. (Snapshots arrive about 30 times
- * a second; only the part models and the meter read them, through their own store subscriptions. Re-rendering the
- * whole scene per snapshot sent the outline composer into an update loop: "Maximum update depth exceeded".)
- */
-const PostEffects = memo(function PostEffects() {
-  return (
-    <EffectComposer multisampling={4} enableNormalPass={false} autoClear={false}>
-      <Outline visibleEdgeColor={EDGE_HEX} hiddenEdgeColor={EDGE_HEX} edgeStrength={12} width={1400} blur xRay />
-      <Bloom mipmapBlur luminanceThreshold={1.1} luminanceSmoothing={0.2} intensity={0.75} radius={0.6} />
-      <ToneMapping mode={ToneMappingMode.NEUTRAL} />
-    </EffectComposer>
-  );
-});
 
 /** Calls back once the first frame is on screen (the frame after it has begun). */
 function ReadySignal({ onReady }: { onReady?: () => void }) {
@@ -260,7 +310,7 @@ const MAX_WARM_MS = 2500;
  * has it (three's compileAsync), then lets the frame loop start. A cold GPU shader cache otherwise compiles them one
  * by one inside the first frame. `offscreen` compiles the variant that renders into post-processing's buffers.
  */
-function Warmup({ held, offscreen, onWarm }: { held: boolean; offscreen: boolean; onWarm: () => void }) {
+function Warmup({ held, offscreen, dark, onWarm }: { held: boolean; offscreen: boolean; dark: boolean; onWarm: () => void }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
@@ -276,6 +326,8 @@ function Warmup({ held, offscreen, onWarm }: { held: boolean; offscreen: boolean
       waiting = false;
       onWarm();
     };
+    // Materials take their paper settings before they are compiled.
+    paperizeScene(scene, dark);
     const target = offscreen ? new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType }) : null;
     const before = gl.getRenderTarget();
     let compiled: Promise<unknown> = Promise.resolve();
@@ -287,7 +339,6 @@ function Warmup({ held, offscreen, onWarm }: { held: boolean; offscreen: boolean
     } finally {
       gl.setRenderTarget(before);
     }
-    // While the GPU compiles, upload the drawn textures (the desk alone is 2048 px), which the first frame would do.
     try {
       for (const tex of canvasTextures(scene)) gl.initTexture(tex);
     } catch {
@@ -300,14 +351,31 @@ function Warmup({ held, offscreen, onWarm }: { held: boolean; offscreen: boolean
       window.clearTimeout(timer);
       target?.dispose();
     };
-  }, [held, offscreen, gl, scene, camera, invalidate, onWarm]);
+  }, [held, offscreen, dark, gl, scene, camera, invalidate, onWarm]);
   return null;
 }
+
+/** Sets the page colour as the scene background (the canvas is opaque); it darkens with the room lights. */
+function Background({ color, light = 1 }: { color: string; light?: number }) {
+  const scene = useThree((s) => s.scene);
+  const invalidate = useThree((s) => s.invalidate);
+  useLayoutEffect(() => {
+    scene.background = new THREE.Color(color).multiplyScalar(roomShade(light));
+    invalidate();
+  }, [scene, color, light, invalidate]);
+  return null;
+}
+
+/** How much of the page's own colour shows with the room lights at `light` (1 bright to about 0.1 dim). */
+export const roomShade = (light: number) => 0.12 + 0.88 * Math.max(0, Math.min(1, light));
+
+const snap = (v: number, step: number) => Math.round(v / step) * step;
 
 function BenchScene({
   store,
   element,
   api,
+  view,
   readOnly,
   quality,
   highlight,
@@ -315,39 +383,79 @@ function BenchScene({
   camera,
   onReady,
   viewPad,
+  palette,
+  margin,
+  spotTargets,
+  setSpotTargets,
+  notify,
+  pendingFocus,
 }: {
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
   store: BenchStore;
   element: HTMLElement | null;
   api: React.MutableRefObject<InteractionApi | null>;
+  view: React.MutableRefObject<ViewApi | null>;
   readOnly: boolean;
   quality: Quality;
   highlight?: string[];
   emit: (a: BenchAction) => void;
   camera?: BenchProps["camera"];
   onReady?: () => void;
+  palette: PaperPalette;
+  margin: boolean;
+  spotTargets: string[] | null;
+  setSpotTargets: (t: string[] | null) => void;
+  notify: () => void;
+  pendingFocus: React.MutableRefObject<{ targets: string[]; opts?: { padding?: number; instant?: boolean } } | null>;
 }) {
   const bench = useBench((s) => s.bench);
   const ui = useBench((s) => s.ui);
   const invalidate = useThree((s) => s.invalidate);
   // Draw a frame on any change, except snapshots that change nothing visible (the simulator sends about 30 a second
-  // even when the circuit is steady; rendering each one would keep shadows and post-processing busy for nothing).
+  // even when the circuit is steady; rendering each one would keep post-processing busy for nothing).
   useEffect(() => {
-    let seen = snapshotKey(store.getState().snapshot);
+    // Readouts and the desk clock also change with the snapshot.
+    const extra = (s: ReturnType<typeof store.getState>) =>
+      (s.bench.parts.some((p) => p.kind === "clock") ? `|t${Math.floor((s.snapshot?.t ?? 0) / 60)}` : "") + (s.inspect.length ? `|${inspectKey(s)}` : "");
+    let seen = snapshotKey(store.getState().snapshot) + extra(store.getState());
     return store.subscribe((s, prev) => {
       if (s.snapshot !== prev.snapshot && s.bench === prev.bench && s.ui === prev.ui) {
-        const key = snapshotKey(s.snapshot);
+        const key = snapshotKey(s.snapshot) + extra(s);
         if (key === seen) return;
         seen = key;
       }
       invalidate();
     });
   }, [store, invalidate]);
-  useInteraction({ store, element, readOnly, api, emit, viewPad });
+  useInteraction({ store, element, readOnly, api, emit, viewPad, view });
+  const spot = useMemo(() => new Spotlight({ amount: 0, color: new THREE.Color(palette.paper) }), []);
+  useEffect(() => () => spot.dispose(), [spot]);
 
   const center = useMemo(() => workCenter(bench), [bench.board]);
   const floor = useMemo(() => makeFloor(bench), [bench.board, bench.meter]);
   const conn = useMemo(() => connectivity(bench), [bench]);
+
+  // Contact shadows: one sheet under the work area (moved and resized in coarse steps), one on the board.
+  const bounds = benchBounds(bench);
+  const res = quality === "high" ? 1024 : 512;
+  const deskW = Math.min(900, Math.max(320, snap(bounds[2] - bounds[0] + 160, 80)));
+  const deskD = Math.min(700, Math.max(260, snap(bounds[3] - bounds[1] + 140, 80)));
+  const deskX = snap((bounds[0] + bounds[2]) / 2, 40);
+  const deskZ = snap((bounds[1] + bounds[3]) / 2, 40);
+  const shadowAreas = useMemo<ShadowArea[]>(() => {
+    const out: ShadowArea[] = [
+      { key: "desk", center: [deskX, deskZ], size: [deskW, deskD], y: 0, far: 34, opacity: palette.dark ? 0.8 : 0.52, blur: quality === "high" ? 2.4 : 1.6, resolution: res },
+    ];
+    if (bench.board) {
+      const g = boardGeometry(bench.board);
+      const [ox, oz] = boardOrigin(bench.board);
+      out.push({ key: "board", center: [ox, oz], size: [g.width + 2, g.depth + 2], y: BOARD_TOP, far: 18, opacity: palette.dark ? 0.6 : 0.36, blur: 1.6, resolution: quality === "high" ? 768 : 512 });
+    }
+    return out;
+  }, [deskX, deskZ, deskW, deskD, bench.board, quality, res, palette.dark]);
+  // The page's margin line sits a few cells left of the work area (decided once per board, so it does not wander).
+  const marginX = useMemo(() => (margin ? snap(benchBounds(store.getState().bench)[0] - 42, 5) : null), [margin, bench.board, store]);
+  const changed = useMemo(() => ({}), [bench, ui.pressed]);
 
   // X-ray: everything joined to the hovered hole or lead.
   const xr = useMemo(() => {
@@ -369,7 +477,29 @@ function BenchScene({
   }, [ui.hover, conn, bench.board]);
 
   const hl = useMemo(() => new Set(highlight ?? []), [highlight]);
-  const leadOpen = (id: string, end: "a" | "b") => (ui.dragging && ui.selection?.type === "lead" && ui.selection.id === id ? (end === "a" ? 0.25 : 0.25) : 0);
+  // Parts shut in a box are not drawn; gates on a lead ride that lead's cable.
+  const hidden = useMemo(() => hiddenParts(bench), [bench]);
+  const gatesOn = useMemo(() => {
+    const out = new Map<string, PlacedPart[]>();
+    for (const p of bench.parts) {
+      if (p.kind !== "gate" || !p.params.on || !bench.leads.some((l) => l.id === p.params.on)) continue;
+      const list = out.get(p.params.on) ?? [];
+      list.push(p);
+      out.set(p.params.on, list);
+    }
+    return out;
+  }, [bench]);
+  const riding = useMemo(() => new Set([...gatesOn.values()].flat().map((p) => p.id)), [gatesOn]);
+  const selectedPart = ui.selection?.type === "part" ? ui.selection.id : null;
+  // Parts sitting in holders take their pose from the holder.
+  const holders = useMemo(() => {
+    const out = new Map<string, PlacedPart>();
+    for (const h of bench.parts) for (const id of Object.values(heldOf(h))) if (id) out.set(id, h);
+    return out;
+  }, [bench.parts]);
+  const ambient = useBench((s) => s.ambient);
+  const inspect = useBench((s) => s.inspect);
+  const leadOpen = (id: string) => (ui.dragging && ui.selection?.type === "lead" && ui.selection.id === id ? 0.25 : 0);
 
   // Wire being drawn.
   const draft = ui.wireDraft;
@@ -380,70 +510,76 @@ function BenchScene({
 
   return (
     <>
-      <StudioEnvironment />
-      <StudioLights quality={quality} center={center} />
-      <Desk quality={quality} />
+      <Background color={palette.paper} light={ambient} />
+      <StudioEnvironment intensity={(palette.dark ? 0.14 : 0.22) * ambient} />
+      <StudioLights quality={quality} center={center} palette={palette} dim={ambient} />
+      <Desk quality={quality} palette={palette} margin={marginX} light={ambient} />
+      <SoftShadows areas={shadowAreas} version={changed} palette={palette} />
+      <PaperUpkeep version={changed} dark={palette.dark} shadows={quality === "high"} />
       <CameraRig center={center} initial={camera} bench={bench} viewPad={viewPad} />
+      <ViewRig store={store} apiRef={view} viewPad={viewPad} setSpotTargets={setSpotTargets} initialCamera={!!camera} onChange={notify} pendingFocus={pendingFocus} />
+      <SpotlightRig store={store} targets={spotTargets} spot={spot} palette={palette} />
       <ReadySignal onReady={onReady} />
-      <Selection>
-        {bench.board && <Breadboard spec={bench.board} xray={ui.xray} litStrips={xr?.strips} litHoles={xr?.holes} />}
-        {bench.parts.map((p) => (
-          <PartView
-            key={p.id}
-            part={p}
-            board={bench.board}
-            selected={ui.selection?.type === "part" && ui.selection.id === p.id}
-            hinted={hl.has(p.id)}
-            pressed={!!ui.pressed[p.id]}
-            quality={quality}
-            floor={floor}
-          />
+      <RoomLight.Provider value={ambient}>
+      {bench.board && <Breadboard spec={bench.board} xray={ui.xray} litStrips={xr?.strips} litHoles={xr?.holes} />}
+      {bench.parts.filter((p) => !hidden.has(p.id) && !riding.has(p.id)).map((p) => (
+        <PartView
+          key={p.id}
+          part={p}
+          holder={holders.get(p.id)}
+          board={bench.board}
+          selected={ui.selection?.type === "part" && ui.selection.id === p.id}
+          hinted={hl.has(p.id)}
+          pressed={!!ui.pressed[p.id]}
+          quality={quality}
+          floor={floor}
+        />
+      ))}
+      {bench.board &&
+        bench.wires.map((w) => (
+          <WireView key={w.id} wire={w} board={bench.board!} selected={ui.selection?.type === "wire" && ui.selection.id === w.id} hinted={hl.has(w.id)} />
         ))}
-        {bench.board &&
-          bench.wires.map((w) => (
-            <WireView key={w.id} wire={w} board={bench.board!} selected={ui.selection?.type === "wire" && ui.selection.id === w.id} hinted={hl.has(w.id)} />
-          ))}
-        {bench.leads.map((l) => (
-          <LeadView
-            key={l.id}
-            lead={l}
-            bench={bench}
-            selected={ui.selection?.type === "lead" && ui.selection.id === l.id}
-            hinted={hl.has(l.id)}
-            open={{ a: leadOpen(l.id, "a"), b: leadOpen(l.id, "b") }}
-            floor={floor}
-          />
-        ))}
-        {bench.meter && (
-          <MeterView
-            meter={bench.meter}
-            bench={bench}
-            selected={ui.selection?.type === "meter"}
-            floor={floor}
-          />
-        )}
-        {quality === "high" && <PostEffects />}
-      </Selection>
+      {bench.leads.map((l) => (
+        <LeadView
+          key={l.id}
+          lead={l}
+          bench={bench}
+          selected={ui.selection?.type === "lead" && ui.selection.id === l.id}
+          hinted={hl.has(l.id)}
+          open={{ a: leadOpen(l.id), b: leadOpen(l.id) }}
+          floor={floor}
+          gates={gatesOn.get(l.id)}
+          selectedPart={selectedPart}
+          hintedParts={hl}
+        />
+      ))}
+      <BoxWires3D bench={bench} />
+      <Overlays3D bench={bench} store={store} floor={floor} />
+      {bench.meter && <MeterView meter={bench.meter} bench={bench} selected={ui.selection?.type === "meter"} floor={floor} />}
+      </RoomLight.Provider>
       {draftFrom && (
         <>
-          <TargetMarker at={[draftFrom[0], BOARD_TOP + 0.2, draftFrom[1]]} color={SELECT_HEX} />
+          <TargetMarker at={[draftFrom[0], BOARD_TOP + 0.2, draftFrom[1]]} color={palette.blue} />
           {draftTo ? (
             <JumperWire a={new THREE.Vector3(draftFrom[0], BOARD_TOP, draftFrom[1])} b={new THREE.Vector3(draftTo[0], BOARD_TOP, draftTo[1])} color={ui.wireColor} />
           ) : null}
         </>
       )}
-      {ui.snapTarget && (() => {
-        const p = anchorPosition(bench, ui.snapTarget);
-        return p ? <TargetMarker at={[p[0], p[1] + 0.3, p[2]]} color={ACCENT} /> : null;
-      })()}
+      {ui.snapTarget &&
+        (() => {
+          const p = anchorPosition(bench, ui.snapTarget);
+          return p ? <TargetMarker at={[p[0], p[1] + 0.3, p[2]]} color={palette.blue} /> : null;
+        })()}
       {xr?.pins.map((a) => {
         const p = anchorPosition(bench, a);
         return p ? <TargetMarker key={a} at={[p[0], p[1], p[2]]} color={XRAY_HEX} size={1.5} onTop={false} /> : null;
       })}
       {highlightAnchors.map((a) => {
         const p = anchorPosition(bench, a);
-        return p ? <TargetMarker key={a} at={[p[0], p[1] + 0.3, p[2]]} color={ACCENT} pulse size={2.6} /> : null;
+        return p ? <TargetMarker key={a} at={[p[0], p[1] + 0.3, p[2]]} color={palette.red} pulse size={2.6} /> : null;
       })}
+      {inspect.length > 0 && <Readouts bench={bench} inspect={inspect} />}
+      <PaperRenderer quality={quality} palette={palette} spot={spot} />
     </>
   );
 }

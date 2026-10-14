@@ -6,11 +6,61 @@ export * as benchOps from "./ops";
 export { emptyBench, defaultMeter, type Placement } from "./ops";
 export { holeAnchor, pinAnchor, wireAnchor, leadAnchor, probeAnchor, socketAnchor, parseAnchor, type ParsedAnchor } from "./anchors";
 export { PITCH, boardGeometry, parseHole, holeWorld, nearestHole, type BoardGeometry, type HoleInfo, type StripInfo } from "./board";
-export { PART_KINDS, partDef, defaultParams, footprintOf, isFlying, canMountOnBoard, type PartDef, type FootprintLeg } from "./parts";
+export {
+  PART_KINDS,
+  partDef,
+  partLegs,
+  defaultParams,
+  footprintOf,
+  isFlying,
+  canMountOnBoard,
+  isThrowSwitch,
+  mysteryOrder,
+  physicalLeg,
+  wiredAs,
+  terminalNumber,
+  shuffleFor,
+  skinOhms,
+  pencilOhms,
+  type PartDef,
+  type FootprintLeg,
+  type SeatDef,
+  type SettingDef,
+  type ActionDef,
+  type Hotspot,
+  type NetContext,
+} from "./parts";
+export { seatsOf, heldOf, holderOf, seatNear, SEAT_REACH } from "./seats";
+export { trayLeft, trayUsed } from "./tray";
 export { partPose, anchorPosition, benchBounds, fitCamera, isOnBoard, METER, DIAL_MODES, type PartPose } from "./layout";
 export { resistorBands, formatOhms, formatFarads } from "./colorCode";
+export {
+  DOT_SPACING,
+  dotSpeed,
+  dotRate,
+  flowMap,
+  gateAmps,
+  advanceGates,
+  formatGate,
+  expandPrefix,
+  tagText,
+  pushMap,
+  hatchSpacing,
+  traceLoop,
+  boxNets,
+  type FlowMap,
+  type GateCounts,
+  type PushMap,
+  type Trace,
+  type TraceStep,
+} from "./flow";
+export { symbolInk, slotTurn, tornOutline, type SymbolInk } from "./symbols";
+export { hiddenParts } from "./seats";
+export { materialOhms, conducts, schematicSlot, partSpots, partMarks, CLIP_PATH } from "./parts";
+export { gateSpot } from "./layout";
+export { chargeable, charge as staticCharge, stuckTo, lifting, apart, MAX_MARKS, PULL_MARKS, APART_MM } from "./static";
 // The store needs React and zustand but not three.js, so a host can own it before the 3D view loads.
-export { createBenchStore, type BenchStore, type BenchStoreState, type BenchUi } from "./store";
+export { createBenchStore, type BenchStore, type BenchStoreState, type BenchUi, type InspectSpec, type BenchOverlay } from "./store";
 export { DEFAULT_LABELS, type BenchLabels } from "./labels";
 
 export type {
@@ -40,4 +90,10 @@ export type {
   WaterKind,
   Wire,
   WireColor,
+  Held,
+  BatterySize,
+  Moisture,
+  SampleMaterial,
+  SymbolKind,
+  SchematicSymbol,
 } from "./types";

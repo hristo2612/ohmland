@@ -1,0 +1,192 @@
+# How to write a bench lesson
+
+A bench lesson keeps the learner at the bench the whole time. There is no hook page, no explain cards and no quiz
+page: the robot says one short line, the learner does one thing on the bench, and the bench answers. Discoveries are
+drawn onto the parts, rules are stamped quietly into the margin, and checks are taps and picks on the bench. At the end
+the notebook page fills itself in and is signed off.
+
+Read `docs/DESIGN-PRINCIPLES.md` first: it decides how much goes on a screen and how much we say. Wording rules are in
+`docs/CONTENT.md`, the lab file in `docs/LABS.md`. The reference lessons are
+`content/units/basics/current-and-leds/first-glow`, `content/units/basics/your-meter/welcome-to-the-bench` and
+`content/units/basics/your-meter/how-a-breadboard-works`, each with its lab in `content/labs/<id>.ts`.
+
+## Two files
+
+- `content/labs/<lab>.ts` holds the bench, the tasks (goals, hints, nudges, setups) and the solution. It is the source
+  of truth for anything the simulator decides.
+- `content/units/<unit>/<module>/<lesson>/lesson.yaml` holds the words and the order: the beats.
+
+## lesson.yaml
+
+```yaml
+format: bench                 # a bench lesson (a file without `format` is a classic stepper lesson)
+id: first-glow                # kebab-case, stable forever: progress keys on it
+version: 2                    # bump when beats change; saved answers of another version are not resumed
+title: Your first glow
+summary: Wire a battery, a resistor and an LED into a loop, and find out which way an LED goes.
+minutes: 8
+lab: first-glow               # content/labs/first-glow.ts
+unlocks: { parts: [led-red], isle: led-lamp }
+
+start:                        # the first screen, over the bench
+  title: Wake the robot's face            # the mission (optional, 5 words)
+  say: My face is one LED. Dark for weeks. Wire me a glow?
+  go: Let's wire it                       # the button (optional, 4 words; default "Start")
+
+beats:
+  - say: This is an LED. Tap it.          # the robot's line (12 words at most)
+    objective: Make it glow               # starts an objective (optional): eyes fill per objective
+    meet: D1                              # three-period lesson, first period: name a part
+    note: { at: D1, text: LED }           # for meet: the name written onto the part
+  - say: Clip a loop. Plus, resistor, LED, minus.
+    do: build-loop                        # a lab task: the beat ends when its goal is met
+    done: It glows! First light on this island in ages.   # the robot's reaction
+    note: { at: R1, text: holds it to about 5 mA }        # a discovery drawn onto the part (6 words)
+  - say: Want me brighter? Try another resistor.
+    popup: { widget: resistor-slider, at: R1, props: { part: R1, led: D1, values: [470, 1000, 1500] } }
+  - say: Quick one. Tap the long leg.
+    tap: { answer: D1.anode, among: [D1.anode, D1.cathode] }   # a check on the bench, graded on the first try
+    wrong: { D1.cathode: "That's the short leg. Try the other." }
+    note: { at: D1.anode, text: "long leg: anode, toward plus" }
+    rule: "LED: long leg to plus."        # stamped into the margin and the notebook (8 words)
+  - say: Swap the LED's legs. Guess first.
+    guess: { options: [It still glows, It goes dark, It burns out], answer: It goes dark }   # before the action
+    do: flip-led
+    note: { at: D1, text: "backwards: blocked" }
+    rule: LEDs work one way only.
+
+secret:                       # the bonus, offered after the beats (and found any time by experimenting)
+  task: no-resistor           # a bonus task in the lab
+  say: Curious? Leave the resistor out. It's free here.
+  done: Pop. That LED gave its life for science.
+  note: { at: D1, text: about 1 A for a blink }
+  rule: Every LED needs a resistor.
+
+fixit:                        # the closing check: a broken bench to repair, relaxed (the clock is opt-in)
+  say: Fix-it time. No glow here. Why?
+  tasks:
+    - task: fix-reversed      # a lab task with a `setup` that breaks the bench
+  timer: 60                   # seconds on the optional clock (default 60)
+
+end:
+  say: You built that from scratch. My face approves.
+```
+
+### A beat
+
+Every beat has a robot line (`say`) and at most one thing to do:
+
+| Field | The learner | Ends when |
+|---|---|---|
+| `meet: <part>` | taps the part the robot names (its name is written onto it) | the tap |
+| `do: <task>` | works on the bench | the lab task's goal holds |
+| `tap: { answer, among }` | taps one of the dashed targets on the bench | the right one is tapped |
+| `tap: { joinedTo: <hole> }` | taps a breadboard hole joined to the marked one | a hole on the same strip is tapped |
+| `tap: { anyHole: true }` | taps any hole (the note may say `{hole}`) | any hole |
+| `pick: { options, answer?, on? }` | picks a chip (`on` rings a part: "What is this?") | the right chip (any chip without `answer`) |
+| `number: { answer, unit?, tolerance? }` | types a number the bench gave them | within `tolerance` percent (default 5) |
+| `popup: { widget, at, props }` | plays with the lesson's one pop-up card | "Got it" |
+| nothing | reads, then taps Next | Next |
+
+A `do` beat whose lab task declares a `note` (a number read off the bench, `lab.note(id)` in `docs/LABS.md`) shows a
+box for it under the robot's line, labelled with the note's `label` and `unit`. The learner types the number and
+presses Enter (or Check); the task's goal judges it against the bench, and if the task is still open a moment later the
+robot nudges. Use it when the bench decides the right answer (a measured τ that depends on the parts); use `number`
+when one fixed answer is right.
+
+Optional, on any beat:
+
+- `objective`: starts an objective (a few words). The robot's eyes fill in equal steps as each objective (and the
+  fix-it round) finishes, and the current objective's name shows as a quiet kicker. Objectives are never listed.
+- `spot: [parts]`: the parts in play. The bench frames and spotlights them. Meet, tap and pick beats spot their part by
+  themselves; leave `spot` out when the result shows somewhere else (a switch that lights a lamp).
+- `guess` (only with `do`): an ungraded prediction just before the action. The notebook keeps it in blue ink.
+- `done`, `note`, `rule`: the discovery. A beat with any of them ends on a Next button so the learner can read it; a
+  beat without one moves on by itself after a beat of the robot's success line.
+- `hint` (checks) and `wrong` (lines for particular wrong taps or chips). A `do` beat uses its lab task's `hints`.
+- `xray: true`: the breadboard's metal strips show during the beat.
+- `tool`: the one instrument or panel the beat needs: `meter`, `scope`, `logger`, `stopwatch`, `tapper`, `controls`,
+  `views` (the lab's overlay toggles, Flow, Electrons and Push, from `overlays.offer`) or a lab panel id. Without it, a lab panel tied to the beat's task (its `show`) appears. Never two at once. The
+  fix-it round and the secret take a `tool` too (`fixit: { tool: meter, ... }`, `secret: { tool: meter, ... }`): the
+  meter's range, for one, can only be changed on its panel.
+
+Anchors (`at`, `answer`, `among`, `on`, `spot`) use the lab's shorthand: a part `D1`, a lead `D1.anode`, a hole `e12`
+or `rail+:21`, a clip lead end `TL1.a`, a jumper end `W1.b`, or a raw bench anchor (`pin:D1.anode`, `part:D1`).
+
+## Control of error
+
+The bench corrects the learner, not a grade. A wrong tap is never marked wrong: the tapped thing writes its own name
+(or, on a breadboard, the strip it really belongs to), and the robot nudges. A wrong build shows its real consequence
+(the LED stays dark, the part smokes) and a lab task's `nudges` say a gentle line once the bench has shown the mistake
+for a moment:
+
+```ts
+nudges: [{ when: (lab) => backwards(lab), say: "Dark? Turn the LED around. Long leg to plus." }],
+```
+
+## Fix-it benches and parts that come into play
+
+A lab task's `setup` is a list of solution steps the lesson applies when the task's beat begins, on top of the bench
+the solution reaches at the previous check: the fix-it round's broken circuit, or parts that come into play halfway
+(the breadboard's LED). The solution must start that task's steps with the same steps: spread one const into both.
+
+```ts
+const SWAP_BATTERY: SolutionStep[] = [{ do: "clip", lead: "TL1", end: "a", to: "B1.neg" }, { do: "clip", lead: "TL3", end: "b", to: "B1.pos" }];
+// the task
+{ id: "fix-reversed", setup: SWAP_BATTERY, goal: (lab) => { if (!lab.isLit("D1")) lab.memory["dark"] = true; return lab.memory["dark"] === true && lit(lab); }, ... }
+// the solution
+[...earlierSteps, { do: "check", task: "flip-back" }, ...SWAP_BATTERY, ...fixSteps, { do: "check", task: "fix-reversed" }]
+```
+
+The setup's own simulator inputs (a meter's mode or range set with a `dial` step) are sent after the checkpoint's, so
+`{ do: "dial", mode: "dcv", range: "200V" }` really leaves the meter on 200 V. A fix-it goal should need the broken
+state first (the `memory` pattern above), so a bench that never broke does not count. The clock is the learner's
+choice ("Race the clock"); nothing happens when it runs out.
+
+## Order and the lab
+
+The lesson walks the lab's required tasks one at a time: the beats' `do` tasks and then the fix-it tasks must be
+exactly the lab's required tasks, in the lab's order. Only the task of the current beat (and the secret, which is a
+bonus task) can complete. `apps/web/src/lesson/bench/lessons.test.ts` checks this, the setups, the tools and that every
+anchor exists on the bench.
+
+## Budgets
+
+The build fails a lesson that breaks them (`apps/web/src/content/schema.ts`):
+
+| Thing | Limit |
+|---|---|
+| Robot line (`say`, `done`, the start line) | 12 words |
+| Note on a part | 6 words, lower case field-note style |
+| Rule | 8 words; 3 rules at most per lesson (1 or 2 is better) |
+| Chip (guess, pick, start button) | 4 words; 2 or 3 guess chips |
+| Main path (start, every beat's line, done, note, rule and chips, the secret, the fix-it, the sign-off) | under 150 words |
+| On demand (`hint`, `wrong`) | 12 words each, under 60 words in all |
+| Pop-up cards | one per lesson, only when it is truly hands-on |
+
+The learner acts within 5 seconds: the start screen has one button, and the first beat asks for a bench action.
+
+## Introducing a part
+
+Use the three-period lesson. "This is a resistor." (`meet`, or a note on the part at the moment it works.) "Tap the
+resistor." (a `tap` check; a wrong tap names what was tapped.) "What is this?" (a `pick` with `on`, near the end).
+One new part per lesson.
+
+## XP and progress
+
+Nothing new to learn: a graded check right on the first try counts like a quiz item (10 XP), a lab task like a lab task
+(15 XP), the lesson 30 XP. The player saves the current beat and the answers (`check:<beat>`, `guess:<beat>`,
+`tasks:<lab>`) and resumes at the beat, with the bench put back at that task's checkpoint.
+
+## The notebook page
+
+It fills itself in: rules found, guesses against what happened, checks and whether they were right first time, the
+fix-it round (and the time left if the learner raced the clock), parts that went to the Hall of Fried Parts. The
+learner can open it any time from the bar; at the end it is the signed-off summary. Nothing to write.
+
+## Trying a lesson
+
+- `pnpm dev`, open `/learn/<unit>/<lesson>`. `window.ohmlandLab` works as in a lab (`status()`, `bench()`,
+  `project(target)`, `step(solutionStep)`, `view()`).
+- `pnpm --filter @ohmland/web test` validates the lesson against its lab and replays the lab's solution.
+- `node apps/web/scripts/lesson-shots.mjs --lessons=<id>` plays a reference lesson and screenshots every moment.

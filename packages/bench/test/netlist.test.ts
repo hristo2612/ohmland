@@ -267,13 +267,29 @@ describe("benchToNetlist: multimeter", () => {
     bench.meter = meter();
     bench.meter.probes.red.tip.to = "pin:B1.pos";
     bench.meter.probes.black.tip.to = "pin:B1.neg";
-    const { netlist, nodeOf } = benchToNetlist(bench);
+    const { netlist, nodeOf } = benchToNetlist(bench, IDEAL);
     const m = spec(netlist.parts, "M1", "multimeter");
     expect(m.mode).toBe("dcv");
     expect(m.pins.vohm).toBe(nodeOf("pin:B1.pos"));
     expect(m.pins.com).toBe("gnd");
     // Empty sockets float on their own nodes.
     expect(new Set([m.pins.ma, m.pins.a10, m.pins.vohm, m.pins.com]).size).toBe(4);
+  });
+
+  it("gives each plugged-in probe lead 0.1 Ω by default, so touching the tips together reads about 0.2 Ω", () => {
+    const bench = empty(null);
+    bench.parts.push(battery());
+    bench.meter = meter({ mode: "ohm" });
+    bench.meter.probes.red.tip.to = "probe:black";
+    const { netlist, nodeOf } = benchToNetlist(bench);
+    const m = spec(netlist.parts, "M1", "multimeter");
+    const red = spec(netlist.parts, "M1:red", "wire");
+    const black = spec(netlist.parts, "M1:black", "wire");
+    expect(red.ohms).toBe(0.1);
+    expect(red.pins.a).toBe(m.pins.vohm);
+    expect(black.pins.a).toBe(m.pins.com);
+    expect(red.pins.b).toBe(black.pins.b);
+    expect(nodeOf("probe:red")).toBe(nodeOf("probe:black"));
   });
 
   it("follows the red plug into the mA socket", () => {
@@ -283,7 +299,7 @@ describe("benchToNetlist: multimeter", () => {
     bench.meter.probes.red.socket = "ma";
     bench.meter.probes.red.tip.to = "hole:c14";
     bench.meter.probes.black.tip.to = "pin:B1.neg";
-    const { netlist, nodeOf } = benchToNetlist(bench);
+    const { netlist, nodeOf } = benchToNetlist(bench, IDEAL);
     const m = spec(netlist.parts, "M1", "multimeter");
     expect(m.pins.ma).toBe(nodeOf("pin:R1.b"));
     expect(m.pins.vohm).not.toBe(m.pins.ma);

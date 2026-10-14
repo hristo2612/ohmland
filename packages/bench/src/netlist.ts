@@ -4,7 +4,8 @@
 import type { Netlist, NodeId, PartSpec } from "@ohmland/sim";
 import { holeAnchor, leadAnchor, parseAnchor, pinAnchor, probeAnchor, socketAnchor, wireAnchor } from "./anchors";
 import { RAILS, boardGeometry } from "./board";
-import { partDef } from "./parts";
+import { partDef, partLegs, partSpots, physicalLeg, type NetContext } from "./parts";
+import { heldOf, seatsOf } from "./seats";
 import type { Anchor, BenchState, MeterSocket, PartParamsMap, PlacedPart } from "./types";
 
 export class UnionFind {
@@ -69,9 +70,10 @@ export type Connectivity = {
 
 /**
  * Build the metal-contact connectivity of the bench (no parts conduct here). With `splitLeads`, the two clips of a
- * test lead stay separate groups (the netlist then joins them with a small resistance).
+ * test lead stay separate groups (the netlist then joins them with a small resistance); with `splitProbes`, so do
+ * each meter probe's tip and socket.
  */
-export function connectivity(bench: BenchState, opts: { splitLeads?: boolean } = {}): Connectivity {
+export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; splitProbes?: boolean } = {}): Connectivity {
   const uf = new UnionFind();
   const known = new Set<Anchor>();
   const warnings: string[] = [];
@@ -110,9 +112,22 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean } =
   };
   for (const part of bench.parts) {
     const def = partDef(part.kind);
-    for (const leg of def.legs) add(pinAnchor(part.id, leg));
+    for (const leg of partLegs(part)) add(pinAnchor(part.id, leg));
+    // Insulated spots (a battery's wrapper, a switch's wooden block): a clip can bite them, and they join nothing.
+    for (const spot of Object.keys(partSpots(part))) add(pinAnchor(part.id, spot));
     for (const [leg, hole] of Object.entries(part.holes ?? {})) seat(pinAnchor(part.id, leg), hole, `${part.id}.${leg}`);
     for (const [x, y] of def.bridges ?? []) uf.union(pinAnchor(part.id, x), pinAnchor(part.id, y));
+  }
+  // Holders: a seated part's leads touch the holder's contacts (resistor clips, a test station's terminals).
+  for (const holder of bench.parts) {
+    const held = heldOf(holder);
+    for (const s of seatsOf(holder)) {
+      const id = held[s.name];
+      const part = id ? bench.parts.find((p) => p.id === id) : undefined;
+      if (!part || !s.joins) continue;
+      const legs = partDef(part.kind).legs;
+      for (const [leg, own] of Object.entries(s.joins)) if (legs.includes(leg)) uf.union(pinAnchor(part.id, leg), pinAnchor(holder.id, own));
+    }
   }
 
   // 3. Jumper wires.
@@ -126,13 +141,14 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean } =
     seat(b, w.b, `${w.id}.b`);
   }
 
-  // 4. Meter sockets and probes (before clips so clips may grab a probe tip).
+  // 4. Meter sockets and probes (before clips so clips may grab a probe tip). With `splitProbes` each probe tip stays
+  //    apart from its socket (the netlist joins them with the probe lead's resistance).
   if (bench.meter) {
     for (const s of SOCKETS) add(socketAnchor(s));
     for (const color of ["red", "black"] as const) {
       add(probeAnchor(color));
       const pr = bench.meter.probes[color];
-      if (pr.socket) uf.union(socketAnchor(pr.socket), probeAnchor(color));
+      if (pr.socket && !opts.splitProbes) uf.union(socketAnchor(pr.socket), probeAnchor(color));
     }
   }
 
@@ -193,6 +209,11 @@ export type BenchNetlistOptions = {
    * node (an ideal conductor).
    */
   leadOhms?: number;
+  /**
+   * Resistance of each meter probe lead, socket to tip (default 0.1 Ω, or 0 when `leadOhms` is 0). Each plugged-in
+   * probe becomes a `wire` part "<meter>:red" / "<meter>:black", so touching the tips together reads about 0.2 Ω.
+   */
+  probeOhms?: number;
 };
 
 const railOrder = (strip: string) => {
@@ -207,7 +228,8 @@ const railOrder = (strip: string) => {
  */
 export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}): BenchNetlist {
   const leadOhms = opts.leadOhms ?? 0.15;
-  const conn = connectivity(bench, { splitLeads: leadOhms > 0 });
+  const probeOhms = opts.probeOhms ?? (leadOhms > 0 ? 0.1 : 0);
+  const conn = connectivity(bench, { splitLeads: leadOhms > 0, splitProbes: probeOhms > 0 });
   const { uf } = conn;
   const warnings = [...conn.warnings];
   const geom = bench.board ? boardGeometry(bench.board) : null;
@@ -234,7 +256,7 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
     }
   }
   bench.parts.forEach((p, i) => {
-    for (const leg of partDef(p.kind).legs) consider(pinAnchor(p.id, leg), [2, i, `${p.id}.${leg}`]);
+    for (const leg of partLegs(p)) consider(pinAnchor(p.id, leg), [2, i, `${p.id}.${leg}`]);
   });
   for (const k of uf.keys()) {
     const parsed = parseAnchor(k);
@@ -256,10 +278,12 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
   };
 
   const specs: PartSpec[] = [];
+  const ctx: NetContext = { part: (id) => bench.parts.find((p) => p.id === id), pin: (id, leg) => nodeOf(pinAnchor(id, leg)) };
   for (const part of bench.parts) {
     const def = partDef(part.kind);
-    const node = (leg: string) => nodeOf(pinAnchor(part.id, leg));
-    specs.push(...(def.toSpecs as (p: PlacedPart, n: (leg: string) => NodeId) => PartSpec[])(part, node));
+    // Mystery parts are wired inside in a shuffled order: leg `fn` of the model is whichever terminal carries it.
+    const node = (leg: string) => nodeOf(pinAnchor(part.id, physicalLeg(part, leg)));
+    specs.push(...(def.toSpecs as (p: PlacedPart, n: (leg: string) => NodeId, c: NetContext) => PartSpec[])(part, node, ctx));
   }
 
   if (leadOhms > 0) {
@@ -283,6 +307,13 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
     };
     if (m.range !== undefined) spec.range = m.range;
     specs.push(spec);
+    if (probeOhms > 0) {
+      for (const color of ["red", "black"] as const) {
+        const socket = m.probes[color].socket;
+        if (!socket) continue;
+        specs.push({ id: `${spec.id}:${color}`, kind: "wire", pins: { a: nodeOf(socketAnchor(socket)), b: nodeOf(probeAnchor(color)) }, ohms: probeOhms });
+      }
+    }
   }
 
   return { netlist: { parts: specs }, nodeOf, warnings };

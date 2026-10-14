@@ -1,13 +1,15 @@
 // Axial parts: the 1/4 W resistor (colour bands from its value) and the 1N4001 / 1N4148 diodes.
 
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { BAND_HEX, resistorBands, type BandColor } from "../colorCode";
-import { DIODE, LEAD_R, PITCH, RESISTOR } from "../dims";
+import { DIODE, LEAD_R, PITCH, RESISTOR, RESISTOR_1W, RESISTOR_5W } from "../dims";
 import type { PartParamsMap } from "../types";
 import { Scorch, Smoke } from "../effects/effects";
-import { bentTube, latheY, memoGeo } from "../three/geometry";
+import { FONT, canvasTexture, rng } from "../three/canvas";
+import { bentTube, latheY, memoGeo, roundedBox } from "../three/geometry";
 import { mat } from "../three/materials";
+import { keepColor } from "../three/paper";
 import { IN_HOLE, healthOf, mix, type ModelProps } from "./common";
 
 const HALF = RESISTOR.len / 2;
@@ -52,13 +54,21 @@ function bandLayout(n: number): { c: number; w: number }[] {
 function bandMaterial(color: BandColor, burnt: number): THREE.Material {
   const metal = color === "gold" || color === "silver";
   const hex = burnt > 0 ? mix(BAND_HEX[color], "#1d1510", burnt) : BAND_HEX[color];
-  return mat.paint(hex, metal && burnt < 0.5);
+  // The code must read exactly: the paper look leaves band colours alone.
+  return keepColor(mat.paint(hex, metal && burnt < 0.5));
 }
 
 const BODY_HEX = { carbon: "#dcc49c", metal: "#86b2da" };
 
-/** Resistor body (with bands) centred at the origin, axis along +x. */
-function ResistorBody({ ohms, bands, tolerance, burnt }: { ohms: number; bands: 4 | 5; tolerance?: number; burnt: number }) {
+/** The part's real value (labs set `actualOhms`) lies outside its tolerance. */
+const offSpec = (p: PartParamsMap["resistor"]): boolean =>
+  p.actualOhms !== undefined && Math.abs(p.actualOhms - p.ohms) > (p.ohms * (p.tolerance ?? 5)) / 100;
+
+/**
+ * Resistor body (with bands) centred at the origin, axis along +x. A part whose real value is outside its tolerance
+ * (`offSpec`, most likely overheated once) has a slightly darkened body.
+ */
+function ResistorBody({ ohms, bands, tolerance, burnt, offSpec = false }: { ohms: number; bands: 4 | 5; tolerance?: number; burnt: number; offSpec?: boolean }) {
   const colors = useMemo(() => {
     try {
       return resistorBands(ohms, bands, tolerance);
@@ -67,7 +77,7 @@ function ResistorBody({ ohms, bands, tolerance, burnt }: { ohms: number; bands: 
     }
   }, [ohms, bands, tolerance]);
   const layout = bandLayout(bands);
-  const base = bands === 5 ? BODY_HEX.metal : BODY_HEX.carbon;
+  const base = mix(bands === 5 ? BODY_HEX.metal : BODY_HEX.carbon, "#7d5a3a", offSpec ? 0.22 : 0);
   const bodyHex = burnt > 0 ? mix(base, burnt > 0.8 ? "#2a1e16" : "#6b4a2e", Math.min(1, burnt * 1.35)) : base;
   const body = memoGeo("res-body", () => resistorLathe(-HALF - TAIL, HALF + TAIL, 0, 90));
   return (
@@ -183,9 +193,76 @@ function bodyPose(spec: AxialSpec, mount: ModelProps<unknown>["mount"], span: nu
   return { pos: [L / 2, spec.axisLift, 0], rot: [0, 0, 0] };
 }
 
+function ceramicTexture(ohms: number, watts: number): THREE.CanvasTexture {
+  const value = ohms >= 1000 ? `${Number((ohms / 1000).toPrecision(3))}K` : `${Number(ohms.toPrecision(3))}R`;
+  return canvasTexture(`ceramic-res:${ohms}:${watts}`, 512, 220, (ctx, w, h) => {
+    ctx.fillStyle = "#f1eee6";
+    ctx.fillRect(0, 0, w, h);
+    const r = rng(11);
+    for (let i = 0; i < 900; i++) {
+      ctx.fillStyle = `rgba(120,110,95,${r() * 0.12})`;
+      ctx.fillRect(r() * w, r() * h, 2, 2);
+    }
+    ctx.fillStyle = "#2b2f3a";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `800 84px ${FONT}`;
+    ctx.fillText(`${watts}W ${value}J`, w / 2, h / 2 + 4);
+  });
+}
+
+/** A ceramic (cement) power resistor: a white block with its rating printed on top, leads out of the ends. */
+function CeramicResistor({ params, burnt, health }: { params: PartParamsMap["resistor"]; burnt: number; health: string }) {
+  const L = RESISTOR_5W.len;
+  const W = RESISTOR_5W.w;
+  const top = useMemo(() => new THREE.MeshStandardMaterial({ map: ceramicTexture(params.ohms, Math.round(params.watts ?? 5)), roughness: 0.9 }), [params.ohms, params.watts]);
+  useLayoutEffect(() => () => top.dispose(), [top]);
+  const ends = RESISTOR_5W.len / 2 + RESISTOR_5W.deskLead;
+  return (
+    <group>
+      <group position={[0, W / 2, 0]}>
+        <mesh geometry={memoGeo("ceramic-res", () => roundedBox(L, W, W, 0.9, 2))} material={mat.plastic(burnt > 0 ? mix("#efece4", "#4a3a2c", burnt * 0.8) : "#efece4", 0.92)} castShadow receiveShadow />
+        <mesh material={top} position={[0, W / 2 + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[L - 2, (L - 2) * (220 / 512)]} />
+        </mesh>
+        {[-1, 1].map((s) => (
+          <mesh key={s} geometry={memoGeo("ceramic-lead", () => bentTube([[L / 2 - 0.5, 0, 0], [ends, 0, 0]], 0.4, 0.5, 8))} material={mat.lead()} scale={[s, 1, 1]} castShadow />
+        ))}
+        {(health === "smoking" || health === "dead") && (
+          <group position={[0, W / 2, 0]}>
+            <Smoke active amount={health === "smoking" ? 1 : 0.15} spread={8} />
+          </group>
+        )}
+      </group>
+    </group>
+  );
+}
+
 export function ResistorModel({ params, mount, span = 4, state }: ModelProps<PartParamsMap["resistor"]>) {
   const health = healthOf(state);
   const burnt = health === "dead" ? 1 : health === "smoking" ? 0.55 : health === "hot" ? 0.18 : 0;
+  const watts = params.watts ?? 0.25;
+  if (mount === "desk" && watts >= 2) return <CeramicResistor params={params} burnt={burnt} health={health} />;
+  if (mount === "desk" && watts >= 0.75) {
+    // A 1 W film resistor: the same shape, bigger, with longer, thicker leads.
+    const k = RESISTOR_1W.len / RESISTOR.len;
+    const spec: AxialSpec = { half: (HALF + TAIL) * k, axisLift: RESISTOR_1W.dia / 2, deskLead: RESISTOR_1W.deskLead, leadR: LEAD_R * 1.4 };
+    return (
+      <group>
+        <group position={[0, spec.axisLift, 0]} scale={[k, k, k]}>
+          <ResistorBody ohms={params.ohms} bands={params.bands ?? 4} tolerance={params.tolerance} burnt={burnt} offSpec={offSpec(params)} />
+        </group>
+        {(health === "smoking" || health === "dead") && (
+          <group position={[0, spec.axisLift * 2, 0]}>
+            <Smoke active amount={health === "smoking" ? 1 : 0.15} spread={6} />
+          </group>
+        )}
+        <group position={[0, spec.axisLift, 0]}>
+          <AxialLeads spec={spec} mount={mount} span={span} />
+        </group>
+      </group>
+    );
+  }
   const spec: AxialSpec = {
     half: HALF + TAIL,
     axisLift: mount === "desk" ? CAP_R : RESISTOR.lift + CAP_R,
@@ -196,7 +273,7 @@ export function ResistorModel({ params, mount, span = 4, state }: ModelProps<Par
   return (
     <group>
       <group position={pose.pos} rotation={pose.rot}>
-        <ResistorBody ohms={params.ohms} bands={params.bands ?? 4} tolerance={params.tolerance} burnt={burnt} />
+        <ResistorBody ohms={params.ohms} bands={params.bands ?? 4} tolerance={params.tolerance} burnt={burnt} offSpec={offSpec(params)} />
         {(health === "smoking" || health === "dead") && (
           <group position={[0, CAP_R, 0]}>
             <Smoke active amount={health === "smoking" ? 1 : 0.15} spread={4} />

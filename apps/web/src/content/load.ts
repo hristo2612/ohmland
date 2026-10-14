@@ -11,19 +11,27 @@ import { ISLE_PIECES, isIslePiece } from "./isle-pieces";
 import { blockMd, inlineMd } from "./markdown";
 import type { CourseOutline } from "./outline";
 import {
+  benchLessonSchema,
   courseSchema,
   lessonSchema,
   moduleSchema,
   partsSchema,
   unitSchema,
+  type BenchLessonFile,
   type LessonFile,
   type PartFile,
   type QuizItem,
   type Step,
 } from "./schema";
 
-/** A lesson as the player receives it. Markdown fields (see schema.ts) now hold sanitised HTML. */
-export type LessonData = LessonFile & { unit: string; module: string; href: string; index: number };
+/** Where a lesson sits in the course. */
+type Placement = { unit: string; module: string; href: string; index: number };
+/** A classic stepper lesson as the player receives it. Markdown fields (see schema.ts) now hold sanitised HTML. */
+export type StepLessonData = LessonFile & Placement;
+/** A bench-first lesson (format: bench) as the player receives it. Its lines are plain text. */
+export type BenchLessonData = BenchLessonFile & Placement;
+/** Either kind of lesson; `format === "bench"` tells them apart. */
+export type LessonData = StepLessonData | BenchLessonData;
 export type ModuleData = {
   id: string;
   unit: string;
@@ -194,7 +202,11 @@ export function loadCourse(root = findContentDir()): Course {
 
       for (const lessonId of mod.lessons) {
         const lessonFile = join(moduleDir, lessonId, "lesson.yaml");
-        const lesson = validate(ctx, lessonFile, lessonSchema, readYaml(ctx, lessonFile));
+        const raw = readYaml(ctx, lessonFile);
+        const bench = !!raw && typeof raw === "object" && (raw as { format?: unknown }).format === "bench";
+        const lesson: LessonFile | BenchLessonFile | undefined = bench
+          ? validate(ctx, lessonFile, benchLessonSchema, raw)
+          : validate(ctx, lessonFile, lessonSchema, raw);
         if (!lesson) continue;
         const issues: string[] = [];
         if (lesson.id !== lessonId) issues.push(`id "${lesson.id}" must match its folder name "${lessonId}"`);
@@ -206,24 +218,24 @@ export function loadCourse(root = findContentDir()): Course {
         });
         if (lesson.unlocks.isle && !isIslePiece(lesson.unlocks.isle))
           issues.push(`unlocks.isle: "${lesson.unlocks.isle}" is not an island piece (known pieces: ${ISLE_PIECES.join(", ")})`);
-        lesson.steps.forEach((s, i) => {
-          if (s.type === "lab" && !existsSync(join(root, "labs", `${s.lab}.ts`)))
-            issues.push(`steps[${i}].lab: no lab file content/labs/${s.lab}.ts`);
-          if (s.type === "hook" && s.visual?.kind === "part" && !partIds.has(s.visual.part))
-            issues.push(`steps[${i}].visual.part: no part "${s.visual.part}" in content/parts.yaml`);
-        });
+        if (lesson.format === "bench") {
+          if (!existsSync(join(root, "labs", `${lesson.lab}.ts`))) issues.push(`lab: no lab file content/labs/${lesson.lab}.ts`);
+        } else {
+          lesson.steps.forEach((s, i) => {
+            if (s.type === "lab" && !existsSync(join(root, "labs", `${s.lab}.ts`)))
+              issues.push(`steps[${i}].lab: no lab file content/labs/${s.lab}.ts`);
+            if (s.type === "hook" && s.visual?.kind === "part" && !partIds.has(s.visual.part))
+              issues.push(`steps[${i}].visual.part: no part "${s.visual.part}" in content/parts.yaml`);
+          });
+        }
         if (issues.length) {
           report(ctx, lessonFile, issues);
           continue;
         }
-        const data: LessonData = clean({
-          ...lesson,
-          steps: lesson.steps.map(renderStep),
-          unit: unitId,
-          module: moduleId,
-          href: `/learn/${unitId}/${lesson.id}`,
-          index: lessons.length,
-        });
+        const placement: Placement = { unit: unitId, module: moduleId, href: `/learn/${unitId}/${lesson.id}`, index: lessons.length };
+        const data: LessonData = clean(
+          lesson.format === "bench" ? { ...lesson, ...placement } : { ...lesson, steps: lesson.steps.map(renderStep), ...placement },
+        );
         lessons.push(data);
         moduleData.lessons.push(data);
       }
@@ -250,7 +262,6 @@ function outlineOf(units: UnitData[], lessons: LessonData[]): CourseOutline {
       outline.modules.push({ id: mod.id, unit: u.id, title: mod.title, landmark: mod.landmark, lessons: mod.lessons.map((l) => l.id) });
   }
   for (const l of lessons) {
-    const wrap = l.steps.find((s) => s.type === "wrap");
     outline.lessons[l.id] = {
       id: l.id,
       title: l.title,
@@ -260,10 +271,17 @@ function outlineOf(units: UnitData[], lessons: LessonData[]): CourseOutline {
       minutes: l.minutes,
       parts: l.unlocks.parts,
       isle: l.unlocks.isle,
-      rules: wrap?.type === "wrap" ? wrap.rules.length : 0,
+      rules: rulesIn(l),
     };
   }
   return clean(outline);
+}
+
+/** How many rules a lesson hands the learner: a stepper's wrap cards, or a bench lesson's stamped rules. */
+export function rulesIn(l: LessonData): number {
+  if (l.format === "bench") return l.beats.filter((b) => b.rule).length + (l.secret?.rule ? 1 : 0);
+  const wrap = l.steps.find((s) => s.type === "wrap");
+  return wrap?.type === "wrap" ? wrap.rules.length : 0;
 }
 
 let cached: Course | null = null;

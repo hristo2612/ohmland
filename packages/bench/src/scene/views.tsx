@@ -3,31 +3,44 @@
 import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { PartState } from "@ohmland/sim";
-import { Select } from "@react-three/postprocessing";
 import { boardGeometry, boardOrigin, holeWorld } from "../board";
-import { BOARD_TOP, PITCH, TOGGLE_BASE } from "../dims";
+import { BOARD_TOP, BOX, CABINET, PITCH, TOGGLE_BASE } from "../dims";
 import { METER, anchorPosition, isOnBoard, outwardHeading, partPose, probeTip, socketWorld, meterLocalToWorld } from "../layout";
 import { parseAnchor } from "../anchors";
-import { partDef, rotateXZ } from "../parts";
+import { partDef, rotateXZ, type Hotspot } from "../parts";
 import { PartModel, flyingLeads, type PartModelProps } from "../models/PartModel";
 import { useBench, useBenchStore } from "../store";
 import { MultimeterModel } from "../models/Multimeter";
 import { AlligatorClip, BananaPlug, CLIP_LEN, Cable, JumperWire, PLUG_TOP, PROBE_LEN, Probe, StrippedEnd, quatFromY } from "../models/Leads";
-import type { FloorFn } from "../three/geometry";
+import { GateModel } from "../models/StartProps";
+import { Billboard } from "@react-three/drei";
+import { ropePoints, type FloorFn } from "../three/geometry";
+import { GATE } from "../dims";
 import type { BenchState, MeterState, PlacedPart, ProbeColor, Quality, TestLead, Vec3, Wire } from "../types";
 import { Proxy, localBox } from "./pick";
 import { prefersReducedMotion, useAnimating } from "../three/anim";
 import { useFrame } from "@react-three/fiber";
+import { usePaperPalette } from "./palette";
 
-export const ACCENT = "#ff8a1f";
-export const SELECT_HEX = "#2f7df6";
+/** Red pencil: the teacher's hints. */
+export const ACCENT = "#B23A1C";
+/** Blue ink: the learner's selection. */
+export const SELECT_HEX = "#1F3C9A";
 
 const v3 = (p: Vec3) => new THREE.Vector3(p[0], p[1], p[2]);
+/** Selection frames and markers: drawn over the scene, never part of a model's size or shadow. */
+const OVERLAY = { fx: true };
 
 /** Height of whatever a cable would rest on at (x, z): the board, the meter, or the desk. */
 export function makeFloor(bench: BenchState): FloorFn {
   const board = bench.board ? { o: boardOrigin(bench.board), g: boardGeometry(bench.board) } : null;
   const m = bench.meter;
+  const boxes = bench.parts
+    .filter((p) => p.kind === "box")
+    .map((p) => {
+      const cab = (p.params as { style?: string }).style === "cabinet";
+      return { pos: p.pos, rot: p.rot, w: cab ? CABINET.w : BOX.w, d: cab ? CABINET.d : BOX.d, h: cab ? CABINET.h : BOX.h };
+    });
   return (x, z) => {
     let y = 0;
     if (board) {
@@ -38,6 +51,11 @@ export function makeFloor(bench: BenchState): FloorFn {
     if (m) {
       const [lx, lz] = rotateXZ(x - m.pos[0], z - m.pos[1], -m.rot);
       if (Math.abs(lx) < METER.width / 2 && Math.abs(lz) < METER.length / 2) y = Math.max(y, METER.height);
+    }
+    // Cables lie over a sealed box, not through it.
+    for (const b of boxes) {
+      const [lx, lz] = rotateXZ(x - b.pos[0], z - b.pos[1], -b.rot);
+      if (Math.abs(lx) < b.w / 2 && Math.abs(lz) < b.d / 2) y = Math.max(y, b.h + 3);
     }
     return y;
   };
@@ -74,7 +92,7 @@ function SelectionFrame({ box, color, pulse: wantPulse = false }: { box: THREE.B
   return (
     <group ref={ref} position={[c.x, Math.max(box.min.y, 0) + 0.15, c.z]}>
       {bars.map(([x, z, bw, bd], i) => (
-        <mesh key={i} position={[x, 0, z]} rotation={[-Math.PI / 2, 0, 0]} material={mat} renderOrder={20}>
+        <mesh key={i} position={[x, 0, z]} rotation={[-Math.PI / 2, 0, 0]} material={mat} renderOrder={20} userData={OVERLAY}>
           <planeGeometry args={[bw, bd]} />
         </mesh>
       ))}
@@ -87,6 +105,8 @@ function SelectionFrame({ box, color, pulse: wantPulse = false }: { box: THREE.B
 
 type PartViewProps = {
   part: PlacedPart;
+  /** The holder this part sits in, if any (its seat sets the pose). */
+  holder?: PlacedPart | undefined;
   board: BenchState["board"];
   selected: boolean;
   hinted: boolean;
@@ -99,21 +119,22 @@ const ACTUATOR: Partial<Record<PlacedPart["kind"], "press" | "flip" | "rotor">> 
   pushbutton: "press",
   "slide-switch": "flip",
   "toggle-switch": "flip",
+  "dpdt-switch": "flip",
   trimmer: "rotor",
 };
 
 /**
  * The model of a part, fed its simulator state straight from the store. Only this re-renders on each snapshot (about
- * 30 a second); the PartView around it, with its picking proxies and outline <Select>, re-renders only when the part
- * itself changes. (Re-rendering <Select> on every snapshot sent the outline composer into an update loop.)
+ * 30 a second); the PartView around it, with its picking proxies, re-renders only when the part itself changes.
  */
 const LivePartModel = memo(function LivePartModel(props: Omit<PartModelProps, "state"> & { id: string }) {
   const store = useBenchStore();
   // Re-render only when something visible changed, not on every snapshot.
   const key = useBench((s) => visualKey(s.snapshot?.parts[props.id]));
   const state = useMemo(() => (store.getState().snapshot?.parts[props.id] as PartState | undefined) ?? null, [store, props.id, key]);
-  const { id: _id, ...rest } = props;
-  return <PartModel {...rest} state={state} />;
+  // The desk clock shows simulated time.
+  const minutes = useBench((s) => (props.kind === "clock" ? Math.floor((s.snapshot?.t ?? 0) / 60) : 0));
+  return <PartModel {...props} state={state} minutes={minutes} />;
 });
 
 /** What a part's look depends on, as a string: health, glow (in 2% steps), contacts, display, relay armature. */
@@ -131,8 +152,12 @@ export function snapshotKey(s: { parts: Record<string, PartState> } | null): str
   return out;
 }
 
-function PartViewImpl({ part, board, selected, hinted, pressed, quality, floor }: PartViewProps) {
-  const pose = useMemo(() => partPose({ v: 1, board, parts: [part], wires: [], leads: [], meter: null }, part), [part, board]);
+function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality, floor }: PartViewProps) {
+  const pose = useMemo(() => partPose({ v: 1, board, parts: holder ? [holder, part] : [part], wires: [], leads: [], meter: null }, part), [part, holder, board]);
+  const hotspots = useMemo(() => {
+    const d = partDef(part.kind) as { hotspots?: (p: unknown) => Hotspot[] };
+    return d.hotspots ? d.hotspots(part.params) : [];
+  }, [part.kind, part.params]);
   const model = useRef<THREE.Group>(null);
   const [box, setBox] = useState<THREE.Box3 | null>(null);
   const def = partDef(part.kind);
@@ -143,29 +168,36 @@ function PartViewImpl({ part, board, selected, hinted, pressed, quality, floor }
     setBox((prev) => (prev && prev.equals(b) ? prev : b));
   }, [part.kind, paramsKey, pose.mount, pose.span]);
   const rotY = (pose.rot * Math.PI) / 180;
+  // A part laid on its back in its seat (a 9 V battery in a sealed box) turns a quarter about x, then about y.
+  const turn = useMemo(() => new THREE.Euler(pose.lie ? -Math.PI / 2 : 0, rotY, 0, "YXZ"), [pose.lie, rotY]);
   const flying = useMemo(() => flyingLeads(part.kind, part.params as Record<string, unknown>), [part.kind, paramsKey]);
   const actuator = ACTUATOR[part.kind];
-  const outline = quality === "high" && (selected || hinted);
+  const pal = usePaperPalette();
   const body = (
     <group ref={model}>
-      <LivePartModel id={part.id} kind={part.kind} params={part.params} mount={pose.mount} span={pose.span} quality={quality} pressed={pressed} />
+      <LivePartModel id={part.id} kind={part.kind} params={part.params} mount={pose.mount} span={pose.span} quality={quality} pressed={pressed} held={!!pose.heldBy} />
     </group>
   );
   return (
-    <group>
-      <group position={pose.origin} rotation={[0, rotY, 0]}>
-        <Select enabled={outline}>{body}</Select>
+    <group name={`part:${part.id}`}>
+      <group position={pose.origin} rotation={turn}>
+        {body}
         {box && (
           <>
-            <Proxy
-              pick={{ type: "part", id: part.id }}
-              size={[Math.max(box.max.x - box.min.x + 1.5, 6), Math.max(box.max.y - box.min.y + 1, 4), Math.max(box.max.z - box.min.z + 1.5, 6)]}
-              position={[(box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, (box.min.z + box.max.z) / 2]}
-            />
+            {part.kind === "box" && part.params.lid ? (
+              // An open box is picked by its front strip, so the parts inside it stay in reach.
+              <Proxy pick={{ type: "part", id: part.id }} size={[box.max.x - box.min.x, 8, (part.params.style === "cabinet" ? CABINET.strip : BOX.strip) + 2]} position={[(box.min.x + box.max.x) / 2, (part.params.style === "cabinet" ? CABINET.h : BOX.h) - 2, (part.params.style === "cabinet" ? CABINET.d : BOX.d) / 2 - (part.params.style === "cabinet" ? CABINET.strip : BOX.strip) / 2]} />
+            ) : (
+              <Proxy
+                pick={{ type: "part", id: part.id }}
+                size={[Math.max(box.max.x - box.min.x + 1.5, 6), Math.max(box.max.y - box.min.y + 1, 4), Math.max(box.max.z - box.min.z + 1.5, 6)]}
+                position={[(box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, (box.min.z + box.max.z) / 2]}
+              />
+            )}
             {actuator &&
-              (part.kind === "toggle-switch" && part.params.base && pose.mount === "desk" ? (
-                // The lever on its wooden block: a generous target, since it is the one thing to press.
-                <Proxy pick={{ type: actuator, id: part.id }} size={[20, 20, 16]} position={[0, box.max.y - 8, TOGGLE_BASE.switchZ]} />
+              (((part.params as { base?: boolean }).base || part.kind === "dpdt-switch") && pose.mount === "desk" ? (
+                // The lever, slider, button or knob on its wooden block: a generous target, since it is the one thing to press.
+                <Proxy pick={{ type: actuator, id: part.id }} size={part.kind === "pushbutton" ? [16, 10, 16] : [24, 20, 16]} position={[0, part.kind === "toggle-switch" ? box.max.y - 8 : TOGGLE_BASE.h + 5, TOGGLE_BASE.switchZ]} />
               ) : (
                 <Proxy
                   pick={{ type: actuator, id: part.id }}
@@ -173,9 +205,14 @@ function PartViewImpl({ part, board, selected, hinted, pressed, quality, floor }
                   position={[(box.min.x + box.max.x) / 2, part.kind === "toggle-switch" ? box.max.y - 5 : box.max.y - 0.8, (box.min.z + box.max.z) / 2]}
                 />
               ))}
-            {(selected || hinted) && <SelectionFrame box={box} color={hinted && !selected ? ACCENT : SELECT_HEX} pulse={hinted && !selected} />}
+            {(selected || hinted) && <SelectionFrame box={box} color={hinted && !selected ? pal.red : pal.blue} pulse={hinted && !selected} />}
           </>
         )}
+        {hotspots.map((h, i) => (
+          // A gate's hotspot is on its flag, which faces the camera above the collar.
+          <Proxy key={i} pick={{ ...h.pick, id: part.id }} size={part.kind === "gate" ? [h.size[0], h.size[1], 4] : h.size} position={part.kind === "gate" ? [h.at[0], h.at[1], 1.6] : h.at} />
+        ))}
+        {part.kind === "box" && part.params.knob && <Proxy pick={{ type: "rotor", id: part.id }} size={[18, 10, 18]} position={[0, BOX.h + 4, BOX.d / 2 - BOX.strip / 2]} />}
         {def.span && pose.mount === "board" && pose.span !== undefined && (
           <>
             <Proxy pick={{ type: "leg", id: part.id, leg: def.span.legs[0], flying: false }} size={[2.8, 5, 2.8]} position={[0, 1.6, 0]} />
@@ -234,12 +271,13 @@ function WireViewImpl({ wire, board, selected, hinted }: { wire: Wire; board: No
   const ang = Math.atan2(-(B.z - A.z), B.x - A.x);
   const h = len <= PITCH * 3.2 ? 2.8 : Math.min(0.8 + len * 0.075, 12) + 2.8;
   const box = new THREE.Box3(new THREE.Vector3(-len / 2 - 1, 0, -1.2), new THREE.Vector3(len / 2 + 1, h + 1, 1.2));
+  const pal = usePaperPalette();
   return (
-    <group>
+    <group name={`wire:${wire.id}`}>
       <JumperWire a={new THREE.Vector3(a[0], BOARD_TOP, a[1])} b={new THREE.Vector3(b[0], BOARD_TOP, b[1])} color={wire.color} />
       <group position={[mid.x, BOARD_TOP, mid.z]} rotation={[0, ang, 0]}>
         <Proxy pick={{ type: "wire", id: wire.id }} size={[Math.max(len - 4, 1), h * 0.7 + 1.5, 2.6]} position={[0, h * 0.62, 0]} />
-        {(selected || hinted) && <SelectionFrame box={box} color={hinted && !selected ? ACCENT : SELECT_HEX} pulse={hinted && !selected} />}
+        {(selected || hinted) && <SelectionFrame box={box} color={hinted && !selected ? pal.red : pal.blue} pulse={hinted && !selected} />}
       </group>
       <Proxy pick={{ type: "wireEnd", id: wire.id, end: "a" }} size={[3, 4.5, 3]} position={[a[0], BOARD_TOP + 1.5, a[1]]} />
       <Proxy pick={{ type: "wireEnd", id: wire.id, end: "b" }} size={[3, 4.5, 3]} position={[b[0], BOARD_TOP + 1.5, b[1]]} />
@@ -251,6 +289,15 @@ export const WireView = memo(WireViewImpl);
 
 // ---------------------------------------------------------------------------------------------------------------
 // Crocodile-clip test leads.
+
+/** How far past the lead the jaws bite (mm). */
+const JAW_BITE = 2.0;
+/** Height of a clip's axis when it lies on its side on the desk. */
+const CLIP_LYING_Y = 3.0;
+/** Test lead cable radius: thin silicone wire, about 1.8 mm across. */
+const LEAD_CABLE_R = 0.9;
+/** Meter probe cable radius. */
+const PROBE_CABLE_R = 1.25;
 
 type ClipPose = { tip: THREE.Vector3; tailDir: THREE.Vector3; quat: THREE.Quaternion; tail: THREE.Vector3 };
 
@@ -307,7 +354,7 @@ function leadEndPose(bench: BenchState, lead: TestLead, end: "a" | "b"): ClipPos
       hz /= hl;
       const pitch = 0.32;
       const tailDir = new THREE.Vector3(hx * Math.cos(pitch), Math.sin(pitch), hz * Math.cos(pitch)).normalize();
-      return clipPose(v3(at).addScaledVector(tailDir, -3.2), tailDir, false);
+      return clipPose(v3(at).addScaledVector(tailDir, -JAW_BITE), tailDir, false);
     }
     if (at) {
       // Clips come in from the side so their profile reads from the usual camera and the board stays visible.
@@ -320,14 +367,76 @@ function leadEndPose(bench: BenchState, lead: TestLead, end: "a" | "b"): ClipPos
       const pitch = 0.32;
       const tailDir = new THREE.Vector3(hx * Math.cos(pitch), Math.sin(pitch), hz * Math.cos(pitch)).normalize();
       // Jaws bite slightly past the lead.
-      const tip = v3(at).addScaledVector(tailDir, -3.2);
+      const tip = v3(at).addScaledVector(tailDir, -JAW_BITE);
       return clipPose(tip, tailDir, false);
     }
   }
-  const here = new THREE.Vector3(me.pos[0], 4.4, me.pos[1]);
-  const toward = otherXZ.clone().setY(4.4).sub(here);
+  const here = new THREE.Vector3(me.pos[0], CLIP_LYING_Y, me.pos[1]);
+  const toward = otherXZ.clone().setY(CLIP_LYING_Y).sub(here);
   const tailDir = toward.lengthSq() > 1 ? toward.normalize() : new THREE.Vector3(1, 0, 0);
   return clipPose(here, tailDir, true);
+}
+
+/** Cable length for a lead whose clips' tails are `d` mm apart. */
+const leadLength = (d: number) => Math.min(320, d * 1.1 + 45);
+
+/**
+ * A clip lead's shape as the 3D view draws it: each clip's pose and the cable between their tails. The flow dots,
+ * gates, push hatching and the tracer ride these points.
+ */
+export function leadCable(bench: BenchState, lead: TestLead, floor: FloorFn): { a: ClipPose; b: ClipPose; cable: THREE.Vector3[] } {
+  const a = leadEndPose(bench, lead, "a");
+  const b = leadEndPose(bench, lead, "b");
+  const cable = ropePoints(a.tail, a.tailDir, b.tail, b.tailDir, leadLength(a.tail.distanceTo(b.tail)), LEAD_CABLE_R, floor, 2, 0.28);
+  return { a, b, cable };
+}
+
+/** A point `t` of the way along a polyline (by length), and the heading there. */
+export function alongLine(pts: THREE.Vector3[], t: number): { at: THREE.Vector3; dir: THREE.Vector3 } {
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) total += pts[i]!.distanceTo(pts[i - 1]!);
+  let want = Math.max(0, Math.min(1, t)) * total;
+  for (let i = 1; i < pts.length; i++) {
+    const seg = pts[i]!.distanceTo(pts[i - 1]!);
+    if (want <= seg || i === pts.length - 1) {
+      const k = seg > 0 ? Math.min(1, want / seg) : 0;
+      return { at: pts[i - 1]!.clone().lerp(pts[i]!, k), dir: pts[i]!.clone().sub(pts[i - 1]!).normalize() };
+    }
+    want -= seg;
+  }
+  return { at: pts[0]?.clone() ?? new THREE.Vector3(), dir: new THREE.Vector3(1, 0, 0) };
+}
+
+/** A gate riding a lead's cable: the collar along the cable, its flag above, and the hit boxes to move it or tap its unit. */
+function GateOnLead({ gate, cable, selected, hinted }: { gate: PlacedPart; cable: THREE.Vector3[]; selected: boolean; hinted: boolean }) {
+  const params = gate.params as { at?: number; mode?: string; unit?: string };
+  const { at, dir } = alongLine(cable, Math.max(0.08, Math.min(0.92, params.at ?? 0.5)));
+  const flat = new THREE.Vector3(dir.x, 0, dir.z);
+  const yaw = flat.lengthSq() > 1e-6 ? Math.atan2(-flat.z, flat.x) : 0;
+  const pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+  const hotspots = (partDef("gate").hotspots?.(gate.params as never) ?? []) as Hotspot[];
+  const pal = usePaperPalette();
+  return (
+    <group name={`part:${gate.id}`} position={at}>
+      <group rotation={[0, yaw, pitch]}>
+        <GateModel id={gate.id} params={gate.params as never} />
+      </group>
+      <Proxy pick={{ type: "part", id: gate.id }} size={[GATE.len + 4, GATE.ring + 4, GATE.ring + 4]} />
+      {/* The flag faces the camera; its hit boxes turn with it (the unit button stays under the pointer). */}
+      <Billboard position={[0, GATE.lift, 0]} name="gate-flag">
+        <Proxy pick={{ type: "part", id: gate.id }} size={[GATE.flagW, GATE.flagH, 3]} />
+        {hotspots.map((h, i) => (
+          <Proxy key={i} pick={{ ...h.pick, id: gate.id }} size={[h.size[0], h.size[1], 4]} position={[h.at[0], 0, 1.6]} />
+        ))}
+      </Billboard>
+      {(selected || hinted) && (
+        <mesh position={[0, 0, 0]} renderOrder={20} userData={OVERLAY}>
+          <sphereGeometry args={[GATE.len * 0.6, 16, 12]} />
+          <meshBasicMaterial color={hinted && !selected ? pal.red : pal.blue} transparent opacity={0.25} depthWrite={false} toneMapped={false} />
+        </mesh>
+      )}
+    </group>
+  );
 }
 
 export function LeadView({
@@ -337,6 +446,9 @@ export function LeadView({
   hinted,
   open,
   floor,
+  gates = [],
+  selectedPart = null,
+  hintedParts,
 }: {
   lead: TestLead;
   bench: BenchState;
@@ -344,29 +456,38 @@ export function LeadView({
   hinted: boolean;
   open: { a: number; b: number };
   floor: FloorFn;
+  /** Gates clipped onto this lead. */
+  gates?: PlacedPart[];
+  selectedPart?: string | null;
+  hintedParts?: Set<string>;
 }) {
-  const pa = leadEndPose(bench, lead, "a");
-  const pb = leadEndPose(bench, lead, "b");
+  const shape = useMemo(() => leadCable(bench, lead, floor), [bench, lead, floor]);
+  const pa = shape.a;
+  const pb = shape.b;
+  const pal = usePaperPalette();
   return (
-    <group>
+    <group name={`lead:${lead.id}`}>
       {(["a", "b"] as const).map((end) => {
         const p = end === "a" ? pa : pb;
         return (
           <group key={end}>
             <group position={p.tip} quaternion={p.quat}>
               <AlligatorClip color={lead.color} open={open[end]} />
-              <Proxy pick={{ type: "clip", id: lead.id, end }} size={[CLIP_LEN + 4, 12, 12]} position={[-CLIP_LEN / 2 + 1, 0, 0]} />
+              <Proxy pick={{ type: "clip", id: lead.id, end }} size={[CLIP_LEN + 6, 11, 11]} position={[-CLIP_LEN / 2 + 1, 0, 0]} />
             </group>
             {(selected || hinted) && (
-              <mesh position={p.tip} renderOrder={20}>
-                <sphereGeometry args={[2.4, 16, 12]} />
-                <meshBasicMaterial color={hinted && !selected ? ACCENT : SELECT_HEX} transparent opacity={0.35} depthWrite={false} toneMapped={false} />
+              <mesh position={p.tip} renderOrder={20} userData={OVERLAY}>
+                <sphereGeometry args={[1.8, 16, 12]} />
+                <meshBasicMaterial color={hinted && !selected ? pal.red : pal.blue} transparent opacity={0.3} depthWrite={false} toneMapped={false} />
               </mesh>
             )}
           </group>
         );
       })}
-      <Cable from={pa.tail} fromDir={pa.tailDir} to={pb.tail} toDir={pb.tailDir} length={Math.min(320, pa.tail.distanceTo(pb.tail) * 1.1 + 45)} radius={1.25} color={lead.color} floor={floor} bend={0.28} />
+      <Cable from={pa.tail} fromDir={pa.tailDir} to={pb.tail} toDir={pb.tailDir} length={leadLength(pa.tail.distanceTo(pb.tail))} radius={LEAD_CABLE_R} color={lead.color} floor={floor} bend={0.28} points={shape.cable} />
+      {gates.map((g) => (
+        <GateOnLead key={g.id} gate={g} cable={shape.cable} selected={selectedPart === g.id} hinted={!!hintedParts?.has(g.id)} />
+      ))}
     </group>
   );
 }
@@ -425,8 +546,9 @@ export function MeterView({
     return [Math.sin(a) * METER.dial.labels, METER.face + 1, METER.dial.z - Math.cos(a) * METER.dial.labels];
   };
   const modes = ["off", "dcv", "acv", "ohm", "continuity", "diode", "dca-10a", "dca-ma"] as const;
+  const pal = usePaperPalette();
   return (
-    <group>
+    <group name={`part:${meter.id}`}>
       <group position={[meter.pos[0], 0, meter.pos[1]]} rotation={[0, rotY, 0]}>
         <LiveMultimeter id={meter.id} mode={meter.mode} />
         <Proxy pick={{ type: "meter" }} size={[METER.width, METER.height, METER.length]} position={[0, METER.height / 2, 0]} />
@@ -435,7 +557,7 @@ export function MeterView({
           <Proxy key={mode} pick={{ type: "dialMode", mode }} size={[8, 4, 6]} position={dialLabelPos(i)} />
         ))}
         {selected && (
-          <SelectionFrame box={new THREE.Box3(new THREE.Vector3(-METER.width / 2, 0, -METER.length / 2), new THREE.Vector3(METER.width / 2, 1, METER.length / 2))} color={SELECT_HEX} />
+          <SelectionFrame box={new THREE.Box3(new THREE.Vector3(-METER.width / 2, 0, -METER.length / 2), new THREE.Vector3(METER.width / 2, 1, METER.length / 2))} color={pal.blue} />
         )}
       </group>
       {(["red", "black"] as const).map((color) => {
@@ -471,7 +593,7 @@ export function MeterView({
               <Probe color={color} />
               <Proxy pick={{ type: "probe", color }} size={[12, PROBE_LEN - 10, 12]} position={[0, PROBE_LEN / 2 + 4, 0]} />
             </group>
-            <Cable from={back} fromDir={axis} to={plugTop} toDir={plugDir} length={back.distanceTo(plugTop) * 1.12 + 70} radius={1.6} color={color} floor={floor} bend={0.42} stiff={1} />
+            <Cable from={back} fromDir={axis} to={plugTop} toDir={plugDir} length={back.distanceTo(plugTop) * 1.12 + 70} radius={PROBE_CABLE_R} color={color} floor={floor} bend={0.42} stiff={1} />
           </group>
         );
       })}
@@ -489,7 +611,7 @@ export function TargetMarker({ at, color = ACCENT, pulse: wantPulse = false, siz
     if (pulse && ref.current) ref.current.scale.setScalar(1 + 0.25 * (0.5 + 0.5 * Math.sin(s.clock.elapsedTime * 5)));
   });
   return (
-    <mesh ref={ref} position={at} rotation={[-Math.PI / 2, 0, 0]} renderOrder={30}>
+    <mesh ref={ref} position={at} rotation={[-Math.PI / 2, 0, 0]} renderOrder={30} userData={OVERLAY}>
       <ringGeometry args={[size * 0.62, size, 28]} />
       <meshBasicMaterial color={color} transparent opacity={0.95} depthTest={!onTop} depthWrite={false} toneMapped={false} />
     </mesh>

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 import type { MeterMode, ProbeColor } from "../types";
+import { isEffect } from "../effects/effects";
 
 export const PICK_LAYER = 5;
 
@@ -12,6 +13,10 @@ export type Pick =
   | { type: "press"; id: string }
   | { type: "flip"; id: string }
   | { type: "rotor"; id: string }
+  /** The drawing area of a pencil card: dragging along it draws (or shades over) the line. */
+  | { type: "draw"; id: string }
+  /** A setting printed on a prop (a moisture tab, a load switch): clicking sets `key` to `value`. */
+  | { type: "setting"; id: string; key: string; value: string | number | boolean }
   | { type: "wire"; id: string }
   | { type: "wireEnd"; id: string; end: "a" | "b" }
   | { type: "clip"; id: string; end: "a" | "b" }
@@ -78,7 +83,7 @@ export function localBox(group: THREE.Object3D): THREE.Box3 {
     const m = o as THREE.Mesh;
     if (!m.isMesh || !m.geometry || !m.layers.isEnabled(0)) return;
     const mat = m.material as THREE.Material & { blending?: THREE.Blending };
-    if (mat.blending === THREE.AdditiveBlending || (o as THREE.Mesh & { isInstancedMesh?: boolean }).isInstancedMesh) return;
+    if (isEffect(o) || (o as THREE.Mesh & { isInstancedMesh?: boolean }).isInstancedMesh) return;
     if (m.geometry.type === "InstancedBufferGeometry") return;
     m.geometry.computeBoundingBox();
     m4.multiplyMatrices(inv, m.matrixWorld);

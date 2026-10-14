@@ -287,9 +287,12 @@ export class PotDevice extends Device {
 // slow) that pull the terminal voltage down under heavy load and recover at rest, plus optional capacity.
 
 const SHORT_FRACTION = 0.35;
-/** Polarisation: fast term (x internalOhms, fading below about POL_FAST_AMPS) and slow term (x internalOhms). */
+/**
+ * Polarisation: fast term (x internalOhms, fading steeply below about POL_FAST_AMPS, so it matters into a short
+ * but hardly at half an amp) and slow term (x internalOhms).
+ */
 const POL_FAST = 2;
-const POL_FAST_AMPS = 0.5;
+const POL_FAST_AMPS = 1.25;
 const POL_SLOW = 0.35;
 
 export class SourceDevice extends Device {
@@ -317,8 +320,10 @@ export class SourceDevice extends Device {
     this.r0 = Math.max(1e-3, finiteOr(spec.internalOhms, spec.kind === "cell" ? 1000 : 1.7));
     this.mAh = spec.kind === "battery" ? Math.max(0, finiteOr(spec.mAh, 0)) : 0;
     this.polarizes = spec.kind === "battery";
-    this.rEff = this.r0;
-    this.emfEff = this.emf;
+    // A battery can start part used (a lab's tired battery); a rebuild restores the charge it already has instead.
+    if (spec.kind === "battery" && this.mAh > 0 && spec.soc !== undefined) this.soc = clamp(finiteOr(spec.soc, 1), 0, 1);
+    this.rEff = this.mAh > 0 ? this.computeR() : this.r0;
+    this.emfEff = this.emf * this.socFactor();
   }
   bind(b: Binder): void {
     this.p = b.node(this.pin("pos"));
@@ -356,8 +361,8 @@ export class SourceDevice extends Device {
     if (this.polarizes) {
       // Fast polarisation only matters at high currents (amps), the slow one builds over seconds and recovers
       // over tens of seconds.
-      const ai = Math.abs(i);
-      const t1 = POL_FAST * this.r0 * i * (ai / (ai + POL_FAST_AMPS));
+      const a3 = Math.abs(i) ** 3;
+      const t1 = POL_FAST * this.r0 * i * (a3 / (a3 + POL_FAST_AMPS ** 3));
       const t2 = POL_SLOW * this.r0 * i;
       const tau1 = 0.3;
       const tau2 = Math.abs(t2) > Math.abs(this.vp2) ? 5 : 20;

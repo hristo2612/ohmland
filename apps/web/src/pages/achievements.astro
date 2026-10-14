@@ -5,7 +5,7 @@ import { getCourse } from "../content/load";
 import { m } from "../i18n";
 
 const course = getCourse();
-const firstLab = course.lessons.find((l) => l.steps.some((s) => s.type === "lab"));
+const firstLab = course.lessons.find((l) => l.format === "bench" || l.steps.some((s) => s.type === "lab"));
 ---
 
 <Page title={m.achievements.title} active="achievements">

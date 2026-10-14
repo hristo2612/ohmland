@@ -1,4 +1,4 @@
-import type { LessonData } from "../content/load";
+import type { LessonData, StepLessonData } from "../content/load";
 import type { CourseOutline } from "../content/outline";
 import type { Step } from "../content/schema";
 import type { PartIconKind } from "../parts/kinds";
@@ -21,7 +21,7 @@ export type PlayerProps = {
 export type StepProps<S extends Step = Step> = {
   step: S;
   index: number;
-  lesson: LessonData;
+  lesson: StepLessonData;
   parts: Record<string, PartInfo>;
   answers: Answers;
   /** Stores an answer; pass a function to derive it from the previous value. */
