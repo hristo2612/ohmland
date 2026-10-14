@@ -231,6 +231,8 @@ export function useInteraction({
         case "part":
         case "press":
         case "flip":
+        // A setting spot (a tag, an AA's cutaway, a torn piece) taps to change it and drags the part, as in ink.
+        case "setting":
           if (p.type === "press") return { kind: "press", id: p.id };
           if (locked.includes(p.id)) return null;
           {
@@ -246,8 +248,6 @@ export function useInteraction({
           if (card?.kind !== "card") return null;
           return { kind: "draw", id: p.id, base: { length: card.params.length, layers: card.params.layers }, reach: 0 };
         }
-        case "setting":
-          return null;
         case "leg":
           if (locked.includes(p.id)) return null;
           return { kind: "leg", id: p.id, leg: p.leg, flying: p.flying };
