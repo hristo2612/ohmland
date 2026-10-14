@@ -568,7 +568,11 @@
   gap: var(--bl-s-1);
   width: auto;
   height: auto;
-  margin: 0;
+  max-width: calc(100% - var(--bl-s-4));
+  /* Tilted, its corners reach past its box: a little room keeps them inside the page. It presses in once the page
+     is there. */
+  margin: 0 var(--bl-s-2) var(--bl-s-1) 0;
+  animation-delay: var(--bl-dur-write);
   padding: var(--bl-s-2) var(--bl-s-4);
   border-radius: 4px;
   font-size: var(--bl-text-lg);
@@ -582,9 +586,24 @@
 
 /* ---- The sign-off -------------------------------------------------------------------------------------------------- */
 .bl--finale { overflow: auto; height: auto; min-height: 100dvh; grid-template-rows: var(--bl-bar-h) auto; }
-.bl-main--finale { grid-template-columns: 360px minmax(0, 1fr); }
-.bl-margin--finale { gap: var(--bl-s-4); overflow: visible; }
-.bl-finale__title { margin: 0; font-family: var(--bl-serif); font-size: var(--bl-text-2xl); line-height: 1.15; outline: none; }
+/* Two beats: the robot's line and the signed page first; the tally, the level and the way on fade in after. */
+.bl-finale {
+  position: relative;
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas: "lead page" "tally page" "tally slips";
+  align-items: start;
+}
+/* The margin's rose line, down the whole sign-off. */
+.bl-finale::before { content: ""; position: absolute; top: 0; bottom: 0; left: 360px; border-left: 1.5px solid var(--bl-rose); pointer-events: none; }
+.bl-finale__lead { grid-area: lead; display: flex; flex-direction: column; gap: var(--bl-s-4); padding: var(--bl-s-6) var(--bl-s-6) 0; }
+.bl-finale__title { margin: 0; font-size: var(--bl-text-2xl); line-height: 1.2; }
+.bl-finale__page { grid-area: page; max-width: 760px; padding: var(--bl-s-8) var(--bl-s-8) var(--bl-s-6); }
+.bl-finale__tally { grid-area: tally; display: flex; flex-direction: column; gap: var(--bl-s-4); padding: var(--bl-s-6); }
+.bl-finale__rest { display: flex; flex-direction: column; gap: var(--bl-s-4); }
+.bl-finale__rest, .bl-finale__slips { opacity: 0; transition: opacity var(--bl-dur-write) var(--bl-ease-out); }
+.bl-finale__rest[data-shown], .bl-finale__slips[data-shown] { opacity: 1; }
 .bl-tally { display: flex; flex-direction: column; gap: var(--bl-s-1); margin: 0; padding: 0; list-style: none; }
 .bl-tally li, .bl-tally__sum { display: flex; align-items: baseline; justify-content: space-between; gap: var(--bl-s-3); opacity: 0; transition: opacity var(--bl-dur-write) var(--bl-ease-out); }
 .bl-tally li[data-shown], .bl-tally__sum[data-shown] { opacity: 1; }
@@ -592,16 +611,17 @@
 .bl-tally__sum { margin: 0; padding-top: var(--bl-s-2); border-top: 2px solid var(--bl-blue); }
 .bl-tally__sum span { color: var(--bl-ink-2); font-size: var(--bl-text-sm); }
 .bl-tally__sum b { font-size: var(--bl-text-2xl); }
-.bl-level { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--bl-s-2); }
+/* The level: the LEVEL UP stamp beside its line, above the bar (never over it). */
+.bl-level { display: flex; flex-direction: column; gap: var(--bl-s-2); }
+.bl-level__row { display: flex; align-items: center; gap: var(--bl-s-3); }
 .bl-level__t { margin: 0; font-weight: 600; }
 .bl-level__t small { display: block; color: var(--bl-ink-2); font-weight: 400; }
-.bl-level__bar { grid-column: 1 / -1; height: 8px; border: 1px solid var(--bl-ink); }
+.bl-level__bar { height: 8px; border: 1px solid var(--bl-ink); }
 .bl-level__bar span { display: block; height: 100%; background: var(--bl-blue); }
 .bl-stamp--level { width: 64px; height: 64px; font-size: 10px; }
 .bl-finale__cta { display: flex; flex-direction: column; align-items: flex-start; gap: var(--bl-s-2); }
-.bl-finale__next { margin: var(--bl-s-1) 0 0; color: var(--bl-ink-2); font-size: var(--bl-text-sm); }
-.bl-finale__page { display: flex; flex-direction: column; gap: var(--bl-s-6); max-width: 760px; padding: var(--bl-s-8) var(--bl-s-8) var(--bl-s-12); }
-.bl-finale__slips { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--bl-s-4); }
+.bl-finale__next { margin: 0; color: var(--bl-ink-2); font-size: var(--bl-text-sm); }
+.bl-finale__slips { grid-area: slips; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--bl-s-4); max-width: 760px; padding: 0 var(--bl-s-8) var(--bl-s-12); }
 .bl-slip { display: flex; flex-direction: column; gap: var(--bl-s-2); padding: var(--bl-s-4); border: 1px solid var(--bl-rule); background: var(--bl-slip); box-shadow: var(--bl-slip-shadow); color: var(--bl-ink); text-decoration: none; }
 .bl-slip__row { display: flex; align-items: center; gap: var(--bl-s-3); }
 .bl-slip--isle:hover { background: var(--bl-sunk); }
@@ -640,7 +660,8 @@
   .bl-line { font-size: var(--bl-text-lg); }
   .bl-xp { top: -14px; right: auto; left: 0; font-size: var(--bl-text-md); }
   .bl-stamped { padding: var(--bl-s-2); }
-  .bl-stamp { width: 40px; height: 40px; }
+  /* The margin's rule stamp only: the CHECKED and LEVEL UP stamps keep their own size. */
+  .bl-stamped .bl-stamp { width: 40px; height: 40px; }
   .bl-target--part { width: 64px; height: 48px; margin: -24px 0 0 -32px; }
   .ann__text { font-size: 18px; }
   /* The meter as a slim strip (the reading, the dial, the range), so the bench stays in view above it. Warnings and
@@ -686,9 +707,15 @@
   /* While a tool is docked along the bottom, a selected part's bar (Add salt, Rotate) moves up under the undo buttons. */
   .bl-stage.bl-stage:has(> .bl-tool) .ohb-sel,
   .bl-stage.bl-stage:has(> .bl-tool) .ohi-sel { top: 64px; bottom: auto; }
-  .bl--finale .bl-main--finale { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; }
-  .bl-margin--finale { order: 0; display: flex; max-height: none; border-top: 0; border-bottom: 1.5px solid var(--bl-rose); }
-  .bl-finale__page { padding: var(--bl-s-4) var(--bl-s-4) var(--bl-s-12); }
+  /* The sign-off as one column: the line, the signed page, then the tally and the way on, then the slips. */
+  .bl-finale { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "lead" "page" "tally" "slips"; }
+  .bl-finale::before { display: none; }
+  .bl-finale__lead { flex-direction: row; align-items: center; gap: var(--bl-s-3); padding: var(--bl-s-4) var(--bl-s-4) 0; }
+  .bl-finale__lead .bl-robot { flex: none; width: 64px; height: auto; }
+  .bl-finale__title { font-size: var(--bl-text-xl); }
+  .bl-finale__page { padding: var(--bl-s-4); }
+  .bl-finale__tally { padding: 0 var(--bl-s-4) var(--bl-s-6); }
+  .bl-finale__slips { padding: 0 var(--bl-s-4) var(--bl-s-12); }
   .bl-page { padding: var(--bl-s-4); }
 }
 

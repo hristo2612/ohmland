@@ -37,6 +37,8 @@ export function NotebookPage({ lesson, moments, answers, reached, rules, fried, 
     .map((mo) => ({ key: mo.key, say: mo.say, rec: checkOf(answers, mo.key) }))
     .filter((c) => c.rec?.done);
   const fixCount = lesson.fixit?.tasks.length ?? 0;
+  // The same part fried three times is one line with a count, not three lines.
+  const hall = [...fried.reduce((acc, f) => acc.set(f, (acc.get(f) ?? 0) + 1), new Map<string, number>())];
   const clock = answers[answerKeys.clock];
 
   return (
@@ -94,7 +96,7 @@ export function NotebookPage({ lesson, moments, answers, reached, rules, fried, 
             {checks.map((c) => (
               <li key={c.key}>
                 <span>{c.say}</span>
-                <span className={`bl-hand ${c.rec?.first ? "bl-hand--blue" : "bl-hand--muted"}`}>{c.rec?.first ? t.firstTry : t.later}</span>
+                <span className={`bl-hand ${c.rec?.first ? "bl-hand--blue" : "bl-hand--muted"}`}>{c.rec?.first ? t.firstTry : t.tries(c.rec?.tries)}</span>
               </li>
             ))}
           </ul>
@@ -115,8 +117,8 @@ export function NotebookPage({ lesson, moments, answers, reached, rules, fried, 
         <section className="bl-page__sec">
           <h3 className="bl-kicker bl-kicker--red">{t.hall}</h3>
           <ul className="bl-page__hall">
-            {fried.map((f, i) => (
-              <li key={`${f}-${i}`}>{f}</li>
+            {hall.map(([label, n]) => (
+              <li key={label}>{t.hallTimes(label, n)}</li>
             ))}
           </ul>
         </section>

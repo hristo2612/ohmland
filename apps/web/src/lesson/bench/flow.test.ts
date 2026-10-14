@@ -47,8 +47,11 @@ describe("bench lesson flow", () => {
     const l = lesson();
     const ms = momentsOf(l);
     let rec = recordTry(undefined, false, "D1.cathode");
+    rec = recordTry(rec, false, "D1.cathode");
     rec = recordTry(rec, true, "D1.anode");
-    expect(rec).toEqual({ first: false, done: true, at: "D1.anode" });
+    expect(rec).toEqual({ first: false, done: true, at: "D1.anode", tries: 3 });
+    // Right is right: a tap after that does not count as another try.
+    expect(recordTry(rec, true, "D1.anode").tries).toBe(3);
     const answers = {
       [answerKeys.check("b2")]: rec,
       [answerKeys.check("b3")]: recordTry(undefined, true),

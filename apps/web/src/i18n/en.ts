@@ -332,15 +332,17 @@ export const en = {
       result: "What happened",
       checks: "Checks",
       firstTry: "first try",
-      later: "got there",
+      /** Which try a check came right on (a record saved before tries were counted says "a later try"). */
+      tries: (n: number | undefined) => (n === undefined ? "a later try" : n <= 1 ? "first try" : n === 2 ? "second try" : n === 3 ? "third try" : `${n} tries`),
       fixit: "Fix-it round",
       fixed: (n: number, total: number) => `${n} of ${total} fixed`,
       hall: "Hall of Fried Parts",
+      /** One part fried more than once in the lesson: one line with a count. */
+      hallTimes: (label: string, n: number) => (n > 1 ? `${label} × ${n}` : label),
       signed: "Checked",
       parts: "New in your parts bin",
     },
     finale: {
-      title: (title: string) => `${title}, done`,
       replay: "Signed off again",
       levelUp: "Level up",
       total: "this lesson",

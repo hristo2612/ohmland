@@ -35,8 +35,11 @@ export type Moment = {
   fix?: { index: number; count: number; intro: string; timer: number };
 };
 
-/** One graded check's record. `first` is settled by the first try; `done` once it is right (or revealed). */
-export type CheckRecord = { first: boolean; done: boolean; at?: string };
+/**
+ * One graded check's record. `first` is settled by the first try; `done` once it is right (or revealed); `tries`
+ * counts the tries up to the right one (absent in records saved before it was counted).
+ */
+export type CheckRecord = { first: boolean; done: boolean; at?: string; tries?: number };
 
 export const answerKeys = {
   check: (key: string) => `check:${key}`,
@@ -141,6 +144,9 @@ export function recordTry(prev: CheckRecord | undefined, right: boolean, at?: st
   const rec: CheckRecord = { first: prev ? prev.first : right, done: !!prev?.done || right };
   const where = right ? at : prev?.at;
   if (where !== undefined) rec.at = where;
+  // Tries stop counting once it is right; a record saved before they were counted stays without a count.
+  const tries = prev?.done ? prev.tries : prev ? (prev.tries === undefined ? undefined : prev.tries + 1) : 1;
+  if (tries !== undefined) rec.tries = tries;
   return rec;
 }
 
