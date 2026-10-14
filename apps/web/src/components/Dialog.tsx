@@ -36,7 +36,8 @@ export function Dialog({ open, onClose, title, description, variant = "center", 
       returnTo.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       d.showModal();
       const target = initialFocus?.current ?? [...d.querySelectorAll<HTMLElement>(FOCUSABLE)][1] ?? d.querySelector<HTMLElement>(FOCUSABLE);
-      target?.focus();
+      // focus without scrolling, so a long sheet opens at its top
+      target?.focus({ preventScroll: true });
     } else if (!open && d.open) {
       d.close();
     }

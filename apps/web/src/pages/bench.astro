@@ -9,24 +9,23 @@ const course = getCourse();
 const first = course.lessons[0];
 ---
 
-<Page title={m.bench.title} description={m.bench.lead} active="bench" bodyClass="bench-page">
+<Page title={m.bench.title} description={m.bench.lead} active="bench" bodyClass="bench-page" footer={false}>
   <h1 class="sr-only">{m.bench.title}</h1>
   <div class="sandbox-host">
     <Sandbox client:only="react" outline={course.outline} firstHref={first?.href ?? "/learn"}>
-      <div slot="fallback" class="sandbox-loading skeleton" role="status" aria-label={m.lab.loading}></div>
+      <div slot="fallback" class="sandbox-loading" role="status" aria-label={m.lab.loading}>
+        <span class="sandbox-loading__line">{m.lab.loadingBench}</span>
+      </div>
     </Sandbox>
   </div>
 </Page>
 
 <style>
-  /* The bench fills the window under the site header (and above the bottom navigation on phones). */
-  .sandbox-host {
-    height: calc(100dvh - var(--header-h));
-    min-height: 520px;
+  /* The bench fills the window under the site header (and above the bottom bar on phones). */
+  .sandbox-host { height: calc(100dvh - var(--header-h) - var(--border-1)); min-height: 520px; }
+  .sandbox-host :global(.sandbox-loading) { display: grid; place-items: center; height: 100%; }
+  .sandbox-loading__line { color: var(--ink-2); font-size: var(--text-sm); }
+  @media (max-width: 720px) {
+    .sandbox-host { height: calc(100dvh - 56px - var(--bar-h)); }
   }
-  .sandbox-host :global(.sandbox-loading) { display: block; height: 100%; border-radius: 0; }
-  @media (max-width: 860px) {
-    .sandbox-host { height: calc(100dvh - var(--header-h) - var(--bottom-nav-h)); }
-  }
-  :global(body.bench-page .site-footer) { display: none; }
 </style>

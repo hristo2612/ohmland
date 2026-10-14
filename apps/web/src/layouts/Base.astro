@@ -3,16 +3,18 @@
  * The document shell for every page: meta, fonts, design tokens and the head script that applies the learner's theme
  * and motion choice before the first paint.
  */
-import "@fontsource/space-grotesk/500.css";
-import "@fontsource/space-grotesk/700.css";
-import "@fontsource/inter/400.css";
-import "@fontsource/inter/600.css";
-import "@fontsource/jetbrains-mono/500.css";
+// Literata typesets everything; Kalam writes the marginalia. Each subset downloads only when the page uses its
+// characters (Ω pulls in Literata's Greek one; Kalam has no Greek, so Ω in handwriting falls back to Literata).
+import "@fontsource/literata/400.css";
+import "@fontsource/literata/400-italic.css";
+import "@fontsource/literata/600.css";
+import "@fontsource/literata/700.css";
+import "@fontsource/kalam/latin-400.css";
 import "../styles/tokens.css";
 import "../styles/base.css";
 import "../styles/components.css";
-import interLatin from "@fontsource/inter/files/inter-latin-400-normal.woff2?url";
-import groteskLatin from "@fontsource/space-grotesk/files/space-grotesk-latin-700-normal.woff2?url";
+import literataLatin from "@fontsource/literata/files/literata-latin-400-normal.woff2?url";
+import literataLatinStrong from "@fontsource/literata/files/literata-latin-600-normal.woff2?url";
 import { HEAD_SCRIPT } from "../progress/prefs";
 import { m, lang } from "../i18n";
 
@@ -30,8 +32,8 @@ const fullTitle = title ? `${title} · ${m.meta.titleSuffix}` : `${m.meta.siteNa
     <meta name="description" content={description} />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="preload" href={interLatin} as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href={groteskLatin} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={literataLatin} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={literataLatinStrong} as="font" type="font/woff2" crossorigin />
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />

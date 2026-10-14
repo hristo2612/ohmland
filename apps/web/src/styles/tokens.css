@@ -1,111 +1,87 @@
 /*
- * Ohmland design tokens. This is the only file that may hold raw colours, font sizes, radii, shadows and durations
- * (scripts/check-colors.mjs enforces the colour part). Everything else reads these custom properties.
+ * Ohmland design tokens: the Classic notebook. This is the only file that may hold raw colours, font sizes, radii,
+ * shadows and durations (scripts/check-colors.mjs enforces it). Everything else reads these custom properties.
  *
- * Light ("paper") values come first. The dark ("night lab") values live in two identical blocks: one follows a dark
- * system unless the learner chose light, one applies when the learner chose dark. Keep the two blocks in sync.
+ * Two inks and a pencil, one meaning each: graphite carries everything, blue ink means you (ticks, answers, XP, you
+ * are here), red pencil means the robot and the teacher (notes, corrections, stamps). Amber belongs to the robot's
+ * eyes and a lit LED, nothing else.
+ *
+ * Light values come first. The dark "night page" values live in two identical blocks: one follows a dark system
+ * unless the learner chose light, one applies when the learner chose dark. Keep the two blocks in sync.
  */
 :root {
   color-scheme: light dark;
 
-  /* Surfaces and ink: warm paper, white cards, near-black ink. */
-  --bg: #F7F3EB;
-  --bg-band: #EFE8DB;
-  --surface: #FFFFFF;
-  --surface-2: #FBF8F2;
-  --surface-sunk: #F2ECE1;
-  --ink: #1C1915;
-  --ink-2: #554D45;
-  --ink-3: #74695D;
-  --line: #E6DDCF;
-  --line-strong: #D3C5B1;
-  --bar: color-mix(in srgb, #F7F3EB 86%, transparent);
-  --nav-surface: #FFFFFF;
-  --scrim: rgb(28 25 21 / 0.55);
+  /* Paper */
+  --paper: #F6F2E9;          /* the page */
+  --paper-slip: #FCFAF5;     /* pasted slips (cards) */
+  --paper-sunk: #EEE8DC;     /* wells, tracks, pressed */
+  --grid: #E7E0D3;           /* the one 24 px grid */
+  --margin-rose: #E2A49C;    /* the notebook margin line, the only coloured rule */
 
-  /* Copper and amber. Primary fills carry dark ink, never white text. */
-  --primary: #EE9A45;
-  --primary-hover: #F3A859;
-  --primary-press: #E08A33;
-  --primary-ink: #1C1915;
-  --primary-soft: #FBE6CF;
-  --primary-soft-hover: #F8DABB;
-  --accent-ink: #94430F;
-  --copper: #C2702F;
-  --glow: #FFB547;
-  --glow-soft: rgb(255 181 71 / 0.35);
+  /* Graphite */
+  --ink: #24221E;            /* text, outlines, primary button */
+  --ink-2: #57524A;          /* secondary text */
+  --ink-3: #6B655B;          /* faint text, locked, 3:1+ boundaries */
+  --rule: #3D3A34;           /* slip borders, chapter rules */
+  --rule-soft: #D8D0C1;      /* hairline dividers (decorative) */
+  --shadow-ink: #E1D9CA;     /* offset shadow under slips */
+  --scrim: rgb(36 34 30 / 0.42);
 
-  /* Meaning. Never told by colour alone. */
-  --good: #1D7648;
-  --good-soft: #E0F2E6;
-  --bad: #B2352A;
-  --bad-soft: #FBE4E0;
-  --info: #2C5BA5;
-  --info-soft: #E2EBF8;
-  --focus: #1C1915;
+  /* Blue ink: you */
+  --blue: #1F3C9A;
+  --blue-wash: #E1E6F4;
 
-  /* Elevation: two levels, plus the amber glow for "you are here". */
-  --shadow-1: 0 1px 2px rgb(60 40 20 / 0.06), 0 6px 18px rgb(60 40 20 / 0.06);
-  --shadow-2: 0 18px 48px rgb(40 26 12 / 0.20), 0 2px 6px rgb(40 26 12 / 0.08);
-  --shadow-glow: 0 0 0 6px rgb(238 154 69 / 0.22), 0 6px 20px rgb(238 154 69 / 0.35);
-  --shadow-button: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 1px 2px rgb(120 60 10 / 0.18), 0 4px 12px rgb(238 154 69 / 0.25);
-  --shadow-inset: inset 0 1px 2px rgb(60 40 20 / 0.08);
-  --shadow-nav: 0 -6px 18px rgb(60 40 20 / 0.06);
-  --highlight: rgb(255 255 255 / 0.6);
-  --dot-grid: rgb(60 40 20 / 0.07);
+  /* Red pencil: the teacher and the robot */
+  --red: #B23A1C;
+  --red-wash: #F6DED4;
 
-  /* Illustration palette (the board island, part icons, figures). Same in both themes. */
-  --pcb: #2F7A55;
-  --pcb-hi: #3D9268;
-  --pcb-lo: #24603F;
-  --pcb-edge: #CDB582;
-  --pcb-edge-lo: #A98F5D;
-  --pcb-core: #8A7650;
-  --trace: #D48A45;
-  --trace-hi: #EDB37C;
-  --silk: #F4F0E6;
-  --solder: #C9CDD3;
-  --solder-lo: #9EA4AD;
-  --cap-blue: #3E5F96;
-  --cap-blue-hi: #5A7DB6;
-  --cap-blue-lo: #2C4572;
-  --chip: #2A2D33;
-  --chip-hi: #3C4048;
-  --chip-lo: #1D1F24;
-  --cloud: #FFFFFF;
-  --cloud-lo: #E3E8EF;
-  --led-red: #FF4B3E;
-  --led-red-hi: #FFB3A8;
-  --led-green: #3BD27A;
-  --led-amber: #FFB547;
-  --led-amber-hi: #FFE2A8;
-  --led-blue: #4D8DFF;
-  --wire-red: #D9473A;
-  --wire-black: #2B2B2E;
-  --plastic: #F1EEE7;
-  --plastic-lo: #D8D2C6;
-  --meter-body: #F2B33D;
-  --meter-body-lo: #C98D22;
-  --meter-face: #2A2D33;
-  --lcd: #B9C9A3;
-  --lcd-ink: #1F2A1A;
-  --bench-bg: #E9E0D4;
-  --scope-bg: #10180F;
-  --scope-grid: rgb(140 200 120 / 0.16);
-  --scope-a: #FFC24B;
-  --scope-b: #6FD3FF;
-  --char: #3A2E26;
-  --char-lo: #241C17;
-  --ash: #8F857C;
+  /* Robot and light */
+  --amber: #F2A531;
+  --visor: #24221E;
+  --copper: #B4683A;
+  --copper-wash: #EDCFB4;
 
-  /* The 3D island's sky, for frames and loading states around it (day in the light theme). */
-  --isle-sky-top: #7CC6EC;
-  --isle-sky-bottom: #E4F3F4;
-  --isle-poster: url("/isle/hero-day.webp");
-  --isle-poster-small: url("/isle/hero-day-640.webp");
-  --isle-poster-blur: url("data:image/webp;base64,UklGRgYBAABXRUJQVlA4IPoAAADwBQCdASogABsAPtFcok2oJSKiKA1RABoJbACdMoR86dDchXsszVkm0FMDbQ3nHBKaFtXafSIFYAD+wyyJCys8W61c3r+J9CaWYdrTZ0LFKCt8AHsX1rOJQe2Un5sflGFVGz4ScxSXeriwGQzdpxZp1ut21tvWIKIeNK00ksLEIDF3p5rPn2YNSqr3Mc1i0QoPF+Gm40Td6F7gx9JbkdgX0JPbbGmZASgWLLpmyqAc89elU2jNoJZZBXedOpcs3MgKJIe5mBvA2NYA6vZ1SgSqBlP/MSpA/5AM4/sDHtCllGDbp4nBKK7TK4QKiLQRg8ZD3zGBJivJ4wAA");
+  /* Buttons */
+  --btn-bg: #24221E;
+  --btn-fg: #F6F2E9;
+  --btn-bg-hover: #3A3732;
+  --focus: #1F3C9A;
 
-  /* Resistor colour code bands. */
+  /* Sketch colours: coloured pencil, used only inside drawings */
+  --sk-wire-red: #C2412B;
+  --sk-wire-black: #2B2925;
+  --sk-wire-neg: #2B2925;    /* the minus wire's core in a drawing (a light pencil on the night page) */
+  --sk-led: #D8432E;
+  --sk-led-lit: #F07A5C;
+  --sk-led-dead: #6E5A52;
+  --sk-glow: #F2A08A;
+  --sk-body: #E9DCC2;
+  --sk-band-yellow: #E8BE2C;
+  --sk-band-violet: #7D4FA6;
+  --sk-band-brown: #7A4A2B;
+  --sk-band-gold: #B99437;
+  --sk-board: #FBF8F1;
+  --sk-hole: #B4AC9C;
+  --sk-meter: #EFE6D2;
+  --sk-lcd: #DCE3CF;
+  --sk-rail-pos: #C2412B;
+  --sk-rail-neg: #2F55B8;
+  --sk-battery: #3A3833;
+  --sk-battery-label: #E8BE2C;
+  --sk-shade: #D3CAB9;       /* pencil shadow under things */
+  --sk-cover: #2A2F3A;       /* the notebook cover cloth */
+  --sk-cover-edge: #1C2028;
+  --sk-cover-ink: #E9E3D6;   /* text and focus on the cover */
+  --sk-band: #B23A1C;        /* the elastic band */
+  --sk-chip: #3A3833;        /* chips, transistors, button caps */
+  --sk-metal: #CFC8BA;       /* leads, clips, terminals */
+  --sk-cap: #5E7BB0;         /* an electrolytic's sleeve */
+  --sk-wire-wire: #C9A227;   /* a third jumper colour */
+  --sk-char: #4A3A32;        /* scorch on a burned part */
+  --sk-smoke: #8F877C;       /* a wisp of smoke */
+
+  /* Real component colours (the resistor colour code, the meter's display, the scope). Same in both themes. */
   --band-black: #1E1E1E;
   --band-brown: #7A4523;
   --band-red: #D3372B;
@@ -123,112 +99,212 @@
   --resistor-body-lo: #CDB07C;
   --lead: #B6BBC3;
   --lead-hi: #DDE1E6;
+  --led-red: #FF4B3E;
+  --led-red-hi: #FFB3A8;
+  --led-blue: #4D8DFF;
+  --lcd: #B9C9A3;
+  --lcd-ink: #1F2A1A;
+  --meter-body: #F2B33D;
+  --meter-body-lo: #C98D22;
+  --meter-face: #2A2D33;
+  --scope-bg: #10180F;
+  --scope-grid: rgb(140 200 120 / 0.16);
+  --scope-a: #FFC24B;
+  --scope-b: #6FD3FF;
+  --chip: #2A2D33;
+  --chip-hi: #3C4048;
+  --chip-lo: #1D1F24;
+  --solder: #C9CDD3;
+  --solder-lo: #9EA4AD;
+  --plastic: #F1EEE7;
+  --plastic-lo: #D8D2C6;
+  --silk: #F4F0E6;
+  --trace: #D48A45;
+  --wire-red: #D9473A;
+  --wire-black: #2B2B2E;
+  --char: #3A2E26;
 
-  /* The mascot (pixel art). Same in both themes. */
-  --bot-outline: #2E241E;
-  --bot-cream: #F5EAD3;
-  --bot-cream-hi: #FFF8EA;
-  --bot-cream-lo: #DCC9A6;
-  --bot-visor: #1C2330;
-  --bot-visor-hi: #36435A;
-  --bot-led: #FFB13D;
-  --bot-led-hi: #FFE7B3;
-  --bot-copper: #C8743A;
-  --bot-copper-hi: #E89A5E;
-  --bot-copper-lo: #8E4A1F;
-  --bot-metal: #8B8F98;
-  --bot-flame: #FF9A3C;
-  --bot-flame-hi: #FFE08A;
-  --bot-sweat: #8EC9FF;
 
-  /* Type: Space Grotesk for display, Inter for reading, JetBrains Mono for values and readouts. */
-  --font-display: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --text-hero: clamp(40px, 26px + 3.4vw, 68px);
-  --leading-hero: 1.02;
-  --text-title: clamp(30px, 22px + 1.6vw, 42px);
-  --leading-title: 1.1;
-  --text-heading: clamp(22px, 19px + 0.6vw, 27px);
-  --leading-heading: 1.2;
-  --text-subheading: 19px;
-  --leading-subheading: 1.3;
-  --text-lead: 19px;
-  --leading-lead: 1.55;
-  --text-body: 17px;
-  --leading-body: 1.6;
-  --text-callout: 15px;
-  --leading-callout: 1.4;
-  --text-small: 14px;
-  --leading-small: 1.45;
-  --text-caption: 12px;
-  --leading-caption: 1.3;
-  --text-readout: 28px;
-  --text-big-number: clamp(48px, 36px + 3vw, 76px);
-  --weight-regular: 400;
-  --weight-semibold: 600;
-  --weight-display: 700;
-  --weight-display-medium: 500;
-  --weight-mono: 500;
-  --tracking-tight: -0.02em;
-  --tracking-display: -0.025em;
-  --tracking-caps: 0.08em;
+  /* Type: two families. Literata typesets, Kalam writes in the margin (marginalia only: the robot, annotations).
+     Kalam has no Greek, so Ω falls back to Literata glyph by glyph. */
+  --font-serif: "Literata", Georgia, "Times New Roman", serif;
+  --font-hand: "Kalam", "Literata", Georgia, serif;
+  /* Seven sizes for the app, on a 4 px rhythm */
+  --text-xs: 14px;   --lh-xs: 20px;    /* captions, kickers, meta */
+  --text-sm: 16px;   --lh-sm: 24px;    /* UI text, buttons, lists */
+  --text-md: 18px;   --lh-md: 28px;    /* body */
+  --text-lg: 22px;   --lh-lg: 32px;    /* handwriting, lead, small headings */
+  --text-xl: 28px;   --lh-xl: 36px;    /* section headings */
+  --text-2xl: 40px;  --lh-2xl: 48px;   /* page titles */
+  --text-3xl: 56px;  --lh-3xl: 64px;   /* display */
+  /* Two poster sizes, landing only */
+  --text-poster: 96px;  --lh-poster: 96px;
+  --text-poster-xl: 152px; --lh-poster-xl: 144px;
+  --weight-body: 400;
+  --weight-strong: 600;
+  --weight-heavy: 700;
+  --track-kicker: 0.08em;
+  --track-title: -0.012em;
+  --track-poster: -0.025em;
 
-  /* Space: a 4 px scale. */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-7: 28px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
-  --space-16: 64px;
-  --space-20: 80px;
-  --space-24: 96px;
-  --touch: 44px;
+  /* Space (4 px base) */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px; --s-6: 24px;
+  --s-8: 32px; --s-12: 48px; --s-16: 64px; --s-24: 96px;
+  --cell: 24px;              /* grid paper cell */
+
+  /* Layout */
+  --page-w: 1152px;          /* 48 cells */
+  --margin-col: 144px;       /* 6 cells */
+  --text-col: 640px;
+  --read-w: 34em;            /* a comfortable line of prose */
+  --header-h: 72px;
+  --bar-h: 64px;             /* the phone's bottom bar */
+  --tap: 44px;
   --gutter: 16px;
-  --page-max: 1180px;
-  --read-max: 66ch;
-  --header-h: 64px;
-  --bottom-nav-h: 64px;
-  --action-bar-h: 80px;
 
-  /* Shapes. */
-  --radius-xs: 6px;
-  --radius-s: 10px;
-  --radius-m: 14px;
-  --radius-l: 20px;
-  --radius-xl: 28px;
-  --radius-full: 999px;
-  --border: 1px;
-  --border-thick: 2px;
-  --focus-ring: 3px;
+  /* Shape */
+  --radius-0: 0;
+  --radius-1: 2px;
+  --radius-round: 999px;     /* dots and LEDs only */
+  --border-1: 1px;
+  --border-2: 2px;
+  --border-label: 1.5px;     /* an ink label slip pinned to the island */
+  --slip-shadow: 3px 3px 0 var(--shadow-ink);
+  --slip-shadow-lift: 6px 6px 0 var(--shadow-ink);
+  --stroke-icon: 1.75px;
+  --stroke-draw: 2px;        /* illustration line */
+  --stroke-mark: 2.4px;      /* hand marks */
 
-  /* Motion. */
-  --dur-fast: 140ms;
-  --dur-1: 220ms;
-  --dur-2: 380ms;
-  --dur-3: 600ms;
-  --dur-slow: 1100ms;
-  --dur-hover-loop: 3200ms;
-  --dur-drift: 9s;
+  /* Motion: lines draw themselves, ticks write in, stamps press in. 150 to 400 ms; the landing's page turn stays
+     under 600 ms. Reduced motion replaces all of it with instant changes. */
+  --dur-press: 140ms;
+  --dur-ui: 160ms;
+  --dur-fade: 240ms;
+  --dur-write: 320ms;
+  --dur-turn: 440ms;
+  --dur-draw: 600ms;
+  --dur-flow: 1400ms;        /* one lap of the current arrows on a lit circuit */
   --dur-none: 0.01ms;
-  --stagger: 100ms;
-  --delay-1: 200ms;
-  --delay-2: 500ms;
-  --delay-3: 1200ms;
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --delay-write: 120ms;      /* a mark writes itself in just after the thing it marks appears */
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.6, 0, 0.3, 1);
+  --ease-press: cubic-bezier(0.3, 0, 0.2, 1.4);
 
-  /* Layers. */
-  --z-sticky: 20;
-  --z-nav: 30;
+  /* Layers */
+  --z-header: 20;
+  --z-bar: 30;
+  --z-menu: 40;
   --z-dialog: 50;
   --z-toast: 60;
+
+  /*
+   * Legacy names, kept so the lesson player, the lab panels and the quiz (rebuilt separately) keep drawing in the
+   * notebook's inks until they read the names above. New code uses the names above; remove these once nothing reads
+   * them.
+   */
+  --bg: var(--paper);
+  --bg-band: var(--paper-sunk);
+  --surface: var(--paper-slip);
+  --surface-2: var(--paper-slip);
+  --surface-sunk: var(--paper-sunk);
+  --line: var(--rule-soft);
+  --line-strong: var(--rule);
+  --bar: var(--paper);
+  --nav-surface: var(--paper-slip);
+  --primary: var(--btn-bg);
+  --primary-hover: var(--btn-bg-hover);
+  --primary-press: var(--btn-bg);
+  --primary-ink: var(--btn-fg);
+  --primary-soft: var(--blue-wash);
+  --primary-soft-hover: var(--blue-wash);
+  --accent-ink: var(--ink);
+  --glow: var(--amber);
+  --glow-soft: var(--sk-glow);
+  --good: var(--blue);
+  --good-soft: var(--blue-wash);
+  --bad: var(--red);
+  --bad-soft: var(--red-wash);
+  --info: var(--blue);
+  --info-soft: var(--blue-wash);
+  --shadow-1: var(--slip-shadow);
+  --shadow-2: var(--slip-shadow-lift);
+  --shadow-glow: 0 0 0 var(--border-2) var(--blue);
+  --shadow-button: none;
+  --shadow-inset: none;
+  --shadow-nav: none;
+  --highlight: var(--paper-slip);
+  --dot-grid: var(--grid);
+  --font-display: var(--font-serif);
+  --font-body: var(--font-serif);
+  --font-mono: var(--font-serif);
+  --text-hero: var(--text-3xl);
+  --leading-hero: 1.1;
+  --text-title: var(--text-2xl);
+  --leading-title: 1.2;
+  --text-heading: var(--text-xl);
+  --leading-heading: 1.3;
+  --text-subheading: var(--text-lg);
+  --leading-subheading: 1.45;
+  --text-lead: var(--text-lg);
+  --leading-lead: 1.45;
+  --text-body: var(--text-md);
+  --leading-body: 1.55;
+  --text-callout: var(--text-sm);
+  --leading-callout: 1.5;
+  --text-small: var(--text-xs);
+  --leading-small: 1.45;
+  --text-caption: var(--text-xs);
+  --leading-caption: 1.4;
+  --text-readout: var(--text-xl);
+  --text-big-number: var(--text-3xl);
+  --weight-regular: var(--weight-body);
+  --weight-semibold: var(--weight-strong);
+  --weight-display: var(--weight-strong);
+  --weight-display-medium: var(--weight-strong);
+  --weight-mono: var(--weight-strong);
+  --tracking-tight: -0.01em;
+  --tracking-display: var(--track-title);
+  --tracking-caps: var(--track-kicker);
+  --space-1: var(--s-1);
+  --space-2: var(--s-2);
+  --space-3: var(--s-3);
+  --space-4: var(--s-4);
+  --space-5: 20px;
+  --space-6: var(--s-6);
+  --space-7: 28px;
+  --space-8: var(--s-8);
+  --space-10: 40px;
+  --space-12: var(--s-12);
+  --space-16: var(--s-16);
+  --space-20: 80px;
+  --space-24: var(--s-24);
+  --touch: var(--tap);
+  --page-max: var(--page-w);
+  --read-max: 66ch;
+  --bottom-nav-h: var(--bar-h);
+  --action-bar-h: 80px;
+  --radius-xs: var(--radius-1);
+  --radius-s: var(--radius-1);
+  --radius-m: var(--radius-1);
+  --radius-l: var(--radius-1);
+  --radius-xl: var(--radius-1);
+  --radius-full: var(--radius-round);
+  --border: var(--border-1);
+  --border-thick: var(--border-2);
+  --focus-ring: var(--border-2);
+  --dur-fast: var(--dur-press);
+  --dur-1: var(--dur-ui);
+  --dur-2: var(--dur-write);
+  --dur-3: 400ms;
+  --dur-slow: var(--dur-draw);
+  --dur-hover-loop: 3200ms;
+  --stagger: 80ms;
+  --delay-1: 160ms;
+  --delay-2: 400ms;
+  --delay-3: 900ms;
+  --ease-spring: var(--ease-press);
+  --z-sticky: var(--z-header);
+  --z-nav: var(--z-bar);
 }
 
 @media (min-width: 768px) {
@@ -240,98 +316,123 @@
 
 :root[data-theme="light"] { color-scheme: light; }
 
+/* Night page: the same notebook under a desk lamp. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #0D131D;
-    --bg-band: #111926;
-    --surface: #151D2A;
-    --surface-2: #19222F;
-    --surface-sunk: #0F1621;
-    --ink: #ECEFF4;
-    --ink-2: #A9B3C3;
-    --ink-3: #8691A4;
-    --line: #243045;
-    --line-strong: #33415A;
-    --bar: color-mix(in srgb, #0D131D 84%, transparent);
-    --nav-surface: #121A26;
-    --scrim: rgb(3 6 12 / 0.7);
-    --primary: #F5A652;
-    --primary-hover: #FFB466;
-    --primary-press: #E8963F;
-    --primary-ink: #1A1206;
-    --primary-soft: #33271B;
-    --primary-soft-hover: #3E2F20;
-    --accent-ink: #FFB46B;
-    --copper: #E08B47;
-    --glow: #FFB547;
-    --glow-soft: rgb(255 181 71 / 0.28);
-    --good: #63D69B;
-    --good-soft: #12301F;
-    --bad: #FF8F82;
-    --bad-soft: #3A1A18;
-    --info: #8EB6FF;
-    --info-soft: #172649;
-    --focus: #FFC680;
-    --shadow-1: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px rgb(0 0 0 / 0.28);
-    --shadow-2: 0 24px 60px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.3);
-    --shadow-glow: 0 0 0 6px rgb(255 181 71 / 0.16), 0 0 28px rgb(255 181 71 / 0.38);
-    --shadow-button: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 0 0 1px rgb(255 190 110 / 0.2), 0 6px 18px rgb(245 166 82 / 0.22);
-    --shadow-inset: inset 0 1px 2px rgb(0 0 0 / 0.3);
-    --shadow-nav: 0 -8px 24px rgb(0 0 0 / 0.35);
-    --highlight: rgb(255 255 255 / 0.06);
-    --dot-grid: rgb(170 190 220 / 0.07);
-    --isle-sky-top: #0A1130;
-    --isle-sky-bottom: #2A3266;
-    --isle-poster: url("/isle/hero-night.webp");
-    --isle-poster-small: url("/isle/hero-night-640.webp");
-    --isle-poster-blur: url("data:image/webp;base64,UklGRqQAAABXRUJQVlA4IJgAAACQBQCdASogABsAPtFOpkuoI6OhsBgMAQAaCWQAuzNVwan8EJkJ/vXXJ7zm9hqHoioFkV3sAAD+9CEgnW8jKMSAJU6CPwDsNGWM0kc23sqZr6EvtlKEUrVCUY8SjbT5NSQ/iavJmmrJHF/wf31LFw/tvmwNWQECOmUBc1fdc8+yGOeproXpd5FBHjm2HAKp1Tu4+ZGmDAAAAA==");
+    --paper: #1B1A18;
+    --paper-slip: #242320;
+    --paper-sunk: #141312;
+    --grid: #252422;
+    --margin-rose: #6A3F3A;
+    --ink: #ECE6DA;
+    --ink-2: #BDB6A8;
+    --ink-3: #9A9488;
+    --rule: #8F887B;
+    --rule-soft: #3A3833;
+    --shadow-ink: #0F0E0D;
+    --scrim: rgb(6 6 5 / 0.66);
+    --blue: #9AB3F4;
+    --blue-wash: #26304A;
+    --red: #F2906F;
+    --red-wash: #43271F;
+    --amber: #F5B048;
+    --visor: #0E0D0C;
+    --copper: #C98450;
+    --copper-wash: #5A3E2A;
+    --btn-bg: #ECE6DA;
+    --btn-fg: #1B1A18;
+    --btn-bg-hover: #FFFFFF;
+    --focus: #9AB3F4;
+    --sk-wire-red: #E2664C;
+    --sk-wire-black: #0B0A09;
+    --sk-wire-neg: #9A9488;
+    --sk-led: #E2533A;
+    --sk-led-lit: #FF9A7A;
+    --sk-led-dead: #5A4A44;
+    --sk-glow: #C8563A;
+    --sk-body: #5E5240;
+    --sk-band-yellow: #E3B92C;
+    --sk-band-violet: #A47BD0;
+    --sk-band-brown: #A0683E;
+    --sk-band-gold: #CDA74A;
+    --sk-board: #2A2926;
+    --sk-hole: #5C5850;
+    --sk-meter: #2E2B25;
+    --sk-lcd: #3B4232;
+    --sk-rail-pos: #E2664C;
+    --sk-rail-neg: #7C9BEA;
+    --sk-battery: #0F0E0D;
+    --sk-battery-label: #C9A227;
+    --sk-shade: #11100F;
+    --sk-cover: #313848;
+    --sk-cover-edge: #0B0D12;
+    --sk-cover-ink: #ECE6DA;
+    --sk-band: #C9583A;
+    --sk-chip: #11100F;
+    --sk-metal: #6E685E;
+    --sk-cap: #46618F;
+    --sk-wire-wire: #C9A227;
+    --sk-char: #0E0C0B;
+    --sk-smoke: #8A8378;
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0D131D;
-  --bg-band: #111926;
-  --surface: #151D2A;
-  --surface-2: #19222F;
-  --surface-sunk: #0F1621;
-  --ink: #ECEFF4;
-  --ink-2: #A9B3C3;
-  --ink-3: #8691A4;
-  --line: #243045;
-  --line-strong: #33415A;
-  --bar: color-mix(in srgb, #0D131D 84%, transparent);
-  --nav-surface: #121A26;
-  --scrim: rgb(3 6 12 / 0.7);
-  --primary: #F5A652;
-  --primary-hover: #FFB466;
-  --primary-press: #E8963F;
-  --primary-ink: #1A1206;
-  --primary-soft: #33271B;
-  --primary-soft-hover: #3E2F20;
-  --accent-ink: #FFB46B;
-  --copper: #E08B47;
-  --glow: #FFB547;
-  --glow-soft: rgb(255 181 71 / 0.28);
-  --good: #63D69B;
-  --good-soft: #12301F;
-  --bad: #FF8F82;
-  --bad-soft: #3A1A18;
-  --info: #8EB6FF;
-  --info-soft: #172649;
-  --focus: #FFC680;
-  --shadow-1: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px rgb(0 0 0 / 0.28);
-  --shadow-2: 0 24px 60px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.3);
-  --shadow-glow: 0 0 0 6px rgb(255 181 71 / 0.16), 0 0 28px rgb(255 181 71 / 0.38);
-  --shadow-button: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 0 0 1px rgb(255 190 110 / 0.2), 0 6px 18px rgb(245 166 82 / 0.22);
-  --shadow-inset: inset 0 1px 2px rgb(0 0 0 / 0.3);
-  --shadow-nav: 0 -8px 24px rgb(0 0 0 / 0.35);
-  --highlight: rgb(255 255 255 / 0.06);
-  --dot-grid: rgb(170 190 220 / 0.07);
-  --isle-sky-top: #0A1130;
-  --isle-sky-bottom: #2A3266;
-  --isle-poster: url("/isle/hero-night.webp");
-  --isle-poster-small: url("/isle/hero-night-640.webp");
-  --isle-poster-blur: url("data:image/webp;base64,UklGRqQAAABXRUJQVlA4IJgAAACQBQCdASogABsAPtFOpkuoI6OhsBgMAQAaCWQAuzNVwan8EJkJ/vXXJ7zm9hqHoioFkV3sAAD+9CEgnW8jKMSAJU6CPwDsNGWM0kc23sqZr6EvtlKEUrVCUY8SjbT5NSQ/iavJmmrJHF/wf31LFw/tvmwNWQECOmUBc1fdc8+yGOeproXpd5FBHjm2HAKp1Tu4+ZGmDAAAAA==");
+  --paper: #1B1A18;
+  --paper-slip: #242320;
+  --paper-sunk: #141312;
+  --grid: #252422;
+  --margin-rose: #6A3F3A;
+  --ink: #ECE6DA;
+  --ink-2: #BDB6A8;
+  --ink-3: #9A9488;
+  --rule: #8F887B;
+  --rule-soft: #3A3833;
+  --shadow-ink: #0F0E0D;
+  --scrim: rgb(6 6 5 / 0.66);
+  --blue: #9AB3F4;
+  --blue-wash: #26304A;
+  --red: #F2906F;
+  --red-wash: #43271F;
+  --amber: #F5B048;
+  --visor: #0E0D0C;
+  --copper: #C98450;
+  --copper-wash: #5A3E2A;
+  --btn-bg: #ECE6DA;
+  --btn-fg: #1B1A18;
+  --btn-bg-hover: #FFFFFF;
+  --focus: #9AB3F4;
+  --sk-wire-red: #E2664C;
+  --sk-wire-black: #0B0A09;
+  --sk-wire-neg: #9A9488;
+  --sk-led: #E2533A;
+  --sk-led-lit: #FF9A7A;
+  --sk-led-dead: #5A4A44;
+  --sk-glow: #C8563A;
+  --sk-body: #5E5240;
+  --sk-band-yellow: #E3B92C;
+  --sk-band-violet: #A47BD0;
+  --sk-band-brown: #A0683E;
+  --sk-band-gold: #CDA74A;
+  --sk-board: #2A2926;
+  --sk-hole: #5C5850;
+  --sk-meter: #2E2B25;
+  --sk-lcd: #3B4232;
+  --sk-rail-pos: #E2664C;
+  --sk-rail-neg: #7C9BEA;
+  --sk-battery: #0F0E0D;
+  --sk-battery-label: #C9A227;
+  --sk-shade: #11100F;
+  --sk-cover: #313848;
+  --sk-cover-edge: #0B0D12;
+  --sk-cover-ink: #ECE6DA;
+  --sk-band: #C9583A;
+  --sk-chip: #11100F;
+  --sk-metal: #6E685E;
+  --sk-cap: #46618F;
+  --sk-wire-wire: #C9A227;
+  --sk-char: #0E0C0B;
+  --sk-smoke: #8A8378;
 }

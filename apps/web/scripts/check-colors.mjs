@@ -1,6 +1,8 @@
 // Fails when a raw colour (hex, rgb(), hsl(), oklch() ...) appears in apps/web/src outside src/styles/tokens.css,
 // or a raw duration appears in a stylesheet. Design values live in tokens.css only.
-// Also checks that tokens.css keeps its two dark-theme blocks identical.
+// Also checks that tokens.css keeps its two dark-theme blocks identical, and that every var(--name) read without a
+// fallback names a custom property that is defined somewhere (a token, or a local one a component sets), so a renamed
+// or misspelt token never fails silently.
 // A line can opt out with the comment `design-values: allow` (use sparingly, say why).
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative } from "node:path";
@@ -19,6 +21,11 @@ const DURATION = /(?<![\w.-])\d*\.?\d+m?s(?![\w-])/g;
 const ALLOW = "design-values: allow";
 
 const problems = [];
+/** Custom properties defined anywhere (tokens, component CSS, inline styles), and every fallback-free read of one. */
+const defined = new Set();
+const reads = [];
+const DEFINE = [/(--[\w-]+)\s*:/g, /["'`](--[\w-]+)["'`]/g];
+const READ = /var\(\s*(--[\w-]+)\s*\)/g;
 
 function walk(dir) {
   for (const name of readdirSync(dir)) {
@@ -37,10 +44,19 @@ function stripComments(text, ext) {
   return t;
 }
 
+function collectTokens(file, text) {
+  for (const re of DEFINE) for (const m of text.matchAll(re)) defined.add(m[1]);
+  text.split("\n").forEach((line, i) => {
+    // a var() that is itself another var()'s fallback only runs when the outer one is missing
+    for (const m of line.matchAll(READ)) if (!/,\s*$/.test(line.slice(0, m.index))) reads.push({ name: m[1], where: `${relative(ROOT, file)}:${i + 1}` });
+  });
+}
+
 function check(file) {
   const ext = extname(file);
   const raw = readFileSync(file, "utf8");
   const text = stripComments(raw, ext);
+  collectTokens(file, text);
   const rawLines = raw.split("\n");
   const lines = text.split("\n");
   // Durations are only checked in stylesheets and Astro <style> blocks; scripts may use numbers for timing logic.
@@ -81,7 +97,9 @@ function checkDarkBlocks() {
 }
 
 walk(SRC);
+collectTokens(TOKENS, stripComments(readFileSync(TOKENS, "utf8"), ".css"));
 checkDarkBlocks();
+for (const r of reads) if (!defined.has(r.name)) problems.push(`${r.where}: var(${r.name}) is not defined anywhere (a renamed token?)`);
 if (problems.length) {
   console.error(`Design values belong in src/styles/tokens.css:\n${problems.map((p) => `  ${p}`).join("\n")}`);
   process.exit(1);

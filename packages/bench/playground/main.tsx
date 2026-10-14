@@ -5,7 +5,7 @@ import type { Health, PartState, Snapshot } from "@ohmland/sim";
 // galleries load their 3D code when opened.
 import { benchToNetlist, createBenchStore, emptyBench, type BenchAction, type BenchState, type InspectSpec, type Quality } from "../src/core";
 import { BenchView, type BenchController, type BenchViewKind } from "../src/view";
-import { FULL_TRAY, blocksBench, boxesBench, clipBench, demoBench, drawerBench, glowBench, lampBench, modulesBench, propsBench, smokeBench, staticBench, symbolsBench, tiredBench } from "./scenes";
+import { CHIP_TRAY, FULL_TRAY, blocksBench, boxesBench, chipPartsBench, chipsBench, clipBench, demoBench, drawerBench, glowBench, lampBench, mcuBench, modulesBench, propsBench, smokeBench, staticBench, symbolsBench, tiredBench } from "./scenes";
 
 type GalleryProps = { view?: { position: [number, number, number]; target: [number, number, number] }; rows?: number[]; row: string | null; focus: string | null };
 const GalleryApp = lazy(() =>
@@ -46,6 +46,10 @@ function initialBench(): BenchState {
       return modulesBench();
     case "blocks":
       return blocksBench();
+    case "chips":
+      return chipsBench();
+    case "chipparts":
+      return chipPartsBench();
     // Start here: `lamp` (wrap=1 clips TL1 to the wrapper, gates=1 adds two gates, off=1), `junk`, `boxes`
     // (open=1), `tired`, `symbols`, `static`.
     case "lamp":
@@ -60,9 +64,43 @@ function initialBench(): BenchState {
       return symbolsBench();
     case "static":
       return staticBench();
+    case "mcu":
+      return mcuBench();
     default:
       return demoBench();
   }
+}
+
+/**
+ * Unit 4 look in the mock: `segs=DS1:abcdg.;DS2:bc` lights segments ("." is the dot), `temp=U2:140` warms a part,
+ * `probe=LP1:H` feeds a logic probe (H, L or X).
+ */
+function chipMock(bench: BenchState, parts: Record<string, PartState>): Record<string, number> {
+  const nodes: Record<string, number> = { gnd: 0 };
+  for (const pair of (q.get("segs") ?? "").split(";").filter(Boolean)) {
+    const [id, lit = ""] = pair.split(":");
+    const s = id ? parts[id] : undefined;
+    if (!s) continue;
+    const extra: Record<string, number | string> = { lit: lit.replace(".", "") };
+    for (const seg of ["a", "b", "c", "d", "e", "f", "g"]) extra[seg] = lit.includes(seg) ? 0.85 : 0;
+    extra["dp"] = lit.includes(".") ? 0.85 : 0;
+    s.extra = extra;
+    s.glow = lit ? 0.85 : 0;
+  }
+  for (const p of bench.parts) if ((p.kind === "chip" || p.kind === "regulator7805") && parts[p.id]) parts[p.id]!.extra = { ...(parts[p.id]!.extra ?? {}), powered: true };
+  for (const pair of (q.get("temp") ?? "").split(",").filter(Boolean)) {
+    const [id, t] = pair.split(":");
+    if (id && parts[id]) parts[id]!.temp = Number(t);
+  }
+  const probe = q.get("probe");
+  if (probe) {
+    const [id, level] = probe.split(":");
+    const { nodeOf } = benchToNetlist(bench);
+    nodes[nodeOf(`pin:${id}.vcc`)] = 5;
+    nodes[nodeOf(`pin:${id}.gnd`)] = 0;
+    nodes[nodeOf(`pin:${id}.tip`)] = level === "H" ? 4.9 : level === "L" ? 0.1 : 2.5;
+  }
+  return nodes;
 }
 
 type Mock = {
@@ -99,11 +137,14 @@ function toSnapshot(bench: BenchState, m: Mock): Snapshot {
       s.extra = { armature: m.closed ? 1 : 0 };
     }
     if (p.kind === "led") s.extra = { stress: Math.min(1.2, (m.glow[p.id] ?? 0) * 0.7) };
+    // A microcontroller board's lamps: L (pin 13, `lamp=`) and ON.
+    if (p.kind === "mcu-board") s.extra = { L: Number(q.get("lamp") ?? 0.8), ON: Number(q.get("on") ?? 0.75) };
     parts[p.id] = s;
   }
   if (bench.meter) parts[bench.meter.id] = { i: 0, v: 0, p: 0, temp: 25, health: "ok", display: m.display, unit: m.unit };
+  const nodes = chipMock(bench, parts);
   // `t` (simulated seconds) runs the desk clock.
-  return { t: Number(q.get("t") ?? 0), nodes: {}, parts, events: [] };
+  return { t: Number(q.get("t") ?? 0), nodes, parts, events: [] };
 }
 
 const panelStyle: React.CSSProperties = {
@@ -184,7 +225,8 @@ type Shown = BenchViewKind | "split";
 
 /**
  * `sim=1`: run the real simulator in this thread instead of the mock snapshot (flow dots, gates and push need real
- * currents). `speed=` runs it faster. Overlays: `flow=current|electrons`, `push=1`, `trace=pin:B1.neg`.
+ * currents). `speed=` runs it faster. Overlays: `flow=current|electrons`, `push=1`, `trace=pin:B1.neg`. `simAt=4.3` runs
+ * that many simulated seconds before the first frame (instead of half a second); `simrun=0` then holds it there.
  */
 function useLiveSim(store: ReturnType<typeof createBenchStore>, on: boolean) {
   useEffect(() => {
@@ -212,8 +254,8 @@ function useLiveSim(store: ReturnType<typeof createBenchStore>, on: boolean) {
         raf = requestAnimationFrame(frame);
       };
       // Settle first, so screenshots show a running circuit.
-      store.setState({ snapshot: sim.step(0.5) });
-      raf = requestAnimationFrame(frame);
+      store.setState({ snapshot: sim.step(Number(q.get("simAt") ?? 0.5)) });
+      if (q.get("simrun") !== "0") raf = requestAnimationFrame(frame);
       cleanup = () => {
         unsub();
         offAct();
@@ -311,7 +353,7 @@ function BenchApp() {
             <BenchView
               view={v}
               store={store}
-              tray={q.get("tray") === "0" ? [] : FULL_TRAY}
+              tray={q.get("tray") === "0" ? [] : (q.get("scene") ?? "").startsWith("chip") ? CHIP_TRAY : FULL_TRAY}
               snapshot={live ? undefined : snapshot}
               quality={quality}
               readOnly={q.get("ro") === "1"}
@@ -346,6 +388,8 @@ function BenchApp() {
           <a href="?scene=props">Props</a>
           <a href="?scene=modules">Modules</a>
           <a href="?scene=lamp&gates=1&sim=1&flow=current">Start here</a>
+          <a href="?scene=chips&sim=1">Chips</a>
+          <a href="?scene=chipparts">Chip parts</a>
           <a href="?scene=empty">Empty</a>
           <a href="?mode=gallery">Gallery</a>
           <a href="?mode=preview">Preview</a>
