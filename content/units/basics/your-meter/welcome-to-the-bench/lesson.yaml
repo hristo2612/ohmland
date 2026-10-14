@@ -1,53 +1,60 @@
-# Blueprint: docs/curriculum/unit-1.md, L1. A bench lesson (docs/LESSONS.md).
-# One idea: current only flows around a complete loop. Lab: content/labs/welcome-to-the-bench.ts.
+# Blueprint: docs/curriculum/start-here.md, SH1 "The dark lamp". A bench lesson (docs/LESSONS.md).
+# One idea: flow needs a closed loop, metal on metal all the way round. Lab: content/labs/welcome-to-the-bench.ts.
+# The lesson moves into the Start here unit (start-here/first-cases); it stays here until that move lands.
 format: bench
 id: welcome-to-the-bench
-version: 2
+version: 3
 title: Welcome to the bench
-summary: Light your first LED with a switch and learn that current needs a complete loop.
-minutes: 6
+summary: A desk lamp will not light. Find the gap, and learn that flow needs a closed loop.
+minutes: 5
 lab: welcome-to-the-bench
 unlocks:
   parts: [battery-9v, alligator-clips]
-  isle: switch
+  isle: led-lamp
 
 start:
-  title: First light
-  say: Welcome to the bench. My face runs on fumes.
-  go: Let's look
+  title: The dark lamp
+  say: My desk lamp is dark. Take the case?
+  go: Take the case
 
 beats:
-  - say: This is a switch. Flip it on.
-    objective: Light the lamp
+  - say: Flip its switch.
+    objective: Find the gap
     do: close-the-switch
-    done: A glow! First light on this island in ages.
-    note: { at: D1, text: current flows all the way round }
 
-  - say: Unclip any one lead. Guess first.
+  - say: Still dark. Tap the battery's minus snap.
+    tap: { answer: B1.neg, among: [B1.pos, B1.neg] }
+    wrong: { B1.pos: "That's plus. Minus is the other snap." }
+    note: { at: TL1.a, text: "plastic: a gap" }
+
+  - say: Move that clip onto the metal snap.
+    do: find-the-gap
+    note: { at: D1, text: "loop: metal all the way round" }
+    rule: Flow needs a closed loop.
+
+  - say: Unclip a lead far from the lamp. Guess first.
     objective: Break it, mend it
-    guess: { options: [It stays on, It gets dimmer, It goes out], answer: It goes out }
+    guess: { options: [It stays lit, It dims, It goes dark], answer: It goes dark }
     do: break-the-loop
-    done: Dark. Everywhere at once.
-    note: { at: D1, text: one gap stops it all }
-    rule: Current needs a full loop.
+    done: Dark at once.
+    note: { at: D1, text: "one gap, all dark" }
 
-  - say: Clip it back on.
+  - say: Clip it back.
     do: mend-the-loop
 
-  - say: What is this?
-    pick: { on: S1, options: [A switch, A battery, A resistor], answer: A switch }
-    rule: A switch opens and closes the loop.
+  - say: What is this, all the way round?
+    pick: { options: [a loop, a lamp, a line], answer: a loop }
 
 secret:
   task: swap-battery-leads
   say: Curious? Swap the battery's two clips.
   done: Dark, and nothing broke.
-  note: { at: D1, text: "backwards: no light, no harm" }
+  note: { at: D1, text: "backwards: dark, no harm" }
 
 fixit:
-  say: Fix-it time. The switch is on. No light.
+  say: Fix-it time. Switch on, still dark. Your turn.
   tasks:
-    - task: fix-switch
+    - task: fix-it
 
 end:
-  say: One loop, one light. The island looks brighter already.
+  say: Case closed. First light in ages.

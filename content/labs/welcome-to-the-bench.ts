@@ -1,10 +1,12 @@
-// Blueprint: docs/curriculum/unit-1.md, L1. A reference lab of a bench lesson (docs/LESSONS.md): its tasks are the
-// beats of content/units/basics/your-meter/welcome-to-the-bench/lesson.yaml, in the same order.
-// One idea: current only flows around a complete loop.
+// Blueprint: docs/curriculum/start-here.md, SH1 "The dark lamp". A bench lesson (docs/LESSONS.md): its tasks are the
+// beats of the lesson's lesson.yaml, in the same order.
+// One idea: flow needs a closed loop, with metal touching metal all the way round.
+// The case: the lamp's red lead bites the battery's plastic wrapper, not its metal snap. The tracer, run from the
+// minus snap, inks the loop lead by lead and stops one clip short.
 import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 
-/** The fix-it bench: the yellow lead moved to the switch's spare terminal, so "on" no longer closes the loop. */
-const WRONG_TERMINAL: SolutionStep[] = [{ do: "clip", lead: "TL2", end: "a", to: "S1.a" }];
+/** The fix-it bench: the yellow lead's clip bites the switch's wooden block instead of its screw terminal. */
+const ON_THE_WOOD: SolutionStep[] = [{ do: "clip", lead: "TL2", end: "a", to: "base:S1" }];
 
 /** Broken first (a setup or a learner's change), then lit: a bench that never went dark does not count. */
 const relit = (lab: LabView) => {
@@ -22,11 +24,12 @@ export default defineLab({
       { id: "B1", kind: "battery", at: "desk:-72,2", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
       // A big toggle switch on a small wooden block, wired between com and b, so "on" is thrown to b.
       { id: "S1", kind: "toggle-switch", at: "desk:-6,-42", params: { base: true, to: "a" }, locked: true, label: "Switch" },
-      { id: "R1", kind: "resistor", at: "desk:62,-4", rot: -90, params: { ohms: 1500, watts: 0.25 }, locked: true, label: "1.5 kΩ resistor" },
-      { id: "D1", kind: "led", at: "desk:16,44", rot: 180, params: { color: "red", maxmA: 50 }, locked: true, label: "Red LED" },
+      { id: "R1", kind: "resistor", at: "desk:62,-4", rot: -90, params: { ohms: 1000, watts: 0.25 }, locked: true, label: "1 kΩ resistor" },
+      { id: "D1", kind: "led", at: "desk:16,44", rot: 180, params: { color: "red", maxmA: 50 }, locked: true, label: "Lamp" },
     ],
     leads: [
-      { id: "TL1", from: "B1.pos", to: "S1.com", color: "red" },
+      // The case's gap: this clip bites the plastic wrapper beside the + snap, which joins nothing.
+      { id: "TL1", from: "wrap:B1", to: "S1.com", color: "red" },
       { id: "TL2", from: "S1.b", to: "R1.a", color: "yellow" },
       { id: "TL3", from: "R1.b", to: "D1.anode", color: "green" },
       { id: "TL4", from: "D1.cathode", to: "B1.neg", color: "black" },
@@ -35,64 +38,77 @@ export default defineLab({
     instruments: [],
   },
   mascot: {
-    hint: "Look for a gap. Light only flows around a full loop.",
-    fried: "Oof. That one's for the Hall.",
+    hint: "Follow the ink. Where does it stop?",
+    fried: "Whoa, a shortcut. Unclip that one.",
   },
   tasks: [
     {
       id: "close-the-switch",
       prompt: "Flip the switch on.",
-      goal: (lab) => lab.closed("S1") && lab.isLit("D1"),
-      hints: ["The switch is the lever on the wooden block. Click or tap it."],
+      goal: (lab) => lab.closed("S1"),
+      hints: ["The lever on the wooden block."],
       highlight: ["S1"],
-      success: "It glows.",
+      success: "Click. Nothing.",
+    },
+    {
+      id: "find-the-gap",
+      prompt: "Move the red clip from the plastic onto the metal snap.",
+      goal: (lab) => lab.closed("S1") && lab.isLit("D1"),
+      hints: ["Drag the clip onto the shiny snap."],
+      highlight: ["TL1", "pin:B1.pos"],
+      nudges: [{ when: (lab) => !lab.closed("S1"), say: "Keep the switch on for this one." }],
+      success: "It glows!",
     },
     {
       id: "break-the-loop",
       prompt: "Keep the switch on. Unclip any one lead.",
       goal: (lab) => lab.closed("S1") && lab.bench.detachedLeadEnds >= 1 && lab.loopOpen("D1"),
-      hints: ["Drag one end of any clip lead off its part and drop it on the desk.", "Pick a lead far from the LED."],
-      highlight: ["TL1"],
+      hints: ["Drag any clip off its part."],
+      highlight: ["TL4"],
       nudges: [{ when: (lab) => !lab.closed("S1") && lab.bench.detachedLeadEnds === 0, say: "Keep the switch on for this one." }],
       success: "Dark.",
     },
     {
       id: "mend-the-loop",
       prompt: "Clip the lead back on.",
-      goal: (lab) => lab.isLit("D1"),
-      hints: ["Every part needs a lead on both of its ends.", "Drag the loose clip back onto the metal it came from."],
+      goal: relit,
+      hints: ["Drag the loose clip back onto the metal it came from."],
       success: "Light's back.",
     },
     {
-      id: "fix-switch",
+      id: "fix-it",
       prompt: "The switch is on, but no light. Fix it.",
-      setup: WRONG_TERMINAL,
+      setup: ON_THE_WOOD,
       goal: relit,
-      hints: ["Follow the yellow lead to the switch.", "The switch joins its middle terminal to the side it leans toward."],
+      hints: ["Tap a snap. Watch where the ink stops.", "One clip bites wood, not metal. Move it onto the screw."],
       highlight: ["TL2", "S1"],
-      success: "Fixed.",
+      success: "Wood is a gap too. Fixed.",
     },
     {
       id: "swap-battery-leads",
       prompt: "Swap the two clips on the battery.",
-      // The whole battery across the LED backwards: a complete loop, facing the wrong way.
-      goal: (lab) => (lab.part("D1")?.v ?? 0) < -1 && (lab.part("D1")?.glow ?? 1) < 0.01,
-      hints: ["Unclip both battery leads and clip each onto the other terminal."],
+      // The whole battery across the lamp backwards: a closed loop, facing the wrong way.
+      goal: (lab) => lab.closed("S1") && (lab.part("D1")?.v ?? 0) < -1 && (lab.part("D1")?.glow ?? 1) < 0.01,
+      hints: ["Unclip both battery clips and clip each onto the other snap."],
       highlight: ["pin:B1.pos", "pin:B1.neg"],
-      success: "Nothing lights, and nothing breaks.",
+      success: "Dark, and nothing broke.",
       bonus: true,
     },
   ],
   solution: [
     { do: "flip", part: "S1", to: "b" },
     { do: "check", task: "close-the-switch" },
-    { do: "clip", lead: "TL2", end: "a", to: null },
+    { do: "trace", from: "B1.neg" },
+    { do: "clip", lead: "TL1", end: "a", to: "B1.pos" },
+    { do: "check", task: "find-the-gap" },
+    { do: "clip", lead: "TL4", end: "b", to: null },
     { do: "check", task: "break-the-loop" },
-    { do: "clip", lead: "TL2", end: "a", to: "S1.b" },
+    { do: "clip", lead: "TL4", end: "b", to: "B1.neg" },
     { do: "check", task: "mend-the-loop" },
-    ...WRONG_TERMINAL,
+    ...ON_THE_WOOD,
     { do: "clip", lead: "TL2", end: "a", to: "S1.b" },
-    { do: "check", task: "fix-switch" },
+    { do: "check", task: "fix-it" },
+    // The secret last, so the fix-it bench starts from the mended loop.
     { do: "clip", lead: "TL1", end: "a", to: "B1.neg" },
     { do: "clip", lead: "TL4", end: "b", to: "B1.pos" },
     { do: "check", task: "swap-battery-leads" },
