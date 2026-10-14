@@ -13,6 +13,12 @@ export type Inset = { top?: number; right?: number; bottom?: number; left?: numb
  */
 export type FocusOptions = { padding?: number; instant?: boolean; inset?: Inset };
 
+/**
+ * `pins: false`: the spotlit chips and displays print no pin numbers, not even up close (a check that asks for a pin,
+ * which the numbers would answer).
+ */
+export type SpotlightOptions = { pins?: boolean };
+
 export interface BenchController {
   /** Where an anchor ("pin:R1.a", "part:D1", "hole:e12", "probe:red", "part:M1/display") is on screen right now. */
   project(anchor: string): ScreenPoint | null;
@@ -21,7 +27,7 @@ export interface BenchController {
   /** Frame these parts or anchors nicely (smooth unless reduced motion). Empty array: frame the whole work area. */
   focus(targets: string[], opts?: FocusOptions): void;
   /** Temporarily emphasise parts (glow ring, dim the rest). */
-  spotlight(targets: string[] | null): void;
+  spotlight(targets: string[] | null, opts?: SpotlightOptions): void;
 }
 
 /** Which renderer draws the bench. */
@@ -46,6 +52,7 @@ export function createControllerHub(): BenchControllerHub {
   let unsub: (() => void) | null = null;
   let lastFocus: { targets: string[]; opts?: FocusOptions } | null = null;
   let lastSpot: string[] | null = null;
+  let lastSpotOpts: SpotlightOptions | undefined;
   const notify = () => {
     for (const cb of [...listeners]) {
       try {
@@ -65,9 +72,10 @@ export function createControllerHub(): BenchControllerHub {
       lastFocus = { targets: [...targets], opts };
       inner?.focus(targets, opts);
     },
-    spotlight: (targets) => {
+    spotlight: (targets, opts) => {
       lastSpot = targets ? [...targets] : null;
-      inner?.spotlight(targets);
+      lastSpotOpts = opts;
+      inner?.spotlight(targets, opts);
     },
     attach: (next) => {
       if (next === inner) return;
@@ -76,7 +84,7 @@ export function createControllerHub(): BenchControllerHub {
       inner = next;
       if (next) {
         unsub = next.onViewChange(notify);
-        if (lastSpot) next.spotlight(lastSpot);
+        if (lastSpot) next.spotlight(lastSpot, lastSpotOpts);
         if (lastFocus) next.focus(lastFocus.targets, { ...lastFocus.opts, instant: true });
       }
       notify();

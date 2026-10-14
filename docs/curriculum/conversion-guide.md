@@ -495,7 +495,7 @@ lessons (about 226 minutes) to 28 (about 194 minutes). Every lesson keeps the un
 | 15b | `tune-the-timer` (new) | **Split**, new half: the trimmer and five seconds | Tune it to five | 7 | Transistors |
 | 16 | `night-light` Lights On at Dusk | **Trimmed** | Lights on at dusk | 8 | Blink and beep |
 | 17 | `twin-flasher` The Twin Blinker | **Trimmed** | The twin blinker | 9 | Blink and beep |
-| 18 | `flasher-to-tone` Shrink It to a Song | **Trimmed** (takes the ceramic code card) | Shrink it to a song | 9 | Blink and beep |
+| 18 | `flasher-to-tone` Shrink It to a Song | **Trimmed** (takes the ceramic code, as a check) | Shrink it to a song | 9 | Blink and beep |
 | 19 | `siren` The Siren Button | **Trimmed** | The siren button | 10 | Blink and beep |
 
 Landmarks are unchanged: `switchyard`, `relay-clocktower`, `breadboard-plaza`, `capacitor-water-tower`,
@@ -664,86 +664,151 @@ steady push. New: the ceramic capacitor (three periods).
 - Fix-it: "My button flashes once, then never again. Fix it." Repair: put back the reset path that empties C2.
 
 **13 `meet-the-transistor`** · Split, kept half · "A tiny current in charge" · 7 min. Idea: a trickle into the base lets
-a big flow through. New: the transistor (three periods on E, B, C).
-- Objectives: O1 `place-q1`; O2 `small-steers-big`. Secret: `no-resistor` (now bonus; the burnout).
-- Cards: "Three legs, three jobs" → note "flat face to you: E, B, C"; "A trickle controls a river" → rule "A small base
-  flow steers a big one."; "The 0.7 V door" → secret note "the base needs its resistor"; "NPN and PNP" → parts bin.
-- Quiz: `q1` → tap check; `q5` → check; `q4` → secret; `q2`, `q3` → `count-the-gain`; `q6` dropped.
-- Fix-it: "My LED is dim and the transistor acts odd. Fix it." Repair: Q1 is in with C and E swapped; turn it round.
+a big flow through. New: the transistor (three periods on E, B, C). Unlocks `npn-transistor`.
+- Objectives: O1 `place-q1`; O2 `small-steers-big`. Prediction (hook): before O2, chips "About 18 µA", "A few mA",
+  "Several amps". Secret: `no-resistor` (now bonus; the burnout).
+- Cards: "Three legs, three jobs" → note "flat face: E, B, C"; "A trickle controls a river" → rule "A small base flow
+  steers a big one." and note on the LED "3.6 mA: 200 times more"; "The 0.7 V door" → secret note "the base needs its
+  resistor"; "NPN and PNP" → parts bin.
+- Quiz: `q1` → tap check (the base, among E, B and C); `q5` → chip check ("Where does the LED's flow come from?", the
+  battery; note "battery pushes, Q1 decides"); `q4` → secret; `q2`, `q3` → `count-the-gain`; `q6` dropped. A closing
+  "What is this?" chip check on Q1 is the third period.
+- Fix-it (`fix-backwards`): "Press S1. Why so dim?" Repair: Q1 sits in its rows turned round (C and E swapped, about
+  0.17 mA); turn it flat face toward you.
+- As built: R3 (470 kΩ) is already in the base row, so O1 is only placing Q1 in rows 20 to 22. Pressing S1 sends
+  17.7 µA into the base and 3.6 mA through the LED (this Q1's gain is about 205).
 
 **13b `count-the-gain`** (new) · "Count the gain" · 7 min. Idea: the collector flow is about β times the base flow.
-- Objectives: O1 `measure-gain` (moved, number check); O2 `double-it` (moved). Secret: none.
-- Cards: gain part of "A trickle controls a river" → rule "Collector flow ≈ β × base flow." and note "every 2N3904
-  differs a little".
-- Quiz: `q2` → number check; `q3` dropped.
-- Fix-it: "My base meter reads zero. Fix it." Repair: move the red plug from VΩ to mA.
+- Objectives: O1 "Count both flows": `measure-collector` and `measure-base` (new), then `measure-gain` (moved); O2
+  `double-it` (moved), after a guess (chips "About the same", "About double", "Ten times more"). Secret: none.
+- Cards: gain part of "A trickle controls a river" → rule "Collector flow ≈ β × base flow." and note "β, its gain:
+  about 200"; "every 2N3904 differs a little" became the robot's line once the gain is typed.
+- Quiz: `q2` → `measure-gain`; `q3` dropped. A new chip check closes the lesson: β 200 with 20 µA into the base makes
+  4 mA.
+- Fix-it (`fix-link`): "My base meter reads zero. Why?" Repair: the yellow test link is still in while the probes
+  bridge it, so the wire carries the flow and the meter reads 0.0 µA; pull the link.
+- As built: no button, so the base is always fed. Two jumpers off the + rail are test links: pull the green one (the
+  LED's feed) or the yellow one (the base's) and bridge the gap with the probes; the meter ranges by itself.
+  Collector 3.63 mA, base 17.7 µA. `measure-gain` is the lab's note box: the typed gain is judged against the
+  learner's own two readings (within 10%). `double-it` swaps R3 for 220 kΩ: 37 µA and 7.8 mA.
 
 **14a `all-the-way-on`** (new) · "All the way on" · 6 min. Idea: with enough base flow a transistor is fully on, and
 more changes nothing.
-- Objectives: O1 `active-vs-saturated` (moved); O2 `no-brighter` (moved). Secret: none.
-- Cards: "Saturation" → rule "Fully on: the load sets the flow."; "Switches run cool" → note with the heat overlay
-  "fully on: cool"; "Designing a transistor switch" → parts bin.
-- Quiz: `q2` → check; `q1`, `q5` dropped.
-- Fix-it: "My transistor switch runs warm. Fix it." Repair: swap the 470 kΩ base resistor for 10 kΩ.
+- Objectives: O1 "Half on": `half-on` (new); O2 "All the way on": `active-vs-saturated` (moved), then `no-brighter`
+  (moved) after a guess (chips "Brighter", "The same", "Dimmer"). Secret: none.
+- Cards: "Saturation" → rule "Fully on: the load sets the flow." and notes "half on: 5.5 V across", "saturated: fully
+  on, 0.1 V" and, on R1, "this resistor sets the flow"; "Switches run cool" dropped (neither state gets warm here,
+  about 20 mW half on and 2 mW fully on, so the meter across Q1 tells the story); "Designing a transistor switch" →
+  parts bin.
+- Quiz: `q2` → chip check ("Fully on, how much sits across Q1?", about 0.1 V); `q1`, `q5` dropped.
+- Fix-it (`fix-half-on`): "My lamp switch only glows dimly. Why?" Repair: a 1 MΩ base resistor leaves Q1 half on
+  (6.5 V across, 1.6 mA); swap in a smaller one until it is fully on.
+- As built: lesson 13's circuit with Q1 in and 470 kΩ in the base. The meter probes C to E with S1 held: 5.5 V and
+  3.6 mA; 10 kΩ gives 0.11 V and 14.8 mA; 4.7 kΩ gives 0.09 V and the same 14.8 mA.
 
 **14 `touch-switch`** · Split, kept half, retitled · "Fingertip switch" · 7 min. Idea: two transistors chained multiply
-their gain, enough for a fingertip.
-- Objectives: O1 `touch-it`; O2 `darlington`. Secret: none. `feather-touch` unchanged.
-- Cards: Darlington part → note "gains multiply"; "Transistor or relay?" → parts bin.
-- Quiz: `q4` → check; `q3` dropped.
-- Fix-it: "My touch lamp never lights. Fix it." Repair: Q2's emitter is off Q1's base strip; move it.
+their gain, enough for a fingertip. New: the touch pads (named in a `meet` beat). Unlocks `touch-pads`.
+- Objectives: O1 "One transistor": `touch-it`; O2 "Two in a chain": `feed-q2` (new), then `darlington` after a guess
+  (chips "Barely glows", "Full light"). Secret: none. `feather-touch` unchanged.
+- Cards: Darlington part → note "gains multiply: 200 × 200" and rule "Chained transistors multiply their gains.";
+  "Transistor or relay?" → parts bin.
+- Quiz: `q4` → chip check (gains of 150 and 200, chained: 30,000); `q3` dropped.
+- Fix-it (`fix-emitter`): "My touch lamp never lights. Why?" Repair: the yellow jumper from Q2's emitter lands in row
+  24, off Q1's base row; move it to row 21.
+- As built: the fingertip slider sets the pads from a light dry touch (2 MΩ) to a firm damp one (100 kΩ). One
+  transistor glows faintly at a light touch (0.7 mA) and fully at a firm one (14.5 mA). Q2 waits on the far half with
+  its two jumpers already in; the learner moves R5's far leg to Q2's base, and the pair lights fully (13.3 mA) at the
+  lightest touch.
 
 **15 `delay-timer`** · Split, kept half · "Wait for it" · 7 min. Idea: a load that drains the timing capacitor ruins the
 timer; a transistor buffer fixes it.
-- Objectives: O1 `no-click`; O2 `add-q1`. Fix-it: `impatient-restart` (kept id). Secret: none.
-- Cards: "Why it never clicked" → note "the coil drains it: stuck near 3 V"; "The emitter follower" → rule "The emitter
-  follows the base, 0.7 V lower."
-- Quiz: `q1` → check; `q2` → number check; `q4` → fix-it.
-- Fix-it (`impatient-restart`): "My second run is far too short. Fix it." Repair: press reset to empty C1, then start.
+- Objectives: O1 "Why no click?": `no-click`, after a guess (chips "In a second", "After a while", "Never"); O2 "Add a
+  buffer": `buffer-in` (new), then `add-q1`. Secret: `impatient-restart` (kept id, now the bonus).
+- Cards: "Why it never clicked" → note "drained by the coil: 3 V"; "The emitter follower" → rule "The emitter follows
+  the base, 0.7 V lower." and note "C1 feeds only the base".
+- Quiz: `q1` → a number check (probe C1: about 3.17 V); `q2` → a number check on the real bench (base to emitter:
+  about 0.74 V); `q4` → secret; `q3`, `q5` → `tune-the-timer`.
+- Fix-it (`fix-bypass`, new): "My timer never clicks. Why?" Repair: the yellow jumper is back, feeding the coil
+  straight from C1; pull it so Q1 carries the coil alone.
+- As built: the stopwatch starts on S1 and stops on the relay. Without Q1, C1 sticks at 3.16 V and K1 never clicks.
+  `buffer-in` pulls the jumper and plugs Q1 into rows 20 to 22 (two jumpers already wait for its base and collector);
+  `add-q1` is a fair run from an empty C1 (S1 off, reset, on): a click after about 1.5 s. The secret, off and straight
+  back on without the reset, gives barely a wait (note "start empty for a full wait").
 
 **15b `tune-the-timer`** (new) · "Tune it to five" · 7 min. Idea: more resistance in the RC means a longer delay; a
-trimmer sets it. New: the trimmer by name (three periods: wiper, ends).
-- Objectives: O1 `five-seconds` (moved). Secret: none. Unlocks `trimmer`.
-- Cards: "Timing it" → note "clicks when C1 nears 6.7 V"; "The trimmer" → rule "Wiper and one end: a variable
-  resistor."
-- Quiz: `q3` → number check; `q5` → fix-it.
-- Fix-it: "The knob does nothing. Fix it." Repair: the trimmer is wired by its two ends; move one lead to the wiper.
+trimmer sets it. New: the trimmer by name (three periods: a `meet` beat, a tap on the wiper, a closing chip check).
+- Objectives: O1 "Turn the knob": `longer-delay` (new), after a guess (chips "Shorter wait", "Longer wait", "No
+  change"); O2 "Five seconds": `five-seconds` (moved). Secret: none. Unlocks `trimmer`.
+- Cards: "Timing it" → note "clicks when C1 nears 6.7 V"; "The trimmer" → note "trimmer: wiper in the middle" and rule
+  "Wiper and one end: a variable resistor."
+- Quiz: `q3` dropped (the stopwatch times every run, so no sum is needed); `q5` → fix-it.
+- Fix-it (`fix-wiper`): "The knob does nothing. Why?" Repair: the blue jumper to C1 sits on an end of the trimmer, so
+  the whole 10 kΩ track is always in (about 15 s, whatever the knob says); move it to the wiper.
+- As built: delay-timer's finished timer with R1 (1 kΩ) and the 10 kΩ trimmer in C1's feed: 1.47 s at the knob's zero,
+  5.0 s near 23%, 18.4 s at its stop. `five-seconds` wants three runs in a row within 0.5 s of 5 s (the
+  `five-second-club` trigger wants them tighter). The knob turns on the board (drag it, or use the arrow keys).
 
 **16 `night-light`** · Trimmed · "Lights on at dusk" · 8 min. Idea: a light sensor that steals base flow makes a lamp
-that lights in the dark. New: the phototransistor (three periods in O1).
-- Objectives: O1 `follow-the-light`; O2 `flip-it`. Fix-it: `set-dusk` (kept id). Secret: none.
-- Cards: "A transistor with a window" → note "light opens the valve"; "Stealing base current" → rule "In light, the
-  sensor steals the base flow."; "Setting the threshold" → fix-it note; "The fuzzy edge" → note on the dim glow "no
-  hysteresis: a fuzzy edge".
-- Quiz: `q1`, `q4` → checks; `q3` → fix-it; `q2`, `q5` dropped.
-- Fix-it (`set-dusk`): "My lamp only wakes in pitch dark. Fix it." Repair: turn the trimmer toward less resistance.
+that lights in the dark. New: the phototransistor (a `meet` beat, a chip check on its legs, a closing chip check).
+- Objectives: O1 "A light valve": `follow-the-light`; O2 "Flip it": `plug-pt2` (new), then `flip-it` after a guess
+  (chips "On in the light", "On in the dark"). Fix-it: `set-dusk` (kept id). Secret: none.
+- Cards: "A transistor with a window" → note "more light, more flow"; "Stealing base current" → rule "In light, the
+  sensor steals the base flow." and note "dark: on. light: off."; "Setting the threshold" → the fix-it; "The fuzzy
+  edge" dropped (the dim glow near the threshold waits for Unit 4).
+- Quiz: `q4` → chip check ("How many legs does it have?", two; note "light does the base's job"); `q1` → the guess
+  before `flip-it`; `q3` → fix-it; `q2`, `q5` dropped.
+- Fix-it (`set-dusk`): "My lamp only wakes in pitch dark. Why?" Repair: turn the trimmer toward less resistance until
+  the lamp is on at 18% light and off at 32%.
+- As built: the desk lamp slider lights every phototransistor. Station A is PT1 feeding the red LED (glow 0.15 at
+  10% light, 0.5 in full light); station B is Q1 switching the yellow lamp, its base fed through R3 and the trimmer.
+  The learner plugs PT2 into rows 30 and 31, across Q1's base. The trimmer starts at 90%, where the lamp wakes only
+  below about 7% light.
 
 **17 `twin-flasher`** · Trimmed · "The twin blinker" · 9 min. Idea: two transistors cross-coupled by capacitors take
 turns forever.
-- Objectives: O1 `bases-up`; O2 `cross-couple`. Fix-it: `slow-it-down` (kept id). Secret: `look-inside` (now bonus).
-- Cards: "The seesaw" → note "one turning on kicks the other off" and rule "Cross-coupled, they take turns."; "Below
-  zero?" → secret note "below 0 V: relative push"; "How long is a blink?" → fix-it note; "Who goes first?" → the
-  hook's prediction.
-- Quiz: `q3` → check; `q2` → secret check; `q1`, `q4`, `q5` dropped.
-- Fix-it (`slow-it-down`): "The tower blinks too fast. About 2 s, please." Repair: swap both 10 µF for 22 µF.
+- Objectives: O1 "Two switches": `bases-up`; O2 "Make them talk": `cross-couple`, after a guess (chips "Both stay on",
+  "They take turns", "Both go dark"), then `look-inside` (kept, still required) on the scope, after a guess (chips
+  "Down to 0 V", "Below 0 V"). Fix-it: `slow-it-down` (kept id). Secret (new `one-cap`): "Pull one capacitor out."
+  Note "no cross, no turns".
+- Cards: "The seesaw" → note "one on kicks the other off" and rule "Cross-coupled, they take turns."; "Below zero?" →
+  note on Q2's base "down to −7 V, then back"; "How long is a blink?" → fix-it; "Who goes first?" dropped.
+- Quiz: `q6` → chip check ("Q1 switches on. What happens to Q2?", it gets kicked off); `q2` → the `look-inside` guess;
+  `q3` → the secret; `q1`, `q4`, `q5` dropped.
+- Fix-it (`slow-it-down`): "Too fast for my tower. Make it 2 s." Repair: swap both 10 µF for 22 µF.
+- As built: Q1 and Q2 face each other across the channel; the learner adds the 68 kΩ base resistors, then the two
+  10 µF capacitors (+ on one collector, stripe on the other base). 10 µF blinks every 0.83 s, 22 µF every 1.87 s;
+  Q2's base dives to about −6.8 V. With one capacitor out, both LEDs just stay on.
 
 **18 `flasher-to-tone`** · Trimmed · "Shrink it to a song" · 9 min. Idea: shrink the capacitors and the blink speeds up
-until it is a tone. New: the speaker (three periods). Pop-up card (the one allowed): "Read the bead", how 105, 104 and
-103 decode (two digits, then zeros, in pF), taken from `capacitor-labels`.
-- Objectives: O1 `tick-tock`; O2 `flutter`, `hum`; O3 `song`. Secret: `no-resistor` (bonus; the burnout).
-- Cards: "Hertz" → note "1,000 a second: 1 kHz"; "Scaling time" → rule "Smaller capacitors, higher pitch."; "Eyes and
-  ears" → note on O2 "too fast to see: looks steady"; "Inside a speaker" → note "only change makes sound".
-- Quiz: `q4` → prediction before `hum`; `q6` → check; `q5` → secret; `q1`, `q2`, `q3` dropped.
-- Fix-it: "My speaker is silent. Fix it." Repair: clip the speaker's loose lead back onto Q3's collector.
+until it is a tone. New: the speaker (a `meet` beat and a closing chip check). The bead code from `capacitor-labels`
+is a chip check, not a pop-up card: "Bead code: two digits, then zeros, in pF. Which is 1 µF?" (105).
+- Objectives: O1 "Tick, tock": `tick-tock`; O2 "Faster and faster": the bead check, `flutter`, `hum`; O3 "Make it
+  sing": `song`. Secret (new `lopsided`): "Mix one 104 with one 103." Note "each cap times its half".
+- Cards: "Hertz" → note "about 1,300 a second: 1.3 kHz"; "Scaling time" → rule "Smaller capacitors, higher pitch.";
+  "Eyes and ears" → note on the LED "too fast to see: steady"; "Inside a speaker" → note "a click each time Q3
+  switches".
+- Quiz: `q4` → guess before `hum` (chips "Even faster", "A steady glow"); `q1`, `q2`, `q3`, `q5`, `q6` dropped.
+- Fix-it (`fix-speaker`): "My speaker is silent. Why?" Repair: one of the speaker's legs has slipped out of Q3's
+  collector row; plug it back in.
+- As built: lesson 17's flasher, built, with Q3 driving an 8 Ω speaker through 220 Ω on the far half; the scope shows
+  Q2's collector and reads the pitch. 10 µF ticks (two clicks per 0.8 s cycle), 1 µF (105) flutters at 10 to 13 Hz,
+  100 nF (104) hums at about 130 Hz with both LEDs steady, 10 nF (103) sings at about 1.3 kHz. The lopsided pair
+  gives about 220 Hz. The burnout secret was dropped: without R7, Q3 only runs hot.
 
 **19 `siren`** · Trimmed · "The siren button" · 10 min (the unit's landmark build). Idea: a slow oscillator nudging a
 fast one moves the pitch; a capacitor turns the steps into a wail (the smoothing idea, already known).
-- Objectives: O1 `two-voices`; O2 `bridge`; O3 `wail`. Secret: `trill`. `wailer` unchanged.
-- Cards: "One oscillator steering another" → note "the slow one nudges the pitch" and rule "Join circuits gently,
-  through resistors."; "Why resistors, not wires?" → fix-it; "From steps to slides" → note on C5 "steps become
-  slopes"; "Calm debugging" → the fix-it's hints.
-- Quiz: `q1` → fix-it; `q2`, `q4` → checks; `q3`, `q5` dropped.
-- Fix-it: "My siren sounds muddy. Fix it." Repair: swap the plain wire for the 100 kΩ R9.
+- Objectives: O1 "Two voices": `two-voices`; O2 "Introduce them": `bridge`, after a guess (chips "One steady tone",
+  "Two tones in turn", "Silence"); O3 "Make it wail": `wail`. Secret: `trill` ("1 µF beads for C1 and C2. C5 out.",
+  note "small caps: a fast warble"). `wailer` unchanged.
+- Cards: "One oscillator steering another" → note "1.36 to 1.85 kHz: nee-naw" and rule "Join circuits gently, through
+  resistors."; "Why resistors, not wires?" → fix-it; "From steps to slides" → note on C5 "steps become slopes"; "Calm
+  debugging" → the fix-it's hints.
+- Quiz: `q1` → fix-it; `q2` → chip check ("So what does C5 do?", it smooths the steps); `q3`, `q4`, `q5` dropped.
+- Fix-it (`fix-muddy`): "My siren sounds muddy. Why?" Repair: swap the plain wire for the 100 kΩ R9.
+- As built: holding the button, the fast oscillator holds about 1.2 kHz while Q1 blinks every 0.83 s. Two 100 kΩ from
+  the fast bases to Q1's collector swap the pitch between about 1,360 and 1,850 Hz; R10 (10 kΩ) and C5 (22 µF) turn
+  that into a glide between about 1.40 and 1.65 kHz. A plain wire in place of one 100 kΩ makes the pitch jump about
+  between 1.0 and 2.4 kHz.
 
 ---
 

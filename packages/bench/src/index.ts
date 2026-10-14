@@ -2,7 +2,7 @@
 
 export { Bench, type BenchProps, type Bench3DController } from "./scene/Bench";
 export { BenchView, preloadBenchView, type BenchViewProps } from "./view/BenchView";
-export { createControllerHub, type BenchController, type BenchControllerHub, type BenchViewKind, type FocusOptions, type ScreenPoint } from "./view/controller";
+export { createControllerHub, type BenchController, type BenchControllerHub, type BenchViewKind, type FocusOptions, type SpotlightOptions, type ScreenPoint } from "./view/controller";
 export { parseTarget, targetPoint, meterSpot, METER_SPOTS, type ParsedTarget } from "./view/targets";
 export type { BenchRendererProps } from "./view/types";
 export { PartPreview, type PartPreviewProps, type PreviewKind } from "./preview/PartPreview";
