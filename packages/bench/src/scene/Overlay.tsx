@@ -1,6 +1,7 @@
 // DOM controls over the 3D view: toolbar, tray, selection bar, context menu and hover status.
 
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { chipDetail } from "../chips";
 import { formatFarads, formatOhms } from "../colorCode";
 import { useLabels } from "../labels";
 import type { BenchLabels } from "../labels";
@@ -18,6 +19,18 @@ import type { InteractionApi } from "./Interaction";
 // switched on. Colours and type come from the page's notebook tokens when it has them (fallbacks are the light page).
 const CSS = `
 .ohb-root:focus-visible{box-shadow:inset 0 0 0 2px var(--focus,#1F3C9A)}
+.ohb-readouts{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.ohb-stress{position:absolute;left:0;top:0;width:52px;height:10px;background:var(--paper-slip,#FCFAF5);border:1px solid var(--rule-soft,#D8D0C1);box-shadow:2px 2px 0 var(--shadow-ink,#E1D9CA)}
+.ohb-stress i{position:absolute;left:0;top:0;bottom:0;background:var(--sk-band-green,#3C8B4A)}
+.ohb-stress[data-tone="mid"] i{background:var(--sk-band-orange,#E07B24)}
+.ohb-stress[data-tone="high"] i{background:var(--sk-band-red,#C9372A)}
+.ohb-stress[data-tone="dead"] i{background:var(--ink-3,#6B655B)}
+.ohb-stress b{position:absolute;top:0;bottom:0;width:1px;background:var(--ink,#24221E)}
+.ohb-root[data-dark] .ohb-stress i{background:var(--sk-band-green,#4FA35D)}
+.ohb-root[data-dark] .ohb-stress[data-tone="mid"] i{background:var(--sk-band-orange,#EB8F3A)}
+.ohb-root[data-dark] .ohb-stress[data-tone="high"] i{background:var(--sk-band-red,#E0584A)}
+.ohb-root[data-dark] .ohb-stress[data-tone="dead"] i{background:var(--ink-3,#9A9488)}
+.ohb-root[data-dark] .ohb-stress b{background:var(--ink,#ECE6DA)}
 .ohb-ui{position:absolute;inset:0;pointer-events:none;font:400 14px/20px var(--font-serif,"Literata",Georgia,"Times New Roman",serif);color:var(--ink,#24221E)}
 .ohb-panel{pointer-events:auto;background:var(--paper-slip,#FCFAF5);border:1px solid var(--rule-soft,#D8D0C1);border-radius:2px;box-shadow:2px 2px 0 var(--shadow-ink,#E1D9CA)}
 .ohb-row{display:flex;gap:2px;align-items:center;padding:2px}
@@ -45,7 +58,7 @@ const CSS = `
 .ohb-tools{position:absolute;top:12px;left:136px}
 .ohb-tools.ohb-wide-tray{left:232px}
 .ohb-view{position:absolute;top:12px;right:12px}
-.ohb-sel{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);max-width:calc(100% - 24px)}
+.ohb-sel{position:absolute;bottom:calc(14px + var(--ohb-inset-bottom,0px));left:calc((100% - var(--ohb-inset-right,0px)) / 2);transform:translateX(-50%);max-width:calc(100% - 24px - var(--ohb-inset-right,0px))}
 .ohb-sel .ohb-name{padding:0 8px 0 12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
 .ohb-menu{position:absolute;min-width:180px;padding:2px;display:flex;flex-direction:column}
 .ohb-menu .ohb-btn{justify-content:flex-start}
@@ -62,7 +75,7 @@ const CSS = `
 .ohb-compact .ohb-item{min-width:72px;min-height:0;font-size:13px;line-height:16px}
 .ohb-compact .ohb-tools{left:8px;top:8px}
 .ohb-compact .ohb-view{right:8px;top:8px}
-.ohb-compact .ohb-sel{bottom:92px}
+.ohb-compact .ohb-sel{bottom:calc(92px + var(--ohb-inset-bottom,0px))}
 .ohb-compact .ohb-status{left:8px;bottom:92px}
 .ohb-compact .ohb-hint{top:60px;white-space:normal;width:calc(100% - 32px);text-align:center}
 .ohb-compact .ohb-tools .ohb-label,.ohb-compact .ohb-sel .ohb-label{display:none}
@@ -97,6 +110,7 @@ export function itemLabel(item: TrayItem, labels: BenchLabels): { name: string; 
   else if (item.kind === "led" && typeof p.color === "string") detail = labels.colors[p.color as WireColor] ?? String(p.color);
   else if (item.kind === "fuse" && typeof p.amps === "number") detail = `${p.amps} A`;
   else if (item.kind === "cup" && typeof p.water === "string") detail = labels.water[p.water as "tap"];
+  else detail = chipDetail(item.kind, p);
   return { name: item.label ? item.label : name, detail: item.label ? undefined : detail };
 }
 
@@ -105,6 +119,8 @@ function partTitle(part: PlacedPart, labels: BenchLabels): string {
   const p = part.params as Record<string, unknown>;
   if (part.kind === "resistor") return `${part.id} · ${formatOhms(p.ohms as number)}`;
   if (part.kind === "ceramic-cap" || part.kind === "electrolytic-cap") return `${part.id} · ${formatFarads(p.farads as number)}`;
+  const chip = chipDetail(part.kind, p);
+  if (chip) return `${part.id} · ${chip}`;
   return `${part.id} · ${base}`;
 }
 
@@ -214,7 +230,8 @@ export function Overlay({
       }
       // Prop settings (moisture, a test load, a pencil line) and one-shot actions (erase).
       const def = partDef(selPart.kind);
-      for (const st of def.settings ?? []) {
+      // Settings a part shows only in some labs (contact bounce) say so with `when`.
+      for (const st of (def.settings ?? []).filter((x) => !x.when || x.when(selPart.params as Record<string, unknown>))) {
         const text = labels.settings[`${selPart.kind}.${st.key}`];
         const cur = (selPart.params as Record<string, unknown>)[st.key];
         const name = (v: string | number | boolean) => text?.values?.[String(v)] ?? `${v}${text?.unit ? ` ${text.unit}` : ""}`;
@@ -249,8 +266,7 @@ export function Overlay({
         out.push(
           <button key={`act:${a.id}`} type="button" className="ohb-btn ohb-chip" onClick={() => {
             if (fresh()) return;
-            const p = ops.actionParams(s.bench, selPart.id, a.id);
-            if (p) s.setParams(selPart.id, p as never);
+            s.apply((b) => ops.runAction(b, selPart.id, a.id));
             close();
           }}>
             {labels.actions[`${selPart.kind}.${a.id}`] ?? a.id}

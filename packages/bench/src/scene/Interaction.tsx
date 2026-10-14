@@ -13,6 +13,7 @@ import { BOX, CARD } from "../dims";
 import * as ops from "../ops";
 import { penStroke, settingParams } from "../ops";
 import { canMountOnBoard, footprintOf, isThrowSwitch, partDef, rotateXZ } from "../parts";
+import { holderOf } from "../seats";
 import type { BenchStore } from "../store";
 import type { Anchor, BenchAction, BenchState, MeterMode, Selection, TrayItem, Vec2 } from "../types";
 import { PICK_LAYER, pickOf, type Pick } from "./pick";
@@ -30,10 +31,13 @@ export type InteractionApi = {
   stats: () => { calls: number; triangles: number; geometries: number; textures: number };
   /** What the pointer would grab at a client point (for tests and tutorials). */
   pickAt: (clientX: number, clientY: number) => Pick | null;
+  /** The desk point (mm) under an element-relative CSS px point. */
+  deskAt: (x: number, y: number) => [number, number] | null;
 };
 
 type Drag =
-  | { kind: "part"; id: string; offset: Vec2; spawned?: boolean }
+  /** `to`: where the part was last dragged (it goes into a holder's seat only when dropped there). */
+  | { kind: "part"; id: string; offset: Vec2; spawned?: boolean; to?: Vec2 }
   | { kind: "leg"; id: string; leg: string; flying: boolean }
   | { kind: "wireEnd"; id: string; end: "a" | "b" }
   | { kind: "wireNew"; from: string }
@@ -145,16 +149,26 @@ export function useInteraction({
       let best: Pick | null = null;
       let bestScore = -Infinity;
       const nearest = hits[0]?.distance ?? 0;
+      const seen: Pick[] = [];
       for (const h of hits) {
         const p = pickOf(h.object);
         if (!p) continue;
         // Prefer handles, but only among things close to the nearest hit (do not reach through a whole part).
-        const score = PRIORITY[p.type] * 100 - (h.distance - nearest);
+        // A probe's tip end gives way to a pencil card's drawing strip under it (the grip does not).
+        const rank = p.type === "probe" && p.tip ? 1.4 : PRIORITY[p.type];
+        const score = rank * 100 - (h.distance - nearest);
         if (h.distance - nearest > 40) break;
+        seen.push(p);
         if (score > bestScore) {
           bestScore = score;
           best = p;
         }
+      }
+      // A part sitting in a holder (a resistor in the reject bin) is picked before the holder around it.
+      if (best?.type === "part") {
+        const holder = best.id;
+        const inside = seen.find((p) => p.type === "part" && p.id !== holder && holderOf(bench(), p.id)?.holder.id === holder);
+        if (inside) return inside;
       }
       return best;
     };
@@ -275,7 +289,9 @@ export function useInteraction({
         case "part": {
           const wp = workPoint(cx, cy);
           if (!wp) return;
-          s.apply((b) => ops.movePart(b, d.id, [wp.x - d.offset[0], wp.z - d.offset[1]]));
+          // On its way it never sits in a holder: passing over a full bin must not push a part out of it.
+          d.to = [wp.x - d.offset[0], wp.z - d.offset[1]];
+          s.apply((b) => ops.movePart(b, d.id, d.to!, { seat: false }));
           break;
         }
         case "leg": {
@@ -393,6 +409,10 @@ export function useInteraction({
         if (target && !s.locked.includes(target.id)) {
           const from = s.txBase?.parts.find((p) => p.id === d.id)?.pos ?? ([target.pos[0], target.pos[1] + 34] as Vec2);
           s.apply((b) => ops.dropOnto(b, d.id, target.id, from));
+        } else if (d.to) {
+          // Dropped on a holder: into the nearest free seat.
+          const to = d.to;
+          s.apply((b) => ops.movePart(b, d.id, to, { seat: "free" }));
         }
       }
       const before = s.txBase;
@@ -735,9 +755,9 @@ export function useInteraction({
       const kind = item.kind;
       const params = (item.params ?? {}) as never;
       const id = s.addPart(kind, params, { pos: [at.x, at.z] }, item.id);
-      // Let it snap into the board, or into a holder, if it lands there.
+      // Let it snap into the board, or into a free seat of a holder, if it lands there.
       const part = store.getState().bench.parts.find((p) => p.id === id);
-      if (part) store.getState().apply((b) => ops.movePart(b, id, [at.x, at.z]));
+      if (part) store.getState().apply((b) => ops.movePart(b, id, [at.x, at.z], { seat: "free" }));
       return id;
     };
     api.current = {
@@ -838,6 +858,11 @@ export function useInteraction({
         return true;
       },
       pickAt: (x, y) => hit(x, y),
+      deskAt: (x, y) => {
+        const r = element.getBoundingClientRect();
+        const p = planePoint(x + r.left, y + r.top, 0);
+        return p ? [p.x, p.z] : null;
+      },
       stats: () => ({
         calls: gl.info.render.calls,
         triangles: gl.info.render.triangles,
@@ -989,8 +1014,10 @@ export function handleBenchKey(e: KeyboardEvent, store: BenchStore, api: Interac
       if (sel?.type !== "part") return false;
       const part = s.bench.parts.find((p) => p.id === sel.id);
       if (!part) return false;
-      if (part.kind !== "trimmer" && s.locked.includes(part.id)) return true;
-      if (part.kind === "trimmer") {
+      // A knob (a trimmer, the bench supply's) turns with the arrows.
+      const knob = part.kind === "trimmer" || part.kind === "bench-supply";
+      if (!knob && s.locked.includes(part.id)) return true;
+      if (knob) {
         const position = Math.max(0, Math.min(1, Math.round((part.params.position + dx * 0.05 - dz * 0.05) * 100) / 100));
         s.setParams<"trimmer">(part.id, { position });
         return true;

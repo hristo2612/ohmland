@@ -3,8 +3,11 @@
 import { parseAnchor } from "./anchors";
 import { PITCH, boardGeometry, boardOrigin, holeWorld } from "./board";
 import { BOARD_TOP, BOARD_CLIP_LIFT, LED, NPN, CERAMIC, electrolyticSize, RESISTOR, DIODE, blockWidth, OBJECT, GATE } from "./dims";
-import { canMountOnBoard, footprintOf, isFlying, partDef, partLegs, partSpots, rotateXZ } from "./parts";
+import { PERCH_SKEW, overBoard } from "./chips";
+import { canMountOnBoard, footprintOf, isFlying, partDef, partLegs, partSpots, perches, resolveLeg, rotateXZ } from "./parts";
 import { hiddenParts, holderOf, seatPose } from "./seats";
+import { PERF, padWorld, parsePerfHole, perfMount } from "./solder/perfboard";
+import { clipPose, jackSocket, spotPosition, tubePose } from "./solder/spots";
 import type { Anchor, BenchState, MeterSocket, MeterState, PlacedPart, ProbeColor, Vec2, Vec3 } from "./types";
 
 export type PartPose = {
@@ -21,6 +24,10 @@ export type PartPose = {
   ends?: Record<string, { pos: Vec3; inHole: boolean }>;
   /** Sitting in a holder's seat (the holder's id). */
   heldBy?: string;
+  /** Mounted through the holes of this perfboard. */
+  perf?: string;
+  /** On a perfboard turned copper side up: the body is underneath, only the legs show (renderers hide the body). */
+  under?: boolean;
   /** Laid on its back in its seat (a 9 V battery in a sealed box): turned a quarter about x, top toward -z. */
   lie?: boolean;
 };
@@ -29,6 +36,47 @@ export type PartPose = {
 export const lieDown = (p: Vec3): Vec3 => [p[0], p[2], -p[1]];
 
 const add3 = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+
+/** Where a leg in a perfboard hole comes through, as seen from above now (mirrored when the board is flipped). */
+function perfHoleWorld(bench: BenchState, hole: string | undefined): Vec3 | null {
+  const q = parsePerfHole(hole);
+  if (!q) return null;
+  const board = bench.parts.find((p) => p.id === q.board);
+  return board ? padWorld(board, q.pad) : null;
+}
+
+/** A part standing in a perfboard's holes: like the breadboard, but every lead's place follows the board. */
+function perfPose(bench: BenchState, part: PlacedPart, board: PlacedPart & { kind: "perfboard" }): PartPose {
+  const legs: Record<string, Vec3> = {};
+  const under = !!board.params.flipped;
+  const lift = under ? 1.2 : boardClipLift(part);
+  for (const leg of partLegs(part)) {
+    const p = perfHoleWorld(bench, part.holes?.[leg]);
+    if (p) legs[leg] = [p[0], PERF.top + lift, p[2]];
+  }
+  const names = partLegs(part);
+  const first = perfHoleWorld(bench, part.holes?.[names[0]!])!;
+  const def = partDef(part.kind);
+  let rot = part.rot;
+  let span: number | undefined;
+  const fp = footprintOf(part);
+  if (names.length >= 2 && fp.length >= 2) {
+    // The turn that puts the footprint's first two leads where they are (the board may itself be turned).
+    const a = perfHoleWorld(bench, part.holes?.[fp[0]!.leg])!;
+    const b = perfHoleWorld(bench, part.holes?.[fp[1]!.leg]);
+    if (b) {
+      const dx = b[0] - a[0];
+      const dz = b[2] - a[2];
+      const local = def.span ? 0 : Math.atan2(-fp[1]!.dz + fp[0]!.dz, fp[1]!.dx - fp[0]!.dx);
+      rot = Math.round((((Math.atan2(-dz, dx) - local) * 180) / Math.PI) * 1000) / 1000;
+      if (def.span) span = Math.hypot(dx, dz) / PITCH;
+    }
+  }
+  const pose: PartPose = { mount: "board", origin: [first[0], PERF.top, first[2]], rot, legs, perf: board.id };
+  if (span !== undefined) pose.span = span;
+  if (under) pose.under = true;
+  return pose;
+}
 
 /** Height of the clip point above the board for each kind of seated part. */
 function boardClipLift(part: PlacedPart): number {
@@ -51,6 +99,14 @@ function boardClipLift(part: PlacedPart): number {
     default:
       return 0.5;
   }
+}
+
+/**
+ * Parts the bench refused to seat: a surface mount chip lying on top of the board (its legs are too close together
+ * for the holes). Lab runtimes read this as `lab.bench.rejected`.
+ */
+export function rejectedParts(bench: BenchState): string[] {
+  return bench.parts.filter((p) => perches(p) && overBoard(bench, p.pos)).map((p) => p.id);
 }
 
 /** True when every footprint lead of a board-mountable part sits in a hole of the current board. */
@@ -81,6 +137,18 @@ export function gateSpot(bench: BenchState, gate: PlacedPart): { origin: Vec3; r
 
 export function partPose(bench: BenchState, part: PlacedPart): PartPose {
   const def = partDef(part.kind);
+  if (part.holes && canMountOnBoard(part)) {
+    const perf = perfMount(bench, part);
+    if (perf) return perfPose(bench, part, perf);
+  }
+  if (part.kind === "heat-sink-clip" && part.params.on) {
+    const c = clipPose(bench, part);
+    if (c) return { mount: "desk", origin: c.origin, rot: c.rot, legs: {} };
+  }
+  if (part.kind === "heat-shrink" && part.params.on) {
+    const t = tubePose(bench, part);
+    if (t) return { mount: "desk", origin: t.origin, rot: t.rot, legs: {} };
+  }
   if (part.kind === "gate") {
     const g = gateSpot(bench, part);
     if (g) return { mount: "desk", origin: g.origin, rot: g.rot, legs: {} };
@@ -111,7 +179,7 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
 
   const seat = holderOf(bench, part.id);
   if (seat) {
-    const sp = seatPose(seat.holder, seat.seat, part);
+    const sp = seatPose(seat.holder, seat.seat, part, bench);
     const local = ((def.heldLegs ?? def.deskLegs) as (p: unknown) => Record<string, Vec3>)(part.params);
     const legs: Record<string, Vec3> = {};
     for (const leg of def.legs) {
@@ -140,6 +208,21 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
         legs[leg] = [hp[0], BOARD_TOP + 2.2, hp[1]];
         continue;
       }
+      // A flying lead through a perfboard hole.
+      const pp = perfHoleWorld(bench, hole);
+      if (pp) {
+        ends[leg] = { pos: [pp[0], PERF.top, pp[2]], inHole: true };
+        legs[leg] = [pp[0], PERF.top + 1.6, pp[2]];
+        continue;
+      }
+      // A wall adapter's barrel plug sits in the jack it is plugged into.
+      const jack = part.kind === "wall-adapter" && part.params.into ? bench.parts.find((p) => p.id === part.params.into && p.kind === "barrel-jack") : undefined;
+      if (jack) {
+        const s = jackSocket(bench, jack);
+        ends[leg] = { pos: [s[0], 0.7, s[2] + 4], inHole: false };
+        legs[leg] = [s[0], s[1], s[2]];
+        continue;
+      }
       const free = part.ends?.[leg];
       let p: Vec3;
       if (free) p = [free[0], 0.7, free[1]];
@@ -154,9 +237,14 @@ export function partPose(bench: BenchState, part: PlacedPart): PartPose {
     pose.ends = ends;
     return pose;
   }
+  // A part that will not seat (a surface mount chip) dropped over the board lies on top of it, a little askew.
+  if (perches(part) && overBoard(bench, part.pos)) {
+    origin[1] = BOARD_TOP;
+    pose.rot = part.rot + PERCH_SKEW;
+  }
   for (const leg of partLegs(part)) {
     const l = local[leg]!;
-    const [rx, rz] = rotateXZ(l[0], l[2], part.rot);
+    const [rx, rz] = rotateXZ(l[0], l[2], pose.rot);
     legs[leg] = add3(origin, [rx, l[1], rz]);
   }
   return pose;
@@ -221,7 +309,8 @@ export function anchorPosition(bench: BenchState, anchor: Anchor, depth = 0): Ve
       const part = bench.parts.find((p) => p.id === a.part);
       if (!part) return null;
       const pose = partPose(bench, part);
-      return pose.legs[a.leg] ?? spotWorld(pose, partSpots(part)[a.leg]);
+      // A pin may be named by its function ("pin:U1.trig").
+      return pose.legs[resolveLeg(part, a.leg) ?? a.leg] ?? spotWorld(pose, partSpots(part)[a.leg]);
     }
     case "wire": {
       const w = bench.wires.find((x) => x.id === a.wire);
@@ -244,6 +333,8 @@ export function anchorPosition(bench: BenchState, anchor: Anchor, depth = 0): Ve
       if (!bench.meter) return null;
       return socketWorld(bench.meter, a.socket);
     }
+    case "spot":
+      return spotPosition(bench, a.spot);
   }
 }
 
@@ -381,6 +472,10 @@ const PROP_REACH: Partial<Record<PlacedPart["kind"], number>> = {
   clock: 32,
   showcase: 66,
   tag: 14,
+  "logic-probe": 40,
+  "battery-pack": 40,
+  "bench-supply": 44,
+  sevenseg: 16,
   gate: 12,
   box: 56,
   schematic: 58,

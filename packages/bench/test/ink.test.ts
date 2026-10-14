@@ -129,6 +129,17 @@ describe("ink hit testing", () => {
     expect(hitTest(model, cap[0], cap[1], 0.5)).toMatchObject({ type: "press", id: "S1" });
   });
 
+  it("starts a pencil stroke beside a probe resting on a card, and takes the probe only by its grip", () => {
+    const [withCard] = ops.addPart({ ...ops.emptyBench(null), meter: ops.defaultMeter([120, 20]) }, "card", { length: 0, layers: 0, wide: false }, { pos: [-30, 0] }, "P1");
+    const card = buildModel(ops.touchProbe(withCard, "red", "pin:P1.p0"));
+    const p0 = anchorInk(card, "pin:P1.p0")!;
+    // A touch reaches a few millimetres: the tip and the grip are both within it, but the stroke wins on the strip.
+    expect(hitTest(card, p0[0] + 1, p0[1], 6)).toEqual({ type: "draw", id: "P1" });
+    const pr = card.meter!.probes.red;
+    const grip: [number, number] = [pr.tip[0] + (pr.back[0] - pr.tip[0]) * 0.8, pr.tip[1] + (pr.back[1] - pr.tip[1]) * 0.8];
+    expect(hitTest(card, grip[0], grip[1], 6)).toMatchObject({ type: "probe", color: "red" });
+  });
+
   it("turns the meter dial and picks its positions", () => {
     const f = model.meter!.f;
     const knob = toWorld(f, 0, 12);

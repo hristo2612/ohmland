@@ -4,13 +4,14 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useStore } from "zustand";
 import { boardGeometry } from "../board";
+import { METER } from "../layout";
 import { LabelsContext } from "../labels";
 import { connectivity } from "../netlist";
 import { BenchStoreContext, createBenchStore } from "../store";
 import type { BenchAction } from "../types";
 import type { BenchController, ScreenPoint } from "../view/controller";
 import type { BenchRendererProps } from "../view/types";
-import { fitRect, growRect, rectOfPoints, type Pad, type Rect } from "./camera";
+import { NO_PAD, fitRect, growRect, rectOfPoints, type Pad, type Rect } from "./camera";
 import { BoardBase, BoardHoles, BoardXray } from "./draw/Board";
 import { GlowLayer, LeadView, PartView, SmokeLayer, WireView } from "./draw/layers";
 import { Marks } from "./draw/Marks";
@@ -18,14 +19,17 @@ import { BoxWires, InkOverlays, InkPush } from "./draw/Overlays";
 import { MeterBody, MeterLeads } from "./draw/Meter";
 import { Readouts } from "./draw/Readouts";
 import { DefsContext, InkDefs } from "./draw/shared";
-import { n3 } from "./frame";
+import { frameWithParts } from "../view/framing";
+import { boxCorners, n3 } from "./frame";
 import { attachInteraction, type InkApi } from "./interaction";
 import { KeyCursor, anchorName, handleInkKey, partName, startCursor, type KeyEnv } from "./keys";
 import { mergeInkLabels, type InkLabels } from "./labels";
-import { buildModel, targetOwners, targetPoint, targetRect, targetsRect, type InkModel, type InkPick } from "./model";
+import { buildModel, partBounds, targetOwners, targetPoint, targetRect, targetsRect, type InkModel, type InkPick } from "./model";
 import { InkOverlay, partDetail, useFollow } from "./Overlay";
 import { INK_CSS } from "./styles";
 import { InkView } from "./view";
+import { SolderOverlay, type SolderViewApi } from "../solder/overlay/SolderOverlay";
+import { IronLayer, ScorchLayer } from "./kinds/solder";
 
 export type BenchInkProps = Omit<BenchRendererProps, "labels"> & {
   /** Translated UI strings (the shared BenchLabels plus the ink view's few, see INK_LABELS). */
@@ -143,33 +147,50 @@ export function BenchInk(props: BenchInkProps) {
   }, [compact, showTray]);
   const padRef = useRef(pad);
   padRef.current = pad;
+  /** The part of the view a docked panel covers (focus's `inset`): framing keeps clear of it. */
+  const insetRef = useRef<Pad>(NO_PAD);
+  /** The room to keep clear at each edge: the view's own chrome plus the docked panel. */
+  const padNow = useCallback((): Pad => {
+    const p = padRef.current;
+    const i = insetRef.current;
+    return { top: p.top + i.top, right: p.right + i.right, bottom: p.bottom + i.bottom, left: p.left + i.left };
+  }, []);
 
-  /** The rectangle to frame: the lab's frame, else everything on a big screen, the work area on a phone. */
+  /**
+   * The rectangle to frame: the lab's frame, with a part that pokes a little out of it taken in whole (parts are drawn
+   * larger than life: a battery at its edge), else everything; on a phone with a breadboard, the board and its parts.
+   */
   const homeRect = useCallback((): Rect => {
     const f = store.getState().frame;
-    if (f) return [f[0], f[1], f[2], f[3]];
     const m = modelRef.current;
-    return compact ? m.work : m.bounds;
+    if (f) {
+      const frame: Rect = [f[0], f[1], f[2], f[3]];
+      const boxes = [...m.parts.values()].map(partBounds);
+      if (m.meter) boxes.push(rectOfPoints(boxCorners(m.meter.f, [-METER.width / 2, -METER.length / 2, METER.width / 2, METER.length / 2]))!);
+      return frameWithParts(frame, boxes);
+    }
+    return compact && m.bench.board ? m.work : m.bounds;
   }, [store, compact]);
   const fitHomeNow = useCallback(
     (instant: boolean) => {
       // Generous paper round the work.
       const r = homeRect();
       const m = Math.max(4, Math.max(r[2] - r[0], r[3] - r[1]) * 0.06);
-      const cam = fitRect(growRect(r, m), view.vp, padRef.current, 14);
+      const pad = padNow();
+      const cam = fitRect(growRect(r, m), view.vp, pad, 14);
       // On a phone a whole breadboard is too small to touch: frame the busy part of it at a usable scale instead
       // (the learner pans to the rest).
       const MIN_TOUCH = 3.6;
       const busy = compact && cam.s < MIN_TOUCH && !store.getState().frame ? busyRect(modelRef.current) : null;
       if (busy) {
-        const c = fitRect(busy, view.vp, padRef.current, 14);
-        view.fit(busy, padRef.current, { instant, max: 14 });
+        const c = fitRect(busy, view.vp, pad, 14);
+        view.fit(busy, pad, { instant, max: 14 });
         if (c.s < MIN_TOUCH) view.set({ ...view.cam, s: MIN_TOUCH }, false);
         return;
       }
-      view.fit(growRect(r, m), padRef.current, { instant, max: 14 });
+      view.fit(growRect(r, m), pad, { instant, max: 14 });
     },
-    [view, homeRect, compact, store],
+    [view, homeRect, compact, store, padNow],
   );
   /** What the view frames: home, or what focus() asked for. A resize frames it again (unless the learner moved). */
   const framing = useRef<{ targets: string[]; padding?: number } | null>(null);
@@ -189,10 +210,10 @@ export function BenchInk(props: BenchInkProps) {
       const hw = Math.max(MIN, r[2] - r[0]) / 2;
       const hh = Math.max(MIN, r[3] - r[1]) / 2;
       const p = f.padding ?? 48;
-      const base = padRef.current;
+      const base = padNow();
       view.fit(growRect([cx - hw, cz - hh, cx + hw, cz + hh], 3), { top: base.top + p * 0.5, right: base.right + p, bottom: base.bottom + p * 0.5, left: base.left + p }, { instant, max: 18 });
     },
-    [view, fitHomeNow],
+    [view, fitHomeNow, padNow],
   );
   const fitHome = useCallback(
     (instant = false) => {
@@ -238,6 +259,21 @@ export function BenchInk(props: BenchInkProps) {
     };
   }, [element, store, view, emit]);
 
+  // The solder overlay draws over this view through the same projection.
+  const solderView = useMemo<SolderViewApi>(
+    () => ({
+      project: (t) => {
+        const p = targetPoint(modelRef.current, t);
+        if (!p) return null;
+        const [x, y] = view.toScreen(p[0], p[1]);
+        return { x, y, visible: x >= -20 && y >= -20 && x <= view.vp.w + 20 && y <= view.vp.h + 20 };
+      },
+      onViewChange: (cb) => view.onChange(cb),
+      desk: (x, y) => view.toWorld(x, y),
+    }),
+    [view],
+  );
+
   // Spotlight: dim everything but the targets (a generated CSS rule, so nothing re-renders).
   const [spot, setSpot] = useState<string[] | null>(null);
   const spotCss = useMemo(() => {
@@ -246,7 +282,9 @@ export function BenchInk(props: BenchInkProps) {
     const not = owners.map((o) => `:not([data-own="${o.replace(/"/g, "")}"])`).join("");
     // Parts fade almost away; the board stays as quiet context.
     const dim = `#${defsId}-svg [data-own]${not}{opacity:.26}`;
-    return owners.includes("board") ? dim : `${dim}#${defsId}-svg.is-spot [data-own="board"]{opacity:.32 !important}`;
+    // A spotlit chip or display shows its pin numbers.
+    const pins = owners.map((o) => `#${defsId}-svg.is-spot [data-own="${o.replace(/"/g, "")}"] .pinno{display:inline}`).join("");
+    return (owners.includes("board") ? dim : `${dim}#${defsId}-svg.is-spot [data-own="board"]{opacity:.32 !important}`) + pins;
   }, [spot, model, defsId]);
 
   // Announcements for screen readers.
@@ -298,7 +336,7 @@ export function BenchInk(props: BenchInkProps) {
       if (r) {
         const [x0, y0] = view.toScreen(r[0], r[1]);
         const [x1, y1] = view.toScreen(r[2], r[3]);
-        const p = padRef.current;
+        const p = padNow();
         if (x0 < p.left || y0 < p.top || x1 > view.vp.w - p.right || y1 > view.vp.h - p.bottom) {
           const cam = fitRect(growRect(r, 6), view.vp, p, view.cam.s);
           view.moved = true;
@@ -329,6 +367,11 @@ export function BenchInk(props: BenchInkProps) {
       onViewChange: (cb) => view.onChange(cb),
       focus: (targets, opts) => {
         framing.current = targets.length ? { targets: [...targets], ...(opts?.padding !== undefined ? { padding: opts.padding } : {}) } : null;
+        const i = opts?.inset ?? {};
+        insetRef.current = { top: i.top ?? 0, right: i.right ?? 0, bottom: i.bottom ?? 0, left: i.left ?? 0 };
+        // The selection bar keeps clear of a docked panel too (styles.ts reads these).
+        element?.style.setProperty("--ohi-inset-bottom", `${insetRef.current.bottom}px`);
+        element?.style.setProperty("--ohi-inset-right", `${insetRef.current.right}px`);
         // Before the view has a size this waits; the first sizing frames it.
         applyFraming(!!opts?.instant);
       },
@@ -414,6 +457,7 @@ export function BenchInk(props: BenchInkProps) {
                     <BoardHoles spec={bench.board} />
                   </>
                 )}
+                <ScorchLayer store={store} />
                 {parts
                   .filter((p) => p.layer === 0 && p.along === undefined)
                   .map((pi) => (
@@ -443,6 +487,7 @@ export function BenchInk(props: BenchInkProps) {
                     <PartView key={pi.part.id} pi={pi} store={store} name={nameOf(pi.part.id)} />
                   ))}
                 <SmokeLayer parts={parts} store={store} />
+                <IronLayer store={store} bench={bench} />
               </g>
               {dimRoom && <rect width="100%" height="100%" className="ohi-room" style={{ opacity: Math.min(0.82, (1 - ambient) * 0.9) }} />}
               <g ref={topRef}>
@@ -480,6 +525,7 @@ export function BenchInk(props: BenchInkProps) {
                 focusCursor();
               }}
             />
+            <SolderOverlay store={store} view={solderView} compact={compact} readOnly={readOnly} tray={showTray} />
             <div className="ohi-sr" aria-live="polite">
               {said}
             </div>

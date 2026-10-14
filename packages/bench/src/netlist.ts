@@ -4,8 +4,9 @@
 import type { Netlist, NodeId, PartSpec } from "@ohmland/sim";
 import { holeAnchor, leadAnchor, parseAnchor, pinAnchor, probeAnchor, socketAnchor, wireAnchor } from "./anchors";
 import { RAILS, boardGeometry } from "./board";
-import { partDef, partLegs, partSpots, physicalLeg, type NetContext } from "./parts";
-import { heldOf, seatsOf } from "./seats";
+import { SOURCE_KINDS } from "./chips";
+import { canonicalAnchor, partDef, partLegs, partSpots, physicalLeg, type NetContext } from "./parts";
+import { heldOf, seatJoins, seatsOf } from "./seats";
 import type { Anchor, BenchState, MeterSocket, PartParamsMap, PlacedPart } from "./types";
 
 export class UnionFind {
@@ -103,6 +104,8 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; sp
   };
   const seat = (anchor: Anchor, hole: string | undefined, who: string) => {
     if (!hole) return;
+    // A hole in a perfboard ("PB1:B4"): the leg touches its pad only through solder (the board's contacts).
+    if (hole.includes(":")) return;
     if (!geom || !geom.holes.has(hole)) {
       warnings.push(`hole-missing: ${who} -> ${hole}`);
       return;
@@ -126,7 +129,17 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; sp
       const part = id ? bench.parts.find((p) => p.id === id) : undefined;
       if (!part || !s.joins) continue;
       const legs = partDef(part.kind).legs;
-      for (const [leg, own] of Object.entries(s.joins)) if (legs.includes(leg)) uf.union(pinAnchor(part.id, leg), pinAnchor(holder.id, own));
+      for (const [leg, own] of Object.entries(seatJoins(s, part))) if (legs.includes(leg)) uf.union(pinAnchor(part.id, leg), pinAnchor(holder.id, own));
+    }
+  }
+  // Contacts a part makes itself: solder joints and bridges on a perfboard, a soldered splice.
+  for (const part of bench.parts) {
+    const contacts = (partDef(part.kind) as { contacts?: (p: PlacedPart, b: BenchState) => [Anchor, Anchor][] }).contacts;
+    if (!contacts) continue;
+    for (const [a, b] of contacts(part, bench)) {
+      add(a);
+      add(b);
+      uf.union(a, b);
     }
   }
 
@@ -160,11 +173,13 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; sp
   }
   const attach = (from: Anchor, to: Anchor | null) => {
     if (!to) return;
-    if (!known.has(to)) {
+    // A pin may be named by its function ("pin:U1.trig").
+    const at = known.has(to) ? to : canonicalAnchor(bench.parts, to);
+    if (!known.has(at)) {
       warnings.push(`clip-missing: ${from} -> ${to}`);
       return;
     }
-    uf.union(from, to);
+    uf.union(from, at);
   };
   for (const l of bench.leads) {
     attach(leadAnchor(l.id, "a"), l.a.to);
@@ -176,7 +191,9 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; sp
 
   const groups = new Map<string, Anchor[]>();
   let grouped = false;
-  const members = (anchor: Anchor): Anchor[] => {
+  const canon = (a: Anchor): Anchor => (uf.has(a) ? a : canonicalAnchor(bench.parts, a));
+  const members = (named: Anchor): Anchor[] => {
+    const anchor = canon(named);
     if (!uf.has(anchor)) return [anchor];
     if (!grouped) {
       for (const k of uf.keys()) {
@@ -190,7 +207,12 @@ export function connectivity(bench: BenchState, opts: { splitLeads?: boolean; sp
     return groups.get(uf.find(anchor)) ?? [anchor];
   };
 
-  return { uf, known, warnings, members, same: (a, b) => uf.has(a) && uf.has(b) && uf.find(a) === uf.find(b) };
+  const same = (x: Anchor, y: Anchor) => {
+    const a = canon(x);
+    const b = canon(y);
+    return uf.has(a) && uf.has(b) && uf.find(a) === uf.find(b);
+  };
+  return { uf, known, warnings, members, same };
 }
 
 export type BenchNetlist = {
@@ -214,7 +236,15 @@ export type BenchNetlistOptions = {
    * probe becomes a `wire` part "<meter>:red" / "<meter>:black", so touching the tips together reads about 0.2 Ω.
    */
   probeOhms?: number;
+  /**
+   * Contact bounce for every switch, pushbutton and DIP switch that has none of its own (a global "bounce on"
+   * setting): true chatters for 1 to 5 ms, a number is the longest chatter in ms.
+   */
+  bounce?: boolean | number;
 };
+
+/** Simulator kinds whose contacts can bounce. */
+const BOUNCY = new Set(["switch", "pushbutton", "spdt", "dpdt"]);
 
 const railOrder = (strip: string) => {
   const i = RAILS.findIndex((r) => strip.startsWith(r));
@@ -234,12 +264,20 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
   const warnings = [...conn.warnings];
   const geom = bench.board ? boardGeometry(bench.board) : null;
 
-  // Reference node: the first battery's minus, else a lemon cell's, else a microcontroller board's GND (it makes its
-  // own 5 V from USB).
-  const groundPart = bench.parts.find((p) => p.kind === "battery") ?? bench.parts.find((p) => p.kind === "lemon");
+  // Reference node: the first 9 V battery's minus, else an AA pack's or a bench supply's, else a lemon cell's, else a
+  // microcontroller board's GND (it makes its own 5 V from USB), else the minus of a wall adapter's jack.
+  const groundPart =
+    SOURCE_KINDS.map((k) => bench.parts.find((p) => p.kind === k)).find((p) => !!p) ?? bench.parts.find((p) => p.kind === "lemon");
   const boardPart = groundPart ? undefined : bench.parts.find((p) => p.kind === "mcu-board");
-  const groundRoot = groundPart ? uf.find(pinAnchor(groundPart.id, "neg")) : boardPart ? uf.find(pinAnchor(boardPart.id, "gnd")) : null;
-  if (!groundPart && !boardPart) warnings.push("no-ground: no battery or cell on the bench");
+  const adapterAnchor = groundPart || boardPart ? null : adapterMinus(bench);
+  const groundRoot = groundPart
+    ? uf.find(pinAnchor(groundPart.id, "neg"))
+    : boardPart
+      ? uf.find(pinAnchor(boardPart.id, "gnd"))
+      : adapterAnchor
+        ? uf.find(adapterAnchor)
+        : null;
+  if (!groundPart && !boardPart && !adapterAnchor) warnings.push("no-ground: no battery or cell on the bench");
 
   // Name each set after the most readable thing in it.
   const names = new Map<string, NodeId>();
@@ -274,18 +312,26 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
     }
     return n;
   };
-  const nodeOf = (anchor: Anchor): NodeId => {
+  const nodeOf = (named: Anchor): NodeId => {
+    // A pin may be named by its function ("pin:U1.trig").
+    const anchor = uf.has(named) ? named : canonicalAnchor(bench.parts, named);
     if (!uf.has(anchor)) return `float-${anchor.replace(":", "-")}`;
     return nodeOfRoot(uf.find(anchor));
   };
 
   const specs: PartSpec[] = [];
-  const ctx: NetContext = { part: (id) => bench.parts.find((p) => p.id === id), pin: (id, leg) => nodeOf(pinAnchor(id, leg)) };
+  const ctx: NetContext = { part: (id) => bench.parts.find((p) => p.id === id), pin: (id, leg) => nodeOf(pinAnchor(id, leg)), node: nodeOf, bench };
   for (const part of bench.parts) {
     const def = partDef(part.kind);
     // Mystery parts are wired inside in a shuffled order: leg `fn` of the model is whichever terminal carries it.
     const node = (leg: string) => nodeOf(pinAnchor(part.id, physicalLeg(part, leg)));
     specs.push(...(def.toSpecs as (p: PlacedPart, n: (leg: string) => NodeId, c: NetContext) => PartSpec[])(part, node, ctx));
+  }
+  if (opts.bounce !== undefined && opts.bounce !== false) {
+    for (const s of specs) {
+      const c = s as PartSpec & { bounce?: boolean | number };
+      if (BOUNCY.has(s.kind) && c.bounce === undefined) c.bounce = opts.bounce;
+    }
   }
 
   if (leadOhms > 0) {
@@ -319,6 +365,16 @@ export function benchToNetlist(bench: BenchState, opts: BenchNetlistOptions = {}
   }
 
   return { netlist: { parts: specs }, nodeOf, warnings };
+}
+
+/** The jack pin a plugged-in wall adapter's minus reaches (the reference when there is no battery). */
+function adapterMinus(bench: BenchState): Anchor | null {
+  for (const p of bench.parts) {
+    if (p.kind !== "wall-adapter" || !p.params.into) continue;
+    const jack = bench.parts.find((j) => j.id === p.params.into && j.kind === "barrel-jack");
+    if (jack) return pinAnchor(jack.id, p.params.centre === "minus" ? "tip" : "sleeve");
+  }
+  return null;
 }
 
 /** Parameters with defaults filled in, typed by kind. */

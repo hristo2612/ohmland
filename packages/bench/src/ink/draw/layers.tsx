@@ -11,16 +11,24 @@ import { FlyingLeads, PartDrawing, inkKind } from "../kinds";
 import { ledLightLocal } from "../kinds/radial";
 import { WIRE_TOKEN } from "../styles";
 import { n3, useLive } from "./shared";
+import { useProbeState } from "../../probe";
+import { SEGMENTS, SEGMENT_SHAPES } from "../../chips";
+import { PITCH } from "../../board";
 
 const deg = (v: Vec2) => (Math.atan2(v[1], v[0]) * 180) / Math.PI;
 
 /** One placed part: its drawing in its frame, its flexible leads, fed its own simulator state. */
 export const PartView = memo(function PartView({ pi, store, name }: { pi: PartInk; store: BenchStore; name: string }) {
-  const st = useLive(store, pi.part.id);
+  const own = useLive(store, pi.part.id);
+  // The logic probe has no simulator part: its lamps read the nodes under its tip and leads.
+  const probe = useProbeState(store, pi.part.id, pi.part.kind === "logic-probe");
+  const st = probe ?? own;
   const pressed = useStore(store, (s) => !!s.ui.pressed[pi.part.id]);
   // The desk clock shows simulated time; nothing else re-renders as it passes.
   const clock = !!inkKind(pi.part.kind).clock;
   const minutes = useStore(store, (s) => (clock ? Math.floor((s.snapshot?.t ?? 0) / 60) : 0));
+  // Underneath a perfboard turned copper side up: the board draws the legs that poke through.
+  if (pi.pose.under) return null;
   return (
     <g data-own={pi.part.id} data-kb={`part:${pi.part.id}`} tabIndex={0} role="button" aria-label={name}>
       <FlyingLeads pi={pi} />
@@ -111,13 +119,47 @@ const LedGlow = memo(function LedGlow({ pi, store, defs, rays: allowRays }: { pi
   );
 });
 
+/**
+ * A 7-segment display's lit bars and their glow, in the glow layer: drawn above the room's veil when the lights are
+ * down (the display's own drawing shows them in a bright room).
+ */
+const SegGlow = memo(function SegGlow({ pi, store }: { pi: PartInk; store: BenchStore }) {
+  const st = useLive(store, pi.part.id);
+  const dim = useStore(store, (s) => s.ambient < 0.6);
+  if (!dim || !st || st.health === "dead") return null;
+  const x = st.extra ?? {};
+  const color = (pi.part.params as { color?: string }).color ?? "red";
+  const dead = typeof x["dead"] === "string" ? (x["dead"] as string) : "";
+  const [cx, cz] = pi.mount === "board" ? [2 * PITCH, -3 * PITCH] : [0, 0];
+  return (
+    <g className="glow" data-own={pi.part.id} transform={frameTransform(pi.f)}>
+      {SEGMENTS.map((s) => {
+        const g = dead.includes(s) ? 0 : Math.max(0, Math.min(1, Number(x[s] ?? 0)));
+        if (g < 0.02) return null;
+        const d = SEGMENT_SHAPES[s].map(([px, pz], i) => `${i ? "L" : "M"}${n3(px + cx)} ${n3(pz + cz)}`).join("") + "Z";
+        return (
+          <g key={s}>
+            <path d={d} style={{ fill: "none", stroke: `var(--k-glow-${color})`, strokeWidth: 2.4, strokeLinejoin: "round", opacity: 0.3 + g * 0.5 }} />
+            <path d={d} style={{ fill: `var(--k-lit-${color})` }} opacity={0.5 + g * 0.5} />
+          </g>
+        );
+      })}
+    </g>
+  );
+});
+
 export function GlowLayer({ parts, store, defs, quality }: { parts: PartInk[]; store: BenchStore; defs: string; quality: "high" | "low" }) {
   return (
     <g>
       {parts
-        .filter((p) => p.part.kind === "led")
+        .filter((p) => p.part.kind === "led" && !p.pose.under)
         .map((p) => (
           <LedGlow key={p.part.id} pi={p} store={store} defs={defs} rays={quality === "high"} />
+        ))}
+      {parts
+        .filter((p) => p.part.kind === "sevenseg")
+        .map((p) => (
+          <SegGlow key={p.part.id} pi={p} store={store} />
         ))}
     </g>
   );

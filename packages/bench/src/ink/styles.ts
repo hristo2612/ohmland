@@ -125,6 +125,18 @@ const LIGHT = `
   --k-aa-nimh: #3E8A57;
   --k-aa-lithium: #6A6F78;
   --k-room: #0E0D0C;
+  --k-perf: var(--sk-perf, #E7D7A6);
+  --k-perf-edge: #CDB674;
+  --k-solder: var(--sk-solder, #C9CDD2);
+  --k-solder-hi: #F6F8FA;
+  --k-solder-dull: #A5A9AD;
+  --k-flux: #9A6A33;
+  --k-sponge: #E9C95E;
+  --k-grip: #3E6E57;
+  --k-shrink: #34312C;
+  --k-gun: #D2573A;
+  --k-handle: #C2412B;
+  --k-singe: #8A5A32;
   --k-cardboard: #DCC6A2;
   --k-cardboard-dark: #C4A982;
   --k-foil: #D6DADF;
@@ -142,6 +154,14 @@ const LIGHT = `
   --k-wool: #B8574A;
   --k-wall: #EFE7D6;
   --k-wall-line: #D8CCB2;
+  --k-tape: #EFE6CF;
+  --k-warm: #C2562E;
+  --k-dipsw: #3360C2;
+  --k-seg-body: #4A4C51;
+  --k-seg-face: #5D6066;
+  --k-seg-off: #CDC7BC;
+  --k-probe: #E9E4D8;
+  --k-lamp-off: #6B5E50;
 `;
 
 const DARK = `
@@ -266,6 +286,18 @@ const DARK = `
   --k-aa-nimh: #3A7A50;
   --k-aa-lithium: #5A5F68;
   --k-room: #000000;
+  --k-perf: var(--sk-perf, #6A5B36);
+  --k-perf-edge: #4E4326;
+  --k-solder: var(--sk-solder, #A9AEB4);
+  --k-solder-hi: #E4E8EC;
+  --k-solder-dull: #7D8186;
+  --k-flux: #7A5228;
+  --k-sponge: #B39434;
+  --k-grip: #3A6A52;
+  --k-shrink: #0F0E0D;
+  --k-gun: #C24A30;
+  --k-handle: #E2664C;
+  --k-singe: #5A3A22;
   --k-cardboard: #6E5A42;
   --k-cardboard-dark: #5A4834;
   --k-foil: #8E949A;
@@ -283,6 +315,14 @@ const DARK = `
   --k-wool: #8A3F35;
   --k-wall: #3A3631;
   --k-wall-line: #4C4740;
+  --k-tape: #D9CFB4;
+  --k-warm: #D9683C;
+  --k-dipsw: #3F69C8;
+  --k-seg-body: #26272A;
+  --k-seg-face: #34363B;
+  --k-seg-off: #5A5650;
+  --k-probe: #CFC9BB;
+  --k-lamp-off: #4A4038;
 `;
 
 /** The palette without the host's tokens: for a bench forced to one theme whatever the page does. */
@@ -336,12 +376,33 @@ export const INK_CSS = `
 .ohi-root .s-water{stroke:var(--k-water-edge);opacity:.9}.ohi-root .s-slip{stroke:var(--k-slip)}.ohi-root .s-print{stroke:var(--k-print);fill:none}
 .ohi-root .t-elco{fill:var(--k-elco)}.ohi-root .t-batt{fill:var(--k-black-part)}.ohi-root .t-red{fill:var(--k-red)}.ohi-root .t-blue{fill:var(--k-blue)}
 .ohi-root .lcd-label{fill:var(--k-lcd-ink);opacity:.7}
+.ohi-root .f-tape{fill:var(--k-tape)}.ohi-root .f-warm{fill:var(--k-warm)}.ohi-root .f-dipsw{fill:var(--k-dipsw)}
+.ohi-root .f-seg-body{fill:var(--k-seg-body)}.ohi-root .f-seg-face{fill:var(--k-seg-face)}.ohi-root .f-seg-off{fill:var(--k-seg-off)}
+.ohi-root .f-probe{fill:var(--k-probe)}.ohi-root .f-lamp-off{fill:var(--k-lamp-off)}
+.ohi-root .f-amber{fill:var(--k-amber)}.ohi-root .f-amber-glow{fill:var(--k-amber);opacity:.35}
+/* Pin numbers and names on chips and displays: up close (data-near) or in a spotlight. */
+.ohi-root .pinno{display:none}
+.ohi-root text.pinno{fill:var(--k-print);paint-order:stroke;stroke:var(--k-ink);stroke-width:calc(var(--px,.1) * 2.6px);stroke-linejoin:round}
+.ohi-root[data-near="1"] .ohi-svg .pinno{display:inline}
+.ohi-item .pinno{display:none !important}
 .ohi-root .dots{stroke:var(--k-ink-3);stroke-width:calc(var(--px,.1) * 3px);stroke-linecap:round;fill:none}
 .ohi-root .s-rail-pos{stroke:var(--k-rail-pos)}.ohi-root .s-rail-neg{stroke:var(--k-rail-neg)}
 .ohi-root .t-rail-pos{fill:var(--k-rail-pos)}.ohi-root .t-rail-neg{fill:var(--k-rail-neg)}
 .ohi-root .print{fill:var(--k-ink-3)}
 .ohi-root .print-light{fill:var(--k-print)}
 
+/* Unit 3: the solder station, perfboard and wire. */
+.ohi-root .f-perf{fill:var(--k-perf)}.ohi-root .f-perf-edge{fill:var(--k-perf-edge)}.ohi-root .f-solder{fill:var(--k-solder)}
+.ohi-root .f-solder-hi{fill:var(--k-solder-hi)}.ohi-root .f-solder-dull{fill:var(--k-solder-dull)}.ohi-root .f-flux{fill:var(--k-flux)}
+.ohi-root .f-sponge{fill:var(--k-sponge)}.ohi-root .f-grip{fill:var(--k-grip)}.ohi-root .f-shrink{fill:var(--k-shrink)}
+.ohi-root .f-gun{fill:var(--k-gun)}.ohi-root .f-handle{fill:var(--k-handle)}.ohi-root .f-singe{fill:var(--k-singe)}
+.ohi-root .s-solder{fill:none;stroke:var(--k-solder);stroke-linecap:round}
+.ohi-root .s-copper{fill:none;stroke:var(--k-copper);stroke-linecap:round}
+.ohi-root .bare{fill:none;stroke:var(--k-copper);stroke-width:max(.6px,calc(var(--px,.1) * 2.2px));stroke-linecap:round}
+.ohi-root .air{fill:none;stroke:var(--k-red);stroke-width:var(--lw-thin,1px);vector-effect:non-scaling-stroke;stroke-linecap:round;opacity:.65}
+.ohi-root .ghost{fill:none;stroke:var(--k-red);stroke-width:var(--lw-thin,1px);vector-effect:non-scaling-stroke;stroke-dasharray:3 2.4;opacity:.75}
+.ohi-root .plan-line{fill:none;stroke:var(--k-blue);stroke-width:var(--lw,1.6px);vector-effect:non-scaling-stroke;stroke-linecap:round;opacity:.55}
+.ohi-root .sheen-hi{fill:none;stroke:var(--k-solder-hi);stroke-linecap:round}
 .ohi-root .f-cardboard{fill:var(--k-cardboard)}.ohi-root .f-cardboard-dark{fill:var(--k-cardboard-dark)}.ohi-root .f-foil{fill:var(--k-foil)}
 .ohi-root .f-silver{fill:var(--k-silver)}.ohi-root .f-spoon{fill:var(--k-spoon)}.ohi-root .f-marble{fill:var(--k-marble);fill-opacity:.85}
 .ohi-root .f-coat{fill:var(--k-coat)}.ohi-root .s-coat{stroke:var(--k-coat);fill:none}.ohi-root .s-string{stroke:var(--k-string);fill:none}
@@ -436,7 +497,7 @@ export const INK_CSS = `
 .ohi-item:focus-visible{outline:2px solid var(--k-focus)}
 .ohi-item svg{width:64px;height:40px;overflow:visible}
 .ohi-item small{font-size:11.5px;color:var(--k-ink-3)}
-.ohi-sel{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);max-width:calc(100% - 24px)}
+.ohi-sel{position:absolute;bottom:calc(12px + var(--ohi-inset-bottom,0px));left:calc((100% - var(--ohi-inset-right,0px)) / 2);transform:translateX(-50%);max-width:calc(100% - 24px - var(--ohi-inset-right,0px))}
 .ohi-sel .ohi-name{padding:0 10px 0 12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
 .ohi-menu{position:absolute;min-width:180px;padding:4px;display:flex;flex-direction:column}
 .ohi-menu .ohi-btn{justify-content:flex-start}
@@ -469,7 +530,7 @@ export const INK_CSS = `
 .ohi-compact .ohi-item{min-width:72px;min-height:74px}
 .ohi-compact .ohi-tools{left:8px;top:8px}
 .ohi-compact .ohi-view{right:8px;top:8px}
-.ohi-compact .ohi-sel{bottom:102px}
+.ohi-compact .ohi-sel{bottom:calc(102px + var(--ohi-inset-bottom,0px))}
 .ohi-compact.ohi-notray .ohi-sel{bottom:12px}
 .ohi-compact .ohi-hint{top:58px;white-space:normal;width:calc(100% - 32px);text-align:center;font-size:17px}
 .ohi-compact .ohi-label{display:none}

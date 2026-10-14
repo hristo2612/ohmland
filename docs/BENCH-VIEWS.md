@@ -47,8 +47,12 @@ interface BenchController {
   project(anchor: string): ScreenPoint | null;
   /** Subscribe to camera or layout changes so overlays can reposition. Returns an unsubscribe. */
   onViewChange(cb: () => void): () => void;
-  /** Frame these parts or anchors nicely (smooth unless reduced motion). Empty array: frame the whole work area. */
-  focus(targets: string[], opts?: { padding?: number; instant?: boolean }): void;
+  /**
+   * Frame these parts or anchors nicely (smooth unless reduced motion). Empty array: frame the whole work area.
+   * `inset`: CSS px of the view a docked panel covers at each edge; the framing keeps clear of it, and it holds (a
+   * resize, reset view) until the next focus.
+   */
+  focus(targets: string[], opts?: { padding?: number; instant?: boolean; inset?: { top?: number; right?: number; bottom?: number; left?: number } }): void;
   /** Temporarily emphasise parts (glow ring, dim the rest). */
   spotlight(targets: string[] | null): void;
 }
@@ -61,7 +65,8 @@ Implementation notes (both views):
 
 - The controller BenchView hands out is a hub (`createControllerHub`): the same object across view switches.
   Subscriptions made on it survive a switch (they hear one change when the new view attaches), and the last `focus`
-  and `spotlight` are applied to the new view. `hub.inner()` is the active view's own controller.
+  and `spotlight` are applied to the new view. `hub.inner()` is the active view's own controller, and `hub.refocus()`
+  frames the last focus again (the tray came or went, so the room round the bench changed).
 - Targets besides anchors: `part:<id>` (the meter is `part:M1`), `part:M1/display`, `part:M1/dial`,
   `part:M1/<socket>`, `lead:<id>` and `wire:<id>` for a whole lead or wire, `part:R1/a` for a part's lead and
   `part:<id>/<mark>` for a named spot on a part (`PartDef.marks`: a drawing's symbol `part:SD1/R1`, a box's `lid`,
@@ -113,6 +118,11 @@ Everything a learner can do in one view works in the other: take parts from the 
 resistor leads, rotate, delete, wire hole to hole, clip and unclip test leads, move meter probes and plugs, turn the
 meter dial, flip switches, press buttons, use sliders such as light and fingertip, x-ray the breadboard, undo and redo.
 Mouse, touch and keyboard in both.
+
+Soldering (Unit 3) is one DOM overlay (`SolderOverlay`) that both renderers mount over their canvas. It places its
+handles (the iron, the solder's end, every pad, lead and splice) with the view's `project()` on `spot:` anchors, and
+everything it does is a bench action or a step of the station engine in the store, so the iron, the joints and the
+heat view work and read the same in 3D and ink, with mouse, touch (press-and-hold quick mode) and keys.
 
 ## Accessibility
 

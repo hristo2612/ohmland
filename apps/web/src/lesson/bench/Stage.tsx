@@ -8,7 +8,7 @@
  */
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useStore } from "zustand";
-import { boardGeometry, trayLeft, type BenchState } from "@ohmland/bench/core";
+import { PRINTED_KINDS, boardGeometry, trayLeft, type BenchState } from "@ohmland/bench/core";
 import { isOptional, type LabDefinition, type LabTask, type SolutionStep } from "../../lab/define";
 import { m } from "../../i18n";
 import { useLearner } from "../../progress/store";
@@ -361,23 +361,46 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const readOnly = props.readOnly || !!ui.showing;
 
-  // Frame and spotlight the parts in play (a whole-bench view when none are named). On a phone the bench is small, so
-  // a beat about one part brings that part close.
+  // Frame and spotlight the parts in play (a whole-bench view when none are named), in the part of the bench the
+  // docked tool leaves free. On a phone the bench is small, so a beat about one part brings that part close.
   const spotKey = (props.spot ?? []).join(",");
   const frameKey = (props.frame ?? []).join(",");
+  const tool = props.tool ?? defaultTool(lab, props.gate);
+  // The docked tool's size: when it comes, goes or changes size the bench is framed again.
+  const [dockKey, setDockKey] = useState("");
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || !benchReady) return;
+    const measure = () => setDockKey(insetKey(dockInset(stage)));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(stage);
+    const dock = stage.querySelector(":scope > .bl-tool");
+    if (dock) ro.observe(dock);
+    return () => ro.disconnect();
+  }, [tool, benchReady]);
   useEffect(() => {
     const c = controllerRef.current;
-    if (!c || !benchReady) return;
+    const stage = stageRef.current;
+    if (!c || !stage || !benchReady) return;
     const b = runtime.store.getState().bench;
     const resolve = (list: string[] | null) => (list ?? []).map((s) => resolveAnchor(b, s)).filter((x): x is string => !!x);
     const spotted = resolve(props.spot);
     const framed = [...spotted, ...resolve(props.frame)];
     c.spotlight(spotted.length ? spotted : null);
-    // A part in play keeps some bench around it: close enough to tell its legs apart, never a lone close-up.
-    const box = stageRef.current?.getBoundingClientRect();
-    c.focus(framed, framed.length && box ? { padding: Math.round(Math.min(box.width, box.height) * 0.3) } : {});
+    const inset = dockInset(stage);
+    const box = stage.getBoundingClientRect();
+    const w = box.width - (inset.right ?? 0);
+    const free = Math.max(0, Math.min(w, box.height - (inset.bottom ?? 0)));
+    // A part in play keeps some bench around it: close enough to tell its legs apart, never a lone close-up. On a
+    // phone one big printed prop (a colour chart, a pencil card) fills the bench instead, so its print can be read; a
+    // value tag is small and reads with the usual margin.
+    const one = spotted.length === 1 && framed.length === 1 ? b.parts.find((p) => `part:${p.id}` === spotted[0]) : undefined;
+    const close = w < 640 && !!one && PRINTED_KINDS.has(one.kind) && one.kind !== "tag";
+    const padding = close ? 8 : Math.round(free * 0.3);
+    c.focus(framed, framed.length ? { padding, inset } : { inset });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spotKey, frameKey, runtime, benchReady]);
+  }, [spotKey, frameKey, runtime, benchReady, dockKey]);
 
   return (
     <div ref={stageRef} className="bl-stage" data-bench-ready={benchReady || undefined} data-lab-ready data-lab={lab.id} onPointerDownCapture={() => audio.unlock()} onKeyDownCapture={() => audio.unlock()}>
@@ -412,7 +435,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
           )}
         </div>
       )}
-      <ToolDock runtime={runtime} built={built} tool={props.tool ?? defaultTool(lab, props.gate)} />
+      <ToolDock runtime={runtime} built={built} tool={tool} />
       {props.keyboardOpen && (
         <div className="bl-keyboard">
           <p className="bl-keyboard__hint">{m.lessonBench.keyboardHint}</p>
@@ -444,6 +467,26 @@ function learnerSeed(): string {
   const [id, rec] = lessons.reduce((a, b) => (b[1].at < a[1].at ? b : a));
   return `${id}|${rec.at}`;
 }
+
+/**
+ * The part of the bench the docked tool covers, as a focus inset: along the bottom on a phone (the dock spans the
+ * width), else beside it on the right when that leaves more of the bench in view. Rounded to 16 px, so a tool that
+ * grows by a line does not move the bench under the learner's hand.
+ */
+function dockInset(stage: HTMLElement): { bottom?: number; right?: number } {
+  const dock = stage.querySelector<HTMLElement>(":scope > .bl-tool");
+  if (!dock) return {};
+  const s = stage.getBoundingClientRect();
+  const d = dock.getBoundingClientRect();
+  const GAP = 8;
+  const step = (v: number) => Math.ceil(Math.max(0, v) / 16) * 16;
+  const bottom = step(s.bottom - d.top + GAP);
+  const right = step(s.right - d.left + GAP);
+  const beside = (s.width - right) * s.height;
+  const above = s.width * (s.height - bottom);
+  return s.width - right >= 320 && beside > above ? { right } : { bottom };
+}
+const insetKey = (i: { bottom?: number; right?: number }) => `${i.bottom ?? 0},${i.right ?? 0}`;
 
 /** The panel a lab ties to a task (`show`), when the beat names no tool. */
 function defaultTool(lab: LabDefinition, task: string | null): string | null {

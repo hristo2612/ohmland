@@ -281,6 +281,76 @@ part drawn the same in both views from one geometry module, `src/mcuBoard.ts`.
 `?scene=mcu` in the playground shows lesson 12's bench (`lamp=0.85` sets the L lamp in the mock snapshot);
 `pnpm --filter @ohmland/bench shots:mcu` checks the clip points in both views and writes `mcu-*.png`.
 
+### Chips (Unit 4)
+
+![Unit 4 parts in 3D](screenshots/chips-gallery.png)
+
+![The counting demo in ink, run by the simulator: a 555 blinks an LED and clocks a 4026B into a 7-segment display](screenshots/chips-demo-ink.png)
+
+Pin tables, sizes and part definitions live in `src/chips.ts` (pure; the bench keeps its own copy of the simulator's
+pin tables and `test/chips.test.ts` checks them against `TIMER555_PINS`, `LOGIC_PINOUTS`, `SEVENSEG_PINS` and
+`REGULATOR7805_PINS`). Models are in `models/Chips.tsx`, ink drawings in `ink/kinds/chips.tsx`.
+
+| Kind | Params | Leads | Simulator |
+|---|---|---|---|
+| `chip` | `model` (`"555"`, `"555-cmos"`, `"74HC00"` `02` `04` `08` `14` `27` `32` `74` `86` `393`, `"4026B"`), `package` (`"dip"`, `"soic"`), `hidden`, `label` | `"1"` to `"8"`, `"14"` or `"16"` | `timer555` (`cmos` for 555-cmos) or `logic` with `model`: pin k is the k-th name of its pinout |
+| `ic-socket` | `pins` (8, 14, 16), `held: { chip }`, `turned` | `"1"` to n | none: a seated chip's pins join the socket's |
+| `sevenseg` | `common` (`"cathode"`, `"anode"`), `color`, `carrier`, `segmentOhms` (3.3 kΩ) | `e d com c dp` (pins 1 to 5) and `b a com2 f g` (6 to 10) | `sevenseg`; on a carrier a resistor `DS1:Ra` ... `DS1:Rdp` in front of each segment |
+| `regulator7805` | `heatsink` | `in gnd out` | `regulator7805` |
+| `dip-switch` | `positions` (4, 8), `s1` to `s8`, `tags`, `bounce` | `"1"` to `2n` | a `switch` `DIP1:k` from pin k to pin 2n + 1 - k, closed while `sk` is on |
+| `logic-probe` | none | `tip`, `vcc` (red), `gnd` (black) | none (it draws no current) |
+| `battery-pack` | `cells` (3, 4), `emf`, `internalOhms`, `mAh` | `pos neg` (flying) | `battery`, 1.55 V and 0.15 Ω a cell, 2400 mAh |
+| `bench-supply` | `position` (0 to 1), `max` (12 V) | `pos neg` (binding posts) | `battery` of `supplyVolts(params)` behind 0.05 Ω |
+
+- **DIP chips** straddle the channel: pins 1 to n/2 along row e from the left, the rest back along row f, rows 7.62 mm
+  apart. The body is black epoxy with the half-moon notch at the pin-1 end, a dimple by pin 1 and its part number
+  (NE555, 7555, 74HC00 ... 74HC393, CD4026B) in our own type, readable from the front. A chip can stand anywhere its
+  pins fit (one side of the channel shorts each pair, as on a real board).
+- **Turned round.** On the board a quarter turn of a DIP cannot fit across the channel, so `R` turns it round
+  (`PartDef.turnsRound`): the same holes, pin 1 at the far right. The netlist maps pins by number, so the simulator
+  sees every pin moved; a 74HC chip turned round gets its supply backwards and dies (`cause: "reverse"`), as the
+  simulator models. The print reads upside down then, in both views.
+- **Mystery chips** (`hidden: true`) carry a strip of paper tape with `label` ("?1") over the number. The netlist is
+  unchanged.
+- **Surface mount lookalike** (`package: "soic"`): 1.27 mm feet that no hole fits. It has no footprint, so dropped on
+  the board it lies on top of it (`PartDef.perch`), a little askew and lifted off it (a shadow in ink, a tilt in 3D).
+  `rejectedParts(bench)` lists such parts (a lab's `lab.bench.rejected`).
+- **Sockets** stand in the board like a DIP; a chip dropped near one seats in it (a `chip` seat that `fits` only DIP
+  chips no longer than the socket; pin 1 over the socket's pin 1). `R` on a seated chip turns it round in its socket
+  (`SeatDef.turn` flips `turned`), and the joins follow. Seats of holders that stand in the board follow its holes
+  (`seatPose(holder, seat, part, bench)`); `SeatDef.place` gets `{ board }` and `joins` may be a function of the
+  held part.
+- **Pin names.** Anchors and the netlist take a pin's function as well as its number (`PartDef.alias`):
+  `pin:U1.trig` is `pin:U1.2`, `pin:DS1.3` is `pin:DS1.com`. `chipLeg(model, name)`, `chipPinName(model, leg)`,
+  `resolveLeg(part, name)` and `canonicalAnchor(parts, anchor)` do the lookups.
+- **7-segment display**: a 0.56 inch, 10-pin display whose rows sit 0.6 inch apart (rows c and g). Each bar glows from
+  the snapshot's `extra.a` to `extra.g` and `extra.dp` (dead bars stay dark), with a wash of light over the face in 3D
+  and a soft glow in ink (drawn above the room's veil when the lights are down). The carrier is a green board with a
+  resistor (marked with its code, 332) beside each segment pin.
+- **7805** stands in three holes, print toward you and the tab behind; `heatsink` bolts a finned sink to the tab. On
+  the desk it lies on its back, legs toward you. Warmth from `temp` (brown body, straw tab in 3D; a warm wash and heat
+  lines in ink); the existing `inspect` heat readout works on it.
+- **DIP switch**: white sliders that you click one by one (hotspots, `PartDef.hotspots(params, mount)` now gets the
+  mount); ON is toward the far side. `tags` replace the switch numbers under the sliders.
+- **Logic probe**: a pen whose tip is a flying lead that moves with the pen (`PartDef.nose`): drag the pen and its tip
+  drops into the hole under it, where the pen stands leaning back toward you; its red and black leads go into holes
+  like a battery snap's. `logicProbeReading(bench, nodes, id)` reads the snapshot's node voltages: powered from 3 V
+  across its leads, HIGH above 70% and LOW below 30% of that, nothing between or on a floating pin.
+  `useProbeState(store, id, active)` adds the PULSE lamp (lit for 0.1 simulated seconds after the level changes) and
+  feeds both views' models.
+- **Battery packs** lie as AA cells (alternating) in a black holder with red and black leads. **Bench supply**: a box
+  with the volts on an LCD, a knob (drag it, or the arrow keys, like a trimmer) and two binding posts to clip to.
+- **Contact bounce.** `bounce` on pushbuttons, slide, toggle and DPDT switches and DIP switches goes to the simulator.
+  Its chip on the selection bar shows only once a lab gives the part a `bounce` param (`SettingDef.when`);
+  `benchToNetlist(bench, { bounce })` sets it on every contact that has none (a global "bounce on").
+- **Live looks.** Both views re-render a part when its segment glows (4% steps), dead segments or warmth (8 degree
+  steps of `temp` on chips and the regulator) change (`extraLookKey`). A warm chip darkens toward brown with a faint
+  ember glow (3D) or a warm wash with heat lines (ink); smoking chips smoke; a dead one shows a burst crater with
+  cracks and scorches the board.
+- **Pin numbers** (and the display's segment letters, the regulator's in, gnd, out) show up close: in ink from about
+  11 px per mm (`data-near`), in 3D when the camera is within about 16 cm; and in a spotlight in both.
+- The first `battery`, else `battery-pack`, else `bench-supply` minus terminal is `"gnd"`.
+
 ### `@ohmland/bench/core`
 
 The pure half of the package, with no React Three Fiber and no three.js: `benchOps`, `benchToNetlist`,
@@ -390,6 +460,111 @@ readable). The board's 830 holes are one path, drawn once. A part's geometry is 
 only the moving part, and each part re-renders only when its look changes (glow in 2% steps), so a steady circuit
 costs nothing per snapshot. Outlines keep their pen width at every zoom (`vector-effect: non-scaling-stroke`).
 
+## Unit 3: soldering, perfboard, wire and wall power (`src/solder`)
+
+The solder station for docs/curriculum/unit-3.md: an iron that heats over seconds, joints that answer with their shape,
+a tug and the meter, heat that creeps up a lead into an LED, pad-per-hole perfboard, hookup wire with a stripper,
+heat-shrink with a heat gun, and wall adapters into a barrel-jack board. Everything works and looks the same in the
+3D and ink views.
+
+![Ink: soldering a pad, heat view on](screenshots/solder-ink-feeding.png)
+
+![3D: the iron resting on the work while solder is fed](screenshots/solder-3d-feeding.png)
+
+![Ink: the copper side, every joint shape](screenshots/solder-ink-desktop.png) ![Magnifier: a cold joint](screenshots/solder-3d-magnifier.png)
+
+![Phone, quick mode, 3D](screenshots/solder-3d-phone-quick.png) ![Phone, quick mode, ink](screenshots/solder-ink-phone-quick.png)
+
+### Kinds
+
+| Kind | What | Leads | Simulator |
+|---|---|---|---|
+| `solder-station` | Base (display, dial 150 to 450 °C, power rocker), stand with sponge, brass wool and coil, the iron on its cord. `on`, `setC`, `iron` (where it is: `"stand"`, a spot, `"desk"` with `ironAt`), `tinning`, `spool` | none | none |
+| `solder-spool` | A reel with its label; `alloy` `"leaded"` (Sn63 Pb37, 183 °C), `"lead-free"` (SAC305, 217 to 220 °C), `"acid"` | none | none |
+| `solder-braid` | Desoldering braid; `used` (0 to 1, the silvered end); action `snip` | none | none |
+| `perfboard` | Pad-per-hole board, `cols` x `rows`, pads `A1` (row letter, column number). `flipped` (copper side up: left becomes right), `tack`, `flexed`, `joints`, `bends`, `links`, `plan`, `snipped` | one per pad (`pin:PB1.B4`) | joints and bridges (below) |
+| `plan-card` | A plan: `ghosts` (`{ id, kind, legs: { leg: pad } }`) and numbered `lines` (pad pairs); drawn on a card and over its board | none | none |
+| `heat-sink-clip` | Copper or steel (`metal`); dragged near a lead it grips it (`on: "D1.anode"`, `mm` from the body) | none | none (heat only) |
+| `hookup-wire` | `color`, `awg`, `stranded`, `len`; ends `a` and `b` go into breadboard or perfboard holes; stripped `ends`, every strip in `tries`, splice `joints`; actions `twist`, `snip-a`, `snip-b` | `a b` (one conductor) | splice joints |
+| `wire-stripper` | Notches 30 to 16 AWG on a solid and a stranded scale (`notch`, `scale`), jaw stop `stopMm`; action `strip` strips the wire end in its jaws | none | none |
+| `heat-shrink` | 2:1 tube, `size` 1.6, 3.2 or 6.4 mm; slid onto a wire only past a free end (`on`, `at`), `shrink` 0 to 1, `split` | none | none |
+| `heat-gun` | `on`; its hot air shrinks tubes in front of the nozzle (cooler further away) | none | none |
+| `barrel-jack` | A small board with a barrel socket; two pins one hole apart for the rails | `tip sleeve` | (the adapter's supply) |
+| `wall-adapter` | `volts`, `amps`, `type` (`"regulated"`, `"unregulated"`, `"ac"`), `centre` (`"plus"`, `"minus"`), `into` (a jack); its barrel plug is a flying lead dragged into a jack | `plug` | `supply` between the jack's pins (centre minus swaps them); unregulated ones read about 1.45 x the label with a 400 µF ripple filter |
+
+Parts go through perfboard holes like breadboard holes: `holes: { anode: "PB1:C7", cathode: "PB1:C8" }`, and dragging
+a part over a board (top side up) seats it in the nearest free holes. A part soldered in no longer lifts out. Flipped
+over, the board shows its copper: parts are underneath (both views hide them) and only their legs show, mirrored.
+
+### The perfboard's netlist
+
+A leg in a hole touches its pad only through solder. At each pad, everything metal (legs through the hole, legs bent
+onto it, link ends) is joined to the pad by the pad's joint: a good joint (and too much solder, a bridge, a burnt joint
+whose pad held) is metal; a cold, disturbed or very thin joint is a wire of a few ohms that opens while the board is
+`flexed`; a lifted pad is open. A bridge also joins the neighbouring pad and what comes through it. Bare legs or bare
+links that cross underneath touch. In `tack` mode legs that meet at a pad conduct without solder (MP10). These are
+`PartDef.contacts` (metal) and `toSpecs` (the resistive joints), so `connectivity` and `benchToNetlist` see them.
+
+### The station engine and the overlay
+
+`stepStation(bench, station, dt)` is pure: the iron (a 60 W heater with temperature control: 20 s to 330 °C, still
+above 200 °C a minute after switch-off), the joint under it and every live joint (SE2: heat the work through a contact
+that a tinned tip and a molten bridge improve, feed solder, wet, set, verdict), heat running up leads into parts with
+clips (SE3), tubes in front of the gun, the desk scorching. What lasts goes into BenchState (where the iron rests, a
+joint once it sets, a tube's shrink); temperatures and molten solder live in the store's `station`. It returns
+simulator inputs (`bodyC` on parts warmed through their leads), which the overlay sends as `input` actions, so a host
+that forwards `onAction` inputs to `sim.setInput` needs nothing more.
+
+The solder overlay (`SolderOverlay`, mounted by both renderers, nothing on benches without solder kinds) runs the clock
+(the simulator's time when snapshots arrive, so time-lapse cools an iron; else the wall clock; `stationClock` forces
+one) and the hands-on part, drawn over either view through its `project()`:
+
+- **Iron**: drag it by its handle and drop the tip on a joint: it rests there. Dropped on the desk it scorches the
+  paper, then slides home. **Solder**: drag the spool's free end to the hot joint (or to the tip) and hold to feed.
+  **Braid**: drag its end onto a joint, rest the iron on it. **Quick mode** (dock): press and hold a joint; the iron
+  rests and feeds once the work is hot; release lifts both, and a ring fills as the solder goes on.
+- A **tap** on a joint opens the **magnifier** (the joint side on, named in words); a drag away from it **tugs**.
+- **Bend** and **Link** (dock, copper side up): drag from a pad with a leg to another pad to bend the leg, or add a
+  bare wire link.
+- **Heat view** (dock): ink hatching over everything warm (denser is hotter), with numbers on the tip and warm bodies.
+- **Keyboard**: every spot is a focusable button; `I` rests or lifts the iron there, hold `S` to feed, `T` tugs, `M`
+  or `Enter` opens the magnifier, `H` heat view, `W` wipes the tip, `Q` quick mode (then hold `Enter` or `Space`).
+  Screen readers hear each spot's name, its joint's phase and, once looked at, its shape.
+
+The pure actions are exported for labs and tests: `placeIron`, `holdIron`, `feedAt`, `quickPress`, `tug`, `layBraid`,
+`magnify`, `wipe`, `readJoint`, `stationSpots`, `ironPose`. Spots are anchors (`spot:PB1.B4`, `spot:D1.anode`,
+`spot:HW1.b`, `spot:ST1.stand`, `spot:ST1.tip`, `spot:SD1.end`), so `project()`, `focus()` and `spotlight()` take them.
+
+### The joint and heat models
+
+Verdicts, checked in order: burnt (above 420 °C, or held molten more than 10 s on a pad, 15 s on wire, 20 s on
+14 AWG; a pad lifts 6 s later), bridge, disturbed (moved
+while setting), cold (wetted under 0.6, or never 15 °C above the melt), too much (over 1.8 x ideal), too little (under
+0.5 x), good. `jointLook` (shape: volcano, ball, ring, lump, frosty, bridge, burnt; finish bright, satin, dull, dark),
+`jointElectric` (0.005 Ω sound; cold and disturbed intermittent) and `tugResult` (held, loose, pulled) read the
+record. `test/solder-joint.test.ts` checks every calibration row of unit-3.md 3.4 (a crossed pair melts in 2 to 3 s, a
+pad in 1 to 2 s, lead-free about 20% slower, an oxidised tip never, 14 AWG in 8 to 12 s, a carried bead balls up cold,
+a tug while setting disturbs, extra feed bridges, braid heals, 20 s burns and lifts the pad).
+
+`LeadHeat` is a 1 mm lumped network from the iron (or a hot pad) along each lead to the body, with copper or steel
+clips as lumps gripping a segment. With the simulator's LED die model (`ledHeatDim`, `ledHeatRate`), an iron at 330 °C
+12 mm down an LED's leg takes a third of its glow at 12 to 18 s and kills it at 25 to 35 s; a copper clip between
+keeps it above 0.8 of its glow at 120 s; a steel clip only delays it (dead at 50 to 80 s); 370 °C is about 20% sooner
+(`test/solder-station.test.ts` runs it through the simulator). A normal 3 s joint at an LED's pad only warms it; held
+far too long it cooks it.
+
+### Wire, tubes, adapters
+
+`stripWire` (notch against the copper: too small nicks or cuts strands, too big slips) and `stripEnd`/`stripNearest`
+keep every try. `moveTube` lets a tube onto a wire only past a free end (both ends held: no way on, MP7), `stepTube`
+shrinks it with the gun's air (`gunAirC` falls with distance) and splits it if held too hot; `tubeGrips` says whether a
+shrunk tube holds what it covers. `movePlug` puts an adapter's plug into the nearest jack's socket.
+
+Playground: `?scene=solder` (`&top=1` the top with the plan's ghosts, `&joints=all|none`, `&lead=leaded`, `&heat=1`,
+`&quick=1`), `?scene=heatsink` (`&clip=0`), `?scene=wires`; these scenes run the real simulator in the page.
+`pnpm --filter @ohmland/bench shots:solder` drives the flow in both views (mouse, touch, keyboard) and saves the
+`solder-*` screenshots.
+
 ## BenchState
 
 Plain JSON, millimetres on the desk (x right, z toward the viewer, y up).
@@ -452,9 +627,13 @@ pnpm --filter @ohmland/bench dev     # vite playground, http://localhost:5199
   prop on one desk; `?scene=mcu` the microcontroller board wired to a lamp; `?scene=modules` the desk modules; `?scene=blocks` desk modules, single-pole and mystery relays
   (closed and peeked) and bendable capacitor legs on a half board; `?scene=glow` the first-glow loop (`glow0` before
   it is wired). Start here: `?scene=lamp` (`wrap=1` clips TL1 to the wrapper, `gates=1` adds two gates, `off=1`),
-  `junk`, `boxes` (`open=1`), `tired`, `symbols`, `static`.
-- `sim=1` runs the real simulator in the page instead of the mock snapshot (`speed=600` for a time-lapse); overlays:
-  `flow=current|electrons`, `push=1`, `trace=pin:B1.neg`.
+  `junk`, `boxes` (`open=1`), `tired`, `symbols`, `static`. Unit 4: `?scene=chips` the counting demo (a 555 blinker
+  clocking a 4026B into a 7-segment display on its carrier) and `?scene=chipparts` every Unit 4 part on one bench,
+  both with the Unit 4 tray.
+- `sim=1` runs the real simulator in the page instead of the mock snapshot (`speed=600` for a time-lapse; `simAt=4.3`
+  runs that many simulated seconds before the first frame, `simrun=0` then holds it there); overlays:
+  `flow=current|electrons`, `push=1`, `trace=pin:B1.neg`. Mock extras for Unit 4: `segs=DS1:abcdg.;DS2:bc` (lit bars,
+  `.` the dot), `temp=U2:150` (warmth), `probe=LP1:H` (a logic probe reading H, L or X).
 - A toggle above the bench switches between the 3D and ink views on the same store, or shows both side by side
   (`view=ink` starts in ink, `view=split` side by side, `toggle=0` hides it). `theme=dark` shows the night page. The
   playground loads no three.js until the 3D view or a gallery is shown.
@@ -473,7 +652,15 @@ pnpm --filter @ohmland/bench typecheck
 pnpm --filter @ohmland/bench shots       # Playwright: interaction, controller and view switch checks + screenshots
 pnpm --filter @ohmland/bench shots:ink   # Playwright: the ink view driven by mouse, touch and keyboard + ink-*.png
 pnpm --filter @ohmland/bench shots:mcu   # Playwright: the microcontroller board in both views + mcu-*.png (port 5363)
+BENCH_PORT=5471 pnpm --filter @ohmland/bench exec playwright test -c e2e/playwright.config.ts chips   # Unit 4: chips-*.png
 ```
+
+`test/chips.test.ts` covers the Unit 4 mapping: pin tables against the simulator's, a 555 by number and turned round,
+a 74HC chip turned round dying of a reversed supply, pin names, the surface mount refusal, sockets (seating, turning,
+fit), the display (rows c and g, the carrier's resistors, lighting a 1), the DIP switch, the 7805, packs and the
+supply as ground, bounce, the logic probe's tip and reading, and the counting demo run by the simulator (the LED
+blinks, the display counts). `e2e/chips.spec.ts` turns a chip round and flips a DIP switch in both views and takes
+the `chips-*` screenshots.
 
 The Playwright run starts the playground itself. On macOS headless Chromium renders WebGL through Metal; elsewhere the
 config switches to SwiftShader (`--use-angle=swiftshader --enable-unsafe-swiftshader`). If Chromium is missing:

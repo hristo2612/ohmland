@@ -3,6 +3,7 @@
 
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useStore } from "zustand";
+import { chipDetail } from "../chips";
 import { formatFarads, formatOhms } from "../colorCode";
 import { DIAL_MODES } from "../layout";
 import * as ops from "../ops";
@@ -31,6 +32,7 @@ export function itemLabel(item: TrayItem, labels: InkLabels): { name: string; de
   else if (item.kind === "led" && typeof p.color === "string") detail = labels.colors[p.color as WireColor] ?? String(p.color);
   else if (item.kind === "fuse" && typeof p.amps === "number") detail = `${p.amps} A`;
   else if (item.kind === "cup" && typeof p.water === "string") detail = labels.water[p.water as "tap"];
+  else detail = chipDetail(item.kind, p);
   if (item.label) return { name: item.label };
   return { name: labels.partName[item.kind] ?? item.kind, detail };
 }
@@ -41,7 +43,8 @@ export function partDetail(part: PlacedPart): string | undefined {
   if ((part.kind === "resistor" || part.kind === "trimmer") && typeof p.ohms === "number") return formatOhms(p.ohms);
   if ((part.kind === "ceramic-cap" || part.kind === "electrolytic-cap") && typeof p.farads === "number") return formatFarads(p.farads);
   if (part.kind === "fuse" && typeof p.amps === "number") return `${p.amps} A`;
-  return undefined;
+  // A chip is named by what is printed on it (a taped one by its tape); packs and the supply by their volts.
+  return chipDetail(part.kind, p);
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -175,7 +178,8 @@ export function InkOverlay({ store, labels, tray, readOnly, compact, api, size, 
         out.push(<Btn key="press" label={labels.press} icon="press" showLabel={label} onPointerDown={() => s.press(selPart.id, true)} onPointerUp={() => s.press(selPart.id, false)} />);
       }
       const def = partDef(selPart.kind);
-      for (const st of def.settings ?? []) {
+      // Settings a part shows only in some labs (contact bounce) say so with `when`.
+      for (const st of (def.settings ?? []).filter((x) => !x.when || x.when(selPart.params as Record<string, unknown>))) {
         const text = labels.settings[`${selPart.kind}.${st.key}`];
         const cur = (selPart.params as Record<string, unknown>)[st.key];
         const name = (v: string | number | boolean) => text?.values?.[String(v)] ?? `${v}${text?.unit ? ` ${text.unit}` : ""}`;
@@ -210,8 +214,7 @@ export function InkOverlay({ store, labels, tray, readOnly, compact, api, size, 
         out.push(
           <button key={`act:${a.id}`} type="button" className="ohi-btn ohi-chip" onClick={() => {
             if (fresh()) return;
-            const p = ops.actionParams(s.bench, selPart.id, a.id);
-            if (p) s.setParams(selPart.id, p as never);
+            s.apply((b) => ops.runAction(b, selPart.id, a.id));
             close();
           }}>
             {labels.actions[`${selPart.kind}.${a.id}`] ?? a.id}

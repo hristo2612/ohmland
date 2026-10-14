@@ -24,8 +24,9 @@ const STRICT = new Set(
 describe("lab solutions", () => {
   it("finds the labs", () => {
     expect(labs.length).toBeGreaterThan(0);
-    // The Start here labs and Basics' 15 classic labs.
-    expect(STRICT.size).toBeGreaterThanOrEqual(19);
+    // The Start here labs (six so far), and Basics' 15 classic labs plus the split halves share-the-push, use-the-law,
+    // end-to-end, count-the-watts, big-current and how-long.
+    expect(STRICT.size).toBeGreaterThanOrEqual(27);
   });
 
   for (const { file, lab } of labs) {

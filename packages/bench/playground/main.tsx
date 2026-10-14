@@ -5,7 +5,10 @@ import type { Health, PartState, Snapshot } from "@ohmland/sim";
 // galleries load their 3D code when opened.
 import { benchToNetlist, createBenchStore, emptyBench, type BenchAction, type BenchState, type InspectSpec, type Quality } from "../src/core";
 import { BenchView, type BenchController, type BenchViewKind } from "../src/view";
-import { FULL_TRAY, blocksBench, boxesBench, clipBench, demoBench, drawerBench, glowBench, lampBench, mcuBench, modulesBench, propsBench, smokeBench, staticBench, symbolsBench, tiredBench } from "./scenes";
+import { CHIP_TRAY, FULL_TRAY, SOLDER_TRAY, blocksBench, boxesBench, chipPartsBench, chipsBench, clipBench, demoBench, drawerBench, glowBench, heatsinkBench, lampBench, mcuBench, modulesBench, propsBench, smokeBench, solderBench, staticBench, symbolsBench, tiredBench, wiresBench } from "./scenes";
+import { createSimulation } from "@ohmland/sim";
+import * as solder from "../src/solder/station";
+import * as solderOps from "../src/solder/ops";
 
 type GalleryProps = { view?: { position: [number, number, number]; target: [number, number, number] }; rows?: number[]; row: string | null; focus: string | null };
 const GalleryApp = lazy(() =>
@@ -46,6 +49,16 @@ function initialBench(): BenchState {
       return modulesBench();
     case "blocks":
       return blocksBench();
+    case "solder":
+      return solderBench({ top: q.get("top") === "1", joints: (q.get("joints") as "some" | "all" | "none" | null) ?? "some", lead: q.get("lead") === "leaded" ? "leaded" : "lead-free" });
+    case "heatsink":
+      return heatsinkBench(q.get("clip") !== "0");
+    case "wires":
+      return wiresBench();
+    case "chips":
+      return chipsBench();
+    case "chipparts":
+      return chipPartsBench();
     // Start here: `lamp` (wrap=1 clips TL1 to the wrapper, gates=1 adds two gates, off=1), `junk`, `boxes`
     // (open=1), `tired`, `symbols`, `static`.
     case "lamp":
@@ -65,6 +78,41 @@ function initialBench(): BenchState {
     default:
       return demoBench();
   }
+}
+
+/** Scenes that run the real simulator in this thread (the solder station's heat reaches the LEDs). */
+const LIVE = ["solder", "heatsink", "wires"].includes(q.get("scene") ?? "") && q.get("sim") !== "1";
+
+/**
+ * Unit 4 look in the mock: `segs=DS1:abcdg.;DS2:bc` lights segments ("." is the dot), `temp=U2:140` warms a part,
+ * `probe=LP1:H` feeds a logic probe (H, L or X).
+ */
+function chipMock(bench: BenchState, parts: Record<string, PartState>): Record<string, number> {
+  const nodes: Record<string, number> = { gnd: 0 };
+  for (const pair of (q.get("segs") ?? "").split(";").filter(Boolean)) {
+    const [id, lit = ""] = pair.split(":");
+    const s = id ? parts[id] : undefined;
+    if (!s) continue;
+    const extra: Record<string, number | string> = { lit: lit.replace(".", "") };
+    for (const seg of ["a", "b", "c", "d", "e", "f", "g"]) extra[seg] = lit.includes(seg) ? 0.85 : 0;
+    extra["dp"] = lit.includes(".") ? 0.85 : 0;
+    s.extra = extra;
+    s.glow = lit ? 0.85 : 0;
+  }
+  for (const p of bench.parts) if ((p.kind === "chip" || p.kind === "regulator7805") && parts[p.id]) parts[p.id]!.extra = { ...(parts[p.id]!.extra ?? {}), powered: true };
+  for (const pair of (q.get("temp") ?? "").split(",").filter(Boolean)) {
+    const [id, t] = pair.split(":");
+    if (id && parts[id]) parts[id]!.temp = Number(t);
+  }
+  const probe = q.get("probe");
+  if (probe) {
+    const [id, level] = probe.split(":");
+    const { nodeOf } = benchToNetlist(bench);
+    nodes[nodeOf(`pin:${id}.vcc`)] = 5;
+    nodes[nodeOf(`pin:${id}.gnd`)] = 0;
+    nodes[nodeOf(`pin:${id}.tip`)] = level === "H" ? 4.9 : level === "L" ? 0.1 : 2.5;
+  }
+  return nodes;
 }
 
 type Mock = {
@@ -106,8 +154,9 @@ function toSnapshot(bench: BenchState, m: Mock): Snapshot {
     parts[p.id] = s;
   }
   if (bench.meter) parts[bench.meter.id] = { i: 0, v: 0, p: 0, temp: 25, health: "ok", display: m.display, unit: m.unit };
+  const nodes = chipMock(bench, parts);
   // `t` (simulated seconds) runs the desk clock.
-  return { t: Number(q.get("t") ?? 0), nodes: {}, parts, events: [] };
+  return { t: Number(q.get("t") ?? 0), nodes, parts, events: [] };
 }
 
 const panelStyle: React.CSSProperties = {
@@ -188,7 +237,8 @@ type Shown = BenchViewKind | "split";
 
 /**
  * `sim=1`: run the real simulator in this thread instead of the mock snapshot (flow dots, gates and push need real
- * currents). `speed=` runs it faster. Overlays: `flow=current|electrons`, `push=1`, `trace=pin:B1.neg`.
+ * currents). `speed=` runs it faster. Overlays: `flow=current|electrons`, `push=1`, `trace=pin:B1.neg`. `simAt=4.3` runs
+ * that many simulated seconds before the first frame (instead of half a second); `simrun=0` then holds it there.
  */
 function useLiveSim(store: ReturnType<typeof createBenchStore>, on: boolean) {
   useEffect(() => {
@@ -216,8 +266,8 @@ function useLiveSim(store: ReturnType<typeof createBenchStore>, on: boolean) {
         raf = requestAnimationFrame(frame);
       };
       // Settle first, so screenshots show a running circuit.
-      store.setState({ snapshot: sim.step(0.5) });
-      raf = requestAnimationFrame(frame);
+      store.setState({ snapshot: sim.step(Number(q.get("simAt") ?? 0.5)) });
+      if (q.get("simrun") !== "0") raf = requestAnimationFrame(frame);
       cleanup = () => {
         unsub();
         offAct();
@@ -274,7 +324,50 @@ function BenchApp() {
   }, []);
   // Handles for the Playwright scripts (in split view `__controller` is the 3D side, `__second` the ink side).
   useEffect(() => {
-    Object.assign(window, { __bench: store, __controller: controller, __second: second });
+    Object.assign(window, { __bench: store, __controller: controller, __second: second, __solder: { ...solder, ...solderOps } });
+  }, [store]);
+  // Solder scenes run the real simulator here: LEDs glow from the circuit and dim as the iron heats them.
+  const simRef = useRef<ReturnType<typeof createSimulation> | null>(null);
+  useEffect(() => {
+    if (!LIVE) return;
+    const sim = createSimulation();
+    simRef.current = sim;
+    let loaded: BenchState | null = null;
+    const load = () => {
+      const b = store.getState().bench;
+      if (b === loaded) return;
+      loaded = b;
+      sim.load(benchToNetlist(b).netlist);
+    };
+    load();
+    const off = store.subscribe((s) => {
+      if (!s.txBase) load();
+    });
+    let raf = 0;
+    let last = performance.now();
+    const speed = Number(q.get("speed") ?? 1);
+    const tick = (now: number) => {
+      raf = requestAnimationFrame(tick);
+      const dt = Math.min(0.1, (now - last) / 1000) * speed;
+      last = now;
+      if (dt > 0) store.setState({ snapshot: sim.step(dt) });
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      off();
+      cancelAnimationFrame(raf);
+      simRef.current = null;
+    };
+  }, [store]);
+  useEffect(() => {
+    // The station starts as the URL asks: heat view, quick mode.
+    if (!LIVE) return;
+    const t = setTimeout(() => {
+      const s = store.getState();
+      const st = s.station ?? solder.createStation(s.bench);
+      store.setState({ station: { ...st, heatView: q.get("heat") === "1" || st.heatView, quickMode: q.get("quick") === "1" || st.quickMode } });
+    }, 30);
+    return () => clearTimeout(t);
   }, [store]);
   const [bench, setBench] = useState(() => store.getState().bench);
   const [mock, setMock] = useState(initialMock);
@@ -303,7 +396,10 @@ function BenchApp() {
       },
     });
   }, [store]);
-  const onAction = (a: BenchAction) => setLog((l) => [...l, JSON.stringify(a)]);
+  const onAction = (a: BenchAction) => {
+    if (a.type === "input") simRef.current?.setInput(a.partId, a.key, a.value);
+    if (!(a.type === "input" && a.key === "bodyC")) setLog((l) => [...l, JSON.stringify(a)]);
+  };
   const camera = q.get("cam") ? { position: num3(q.get("cam"))!, target: num3(q.get("target")) ?? ([0, 0, 0] as [number, number, number]) } : undefined;
   const highlight = q.get("hint")?.split(",");
   const showPanel = q.get("panel") !== "0";
@@ -315,8 +411,8 @@ function BenchApp() {
             <BenchView
               view={v}
               store={store}
-              tray={q.get("tray") === "0" ? [] : FULL_TRAY}
-              snapshot={live ? undefined : snapshot}
+              tray={q.get("tray") === "0" ? [] : LIVE ? SOLDER_TRAY : (q.get("scene") ?? "").startsWith("chip") ? CHIP_TRAY : FULL_TRAY}
+              snapshot={live || LIVE ? undefined : snapshot}
               quality={quality}
               readOnly={q.get("ro") === "1"}
               highlight={highlight}
@@ -350,6 +446,8 @@ function BenchApp() {
           <a href="?scene=props">Props</a>
           <a href="?scene=modules">Modules</a>
           <a href="?scene=lamp&gates=1&sim=1&flow=current">Start here</a>
+          <a href="?scene=chips&sim=1">Chips</a>
+          <a href="?scene=chipparts">Chip parts</a>
           <a href="?scene=empty">Empty</a>
           <a href="?mode=gallery">Gallery</a>
           <a href="?mode=preview">Preview</a>

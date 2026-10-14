@@ -1,6 +1,7 @@
 // Part catalog: leads, breadboard footprints, defaults and the mapping to simulator PartSpecs. Pure data.
 
 import type { NodeId, PartSpec } from "@ohmland/sim";
+import { parseAnchor } from "./anchors";
 import {
   AA,
   BATTERY,
@@ -36,8 +37,10 @@ import {
   electrolyticSize,
   PITCH,
 } from "./dims";
-import type { BenchPartKind, Moisture, PartParamsMap, PlacedPart, PlacedPartOf, SampleMaterial, SymbolKind, Vec3, WaterKind } from "./types";
+import type { BenchPartKind, BenchState, Moisture, PartParamsMap, PlacedPart, PlacedPartOf, SampleMaterial, SymbolKind, Vec3, WaterKind } from "./types";
 import { MCU_LEGS, MCU_SIM_PIN, mcuDeskLegs } from "./mcuBoard";
+import { CHIP_DEFS } from "./chips";
+import { SOLDER_DEFS } from "./solder/parts";
 
 /** A lead position in board pitches at rotation 0, relative to the first lead. */
 export type FootprintLeg = { leg: string; dx: number; dz: number };
@@ -52,13 +55,18 @@ export type SeatDef = {
   name: string;
   /** Kinds that fit. */
   accepts: readonly BenchPartKind[];
+  /** A finer test than `accepts` (a 16-pin chip does not fit an 8-pin socket). */
+  fits?: (held: PlacedPart) => boolean;
   /**
    * Where the held part's origin sits in the holder's frame (mm, y up), its turn relative to the holder, and `lie`: a
-   * 9 V battery laid on its back, terminals toward the back (a sealed box is not deep enough to stand it up).
+   * 9 V battery laid on its back, terminals toward the back (a sealed box is not deep enough to stand it up). The frame
+   * is the holder's body origin, or its footprint centre when it stands in the board (`at.board`, an IC socket).
    */
-  place: (held: PlacedPart) => { at: Vec3; rot?: number; lie?: boolean };
+  place: (held: PlacedPart, at?: { board: boolean }) => { at: Vec3; rot?: number; lie?: boolean };
   /** Metal contacts: a held part's lead -> the holder's lead it touches (leads the held part lacks are ignored). */
-  joins?: Readonly<Record<string, string>>;
+  joins?: Readonly<Record<string, string>> | ((held: PlacedPart) => Readonly<Record<string, string>>);
+  /** Turning a seated part (R) sets these params on the holder instead (a chip turned round in its socket). */
+  turn?: () => Record<string, unknown>;
 };
 
 /** A setting the learner can change on a placed part from its selection bar (moisture, a test load switch). */
@@ -67,6 +75,8 @@ export type SettingDef = {
   values: readonly (string | number | boolean)[];
   /** More params to set along with a value (a pencil line drawn longer also gets its first layer). */
   also?: (value: string | number | boolean, params: Record<string, unknown>) => Record<string, unknown>;
+  /** Shown only when this holds (contact bounce shows once a lab gives the part a `bounce` param). */
+  when?: (params: Record<string, unknown>) => boolean;
 };
 
 /** A spot on a part's model: clicking a setting sets it; dragging over a "draw" spot draws (the pencil card). */
@@ -79,14 +89,24 @@ export type Hotspot = {
   on?: boolean;
 };
 
-/** A one-shot action on a placed part (erase the pencil line). */
-export type ActionDef = { id: string; apply: (params: Record<string, unknown>) => Record<string, unknown> };
+/**
+ * A one-shot action on a placed part (erase the pencil line). `run`, when given, changes the whole bench instead (a
+ * stripper stripping the wire end in its jaws).
+ */
+export type ActionDef = {
+  id: string;
+  apply: (params: Record<string, unknown>) => Record<string, unknown>;
+  run?: (bench: BenchState, partId: string) => BenchState;
+};
 
 /** What a part's netlist mapping can look up beyond its own leads. */
 export type NetContext = {
   part: (id: string) => PlacedPart | undefined;
   /** The node another part's lead is on. */
   pin: (partId: string, leg: string) => NodeId;
+  /** The node of any anchor (a perfboard's wire link, another part's lead). */
+  node: (anchor: string) => NodeId;
+  bench: BenchState;
 };
 
 export type PartDef<K extends BenchPartKind = BenchPartKind> = {
@@ -116,8 +136,25 @@ export type PartDef<K extends BenchPartKind = BenchPartKind> = {
   settings?: readonly SettingDef[];
   /** One-shot actions shown on the selection bar. */
   actions?: readonly ActionDef[];
-  /** Clickable or draggable spots on the model (a moisture tab, a load switch, a card's drawing strip), local mm. */
-  hotspots?: (params: PartParamsMap[K]) => Hotspot[];
+  /**
+   * Clickable or draggable spots on the model (a moisture tab, a load switch, a card's drawing strip), local mm in the
+   * part's frame for that mount (first lead's hole on the board, body origin on the desk).
+   */
+  hotspots?: (params: PartParamsMap[K], mount?: "board" | "desk") => Hotspot[];
+  /** Will not seat in the holes (a surface mount chip): dropped over the board it lies askew on top of it. */
+  perch?: (params: PartParamsMap[K]) => boolean;
+  /** Another name for a lead ("trig" for a 555's pin "2"); anchors and the netlist accept it. */
+  alias?: (params: PartParamsMap[K], name: string) => string | null;
+  /**
+   * A flying lead that is the body's own tip (the logic probe's): it sits at the body origin, is not dragged on its
+   * own, and drops into the hole under the part when the part is moved over the board.
+   */
+  nose?: string;
+  /**
+   * On the board, a quarter turn that does not fit tries a half turn: a DIP across the channel cannot stand
+   * sideways, so turning it turns it round (pin 1 to the far end).
+   */
+  turnsRound?: boolean;
   /**
    * Insulated spots a clip can bite that join nothing (a battery's plastic wrapper, a switch's wooden block, a paper
    * clip's coating), local mm like `deskLegs`. Their anchors are `pin:<id>.<spot>`; they are not leads.
@@ -130,6 +167,8 @@ export type PartDef<K extends BenchPartKind = BenchPartKind> = {
   marks?: (params: PartParamsMap[K]) => Record<string, Vec3>;
   /** Simulator parts for this bench part. `node(leg)` gives the node a lead is on. */
   toSpecs: (part: PlacedPartOf<K>, node: (leg: string) => NodeId, ctx: NetContext) => PartSpec[];
+  /** Metal contacts the part makes between anchors (a perfboard's solder joints, a splice), for connectivity. */
+  contacts?: (part: PlacedPartOf<K>, bench: BenchState) => [string, string][];
 };
 
 const WATER_OHMS: Record<WaterKind, number> = { distilled: 600_000, tap: 30_000, salty: 1_200 };
@@ -192,6 +231,12 @@ const TOGGLE_FP: FootprintLeg[] = [
 const RELAY_1POLE = ["coil1", "coil2", "com1", "nc1", "no1"] as const;
 
 const isBase = (pp: unknown): boolean => !!(pp as { base?: boolean }).base;
+
+/** The contact bounce a switch or pushbutton was given, for its simulator part. */
+const bounceOf = (pp: { bounce?: boolean | number }) => (pp.bounce !== undefined ? { bounce: pp.bounce } : {});
+
+/** Contact bounce on the selection bar, once a lab gives the part a `bounce` param (Unit 4). */
+const BOUNCE_SETTING: SettingDef = { key: "bounce", values: [false, true], when: (pp) => pp["bounce"] !== undefined };
 
 /** Screw terminals along the front of a desk block, left to right, for these legs. */
 export function blockTerminals(legs: readonly string[]): Record<string, Vec3> {
@@ -361,7 +406,8 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     footprint: (pp) => (pp.base ? [] : line("a", "com", "b")),
     defaults: { to: "a" },
     deskLegs: (pp) => (pp.base ? blockTerminals(["a", "com", "b"]) : deskFromFootprint(line("a", "com", "b"))),
-    toSpecs: (p, n) => [{ id: p.id, kind: "spdt", pins: { com: n("com"), a: n("a"), b: n("b") }, to: p.params.to }],
+    settings: [BOUNCE_SETTING],
+    toSpecs: (p, n) => [{ id: p.id, kind: "spdt", pins: { com: n("com"), a: n("a"), b: n("b") }, to: p.params.to, ...bounceOf(p.params) }],
   },
   "toggle-switch": {
     kind: "toggle-switch",
@@ -381,7 +427,8 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
         : deskFromFootprint(TOGGLE_FP),
     // The wooden block a desk switch sits on: a clip biting it joins nothing.
     spots: (pp): Record<string, Vec3> => (pp.base ? { base: [-TOGGLE_BASE.w / 2 + 3.6, TOGGLE_BASE.h + 0.4, 1.5] } : {}),
-    toSpecs: (p, n) => [{ id: p.id, kind: "spdt", pins: { com: n("com"), a: n("a"), b: n("b") }, to: p.params.to }],
+    settings: [BOUNCE_SETTING],
+    toSpecs: (p, n) => [{ id: p.id, kind: "spdt", pins: { com: n("com"), a: n("a"), b: n("b") }, to: p.params.to, ...bounceOf(p.params) }],
   },
   pushbutton: {
     kind: "pushbutton",
@@ -396,8 +443,9 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     ],
     defaults: { cap: "black" },
     deskLegs: (pp) => (pp.base ? blockTerminals(["a1", "b1"]) : deskFromFootprint(PUSH_FP)),
+    settings: [BOUNCE_SETTING],
     toSpecs: (p, n) => [
-      { id: p.id, kind: "pushbutton", pins: { a: n("a1"), b: n("b1") }, ...(p.params.normallyClosed ? { normallyClosed: true } : {}) },
+      { id: p.id, kind: "pushbutton", pins: { a: n("a1"), b: n("b1") }, ...(p.params.normallyClosed ? { normallyClosed: true } : {}), ...bounceOf(p.params) },
     ],
   },
   relay: {
@@ -434,8 +482,9 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     legs: ["a1", "com1", "b1", "a2", "com2", "b2"],
     defaults: { to: "a" },
     deskLegs: () => blockTerminals(["a1", "com1", "b1", "a2", "com2", "b2"]),
+    settings: [BOUNCE_SETTING],
     toSpecs: (p, n) => [
-      { id: p.id, kind: "dpdt", pins: { com1: n("com1"), a1: n("a1"), b1: n("b1"), com2: n("com2"), a2: n("a2"), b2: n("b2") }, to: p.params.to },
+      { id: p.id, kind: "dpdt", pins: { com1: n("com1"), a1: n("a1"), b1: n("b1"), com2: n("com2"), a2: n("a2"), b2: n("b2") }, to: p.params.to, ...bounceOf(p.params) },
     ],
   },
   "touch-pads": {
@@ -879,6 +928,10 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
       return [spec];
     },
   },
+  // ---- Chips (Unit 4): see chips.ts ------------------------------------------------------------------------------
+  ...CHIP_DEFS,
+  // ---- Unit 3: soldering, perfboard, wire and power from the wall (src/solder) ---------------------------------
+  ...SOLDER_DEFS,
 };
 
 /**
@@ -1028,11 +1081,44 @@ export function partLegs(part: Pick<PlacedPart, "kind" | "params">): readonly st
   return d.legsFor ? (d.legsFor as (p: unknown) => readonly string[])(part.params) : d.legs;
 }
 
+/**
+ * The lead a name stands for on this part: the name itself when the part has that lead, else what its kind calls it
+ * ("trig" is a 555's lead "2", "co" a 4026B's "5"), else null.
+ */
+export function resolveLeg(part: Pick<PlacedPart, "kind" | "params">, name: string): string | null {
+  const legs = partLegs(part);
+  if (legs.includes(name)) return name;
+  const d = partDef(part.kind) as PartDef;
+  const a = d.alias ? (d.alias as (p: unknown, n: string) => string | null)(part.params, name) : null;
+  return a && legs.includes(a) ? a : null;
+}
+
+/** A pin anchor with its lead's alias resolved ("pin:U1.trig" -> "pin:U1.2"); other anchors unchanged. */
+export function canonicalAnchor(parts: readonly PlacedPart[], anchor: string): string {
+  const a = parseAnchor(anchor);
+  if (a?.type !== "pin") return anchor;
+  const part = parts.find((p) => p.id === a.part);
+  const leg = part ? resolveLeg(part, a.leg) : null;
+  return leg && leg !== a.leg ? `pin:${a.part}.${leg}` : anchor;
+}
+
+/** True for a part whose legs will not seat in the holes (a surface mount chip): over the board it lies on top. */
+export function perches(part: Pick<PlacedPart, "kind" | "params">): boolean {
+  const d = partDef(part.kind) as PartDef;
+  return !!d.perch && (d.perch as (p: unknown) => boolean)(part.params);
+}
+
 /** Insulated spots a clip can bite on this part (local mm), keyed by name. */
 export function partSpots(part: Pick<PlacedPart, "kind" | "params">): Record<string, Vec3> {
   const d = partDef(part.kind) as PartDef;
   return d.spots ? (d.spots as (p: unknown) => Record<string, Vec3>)(part.params) : {};
 }
+
+/**
+ * Props that carry print the learner reads (a colour chart, a value tag, a card's ruler, a drawing, a bin's label, a
+ * clock face): a beat about one of them frames it close, and the 3D view keeps it upright on a tall screen.
+ */
+export const PRINTED_KINDS: ReadonlySet<string> = new Set(["chart", "tag", "card", "schematic", "bin", "clock"]);
 
 /** Named points on this part for `part:<id>/<name>` targets (local mm). */
 export function partMarks(part: Pick<PlacedPart, "kind" | "params">): Record<string, Vec3> {

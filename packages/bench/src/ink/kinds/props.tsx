@@ -510,7 +510,7 @@ function Chart({ pi }: DrawProps<"chart">) {
           [col.mult, labels.print.multiplier],
           [col.tol, labels.print.tolerance],
         ].map(([x, t]) => (
-          <text key={String(x)} x={x as number} y={top - 1.6} fontSize={2.2} fontWeight={600} textAnchor="middle" className="print">
+          <text key={String(x)} x={x as number} y={top - 1.6} fontSize={2.5} fontWeight={600} textAnchor="middle" className="print">
             {t}
           </text>
         ))}
@@ -519,16 +519,16 @@ function Chart({ pi }: DrawProps<"chart">) {
           return (
             <g key={r.color}>
               {i % 2 === 0 && <rect x={-W / 2 + 3} y={z} width={W - 6} height={rowH} className="f-sunk" opacity={0.6} />}
-              <text x={col.name} y={z + rowH / 2} fontSize={2.4} dominantBaseline="central" className="f-ink">
+              <text x={col.name} y={z + rowH / 2} fontSize={3.1} dominantBaseline="central" className="f-ink">
                 {labels.print.bands[r.color] ?? r.color}
               </text>
-              <text x={col.digit} y={z + rowH / 2} fontSize={2.5} fontWeight={700} textAnchor="middle" dominantBaseline="central" className="f-ink">
+              <text x={col.digit} y={z + rowH / 2} fontSize={3.2} fontWeight={700} textAnchor="middle" dominantBaseline="central" className="f-ink">
                 {r.digit}
               </text>
-              <text x={col.mult} y={z + rowH / 2} fontSize={2.4} textAnchor="middle" dominantBaseline="central" className="f-ink">
+              <text x={col.mult} y={z + rowH / 2} fontSize={3.1} textAnchor="middle" dominantBaseline="central" className="f-ink">
                 {r.mult}
               </text>
-              <text x={col.tol} y={z + rowH / 2} fontSize={2.4} textAnchor="middle" dominantBaseline="central" className="f-ink">
+              <text x={col.tol} y={z + rowH / 2} fontSize={3.1} textAnchor="middle" dominantBaseline="central" className="f-ink">
                 {r.tol ?? ""}
               </text>
             </g>

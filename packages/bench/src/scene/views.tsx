@@ -21,6 +21,9 @@ import { Proxy, localBox } from "./pick";
 import { prefersReducedMotion, useAnimating } from "../three/anim";
 import { useFrame } from "@react-three/fiber";
 import { usePaperPalette } from "./palette";
+import { BarrelPlug, PerfboardModel } from "../models/Solder";
+import { extraLookKey, useProbeState } from "../probe";
+import { SUPPLY } from "../chips";
 
 /** Red pencil: the teacher's hints. */
 export const ACCENT = "#B23A1C";
@@ -63,6 +66,9 @@ export function makeFloor(bench: BenchState): FloorFn {
 
 // ---------------------------------------------------------------------------------------------------------------
 // Selection frame: corner brackets on the surface around a box (always visible, both quality tiers).
+
+/** Where a probe's grip begins, above its tip and finger guard (mm along the probe). */
+const PROBE_GRIP = 20;
 
 function SelectionFrame({ box, color, pulse: wantPulse = false }: { box: THREE.Box3; color: string; pulse?: boolean }) {
   const reduced = useMemo(() => prefersReducedMotion(), []);
@@ -121,6 +127,7 @@ const ACTUATOR: Partial<Record<PlacedPart["kind"], "press" | "flip" | "rotor">> 
   "toggle-switch": "flip",
   "dpdt-switch": "flip",
   trimmer: "rotor",
+  "bench-supply": "rotor",
 };
 
 /**
@@ -131,7 +138,10 @@ const LivePartModel = memo(function LivePartModel(props: Omit<PartModelProps, "s
   const store = useBenchStore();
   // Re-render only when something visible changed, not on every snapshot.
   const key = useBench((s) => visualKey(s.snapshot?.parts[props.id]));
-  const state = useMemo(() => (store.getState().snapshot?.parts[props.id] as PartState | undefined) ?? null, [store, props.id, key]);
+  const own = useMemo(() => (store.getState().snapshot?.parts[props.id] as PartState | undefined) ?? null, [store, props.id, key]);
+  // The logic probe has no simulator part: its lamps read the nodes under its tip and leads.
+  const probe = useProbeState(store, props.id, props.kind === "logic-probe");
+  const state = probe ?? own;
   // The desk clock shows simulated time.
   const minutes = useBench((s) => (props.kind === "clock" ? Math.floor((s.snapshot?.t ?? 0) / 60) : 0));
   return <PartModel {...props} state={state} minutes={minutes} />;
@@ -143,7 +153,7 @@ export function visualKey(p: PartState | undefined): string {
   const arm = typeof p.extra?.["armature"] === "number" ? Math.round((p.extra["armature"] as number) * 20) : "";
   // A microcontroller board's own lamps (L and ON) live in its extra.
   const lamps = typeof p.extra?.["ON"] === "number" ? `${Math.round((p.extra["L"] as number) * 50)}:${Math.round((p.extra["ON"] as number) * 50)}` : "";
-  return `${p.health}|${Math.round((p.glow ?? 0) * 50)}|${p.closed ? 1 : 0}|${p.display ?? ""}|${p.unit ?? ""}|${arm}|${lamps}`;
+  return `${p.health}|${Math.round((p.glow ?? 0) * 50)}|${p.closed ? 1 : 0}|${p.display ?? ""}|${p.unit ?? ""}|${arm}|${lamps}|${extraLookKey(p)}`;
 }
 
 /** The visual keys of every part in a snapshot, joined: unchanged means the bench looks the same. */
@@ -157,9 +167,9 @@ export function snapshotKey(s: { parts: Record<string, PartState> } | null): str
 function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality, floor }: PartViewProps) {
   const pose = useMemo(() => partPose({ v: 1, board, parts: holder ? [holder, part] : [part], wires: [], leads: [], meter: null }, part), [part, holder, board]);
   const hotspots = useMemo(() => {
-    const d = partDef(part.kind) as { hotspots?: (p: unknown) => Hotspot[] };
-    return d.hotspots ? d.hotspots(part.params) : [];
-  }, [part.kind, part.params]);
+    const d = partDef(part.kind) as { hotspots?: (p: unknown, m: "board" | "desk") => Hotspot[] };
+    return d.hotspots ? d.hotspots(part.params, pose.mount) : [];
+  }, [part.kind, part.params, pose.mount]);
   const model = useRef<THREE.Group>(null);
   const [box, setBox] = useState<THREE.Box3 | null>(null);
   const def = partDef(part.kind);
@@ -172,14 +182,21 @@ function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality,
   const rotY = (pose.rot * Math.PI) / 180;
   // A part laid on its back in its seat (a 9 V battery in a sealed box) turns a quarter about x, then about y.
   const turn = useMemo(() => new THREE.Euler(pose.lie ? -Math.PI / 2 : 0, rotY, 0, "YXZ"), [pose.lie, rotY]);
-  const flying = useMemo(() => flyingLeads(part.kind, part.params as Record<string, unknown>), [part.kind, paramsKey]);
+  const probing = !!pose.ends?.["tip"]?.inHole;
+  const flying = useMemo(() => flyingLeads(part.kind, part.params as Record<string, unknown>, probing), [part.kind, paramsKey, probing]);
   const actuator = ACTUATOR[part.kind];
   const pal = usePaperPalette();
   const body = (
     <group ref={model}>
-      <LivePartModel id={part.id} kind={part.kind} params={part.params} mount={pose.mount} span={pose.span} quality={quality} pressed={pressed} held={!!pose.heldBy} />
+      {part.kind === "perfboard" ? (
+        <PerfboardModel part={part} />
+      ) : (
+        <LivePartModel id={part.id} kind={part.kind} params={part.params} mount={pose.mount} span={pose.span} quality={quality} pressed={pressed} held={!!pose.heldBy} perched={pose.origin[1] > 0 && pose.mount === "desk" && !pose.heldBy} probing={probing} />
+      )}
     </group>
   );
+  // Under a perfboard turned copper side up: the board draws the legs that come through.
+  if (pose.under) return null;
   return (
     <group name={`part:${part.id}`}>
       <group position={pose.origin} rotation={turn}>
@@ -197,7 +214,10 @@ function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality,
               />
             )}
             {actuator &&
-              (((part.params as { base?: boolean }).base || part.kind === "dpdt-switch") && pose.mount === "desk" ? (
+              (part.kind === "bench-supply" ? (
+                // The supply's knob, in the middle of its top.
+                <Proxy pick={{ type: "rotor", id: part.id }} size={[20, 10, 20]} position={[0, SUPPLY.h + 4, 0]} />
+              ) : ((part.params as { base?: boolean }).base || part.kind === "dpdt-switch") && pose.mount === "desk" ? (
                 // The lever, slider, button or knob on its wooden block: a generous target, since it is the one thing to press.
                 <Proxy pick={{ type: actuator, id: part.id }} size={part.kind === "pushbutton" ? [16, 10, 16] : [24, 20, 16]} position={[0, part.kind === "toggle-switch" ? box.max.y - 8 : TOGGLE_BASE.h + 5, TOGGLE_BASE.switchZ]} />
               ) : (
@@ -232,24 +252,30 @@ function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality,
           const [dx, dz] = rotateXZ(f.dir[0], f.dir[2], pose.rot);
           const fromDir = new THREE.Vector3(dx, f.dir[1], dz).normalize();
           const tip = v3(end.pos);
+          // Bare copper at the end: a snap lead's tinned end, a hookup wire's stripped length (if any).
+          const bare = part.kind === "hookup-wire" ? ((part.params as { ends?: Record<string, { mm?: number }> }).ends?.[leg]?.mm ?? 0) : part.kind === "wall-adapter" ? 6 : 5;
           let to: THREE.Vector3;
           let toDir: THREE.Vector3;
           let stripDir: THREE.Vector3;
           if (end.inHole) {
-            to = tip.clone().setY(BOARD_TOP + 1.6);
+            to = tip.clone().setY(tip.y + 1.6);
             toDir = new THREE.Vector3(0, 1, 0);
             stripDir = new THREE.Vector3(0, -1, 0);
           } else {
             const back = new THREE.Vector3(from.x - tip.x, 0, from.z - tip.z).normalize();
-            to = tip.clone().addScaledVector(back, 5).setY(0.75);
+            to = tip.clone().addScaledVector(back, bare).setY(0.75);
             toDir = back;
             stripDir = back.clone().negate();
           }
           return (
             <group key={leg}>
               <Cable from={from} fromDir={fromDir} to={to} toDir={toDir} length={Math.min(f.length, from.distanceTo(to) * 1.08 + 30)} radius={f.radius} color={f.color} floor={floor} bend={0.42} stiff={1} />
-              <StrippedEnd at={end.inHole ? tip : to.clone().setY(0.6)} dir={stripDir} inHole={end.inHole} />
-              <Proxy pick={{ type: "leg", id: part.id, leg, flying: true }} size={[4, 4, 4]} position={end.inHole ? [tip.x, BOARD_TOP + 2, tip.z] : [tip.x, 1.5, tip.z]} />
+              {part.kind === "wall-adapter" ? (
+                <BarrelPlug at={end.inHole ? tip : to.clone().setY(2.6)} dir={stripDir} />
+              ) : (
+                bare > 0 && <StrippedEnd at={end.inHole ? tip : to.clone().setY(0.6)} dir={stripDir} inHole={end.inHole} top={end.inHole ? tip.y : undefined} len={bare} />
+              )}
+              <Proxy pick={{ type: "leg", id: part.id, leg, flying: true }} size={[4, 4, 4]} position={end.inHole ? [tip.x, tip.y + 2, tip.z] : [tip.x, 1.5, tip.z]} />
             </group>
           );
         })}
@@ -593,7 +619,9 @@ export function MeterView({
             </group>
             <group position={tip} quaternion={quatFromY(axis)}>
               <Probe color={color} />
-              <Proxy pick={{ type: "probe", color }} size={[12, PROBE_LEN - 10, 12]} position={[0, PROBE_LEN / 2 + 4, 0]} />
+              {/* The tip end (to the finger guard) and the grip: a stroke on a pencil card under a resting tip draws. */}
+              <Proxy pick={{ type: "probe", color, tip: true }} size={[12, PROBE_GRIP - 9, 12]} position={[0, (PROBE_GRIP + 9) / 2, 0]} />
+              <Proxy pick={{ type: "probe", color }} size={[12, PROBE_LEN - 1 - PROBE_GRIP, 12]} position={[0, (PROBE_LEN - 1 + PROBE_GRIP) / 2, 0]} />
             </group>
             <Cable from={back} fromDir={axis} to={plugTop} toDir={plugDir} length={back.distanceTo(plugTop) * 1.12 + 70} radius={PROBE_CABLE_R} color={color} floor={floor} bend={0.42} stiff={1} />
           </group>

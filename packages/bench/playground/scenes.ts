@@ -1,6 +1,6 @@
 // Ready-made benches for the playground and the screenshot script.
 
-import { defaultMeter, emptyBench, type BenchState, type TrayItem } from "../src/core";
+import { defaultMeter, emptyBench, holeWorld, type BenchState, type TrayItem } from "../src/core";
 
 /** A red LED with a 470 ohm resistor on the board, fed by a 9 V battery, with the meter across the LED. */
 export function demoBench(): BenchState {
@@ -218,6 +218,132 @@ export function modulesBench(): BenchState {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// Unit 4: chips.
+
+type Part = BenchState["parts"][number];
+const part = (id: string, kind: Part["kind"], params: Record<string, unknown>, holes?: Record<string, string>, pos: [number, number] = [0, 0], rot = 0): Part =>
+  ({ id, kind, params, pos, rot, ...(holes ? { holes } : {}) }) as Part;
+
+/** Holes for a DIP with pin 1 in row e at `col` (rot 0): pins 1 to n/2 along row e, the rest back along row f. */
+export function dipHoles(n: number, col: number): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (let k = 1; k <= n; k++) out[String(k)] = k <= n / 2 ? `e${col + k - 1}` : `f${col + n - k}`;
+  return out;
+}
+
+/** The same holes with the chip turned round: pin 1 in row f at the right-hand end. */
+export function dipHolesTurned(n: number, col: number): Record<string, string> {
+  const out: Record<string, string> = {};
+  const last = col + n / 2 - 1;
+  for (let k = 1; k <= n; k++) out[String(k)] = k <= n / 2 ? `f${last - (k - 1)}` : `e${col + k - n / 2 - 1}`;
+  return out;
+}
+
+/**
+ * Unit 4's counting demo on a full board (`?scene=chips`): a 555 blinker (10 kOhm, 68 kOhm, 10 uF, about 1 Hz) lights
+ * an LED and clocks a 4026B, whose outputs drive a 7-segment display on its carrier board (3.3 kOhm a bar).
+ */
+export function chipsBench(): BenchState {
+  const b = emptyBench({ kind: "bb830" });
+  const seg = { e: "c50", d: "c51", com: "c52", c: "c53", dp: "c54", g: "g50", f: "g51", com2: "g52", a: "g53", b: "g54" };
+  b.parts = [
+    part("B1", "battery", { snap: true, emf: 9.4 }, { pos: "bp3", neg: "bn3" }, [-150, 30]),
+    part("U1", "chip", { model: "555" }, dipHoles(8, 20)),
+    part("R1", "resistor", { ohms: 10_000 }, { a: "tp21", b: "h21" }),
+    part("R2", "resistor", { ohms: 68_000 }, { a: "g21", b: "g26" }),
+    part("C1", "electrolytic-cap", { farads: 10e-6, volts: 16 }, { pos: "b21", neg: "bn21" }),
+    part("R3", "resistor", { ohms: 470 }, { a: "c22", b: "c26" }),
+    part("D1", "led", { color: "red" }, { anode: "d26", cathode: "d27" }),
+    part("U2", "chip", { model: "4026B" }, dipHoles(16, 35)),
+    part("DS1", "sevenseg", { common: "cathode", carrier: true, segmentOhms: 3300 }, seg),
+  ];
+  const w = (id: string, a: string, to: string, color: BenchState["wires"][number]["color"]) => ({ id, a, b: to, color });
+  b.wires = [
+    // Rails: the far pair joins the near pair.
+    w("W1", "tp58", "bp58", "red"),
+    w("W2", "tn60", "bn60", "black"),
+    // The 555: ground, supply, reset held high, trigger round the chip's end to threshold, threshold over to R2.
+    w("W3", "a20", "bn19", "black"),
+    w("W4", "j20", "tp19", "red"),
+    w("W5", "a23", "bp23", "red"),
+    w("W6", "d21", "d17", "yellow"),
+    w("W23", "c17", "h17", "yellow"),
+    w("W24", "i17", "i22", "yellow"),
+    w("W7", "h22", "h26", "yellow"),
+    w("W8", "a27", "bn27", "black"),
+    // The blinker clocks the counter.
+    w("W9", "b22", "b35", "orange"),
+    // The 4026B: supply, clock enabled (inhibit low), display enabled, reset held low.
+    w("W10", "j35", "tp35", "red"),
+    w("W11", "a42", "bn42", "black"),
+    w("W12", "a36", "bn36", "black"),
+    w("W13", "a37", "bp37", "red"),
+    w("W14", "j36", "tn36", "black"),
+    // Segments a to g to the display; its common cathode to minus.
+    w("W15", "d40", "h51", "green"),
+    w("W16", "c41", "i50", "green"),
+    w("W17", "g40", "b50", "blue"),
+    w("W18", "h41", "j53", "blue"),
+    w("W19", "i42", "a51", "blue"),
+    w("W20", "j39", "f54", "blue"),
+    w("W21", "g38", "d53", "blue"),
+    w("W22", "a52", "bn52", "black"),
+  ];
+  return b;
+}
+
+/** The Unit 4 tray (the chips scenes use it). */
+export const CHIP_TRAY: TrayItem[] = [
+  { kind: "chip", params: { model: "555" } },
+  { kind: "chip", params: { model: "555-cmos" } },
+  { kind: "chip", params: { model: "74HC00" } },
+  { kind: "chip", params: { model: "4026B" } },
+  { kind: "chip", params: { model: "74HC86", hidden: true, label: "?1" } },
+  { kind: "chip", params: { model: "74HC08", package: "soic" } },
+  { kind: "ic-socket", params: { pins: 8 } },
+  { kind: "sevenseg", params: { common: "cathode" } },
+  { kind: "sevenseg", params: { common: "cathode", carrier: true } },
+  { kind: "regulator7805", params: { heatsink: false } },
+  { kind: "dip-switch", params: { positions: 8 } },
+  { kind: "pushbutton", params: { bounce: false } },
+  { kind: "diode", params: { model: "1N4148" } },
+  { kind: "logic-probe" },
+  { kind: "battery-pack", params: { cells: 3 } },
+  { kind: "bench-supply", params: { position: 0.5 } },
+  { kind: "resistor", params: { ohms: 10_000 } },
+  { kind: "led", params: { color: "red" } },
+];
+
+/** Every Unit 4 part on one bench (`?scene=chipparts`): on the board and on the desk. */
+export function chipPartsBench(): BenchState {
+  const b = emptyBench({ kind: "bb830" });
+  const probeAt = holeWorld(b.board!, "a5")!;
+  b.parts = [
+    part("U1", "chip", { model: "555" }, dipHoles(8, 3)),
+    part("DS1", "sevenseg", { common: "cathode" }, { e: "c9", d: "c10", com: "c11", c: "c12", dp: "c13", g: "g9", f: "g10", com2: "g11", a: "g12", b: "g13" }),
+    part("D2", "diode", { model: "1N4148" }, { anode: "a16", cathode: "a20" }),
+    // Turned round: pin 1 at the far right of the same holes.
+    part("U2", "chip", { model: "74HC00" }, dipHolesTurned(14, 16), [0, 0], 180),
+    part("U5", "chip", { model: "74HC08", package: "soic" }, undefined, [-22, -11], 0),
+    part("U3", "chip", { model: "4026B" }, dipHoles(16, 25)),
+    part("U4", "chip", { model: "74HC86", hidden: true, label: "?1" }, dipHoles(14, 35)),
+    part("XU1", "ic-socket", { pins: 8, held: { chip: "U6" } }, dipHoles(8, 44)),
+    part("U6", "chip", { model: "555-cmos" }),
+    part("DIP1", "dip-switch", { positions: 8, s1: true, s2: true, s3: true, s7: true, tags: ["a", "b", "c", "d", "e", "f", "g", "dp"] }, dipHoles(16, 50)),
+    part("VR1", "regulator7805", { heatsink: true }, { in: "j59", gnd: "j60", out: "j61" }),
+    part("LP1", "logic-probe", {}, { tip: "a5", vcc: "bp9", gnd: "bn9" }, probeAt),
+    part("BT1", "battery-pack", { cells: 3 }, undefined, [-215, 95]),
+    part("BT2", "battery-pack", { cells: 4 }, undefined, [-150, 95]),
+    part("VR2", "regulator7805", {}, undefined, [-35, 62]),
+    part("DS2", "sevenseg", { common: "anode", carrier: true, color: "green" }, undefined, [-5, 64]),
+    part("DIP2", "dip-switch", { positions: 4, s2: true }, undefined, [25, 58]),
+    part("U7", "chip", { model: "74HC393" }, undefined, [52, 58]),
+    part("XU2", "ic-socket", { pins: 14 }, undefined, [84, 58]),
+    part("PS1", "bench-supply", { position: 0.75 }, undefined, [150, 85]),
+  ];
+  return b;
+}
+
 // Start here (docs/curriculum/start-here.md). Run them with `sim=1` for live flow dots, gates and push.
 
 type P = BenchState["parts"][number];
@@ -359,3 +485,120 @@ export function staticBench(): BenchState {
   ];
   return b;
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Unit 3: making it permanent.
+
+const GOOD = { kind: "pad", alloy: "lead-free", volume: 1.6, wetted: 0.95, peakC: 270, moved: false, fedAt: "work", bridgeTo: null, lifted: false, coldTouch: false, flux: 0.3, verdict: "good" } as const;
+
+/**
+ * The solder station beside a perfboard lamp (MP10, MP11): the board copper side up with its legs bent along the
+ * plan's lines and a few joints already made (`?scene=solder`; `&top=1` shows the top with the plan's ghosts,
+ * `&joints=all` a finished board, `&joints=none` a bare one).
+ */
+export function solderBench(opts: { top?: boolean; joints?: "some" | "all" | "none"; lead?: "leaded" | "lead-free" } = {}): BenchState {
+  const b = emptyBench(null);
+  const joints: Record<string, unknown> =
+    opts.joints === "none"
+      ? {}
+      : opts.joints === "all"
+        ? { A1: GOOD, A3: GOOD, C7: GOOD, F8: GOOD }
+        : {
+            A1: GOOD,
+            A3: { ...GOOD, volume: 3.1, verdict: "too-much" },
+            F8: { ...GOOD, volume: 0.5, verdict: "too-little" },
+            D3: { ...GOOD, wetted: 0.3, peakC: 190, verdict: "cold" },
+            D5: { ...GOOD, moved: true, verdict: "disturbed" },
+            E3: { ...GOOD, volume: 4.2, bridgeTo: "E4", verdict: "bridge" },
+          };
+  b.parts = [
+    { id: "ST1", kind: "solder-station", params: { on: true, setC: opts.lead === "leaded" ? 330 : 370, iron: "stand", spool: "SD1" }, pos: [-175, -25], rot: 0 },
+    { id: "SD1", kind: "solder-spool", params: { alloy: opts.lead ?? "lead-free" }, pos: [-185, 62], rot: 0 },
+    { id: "SD2", kind: "solder-spool", params: { alloy: opts.lead === "leaded" ? "lead-free" : "leaded" }, pos: [-128, 70], rot: 0 },
+    { id: "BR1", kind: "solder-braid", params: {}, pos: [-80, 78], rot: 0 },
+    {
+      id: "PB1",
+      kind: "perfboard",
+      params: { cols: 10, rows: 6, flipped: !opts.top, plan: "PC1", joints, bends: opts.top ? {} : { "R1.b": "C7", "D1.cathode": "F8" }, links: opts.top ? [] : [{ id: "L1", a: "A1", b: "A3" }] },
+      pos: [-20, -10],
+      rot: 0,
+    },
+    { id: "BS1", kind: "battery", params: { snap: true, emf: 9.4, internalOhms: 1.7 }, pos: [-40, 70], rot: 0, holes: { pos: "PB1:A1", neg: "PB1:F8" } },
+    { id: "R1", kind: "resistor", params: { ohms: 1000 }, pos: [0, 0], rot: 0, holes: { a: "PB1:A3", b: "PB1:A7" } },
+    { id: "D1", kind: "led", params: { color: "red", size: 3 }, pos: [0, 0], rot: 0, holes: { anode: "PB1:C7", cathode: "PB1:C8" } },
+    {
+      id: "PC1",
+      kind: "plan-card",
+      params: {
+        title: "Lamp",
+        cols: 10,
+        rows: 6,
+        ghosts: [
+          { id: "R1", kind: "resistor", legs: { a: "A3", b: "A7" } },
+          { id: "D1", kind: "led", legs: { anode: "C7", cathode: "C8" } },
+          { id: "BS1", kind: "battery", legs: { pos: "A1", neg: "F8" } },
+        ],
+        lines: [
+          ["A1", "A3"],
+          ["A7", "C7"],
+          ["C8", "F8"],
+        ],
+      },
+      pos: [82, 28],
+      rot: 0,
+    },
+  ] as BenchState["parts"];
+  return b;
+}
+
+/** Heat running up a lead into an LED (MP5): a 3 mm LED on the desk, a copper clip on its leg, the iron at the mark. */
+export function heatsinkBench(clip = true): BenchState {
+  const b = emptyBench(null);
+  b.parts = [
+    { id: "ST1", kind: "solder-station", params: { on: true, setC: 330, iron: "D1.anode" }, pos: [-150, -30], rot: 0 },
+    { id: "B1", kind: "battery", params: { emf: 9.4, internalOhms: 1.7 }, pos: [-60, 60], rot: 0 },
+    { id: "R1", kind: "resistor", params: { ohms: 470 }, pos: [0, 70], rot: 0 },
+    { id: "D1", kind: "led", params: { color: "red", size: 3 }, pos: [10, 10], rot: 0 },
+    ...(clip ? [{ id: "HS1", kind: "heat-sink-clip", params: { metal: "copper", on: "D1.anode", mm: 6 }, pos: [0, 0], rot: 0 }] : []),
+    { id: "HS2", kind: "heat-sink-clip", params: { metal: "steel" }, pos: [80, 50], rot: 0 },
+  ] as BenchState["parts"];
+  b.leads = [
+    { id: "TL1", color: "red", a: { to: "pin:B1.pos", pos: [0, 0] }, b: { to: "pin:R1.a", pos: [0, 0] } },
+    { id: "TL2", color: "yellow", a: { to: "pin:R1.b", pos: [0, 0] }, b: { to: "pin:D1.anode", pos: [0, 0] } },
+    { id: "TL3", color: "black", a: { to: "pin:D1.cathode", pos: [0, 0] }, b: { to: "pin:B1.neg", pos: [0, 0] } },
+  ];
+  return b;
+}
+
+/** Wire and power from the wall (MP6 to MP8): hookup wire, the stripper, heat-shrink, a heat gun, a jack and adapters. */
+export function wiresBench(): BenchState {
+  const b = emptyBench({ kind: "bb400", pos: [60, 40] });
+  const clean = { mm: 10, notch: 22, scale: "solid", clean: true, nicked: false, slipped: false, cutStrands: 0, twisted: false };
+  b.parts = [
+    { id: "HW1", kind: "hookup-wire", params: { color: "red", awg: 22, len: 90, ends: { b: clean } }, pos: [-130, -80], rot: 0, ends: { a: [-185, -85], b: [-104, -80] } },
+    { id: "HW2", kind: "hookup-wire", params: { color: "red", awg: 22, len: 90, ends: { a: clean } }, pos: [-60, -80], rot: 0, ends: { a: [-101, -79], b: [-20, -85] } },
+    { id: "HW3", kind: "hookup-wire", params: { color: "black", awg: 22, len: 80, ends: { a: { ...clean, notch: 26, clean: false, nicked: true } } }, pos: [-140, -40], rot: 0, ends: { a: [-180, -40], b: [-100, -38] } },
+    { id: "WS1", kind: "wire-stripper", params: { notch: 22, scale: "solid", stopMm: 10 }, pos: [-150, 20], rot: 0 },
+    { id: "T1", kind: "heat-shrink", params: { size: 3.2, on: "HW1", at: 30, shrink: 0 }, pos: [-150, -82], rot: 0 },
+    { id: "T2", kind: "heat-shrink", params: { size: 3.2, shrink: 1 }, pos: [-60, -45], rot: 0 },
+    { id: "T3", kind: "heat-shrink", params: { size: 6.4, shrink: 0 }, pos: [-60, -30], rot: 0 },
+    { id: "HG1", kind: "heat-gun", params: { on: true }, pos: [-140, 95], rot: 0 },
+    { id: "J1", kind: "barrel-jack", params: {}, pos: [0, 0], rot: 0, holes: { tip: "bp4", sleeve: "bn4" } },
+    { id: "AD1", kind: "wall-adapter", params: { volts: 9, amps: 1, type: "regulated", centre: "plus", into: "J1" }, pos: [10, 160], rot: 0 },
+    { id: "AD2", kind: "wall-adapter", params: { volts: 9, amps: 0.5, type: "regulated", centre: "minus", into: null }, pos: [110, 160], rot: 0, ends: { plug: [150, 125] } },
+    { id: "R1", kind: "resistor", params: { ohms: 1000 }, pos: [0, 0], rot: 0, holes: { a: "bp10", b: "c10" } },
+    { id: "D1", kind: "led", params: { color: "red" }, pos: [0, 0], rot: 0, holes: { anode: "d10", cathode: "d11" } },
+  ] as BenchState["parts"];
+  b.wires = [{ id: "W1", a: "a11", b: "bn11", color: "black" }];
+  return b;
+}
+
+export const SOLDER_TRAY: TrayItem[] = [
+  { kind: "resistor", params: { ohms: 1000 } },
+  { kind: "led", params: { color: "red", size: 3 } },
+  { kind: "npn" },
+  { kind: "electrolytic-cap", params: { farads: 10e-6 } },
+  { kind: "heat-sink-clip", params: { metal: "copper" } },
+  { kind: "hookup-wire", params: { color: "black", awg: 22, len: 80 } },
+  { kind: "heat-shrink", params: { size: 3.2 } },
+];
