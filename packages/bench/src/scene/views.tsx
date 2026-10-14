@@ -205,6 +205,7 @@ function PartViewImpl({ part, holder, board, selected, hinted, pressed, quality,
         {hotspots.map((h, i) => (
           <Proxy key={i} pick={{ ...h.pick, id: part.id }} size={h.size} position={h.at} />
         ))}
+        {part.kind === "box" && part.params.knob && <Proxy pick={{ type: "rotor", id: part.id }} size={[18, 10, 18]} position={[0, BOX.h + 4, BOX.d / 2 - BOX.strip / 2]} />}
         {def.span && pose.mount === "board" && pose.span !== undefined && (
           <>
             <Proxy pick={{ type: "leg", id: part.id, leg: def.span.legs[0], flying: false }} size={[2.8, 5, 2.8]} position={[0, 1.6, 0]} />

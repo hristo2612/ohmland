@@ -262,13 +262,19 @@ export function anchorVolts(bench: BenchState, snapshot: Snapshot | null, anchor
 /** What the push view shows: each lead's volts at its two clips, and each battery's or sealed box's own push. */
 export type PushMap = {
   leads: Record<string, [number, number]>;
+  /** Each jumper's volts (the same at both ends: a jumper joins two strips into one node). */
+  wires: Record<string, number>;
   /** Volts between a source's (or a box's) two terminals, by part id. */
   hills: Record<string, number>;
 };
 
 export function pushMap(bench: BenchState, snapshot: Snapshot | null): PushMap {
-  const out: PushMap = { leads: {}, hills: {} };
+  const out: PushMap = { leads: {}, wires: {}, hills: {} };
   if (!snapshot) return out;
+  for (const w of bench.wires) {
+    const v = anchorVolts(bench, snapshot, `wire:${w.id}.a`);
+    if (v !== null) out.wires[w.id] = v;
+  }
   for (const l of bench.leads) {
     const a = l.a.to ? anchorVolts(bench, snapshot, `lead:${l.id}.a`) : null;
     const b = l.b.to ? anchorVolts(bench, snapshot, `lead:${l.id}.b`) : null;

@@ -150,7 +150,7 @@ const Push = memo(function Push({ model, store, defs }: { model: InkModel; store
   // Redraw when a voltage moves by a tenth of a volt, not on every snapshot.
   const key = useStore(store, (s) => {
     const p = pushMap(model.bench, s.snapshot);
-    return JSON.stringify([Object.entries(p.leads).map(([k, v]) => [k, Math.round(((v[0] + v[1]) / 2) * 10)]), Object.entries(p.hills).map(([k, v]) => [k, Math.round(v * 10)])]);
+    return JSON.stringify([Object.entries(p.leads).map(([k, v]) => [k, Math.round(((v[0] + v[1]) / 2) * 10)]), Object.entries(p.wires).map(([k, v]) => [k, Math.round(v * 10)]), Object.entries(p.hills).map(([k, v]) => [k, Math.round(v * 10)])]);
   });
   const p = useMemo(() => pushMap(model.bench, store.getState().snapshot), [model, store, key]);
   const conds = useMemo(() => conductors(model), [model]);
@@ -161,6 +161,12 @@ const Push = memo(function Push({ model, store, defs }: { model: InkModel; store
         const sp = hatchSpacing((va + vb) / 2);
         if (!c || !Number.isFinite(sp)) return null;
         return <path key={id} d={c.cable} className="push-hatch" strokeWidth={6.2} strokeDasharray={`0.5 ${n3(sp - 0.5)}`} />;
+      })}
+      {Object.entries(p.wires).map(([id, v]) => {
+        const c = conds.get(`wire:${id}`);
+        const sp = hatchSpacing(v) / 2;
+        if (!c || !Number.isFinite(sp)) return null;
+        return <path key={id} d={c.cable} className="push-hatch" strokeWidth={3.4} strokeDasharray={`0.32 ${n3(sp - 0.32)}`} />;
       })}
       {Object.entries(p.hills).map(([id, volts]) => {
         const pi = model.parts.get(id);

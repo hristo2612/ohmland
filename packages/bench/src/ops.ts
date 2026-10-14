@@ -363,6 +363,8 @@ export function swapTarget(bench: BenchState, id: string, reach = 9): PlacedPart
 /** Rotate a part a quarter turn about its centre. On the board, keeps it seated or leaves it unchanged. */
 export function rotatePart(bench: BenchState, id: string, step = 90): BenchState {
   const part = bench.parts.find((p) => p.id === id);
+  // A torn piece of a drawing turns its symbol, the same as tapping it, in or out of the card's gap.
+  if (part?.kind === "piece") return setPartParams(bench, id, { turn: ((((part.params.turn ?? 0) + step) % 360) + 360) % 360 } as never);
   if (!part || holderOf(bench, id)) return bench;
   if (seatsOf(part).length) return syncHeld(replacePart(bench, { ...part, rot: (((part.rot + step) % 360) + 360) % 360 } as PlacedPart), id);
   const center = partCenter(bench, part);

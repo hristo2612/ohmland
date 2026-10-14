@@ -10,7 +10,9 @@ import { useFrame } from "@react-three/fiber";
 import { useStore } from "zustand";
 import type { Snapshot } from "@ohmland/sim";
 import { DOT_MIN_AMPS, DOT_SPACING, ELECTRON_SLOWDOWN, boxNets, dotSpeed, flowMap, hatchSpacing, hillShare, pushMap, traceLoop } from "../flow";
-import { BOX } from "../dims";
+import { BOARD_TOP, BOX } from "../dims";
+import { holeWorld } from "../board";
+import { jumperPath } from "../models/Leads";
 import { partPose } from "../layout";
 import type { BenchStore } from "../store";
 import type { BenchState, Vec3 } from "../types";
@@ -44,9 +46,19 @@ function pointAt(l: Line, d: number, out: THREE.Vector3): THREE.Vector3 {
   return out.copy(l.pts[i - 1]!).lerp(l.pts[i]!, k);
 }
 
-/** Every conductor the dots and hatching ride, as drawn in 3D: clip leads (clip to clip), parts (lead to lead). */
+/** Every conductor the dots and hatching ride, as drawn in 3D: clip leads (clip to clip), jumpers (hole to hole). */
 function rideLines(bench: BenchState, floor: FloorFn): Map<string, { line: Line; cable: Line }> {
   const out = new Map<string, { line: Line; cable: Line }>();
+  if (bench.board) {
+    for (const w of bench.wires) {
+      const a = holeWorld(bench.board, w.a);
+      const b = holeWorld(bench.board, w.b);
+      if (!a || !b) continue;
+      const j = jumperPath(new THREE.Vector3(a[0], BOARD_TOP, a[1]), new THREE.Vector3(b[0], BOARD_TOP, b[1]));
+      const pts = [v3(j.legA[1]!), ...j.insul, v3(j.legB[1]!)].map((p) => p.clone().setY(p.y + 0.9));
+      out.set(`wire:${w.id}`, { line: line(pts), cable: line(pts) });
+    }
+  }
   for (const l of bench.leads) {
     if (!l.a.to && !l.b.to) continue;
     const c = leadCable(bench, l, floor);
@@ -71,6 +83,10 @@ function ridersOf(bench: BenchState, lines: Map<string, { line: Line }>, s: Snap
   for (const [id, amps] of Object.entries(f.leads)) {
     const l = lines.get(`lead:${id}`);
     if (l) out.push({ key: `lead:${id}`, line: l.line, amps });
+  }
+  for (const [id, amps] of Object.entries(f.wires)) {
+    const l = lines.get(`wire:${id}`);
+    if (l) out.push({ key: `wire:${id}`, line: l.line, amps });
   }
   for (const p of f.parts) {
     const a = v3(p.a);
@@ -203,7 +219,7 @@ function Hill({ at, share }: { at: THREE.Vector3; share: number }) {
 const Push3D = memo(function Push3D({ bench, store, floor }: { bench: BenchState; store: BenchStore; floor: FloorFn }) {
   const key = useStore(store, (s) => {
     const p = pushMap(bench, s.snapshot);
-    return JSON.stringify([Object.entries(p.leads).map(([k, v]) => [k, Math.round(((v[0] + v[1]) / 2) * 10)]), Object.entries(p.hills).map(([k, v]) => [k, Math.round(v * 20)])]);
+    return JSON.stringify([Object.entries(p.leads).map(([k, v]) => [k, Math.round(((v[0] + v[1]) / 2) * 10)]), Object.entries(p.wires).map(([k, v]) => [k, Math.round(v * 10)]), Object.entries(p.hills).map(([k, v]) => [k, Math.round(v * 20)])]);
   });
   const p = useMemo(() => pushMap(bench, store.getState().snapshot), [bench, store, key]);
   const lines = useMemo(() => rideLines(bench, floor), [bench, floor]);
@@ -214,15 +230,17 @@ const Push3D = memo(function Push3D({ bench, store, floor }: { bench: BenchState
     const up = new THREE.Vector3(0, 1, 0);
     const a = new THREE.Vector3();
     const b = new THREE.Vector3();
-    for (const [id, [va, vb]] of Object.entries(p.leads)) {
-      const l = lines.get(`lead:${id}`)?.cable;
-      const sp = hatchSpacing((va + vb) / 2);
+    const spans: [string, number][] = [...Object.entries(p.leads).map(([id, [va, vb]]) => [`lead:${id}`, (va + vb) / 2] as [string, number]), ...Object.entries(p.wires).map(([id, v]) => [`wire:${id}`, v] as [string, number])];
+    for (const [key, volts] of spans) {
+      const l = lines.get(key)?.cable;
+      const sp = hatchSpacing(volts) / (key.startsWith("wire:") ? 2 : 1);
       if (!l || !Number.isFinite(sp)) continue;
       for (let d = sp / 2; d < l.length; d += sp) {
         pointAt(l, d, a);
         pointAt(l, Math.min(l.length, d + 0.6), b);
         const along = b.sub(a).normalize();
-        const across = new THREE.Vector3().crossVectors(along, up).normalize();
+        // Shorter strokes across a jumper, which is thinner and sits among the holes.
+        const across = new THREE.Vector3().crossVectors(along, up).normalize().multiplyScalar(key.startsWith("wire:") ? 0.55 : 1);
         const m = new THREE.Matrix4().makeBasis(along, up, across);
         m.setPosition(a.x, a.y + 0.2, a.z);
         out.push(m);
