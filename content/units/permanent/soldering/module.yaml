@@ -1,0 +1,13 @@
+id: soldering
+title: Solder joints
+summary: A hot iron, two spools, a first joint, five patients and a lamp saved from the heat.
+# Reveal caption: A forge glows on the shore, its anvil shaped like a solder pad.
+landmark:
+  id: solder-forge
+  name: the Solder Forge
+lessons:
+  - hot-bench
+  - pick-the-solder
+  - first-joint
+  - joint-doctor
+  - cook-an-led

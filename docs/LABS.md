@@ -30,6 +30,11 @@ export default defineLab({
 
 Helpers shared by several labs go in `content/labs/lib/` (never in `content/labs/` itself: every `.ts` there is a lab).
 
+`settle: 5` (opt-in) runs the circuit for that many simulated seconds, unseen and unjudged, before the learner sees
+it: at the start, and after a reset, a fix-it setup or a "Show me" rewind (each loads fresh parts). A 555 wakes with its
+latch in a random state, so a one-shot may glow once at power-up; settling lets that glow end, and every learner starts
+from a calm bench. The headless solution replay settles the same way. Labs without it show the bench at once.
+
 ## The bench
 
 ```ts
@@ -254,7 +259,13 @@ on its 2/3 tap. Live, each named pin shows its volts, a watcher shows "2.10 < 3.
 the latch dot lights when set, the drain switch closes, the reset line turns amber while it holds the latch off.
 Unnamed pins show only a dashed number. A screen reader hears one sentence per block, and the state changes as they
 happen. For a gate chip the x-ray shows which gate is which, wired to its pins, high pins amber. The notebook's still
-map is `<Chip555Map pins={[1, 8, 2, 3]} />` (`xray.tsx`), stamped "Complete" with all eight pins.
+map is `<Chip555Map pins={[1, 8, 2, 3]} />` (`xray.tsx`), stamped "Complete" with all eight pins: a 555's x-ray draws
+it, with the lab's `pins`, on the bench lesson's signed-off notebook page (also the module's finale), so the map grows
+lesson by lesson.
+
+**Notebook figures.** A panel can write one small ink figure onto the bench lesson's signed-off notebook page
+(`apps/web/src/lesson/bench/NotebookFigures.tsx`, `figureOf`, by panel kind). It gets the lab and what the session
+recorded (its notes and panel states). Today the 555's x-ray offers the 555 map.
 
 The simulator places a chip's edges exactly, but a switch or button acting on a chip input is seen by the chip at the
 end of the solver's first 1 µs step after it, so a slow-motion replay of a button-clocked counter shows about half a
@@ -450,12 +461,12 @@ An empty solution is reported as skipped.
 |---|---|
 | `{ do: "lead", id?, from, to, color? }` | A clip lead from the tray between two attach points (either may be null) |
 | `{ do: "clip", lead, end: "a" \| "b", to }` | Move one clip (`to: null` unclips it) |
-| `{ do: "place", part, kind, at, params? }`, `{ do: "move", part, at }`, `rotate`, `remove` | Parts. For a part on flying leads, `at` lists a hole per lead in order (a lead left out comes out of its hole): `"a22-top+:57-top-:58"` |
+| `{ do: "place", part, kind, at, params?, holes? }`, `{ do: "move", part, at, holes? }`, `rotate`, `remove` | Parts. For a part on flying leads, `at` lists a hole per lead in order (a lead left out comes out of its hole): `"a22-top+:57-top-:58"`. With `at`, `holes` puts every leg in its hole one by one, as the bench config does: a perfboard's `{ a: "PB1:A8", b: "PB1:A4" }` |
 | `{ do: "move", part, holes: { tip: "a22" } }` | Move only the named flying leads (null takes one out), keeping the rest: the logic probe's tip from hole to hole with its supply leads left on the rails. A probe pen always stands at its tip, as a drag puts it |
 | `{ do: "wire", from, to }`, `{ do: "unwire", wire }` | Breadboard jumpers |
 | `{ do: "probe", red?, black?, mode?, range? }`, `{ do: "plug", probe, socket }`, `{ do: "dial", mode, range? }` | The meter |
 | `{ do: "flip", part, to? }`, `{ do: "press", part, seconds? }`, `{ do: "set", part, key, value }` | Switches, buttons, raw inputs |
-| `{ do: "param", part, params }`, `{ do: "action", part, action }` | A prop's settings (`{ moisture: "wet" }`, `{ length: 5 }`) and one-shot actions (`"erase"`), as from its selection bar |
+| `{ do: "param", part, params }`, `{ do: "action", part, action }` | A prop's settings (`{ moisture: "wet" }`, `{ length: 5 }`) and one-shot actions (`"erase"`; a stripper's `"strip"` strips the wire end in its jaws, a wire's `"twist"`), as from its selection bar |
 | `{ do: "control", id, value }`, `{ do: "note", id, value }` | Sliders, notebook entries |
 | `{ do: "panel", id, value }`, `{ do: "tapper", on }` | Submit a panel answer (a pin map names the legs as wired inside, e.g. `{ coil1: "coil" }`); work the auto-tapper. The chip panels take `"open"` and `"close"` (x-ray), `"replay"` (timing), `{ roll: n }` and `"clear"` (histogram) |
 | `{ do: "roll", id, times? }` | Let a histogram's auto-roller roll (the replay waits until it is done) |

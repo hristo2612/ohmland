@@ -2,8 +2,8 @@
 
 A bench lesson keeps the learner at the bench the whole time. There is no hook page, no explain cards and no quiz
 page: the robot says one short line, the learner does one thing on the bench, and the bench answers. Discoveries are
-drawn onto the parts, rules are stamped quietly into the margin, and checks are taps and picks on the bench. At the end
-the notebook page fills itself in and is signed off.
+drawn onto the parts, rules are stamped quietly under the robot's line (and slide into the notebook as the beat ends),
+and checks are taps and picks on the bench. At the end the notebook page fills itself in and is signed off.
 
 Read `docs/DESIGN-PRINCIPLES.md` first: it decides how much goes on a screen and how much we say. Wording rules are in
 `docs/CONTENT.md`, the lab file in `docs/LABS.md`. The reference lessons are
@@ -49,7 +49,7 @@ beats:
     tap: { answer: D1.anode, among: [D1.anode, D1.cathode] }   # a check on the bench, graded on the first try
     wrong: { D1.cathode: "That's the short leg. Try the other." }
     note: { at: D1.anode, text: "long leg: anode, toward plus" }
-    rule: "LED: long leg to plus."        # stamped into the margin and the notebook (8 words)
+    rule: "LED: long leg to plus."        # stamped under the line, then into the notebook (8 words)
   - say: Swap the LED's legs. Guess first.
     guess: { options: [It still glows, It goes dark, It burns out], answer: It goes dark }   # before the action
     do: flip-led
@@ -104,7 +104,9 @@ Optional, on any beat:
   themselves; leave `spot` out when the result shows somewhere else (a switch that lights a lamp). The secret and the fix-it
   take a `spot` too (`secret: { spot: [R1, D1], ... }`, `fixit: { spot: [R3, D1], ... }`, framed through every fix-it
   task).
-- `guess` (only with `do`): an ungraded prediction just before the action. The notebook keeps it in blue ink.
+- `guess` (only with `do`): an ungraded prediction just before the action. The notebook keeps it in blue ink. When
+  the beat is done the robot starts its line with how it went ("Called it." or "You guessed it stays lit."), so write
+  the `done` line to follow that.
 - `done`, `note`, `rule`: the discovery. A beat with any of them ends on a Next button so the learner can read it; a
   beat without one moves on by itself after a beat of the robot's success line. A beat with nothing to do draws its
   `note` and stamps its `rule` as it begins, beside its line, and the learner taps Next when they have read it.
@@ -134,9 +136,9 @@ Anchors (`at`, `answer`, `among`, `on`, `spot`, `trace`) use the lab's shorthand
 hole `e12` or `rail+:21`, a clip lead end `TL1.a`, a jumper end `W1.b`, or a raw bench anchor (`pin:D1.anode`,
 `part:D1`). A named mark on a part is `part:<id>/<mark>`: the meter's `part:M1/dial`, `part:M1/display`, sockets
 (`part:M1/com`) and the dial's letters by mode (`part:M1/dcv`, `part:M1/ohm`, `part:M1/dca-ma`), a drawing's symbol
-`part:SD1/R1`, a box's `lid`, `knob`, `tag` and padlock wheels (`part:CAB/wheel1`), a gate's `flag` and `unit`, and a
-resistor's colour bands (`part:R3/band1` to `band4`). Taps, notes and the spotlight work on marks in both views; a
-tapped mark that is wrong writes its own name ("dial", "wheel 2", "stripe 4").
+`part:SD1/R1`, a box's `lid`, `knob`, `tag` and padlock wheels (`part:CAB/wheel1`), a gate's `flag` and `unit`, an LED's
+stress bar (`part:D1/stress`) and a resistor's colour bands (`part:R3/band1` to `band4`). Taps, notes and the
+spotlight work on marks in both views; a tapped mark that is wrong writes its own name ("dial", "wheel 2", "stripe 4").
 
 ## Control of error
 
@@ -148,6 +150,11 @@ for a moment:
 ```ts
 nudges: [{ when: (lab) => backwards(lab), say: "Dark? Turn the LED around. Long leg to plus." }],
 ```
+
+A simulator warning (a shorted battery, a part running hot) never prints its long explanation in a lesson. The part
+that raised it gets a short note in red pencil and the robot says a kind line, both from `lessonBench.notices` in
+`apps/web/src/i18n/en.ts` (keyed by the warning's kind or cause); the note leaves after a few seconds. In a fix-it round
+warnings say nothing at all: the bench shows the evidence, and the learner finds the fault.
 
 After a `setup` puts a broken bench down (a fix-it), its task's nudges wait for the learner's first move on the bench:
 the broken bench matches them from the start, and a nudge before the learner has tried would give the fix away.
@@ -209,9 +216,14 @@ Nothing new to learn: a graded check right on the first try counts like a quiz i
 
 ## The notebook page
 
-It fills itself in: rules found, guesses against what happened, checks and whether they were right first time, the
-fix-it round (and the time left if the learner raced the clock), parts that went to the Hall of Fried Parts. The
-learner can open it any time from the bar; at the end it is the signed-off summary. Nothing to write.
+It fills itself in: rules found, guesses against what happened, checks and which try they came right on, the fix-it
+round (and the time left if the learner raced the clock), parts that went to the Hall of Fried Parts. The learner can
+open it any time from the bar (on a phone it also holds the 3D and Ink switch); at the end it is the signed-off
+summary. Nothing to write.
+
+A part that dies while the learner works gets "off to the Hall" in red pencil and a Replace control beside it on the
+bench, for that beat only: a part fried on purpose (a fuse blown to be probed next) stays fried. Achievements a lesson
+earns on the way never toast over the bench; the finale lists them.
 
 ## Trying a lesson
 

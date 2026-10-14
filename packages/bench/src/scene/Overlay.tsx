@@ -14,18 +14,21 @@ import type { LeadColor, MeterMode, PlacedPart, TrayItem, WireColor } from "../t
 import { LED_HEX, WIRE_HEX } from "../three/materials";
 import { PartIcon, ToolIcon } from "./icons";
 import type { InteractionApi } from "./Interaction";
+import { COMPACT_WIDTH, NARROW_TRAY, trayCoverOf } from "../view/tray-cover";
 
 // Quiet, notebook-style chrome: pasted paper slips with hairline rules, ink icons, blue ink for what the learner has
 // switched on. Colours and type come from the page's notebook tokens when it has them (fallbacks are the light page).
 const CSS = `
 .ohb-root:focus-visible{box-shadow:inset 0 0 0 2px var(--focus,#1F3C9A)}
 .ohb-readouts{position:absolute;inset:0;overflow:hidden;pointer-events:none}
-.ohb-stress{position:absolute;left:0;top:0;width:52px;height:10px;background:var(--paper-slip,#FCFAF5);border:1px solid var(--rule-soft,#D8D0C1);box-shadow:2px 2px 0 var(--shadow-ink,#E1D9CA)}
+.ohb-stress{position:absolute;left:0;top:0;width:120px;height:14px;background:var(--paper-slip,#FCFAF5);border:1px solid var(--rule-soft,#D8D0C1);box-shadow:2px 2px 0 var(--shadow-ink,#E1D9CA)}
 .ohb-stress i{position:absolute;left:0;top:0;bottom:0;background:var(--sk-band-green,#3C8B4A)}
 .ohb-stress[data-tone="mid"] i{background:var(--sk-band-orange,#E07B24)}
 .ohb-stress[data-tone="high"] i{background:var(--sk-band-red,#C9372A)}
 .ohb-stress[data-tone="dead"] i{background:var(--ink-3,#6B655B)}
 .ohb-stress b{position:absolute;top:0;bottom:0;width:1px;background:var(--ink,#24221E)}
+.ohb-readouts[data-compact] .ohb-stress{width:64px;height:10px}
+.ohb-stress[data-spot]{outline:2px solid var(--red,#B23A1C);outline-offset:5px;border-radius:2px}
 .ohb-root[data-dark] .ohb-stress i{background:var(--sk-band-green,#4FA35D)}
 .ohb-root[data-dark] .ohb-stress[data-tone="mid"] i{background:var(--sk-band-orange,#EB8F3A)}
 .ohb-root[data-dark] .ohb-stress[data-tone="high"] i{background:var(--sk-band-red,#E0584A)}
@@ -90,12 +93,9 @@ const CSS = `
 
 const WIRE_COLORS: WireColor[] = ["red", "black", "blue", "green", "yellow", "orange", "white", "purple"];
 
-/** More than this many tray items get two columns. */
-const NARROW_TRAY = 7;
 /** Width (CSS px) the tray covers on the left of a wide bench, so camera framing can avoid it. */
 export function trayCover(items: number, compact: boolean): { left: number; bottom: number } {
-  if (items === 0) return { left: 0, bottom: 0 };
-  return compact ? { left: 0, bottom: 84 } : { left: items > NARROW_TRAY ? 220 : 124, bottom: 0 };
+  return trayCoverOf("3d", items, compact ? 1 : COMPACT_WIDTH);
 }
 const LEAD_COLORS: LeadColor[] = ["red", "black", "green", "yellow", "blue", "white"];
 

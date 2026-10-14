@@ -67,6 +67,8 @@ function createPlayer(lab: LabDefinition, built: BuiltBench, start?: Start): Pla
     for (const i of start.inputs) sim.setInput(i.id, i.key, i.value);
     for (const c of built.controls) if (c.part === "*") for (const id of controlTargets(session.bench, c)) sim.setInput(id, c.key, session.controls[c.id] ?? c.value);
   }
+  // The lab's `settle`, unseen, as the runtime runs it before the learner sees the bench (a Show me's fresh load too).
+  if (lab.settle) sim.step(lab.settle);
   // Simulated seconds per real second, as the runtime would run (a "speed" control turns it up for a time-lapse).
   let speed = lab.speed ?? 1;
   for (const c of built.controls) if (c.key === "speed") speed = c.value;

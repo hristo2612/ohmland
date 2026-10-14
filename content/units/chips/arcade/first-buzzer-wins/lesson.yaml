@@ -1,0 +1,68 @@
+# Blueprint: docs/curriculum/unit-4.md, CH23 (wave 2). A bench lesson (docs/LESSONS.md).
+# One idea: feed the winner back through OR gates and the first press locks the others out. Nothing new to name; the
+# CMOS 555 gets a note. No robot player exists yet (a scripted bench actor), so the learner presses both buzzers on
+# the keys card (A and L), or plays a friend on one keyboard. Lab: content/labs/first-buzzer-wins.ts.
+format: bench
+id: first-buzzer-wins
+version: 1
+title: First buzzer wins
+summary: Build a quiz buzzer where the first press lights its lamp and locks the other player out.
+minutes: 7
+lab: first-buzzer-wins
+unlocks:
+  parts: [ic-555-cmos]
+  isle: fuse
+
+start:
+  title: First buzzer wins
+  say: Quiz night! Two buzzers, two lamps, one winner.
+  go: Play a round
+
+beats:
+  - say: Press your buzzer, A. Then mine, L.
+    objective: Everyone wins
+    tool: keys
+    spot: [S1, S2, D1, D2]
+    do: both-win
+    note: { at: U1, text: "CMOS 555: same pins, full swing" }
+
+  - say: RESET, then move the white wire from minus to pin 8.
+    objective: Lock out
+    spot: [W1, U3]
+    do: block-line
+
+  - say: RESET, then race. You first, then me. Guess first.
+    tool: keys
+    spot: [S1, S2, D1, D2]
+    guess: { options: [My lamp lights, It stays dark], answer: It stays dark }
+    do: you-win
+    note: { at: U3.8, text: "the winner blocks the rest" }
+    rule: "Feed the winner back: the rest lock out."
+
+  - say: You won. What does my trigger read now?
+    pick: { options: [High, Low], answer: High }
+    wrong:
+      Low: The block holds my OR high, so my trigger stays high.
+
+  - say: RESET. This time press mine first.
+    objective: Both ways
+    tool: keys
+    spot: [S1, S2, D1, D2]
+    do: robot-wins
+
+secret:
+  task: slow-motion
+  spot: [U3]
+  say: "Secret: replay a win in slow motion."
+  tool: td
+  done: Blocked in the blink of a chip.
+  note: { at: U3.8, text: "blocked in about 0.1 µs" }
+
+fixit:
+  say: I can still buzz after you win. Fix it.
+  tool: keys
+  tasks:
+    - task: fix-it
+
+end:
+  say: One winner per question. Quiz night is fair now.

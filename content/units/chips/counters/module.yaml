@@ -1,0 +1,12 @@
+id: counters
+title: Counters and displays
+summary: Seven bars, a counter, a carry and a millisecond race.
+# Reveal caption: Digits roll across the billboard, one clock tick at a time.
+landmark:
+  id: counter-billboard
+  name: The Counter Billboard
+lessons:
+  - seven-segments
+  - count-the-ticks
+  - carry-the-one
+  - reaction-race

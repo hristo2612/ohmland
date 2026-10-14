@@ -16,7 +16,7 @@ import { rectOfPoints, unionRect, type Rect } from "./camera";
 import { INK, boxCorners, toLocal, toWorld, type Box, type Frame } from "./frame";
 import { inkKind } from "./kinds";
 import { resistorBandX } from "./kinds/axial";
-import { parseTarget } from "../view/targets";
+import { STRESS_MARK, parseTarget, stressPoint } from "../view/targets";
 import { perfMount } from "../solder/perfboard";
 
 export { INK, boxCorners, frameTransform, toLocal, toWorld, type Box, type Frame } from "./frame";
@@ -601,6 +601,10 @@ export function targetRect(model: InkModel, target: string): Rect | null {
   const pi = model.parts.get(id);
   if (pi) {
     if (!sub) return partBounds(pi);
+    if (sub === STRESS_MARK && pi.part.kind === "led") {
+      const [x, , z] = stressPoint(bench, pi.part);
+      return [x - 1.5, z - 1.5, x + 1.5, z + 1.5];
+    }
     const p = pi.legs[sub];
     if (p) return [p[0] - 1.5, p[1] - 1.5, p[0] + 1.5, p[1] + 1.5];
     // A resistor's band, where this view draws it (desk parts are drawn larger than life).

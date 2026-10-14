@@ -57,15 +57,17 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
         const target = bench.parts.find((p) => p.id === step.at.slice(3));
         if (!target) return done(bench, { problem: `place: no part ${step.at.slice(3)}` });
         const added = { ...bench, parts: [...bench.parts.filter((p) => p.id !== step.part), part] };
-        return done(benchOps.dropOnto(added, step.part, target.id, [target.pos[0], target.pos[1] + 34]));
+        // The old part goes to a clear desk spot, in front of the board when it came off it (a far-side capacitor).
+        const aside = benchOps.asideSpot(added, target, [target.pos[0], target.pos[1] + 34], [step.part]);
+        return done(benchOps.dropOnto(added, step.part, target.id, aside));
       }
-      const r = placePart({ ...bench, parts: bench.parts.filter((p) => p.id !== step.part) }, part, step.at, undefined, () => [0, 60]);
+      const r = placePart({ ...bench, parts: bench.parts.filter((p) => p.id !== step.part) }, part, step.at, step.holes, () => [0, 60]);
       return done({ ...bench, parts: [...bench.parts.filter((p) => p.id !== step.part), r.part] }, r.warning ? { problem: r.warning } : {});
     }
     case "move": {
       const cur = bench.parts.find((p) => p.id === step.part);
       if (!cur) return done(bench, { problem: `no part ${step.part}` });
-      if (step.holes) {
+      if (step.at === undefined) {
         // Only the named flying leads move; the others stay in their holes (a probe's tip, not its supply leads).
         if (!isFlying(cur)) return done(bench, { problem: `move: ${step.part} has no flying leads for "holes"` });
         const moves: Record<string, string | null> = {};
@@ -90,7 +92,8 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
       const free = benchOps.unseat(bench, step.part);
       const others = { ...free, parts: free.parts.filter((p) => p.id !== step.part) };
       const { holes: _h, ...rest } = cur;
-      const r = placePart(others, { ...rest, rot: step.rot ?? cur.rot } as PlacedPart, step.at, undefined, () => cur.pos);
+      // With `at`, `holes` puts every leg in its hole (a perfboard's "PB1:C7"), as a bench config does.
+      const r = placePart(others, { ...rest, rot: step.rot ?? cur.rot } as PlacedPart, step.at, step.holes as Record<string, string> | undefined, () => cur.pos);
       return done({ ...free, parts: free.parts.map((p) => (p.id === step.part ? r.part : p)) }, r.warning ? { problem: r.warning } : {});
     }
     case "rotate":
@@ -168,7 +171,8 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
     case "action": {
       const p = benchOps.actionParams(bench, step.part, step.action);
       if (!p) return done(bench, { problem: `action: ${step.part} has no "${step.action}"` });
-      return done(benchOps.setPartParams(bench, step.part, p as never));
+      // As the part's selection bar does it: some actions change other parts (a stripper strips the wire in its jaws).
+      return done(benchOps.runAction(bench, step.part, step.action));
     }
     case "press": {
       const s = step.seconds ?? 0.3;

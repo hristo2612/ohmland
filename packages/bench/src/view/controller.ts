@@ -9,9 +9,13 @@ export type Inset = { top?: number; right?: number; bottom?: number; left?: numb
 /**
  * `padding`: room round the targets (px). `instant`: no glide. `inset`: the part of the view a docked panel covers; the
  * targets (or the home view) are framed in what is left, the selection bar keeps clear of it, and it holds (a resize,
- * reset view) until the next focus.
+ * reset view) until the next focus. `read`: a reading scale for hands-on work, in CSS px between neighbouring holes
+ * (2.54 mm) at the targets; when the targets have leads or clip points and do not fit at it, the view comes that
+ * close anyway, centred on their anchors (`focalTargets`), and the learner pans for the rest. `readZoom`: come no
+ * closer than this many times the scale that fits every target (a desktop only needs a nudge; a phone's finger needs
+ * the whole reading scale).
  */
-export type FocusOptions = { padding?: number; instant?: boolean; inset?: Inset };
+export type FocusOptions = { padding?: number; instant?: boolean; inset?: Inset; read?: number; readZoom?: number };
 
 /**
  * `pins: false`: the spotlit chips and displays print no pin numbers, not even up close (a check that asks for a pin,

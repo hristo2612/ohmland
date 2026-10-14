@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useStore } from "zustand";
-import { boardGeometry } from "../board";
+import { PITCH, boardGeometry } from "../board";
 import { METER } from "../layout";
 import { LabelsContext } from "../labels";
 import { connectivity } from "../netlist";
@@ -19,7 +19,7 @@ import { BoxWires, InkOverlays, InkPush } from "./draw/Overlays";
 import { MeterBody, MeterLeads } from "./draw/Meter";
 import { Readouts } from "./draw/Readouts";
 import { DefsContext, InkDefs } from "./draw/shared";
-import { frameWithParts } from "../view/framing";
+import { focalTargets, frameWithParts, needsReading } from "../view/framing";
 import { boxCorners, n3 } from "./frame";
 import { attachInteraction, type InkApi } from "./interaction";
 import { KeyCursor, anchorName, handleInkKey, partName, startCursor, type KeyEnv } from "./keys";
@@ -29,8 +29,11 @@ import { InkOverlay, partDetail, useFollow } from "./Overlay";
 import { INK_CSS } from "./styles";
 import { InkView } from "./view";
 import { TagSlips, type SlipProjector } from "../view/TagSlips";
+import { LOUPE, Loupe, createLoupeFeed } from "../view/Loupe";
+import { BoardRuler } from "../view/Ruler";
 import { SolderOverlay, type SolderViewApi } from "../solder/overlay/SolderOverlay";
 import { IronLayer, ScorchLayer } from "./kinds/solder";
+import { trayCoverOf } from "../view/tray-cover";
 
 export type BenchInkProps = Omit<BenchRendererProps, "labels"> & {
   /** Translated UI strings (the shared BenchLabels plus the ink view's few, see INK_LABELS). */
@@ -65,6 +68,53 @@ function focusTarget(kb: string | null, meter: string | undefined): string | nul
   return null;
 }
 
+/**
+ * The loupe's picture in ink: a copy of the drawing (the desk and the marks over it, so the snap ring shows), made
+ * again after each frame while the finger moves. A copy rather than SVG <use>: the drawing's styles reach it only as a
+ * real descendant of the bench.
+ */
+function InkLens({ ids, view, x, y, d }: { ids: string[]; view: InkView; x: number; y: number; d: number }) {
+  const ref = useRef<SVGGElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const copy = () => {
+      const g = ref.current;
+      if (!g) return;
+      const parts: Node[] = [];
+      for (const id of ids) {
+        const src = document.getElementById(id);
+        if (!src) continue;
+        const c = src.cloneNode(true) as Element;
+        c.removeAttribute("id");
+        for (const el of c.querySelectorAll("[id],[tabindex]")) {
+          el.removeAttribute("id");
+          el.removeAttribute("tabindex");
+        }
+        parts.push(c);
+      }
+      g.replaceChildren(...parts);
+    };
+    const later = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(copy);
+    };
+    later();
+    const off = view.onChange(later);
+    return () => {
+      off();
+      cancelAnimationFrame(raf);
+    };
+  }, [ids.join(","), view, x, y]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <svg viewBox={`0 0 ${d} ${d}`} className="ohi-svg" aria-hidden="true">
+      <g ref={ref} transform={`translate(${d / 2} ${d / 2}) scale(${LOUPE.zoom}) translate(${-x} ${-y})`} />
+    </svg>
+  );
+}
+
+/** How far a phone's home framing grows a lab's frame to take in a part cut by its edge (view/framing.ts). */
+const PHONE_GROW = 1.7;
+
 /** The busy part of a breadboard: what sits in it and the jumpers, for framing on small screens. */
 function busyRect(model: InkModel): Rect | null {
   const pts: [number, number][] = [];
@@ -77,12 +127,15 @@ export function BenchInk(props: BenchInkProps) {
   const { tray = [], snapshot = null, quality = "high", readOnly = false, highlight, className, style } = props;
   const [store] = useState(() => props.store ?? createBenchStore(props.initial));
   const labels = useMemo(() => mergeInkLabels(props.labels), [props.labels]);
+  const labelsNow = useRef(labels);
+  labelsNow.current = labels;
   const defsId = `ohi${useId().replace(/[^A-Za-z0-9]/g, "")}`;
   const [element, setElement] = useState<HTMLDivElement | null>(null);
   const deskRef = useRef<SVGGElement | null>(null);
   const topRef = useRef<SVGGElement | null>(null);
   const [view] = useState(() => new InkView());
   const [keys] = useState(() => new KeyCursor());
+  const [loupe] = useState(createLoupeFeed);
   const api = useRef<InkApi | null>(null);
   const onAction = useRef(props.onAction);
   const onChange = useRef(props.onChange);
@@ -152,13 +205,17 @@ export function BenchInk(props: BenchInkProps) {
   }, [compact, showTray]);
   const padRef = useRef(pad);
   padRef.current = pad;
+  const trayStripRef = useRef(0);
+  trayStripRef.current = showTray && compact ? trayCoverOf("ink", tray.length, size.w).bottom : 0;
   /** The part of the view a docked panel covers (focus's `inset`): framing keeps clear of it. */
   const insetRef = useRef<Pad>(NO_PAD);
   /** The room to keep clear at each edge: the view's own chrome plus the docked panel. */
   const padNow = useCallback((): Pad => {
     const p = padRef.current;
     const i = insetRef.current;
-    return { top: p.top + i.top, right: p.right + i.right, bottom: p.bottom + i.bottom, left: p.left + i.left };
+    // A panel docked above the tray strip reports the strip in its inset too: count the strip once.
+    const strip = trayStripRef.current;
+    return { top: p.top + i.top, right: p.right + i.right, bottom: p.bottom + Math.max(0, i.bottom - strip), left: p.left + i.left };
   }, []);
 
   /**
@@ -172,7 +229,7 @@ export function BenchInk(props: BenchInkProps) {
       const frame: Rect = [f[0], f[1], f[2], f[3]];
       const boxes = [...m.parts.values()].map(partBounds);
       if (m.meter) boxes.push(rectOfPoints(boxCorners(m.meter.f, [-METER.width / 2, -METER.length / 2, METER.width / 2, METER.length / 2]))!);
-      return frameWithParts(frame, boxes);
+      return frameWithParts(frame, boxes, compact ? PHONE_GROW : undefined);
     }
     return compact && m.bench.board ? m.work : m.bounds;
   }, [store, compact]);
@@ -197,8 +254,32 @@ export function BenchInk(props: BenchInkProps) {
     },
     [view, homeRect, compact, store, padNow],
   );
+  /**
+   * The rectangle that frames `rect` at no less than `read` px between neighbouring holes, when the targets need it:
+   * as much of `rect` as fits at that scale, moved only as far as it takes to keep the targets' anchors in view.
+   */
+  const readingRect = useCallback(
+    (rect: Rect, pad: Pad, read: number, targets: string[], zoom?: number): { rect: Rect; s: number } | null => {
+      const m = modelRef.current;
+      const fit = fitRect(rect, view.vp, pad, 60).s;
+      const s = Math.min(read / PITCH, zoom ? fit * zoom : Infinity);
+      if (!needsReading(m.bench, targets) || fit >= s) return null;
+      const hw = Math.max(1, view.vp.w - pad.left - pad.right) / s / 2;
+      const hh = Math.max(1, view.vp.h - pad.top - pad.bottom) / s / 2;
+      const focal = targetsRect(m, focalTargets(m.bench, targets)) ?? rect;
+      const keep = (c: number, lo: number, hi: number, half: number) => {
+        const room = 3;
+        if (hi - lo > (half - room) * 2) return (lo + hi) / 2;
+        return Math.min(lo + half - room, Math.max(hi - half + room, c));
+      };
+      const cx = keep((rect[0] + rect[2]) / 2, focal[0], focal[2], hw);
+      const cz = keep((rect[1] + rect[3]) / 2, focal[1], focal[3], hh);
+      return { rect: [cx - hw, cz - hh, cx + hw, cz + hh], s };
+    },
+    [view],
+  );
   /** What the view frames: home, or what focus() asked for. A resize frames it again (unless the learner moved). */
-  const framing = useRef<{ targets: string[]; padding?: number } | null>(null);
+  const framing = useRef<{ targets: string[]; padding?: number; read?: number; readZoom?: number } | null>(null);
   const applyFraming = useCallback(
     (instant: boolean) => {
       if (!view.sized) return;
@@ -220,9 +301,14 @@ export function BenchInk(props: BenchInkProps) {
       const base = padNow();
       const px = Math.min(p, Math.max(0, view.vp.w - base.left - base.right) * 0.2);
       const py = Math.min(p * 0.5, Math.max(0, view.vp.h - base.top - base.bottom) * 0.2);
-      view.fit(growRect([cx - hw, cz - hh, cx + hw, cz + hh], 3), { top: base.top + py, right: base.right + px, bottom: base.bottom + py, left: base.left + px }, { instant, max: 18 });
+      const pad = { top: base.top + py, right: base.right + px, bottom: base.bottom + py, left: base.left + px };
+      const rect = growRect([cx - hw, cz - hh, cx + hw, cz + hh], 3);
+      // Hands-on work keeps holes and legs far enough apart to aim at, even when not everything fits.
+      const read = f.read ? readingRect(rect, pad, f.read, f.targets, f.readZoom) : null;
+      if (read) view.fit(read.rect, pad, { instant, max: Math.max(18, read.s) });
+      else view.fit(rect, pad, { instant, max: 18 });
     },
-    [view, fitHomeNow, padNow],
+    [view, fitHomeNow, padNow, readingRect],
   );
   const fitHome = useCallback(
     (instant = false) => {
@@ -260,13 +346,21 @@ export function BenchInk(props: BenchInkProps) {
   // Pointer interaction.
   useEffect(() => {
     if (!element) return;
-    const { api: a, detach } = attachInteraction({ element, store, view, model: () => modelRef.current, readOnly: () => readOnlyRef.current, emit });
+    const { api: a, detach } = attachInteraction({
+      element,
+      store,
+      view,
+      model: () => modelRef.current,
+      readOnly: () => readOnlyRef.current,
+      emit,
+      loupe: { feed: loupe, labels: () => labelsNow.current },
+    });
     api.current = a;
     return () => {
       detach();
       api.current = null;
     };
-  }, [element, store, view, emit]);
+  }, [element, store, view, emit, loupe]);
 
   // The solder overlay draws over this view through the same projection.
   const solderView = useMemo<SolderViewApi>(
@@ -392,7 +486,14 @@ export function BenchInk(props: BenchInkProps) {
       },
       onViewChange: (cb) => view.onChange(cb),
       focus: (targets, opts) => {
-        framing.current = targets.length ? { targets: [...targets], ...(opts?.padding !== undefined ? { padding: opts.padding } : {}) } : null;
+        framing.current = targets.length
+          ? {
+              targets: [...targets],
+              ...(opts?.padding !== undefined ? { padding: opts.padding } : {}),
+              ...(opts?.read ? { read: opts.read } : {}),
+              ...(opts?.readZoom ? { readZoom: opts.readZoom } : {}),
+            }
+          : null;
         const i = opts?.inset ?? {};
         insetRef.current = { top: i.top ?? 0, right: i.right ?? 0, bottom: i.bottom ?? 0, left: i.left ?? 0 };
         // The selection bar keeps clear of a docked panel too (styles.ts reads these).
@@ -478,7 +579,7 @@ export function BenchInk(props: BenchInkProps) {
             {spotCss && <style>{spotCss}</style>}
             <svg id={`${defsId}-svg`} className={`ohi-svg${spot ? " is-spot" : ""}`} xmlns="http://www.w3.org/2000/svg">
               <InkDefs id={defsId} />
-              <g ref={deskRef}>
+              <g ref={deskRef} id={`${defsId}-desk`}>
                 {bench.board && (
                   <>
                     <BoardBase spec={bench.board} />
@@ -519,7 +620,7 @@ export function BenchInk(props: BenchInkProps) {
                 <IronLayer store={store} bench={bench} />
               </g>
               {dimRoom && <rect width="100%" height="100%" className="ohi-room" style={{ opacity: Math.min(0.82, (1 - ambient) * 0.9) }} />}
-              <g ref={topRef}>
+              <g ref={topRef} id={`${defsId}-top`}>
                 {dimRoom && <GlowLayer parts={parts} store={store} defs={defsId} quality={quality} />}
                 <Marks model={model} ui={ui} hintParts={hintParts} hintAnchors={hintAnchors} spot={spot} litPins={xr?.pins ?? []} focus={focusTarget(focusKb, bench.meter?.id)} />
                 <g
@@ -538,8 +639,9 @@ export function BenchInk(props: BenchInkProps) {
             <div ref={tagRef} className="ohi-tag" aria-hidden="true">
               {hoverAnchor ? hoverAnchor.slice(5) : ""}
             </div>
-            <Readouts store={store} model={model} view={view} labels={labels} />
+            <Readouts store={store} model={model} view={view} labels={labels} spot={spot} compact={compact} />
             <TagSlips store={store} spot={spot} compact={compact} projector={slipProjector} />
+            <BoardRuler store={store} projector={slipProjector} size={size} />
             <InkOverlay
               store={store}
               labels={labels}
@@ -556,6 +658,12 @@ export function BenchInk(props: BenchInkProps) {
               }}
             />
             <SolderOverlay store={store} view={solderView} compact={compact} readOnly={readOnly} tray={showTray} />
+            {/* The touch loupe: the drawing under the finger, cloned twice life size. */}
+            <Loupe
+              feed={loupe}
+              size={size}
+              lens={(st, d) => <InkLens ids={[`${defsId}-desk`, `${defsId}-top`]} view={view} x={st.x} y={st.y} d={d} />}
+            />
             <div className="ohi-sr" aria-live="polite">
               {said}
             </div>

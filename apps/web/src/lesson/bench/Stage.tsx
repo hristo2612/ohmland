@@ -6,11 +6,12 @@
  * The player (BenchLesson.tsx) owns the flow. It tells the stage which task may complete right now (`gate`; the
  * secret bonus is always armed), and the stage reports tasks, fried parts, nudges and taps back.
  */
-import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { useStore } from "zustand";
-import { PRINTED_KINDS, boardGeometry, trayLeft, type BenchState } from "@ohmland/bench/core";
+import { PRINTED_KINDS, boardGeometry, trayCoverOf, trayLeft, type BenchState } from "@ohmland/bench/core";
 import { isOptional, type LabDefinition, type LabTask, type SolutionStep } from "../../lab/define";
 import { m } from "../../i18n";
+import { Icon } from "../../components/Icon";
 import { useLearner } from "../../progress/store";
 import { prefersReducedMotion } from "../../progress/prefs";
 import { LabAudio } from "../../lab/audio";
@@ -38,6 +39,9 @@ import "../../lab/lab.css";
 const Surface = BenchSurfaceChunk.Component;
 /** The microcontroller board's tools (code drawer, serial monitor, millis): a chunk of their own, for labs with a board. */
 const CodeTools = lazy(() => import("../../lab/code/CodeTools"));
+
+/** A simulator warning (a short, a part running hot): what happened and to which part, for the lesson to draw. */
+export type StageNotice = { type: string; partId: string; cause?: string };
 
 export type StageCheck = { kind: "targets"; targets: string[] } | { kind: "meet"; part: string } | { kind: "holes"; hover?: boolean } | null;
 
@@ -83,10 +87,18 @@ export type StageProps = {
   spot: string[] | null;
   /** Anchors to frame without a spotlight (a breadboard corner for a hole check). */
   frame: string[] | null;
+  /**
+   * Hands-on work: a beat's bench task ("beat") or a fix-it bench ("fix"). Its parts in play are framed at a reading
+   * scale, and on a phone a beat with no `spot` frames its task's working parts (the lab's `highlight`).
+   */
+  hands?: "beat" | "fix" | null;
   xray: boolean;
   /** Hint highlights of the current task. */
   hintHighlight: string[] | undefined;
   marks: Mark[];
+  /** Parts that died while the learner works on this beat, each with its Replace control on the bench beside it. */
+  replace: { card: FriedCard; at: string }[];
+  onReplace(card: FriedCard): void;
   check: StageCheck;
   popup: Popup | null;
   /** The one instrument or panel the beat needs ("meter", "scope", "logger", "stopwatch", "tapper", "controls", "views"
@@ -101,7 +113,7 @@ export type StageProps = {
   onTaskDone(id: string): void;
   onFried(card: FriedCard): void;
   onNudge(line: string): void;
-  onNotice(text: string): void;
+  onNotice(notice: StageNotice): void;
   onTap(anchor: string): void;
   onPopupDone(): void;
 };
@@ -154,6 +166,10 @@ export function StageSkeleton() {
 }
 
 const NUDGE_HOLD = 0.8;
+/** Reading scales for hands-on framing: CSS px between neighbouring breadboard holes on a phone and on a desktop. */
+const READ_PHONE = 20;
+const READ_DESK = 32;
+const READ_DESK_ZOOM = 2;
 
 function StageRunner(props: StageProps & { lab: LabDefinition }) {
   const { lab, lessonId } = props;
@@ -248,9 +264,9 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   const ui = useStore(runtime.ui);
   const bench = useStore(runtime.store, (s) => s.bench);
 
-  // Simulator notices (a short, a warning): the margin says them.
+  // Simulator warnings (a short, a part running hot): the lesson draws a short note on the part, never the long words.
   useEffect(() => {
-    if (ui.notice) cb.current.onNotice(ui.notice.message);
+    if (ui.notice) cb.current.onNotice({ type: ui.notice.type, partId: ui.notice.partId, ...(ui.notice.cause ? { cause: ui.notice.cause } : {}) });
   }, [ui.notice]);
 
   // X-ray of the breadboard's strips.
@@ -386,30 +402,51 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   const tool = props.tool ?? defaultTool(lab, props.gate);
   // The docked tool's size: when it comes, goes or changes size the bench is framed again.
   const [dockKey, setDockKey] = useState("");
+  // The parts tray, when it shows: the docked tool sits above its strip (a phone) or beside its column, never on it.
+  const [stageW, setStageW] = useState(0);
+  const cover = trayShown && !readOnly ? trayCoverOf(props.view, built.tray.length, stageW) : { left: 0, bottom: 0 };
+  const trayKey = `${cover.left},${cover.bottom}`;
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage || !benchReady) return;
-    const measure = () => setDockKey(insetKey(dockInset(stage)));
+    const measure = () => {
+      setStageW(stage.clientWidth);
+      setDockKey(insetKey(dockInset(stage)));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(stage);
     const dock = stage.querySelector(":scope > .bl-tool");
     if (dock) ro.observe(dock);
     return () => ro.disconnect();
-  }, [tool, benchReady]);
+  }, [tool, benchReady, trayKey]);
+  /** Where the hands last worked on a phone: a beat that names no parts picks up there. */
+  const lastHands = useRef<string[] | null>(null);
   useEffect(() => {
     const c = controllerRef.current;
     const stage = stageRef.current;
     if (!c || !stage || !benchReady) return;
     const b = runtime.store.getState().bench;
-    const resolve = (list: string[] | null) => (list ?? []).map((s) => resolveAnchor(b, s)).filter((x): x is string => !!x);
+    const resolve = (list: readonly string[] | null | undefined) => (list ?? []).map((s) => resolveAnchor(b, s)).filter((x): x is string => !!x);
     const spotted = resolve(props.spot);
-    const framed = [...spotted, ...resolve(props.frame)];
+    let framed = [...spotted, ...resolve(props.frame)];
     c.spotlight(spotted.length ? spotted : null, quietPins ? { pins: false } : undefined);
     const inset = dockInset(stage);
     const box = stage.getBoundingClientRect();
     const w = box.width - (inset.right ?? 0);
     const free = Math.max(0, Math.min(w, box.height - (inset.bottom ?? 0)));
+    // Hands-on work on a phone: the working parts come close enough to aim a finger at (holes and legs at least
+    // READ_PHONE px apart); a beat that names none keeps the view where the hands already are. On a desktop, parts in
+    // play come to a reading scale (a resistor's body about 80 px long).
+    // Only while the task is open: once it is done, the discovery (a note, a glow) is framed as any beat's.
+    const working = !!props.hands && !!props.gate;
+    const phoneHands = w < 640 && working;
+    const read = working && framed.length ? (w < 640 ? READ_PHONE : READ_DESK) : phoneHands ? READ_PHONE : undefined;
+    if (phoneHands && !framed.length && props.hands === "beat") framed = resolve(lab.tasks.find((t) => t.id === props.gate)?.highlight);
+    if (phoneHands && !framed.length && props.hands === "beat" && lastHands.current?.length) {
+      c.focus(lastHands.current, { inset, read: READ_PHONE });
+      return;
+    }
     // A part in play keeps some bench around it: close enough to tell its legs apart and tap them, never a lone
     // close-up (both views frame at least about 24 mm of bench). A phone is narrow, so a smaller share of it goes to
     // the margin, and one big printed prop (a colour chart, a pencil card) fills the bench so its print can be read; a
@@ -419,12 +456,24 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     const close = phone && !!one && PRINTED_KINDS.has(one.kind) && one.kind !== "tag";
     // Several parts in play are their own context: a modest margin keeps them close.
     const padding = close ? 8 : Math.round(free * (framed.length > 1 ? 0.06 : phone ? 0.12 : 0.3));
-    c.focus(framed, framed.length ? { padding, inset } : { inset });
+    // A desktop pointer aims well: there the reading scale only nudges the view closer, never far past a fit.
+    const zoom = read && w >= 640 ? { readZoom: READ_DESK_ZOOM } : {};
+    if (phoneHands && framed.length) lastHands.current = framed;
+    c.focus(framed, framed.length ? { padding, inset, ...(read ? { read, ...zoom } : {}) } : { inset });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spotKey, frameKey, runtime, benchReady, dockKey, quietPins]);
+  }, [spotKey, frameKey, runtime, benchReady, dockKey, quietPins, props.hands, props.gate]);
 
   return (
-    <div ref={stageRef} className="bl-stage" data-bench-ready={benchReady || undefined} data-lab-ready data-lab={lab.id} onPointerDownCapture={() => audio.unlock()} onKeyDownCapture={() => audio.unlock()}>
+    <div
+      ref={stageRef}
+      className="bl-stage"
+      style={{ "--bl-tray-left": `${cover.left}px`, "--bl-tray-bottom": `${cover.bottom}px` } as CSSProperties}
+      data-bench-ready={benchReady || undefined}
+      data-lab-ready
+      data-lab={lab.id}
+      onPointerDownCapture={() => audio.unlock()}
+      onKeyDownCapture={() => audio.unlock()}
+    >
       <Boundary onError={() => cb.current.onBenchFailed()}>
         <Suspense fallback={<StageSkeleton />}>
           <Surface
@@ -448,6 +497,8 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
       {benchReady && (
         <div className="bl-overlay">
           <Annotations controllerRef={controllerRef} bench={bench} marks={props.marks} />
+          {/* The meter's fuse has its own Replace on the docked meter. */}
+          <ReplaceLayer controllerRef={controllerRef} bench={bench} items={props.replace.filter((r) => !(r.card.kind === "meter-fuse" && tool === "meter"))} onReplace={(c) => cb.current.onReplace(c)} />
           <TapLayer controllerRef={controllerRef} bench={bench} check={props.check} labelOf={api.labelOf} onTap={(a) => cb.current.onTap(a)} />
           {props.popup && (
             <PopupCard controllerRef={controllerRef} bench={bench} at={props.popup.at} title={m.lessonBench.popup.resistorTitle}>
@@ -644,6 +695,42 @@ function TapLayer({
         />
       ))}
     </>
+  );
+}
+
+/** A fried part's Replace control, on the bench just under the part (kept inside the bench), not in the margin. */
+function ReplaceLayer({
+  controllerRef,
+  bench,
+  items,
+  onReplace,
+}: {
+  controllerRef: RefObject<BenchController | null>;
+  bench: import("@ohmland/bench/core").BenchState;
+  items: { card: FriedCard; at: string }[];
+  onReplace(card: FriedCard): void;
+}) {
+  useViewTick(controllerRef);
+  const [ref, size] = useSize();
+  const c = controllerRef.current;
+  return (
+    <div className="bl-replace-host" ref={ref}>
+      {c &&
+        size.w > 0 &&
+        items.map(({ card, at }) => {
+          const a = resolveAnchor(bench, at);
+          const p = a ? c.project(a) : null;
+          if (!p || !p.visible) return null;
+          const left = Math.max(64, Math.min(size.w - 64, p.x));
+          const top = p.y + 72 < size.h - 8 ? p.y + 40 : Math.max(8, p.y - 84);
+          return (
+            <button key={card.key} type="button" className="bl-replace" style={{ left, top }} data-replace aria-label={m.lessonBench.replaceLabel(card.shownLabel.replace(/^[A-Z](?=[a-z])/, (x) => x.toLowerCase()))} onClick={() => onReplace(card)}>
+              <Icon name="retry" size={16} />
+              {card.kind === "meter-fuse" ? m.lab.meter.replaceFuse : m.lessonBench.replace}
+            </button>
+          );
+        })}
+    </div>
   );
 }
 

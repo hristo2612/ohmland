@@ -126,3 +126,4 @@ export type {
   ChipParamsMap,
   DipKey,
 } from "./types";
+export { COMPACT_WIDTH, trayCoverOf } from "./view/tray-cover";

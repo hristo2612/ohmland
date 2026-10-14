@@ -1,0 +1,68 @@
+# Blueprint: docs/curriculum/unit-3.md, MP12. A bench lesson (docs/LESSONS.md).
+# One idea: check every connection on the plan, one line at a time. New word: intermittent (a fault that comes and
+# goes; three periods: beats 3, 4, 7). The blueprint's ticking plan panel does not exist yet: the plan card numbers
+# the lines and the meter's beep is the tick. Lab: content/labs/perfboard-debug.ts.
+format: bench
+id: perfboard-debug
+version: 1
+title: The winking fault
+summary: Find a joint that comes and goes by beeping a blinker's plan line by line, heal it, and prove it holds.
+minutes: 8
+lab: perfboard-debug
+unlocks:
+  parts: []
+  isle: test-lead-arch
+
+start:
+  title: The winking fault
+  say: My spare blinker winks, then quits. Let's hunt the fault.
+  go: Let's hunt
+
+beats:
+  - say: Beep tests need the power off. Unclip the battery.
+    objective: Power off
+    do: power-off
+    note: { at: TL1, text: "beep tests: power off" }
+
+  - say: Meter to beep. Test the plan's first line.
+    objective: Walk the plan
+    do: beep-line-1
+    tool: meter
+    note: { at: PC3, text: "beep: joined" }
+
+  - say: Press the board. Beep line by line till one goes quiet.
+    guess: { options: [They all beep, One goes quiet], answer: One goes quiet }
+    do: find-silent
+    tool: meter
+    note: { at: PB3.C10, text: "intermittent: it comes and goes" }
+    rule: Check every line, one at a time.
+
+  - say: Show me the intermittent joint.
+    tap: { answer: PB3.C10, among: [PB3.C10, PB3.E10, PB3.C9, PB3.I8] }
+    spot: [PB3]
+
+  - say: Heal it with a touch of fresh solder.
+    objective: Heal it
+    do: reheat
+
+  - say: Battery back on. Flip the board and press it.
+    do: flex-proof
+    done: Pressed, and still blinking.
+
+  - say: A fault that comes and goes is...
+    pick: { options: [Intermittent, A short, An open], answer: Intermittent }
+
+secret:
+  task: no-line-no-beep
+  say: Curious? Beep two pads that no line joins.
+  tool: meter
+  note: { at: PC3, text: "no line, no beep: good" }
+
+fixit:
+  say: Fix-it time. My last blinker stares with one eye.
+  tool: meter
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. Forge Isle is built!

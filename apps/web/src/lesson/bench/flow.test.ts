@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { buildBench } from "../../lab/build";
 import type { BenchLessonData } from "../../content/load";
 import { benchLessonSchema } from "../../content/schema";
-import { answerKeys, holeName, isMomentDone, momentsOf, noteText, pinNamesBefore, progressOf, recordTry, rulesFound, scoreOf } from "./flow";
+import { answerKeys, holeName, isMomentDone, momentsOf, notesToSave, noteText, pinNamesBefore, progressOf, recordTry, rulesFound, savedNotes, scoreOf } from "./flow";
+import { parseNote } from "../../lab/notes";
 import { judgeJoined, resolveAnchor } from "./marks";
 
 const lesson = (extra: Record<string, unknown> = {}): BenchLessonData =>
@@ -47,8 +48,11 @@ describe("bench lesson flow", () => {
     const l = lesson();
     const ms = momentsOf(l);
     let rec = recordTry(undefined, false, "D1.cathode");
+    rec = recordTry(rec, false, "D1.cathode");
     rec = recordTry(rec, true, "D1.anode");
-    expect(rec).toEqual({ first: false, done: true, at: "D1.anode" });
+    expect(rec).toEqual({ first: false, done: true, at: "D1.anode", tries: 3 });
+    // Right is right: a tap after that does not count as another try.
+    expect(recordTry(rec, true, "D1.anode").tries).toBe(3);
     const answers = {
       [answerKeys.check("b2")]: rec,
       [answerKeys.check("b3")]: recordTry(undefined, true),
@@ -146,5 +150,15 @@ describe("chip pins the lesson has named", () => {
     );
     expect(pinNamesBefore(ms, 1)).toEqual([{ part: "U1", pin: 2, word: "trigger" }]);
     expect(pinNamesBefore(ms, 3).map((p) => `${p.pin} ${p.word}`)).toEqual(["2 trigger", "8 plus", "1 minus", "6 threshold"]);
+  });
+});
+
+describe("the lab notebook across a resume", () => {
+  it("saves entries as typed, adds what the lab holds, and reads them back to the same values", () => {
+    const saved = notesToSave({ glow: "12.5 mA" }, { glow: 12.5, drop: 1.9, empty: null });
+    expect(saved).toEqual({ glow: "12.5 mA", drop: "1.9" });
+    const back = savedNotes({ [answerKeys.notes("lab")]: saved }, "lab");
+    expect([parseNote(back["glow"]!, "mA"), parseNote(back["drop"]!, "V")]).toEqual([12.5, 1.9]);
+    expect(savedNotes({ [answerKeys.notes("lab")]: ["junk"] }, "lab")).toEqual({});
   });
 });

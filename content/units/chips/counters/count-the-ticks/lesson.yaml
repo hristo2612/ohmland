@@ -1,0 +1,75 @@
+# Blueprint: docs/curriculum/unit-4.md, CH14. A bench lesson (docs/LESSONS.md).
+# One idea: a counter adds one each time its clock pin rises; a steady blinker makes a clock. New: the counter chip
+# (4026B; three periods: a note as it counts, a tap among the chips, "What is this?") and the word "clock".
+# Lab: content/labs/count-the-ticks.ts.
+format: bench
+id: count-the-ticks
+version: 1
+title: One tick, one step
+summary: Tap a counter chip forward, find that it counts the press and not the hold, then let a blinker be its clock.
+minutes: 7
+lab: count-the-ticks
+unlocks:
+  parts: [counter-4026b]
+  isle: test-lead-arch
+
+start:
+  title: One tick, one step
+  say: My billboard needs a chip that counts. Here it is.
+  go: Start counting
+
+beats:
+  - say: Tap the yellow button a few times.
+    objective: Tap to count
+    spot: [S1, DS1]
+    do: tap-count
+    note: { at: U1, text: "a counter: one tap, one step" }
+
+  - say: Now hold the button down. Guess first.
+    spot: [S1, DS1]
+    guess: { options: [It keeps climbing, It steps once], answer: It steps once }
+    do: hold-once
+    note: { at: U1.1, text: "counts the rise, not the hold" }
+    rule: A counter steps once per rising edge.
+
+  - say: Let my blinker tap. Move the clock wire to its pin 3.
+    objective: A clock
+    spot: [W2, U2]
+    do: clock-in
+    note: { at: U2, text: "a steady tick: a clock" }
+
+  - say: After 9 comes what? Guess, then watch.
+    spot: [DS1]
+    guess: { options: ["10", "0"], answer: "0" }
+    do: roll-nine
+    note: { at: DS1, text: "one digit: 9 rolls to 0" }
+
+  - say: Show me the clock.
+    tap: { answer: U2, among: [U1, U2, DS1] }
+    hint: The clock is the chip that blinks the lamp.
+
+  - say: What is this?
+    pick: { options: [A counter, A timer, A display], answer: A counter, on: U1 }
+    wrong:
+      A timer: The timer is the blinker. This one keeps count.
+      A display: The display only shows. This chip counts.
+
+  - say: Hold RESET.
+    spot: [S2, DS1]
+    do: reset-zero
+    note: { at: U1.15, text: "reset high: back to 0" }
+
+secret:
+  task: blur
+  spot: [C1, C5]
+  say: "Secret: swap my blinker's 10 µF for the 0.1 µF."
+  done: A blur of ticks. Every bar glows.
+  note: { at: DS1, text: "too fast to read: an 8" }
+
+fixit:
+  say: My counter is stuck on 0. Fix it.
+  tasks:
+    - task: fix-it
+
+end:
+  say: One tick, one step. My billboard can count.

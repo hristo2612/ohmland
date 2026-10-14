@@ -35,13 +35,18 @@ export type Moment = {
   fix?: { index: number; count: number; intro: string; timer: number };
 };
 
-/** One graded check's record. `first` is settled by the first try; `done` once it is right (or revealed). */
-export type CheckRecord = { first: boolean; done: boolean; at?: string };
+/**
+ * One graded check's record. `first` is settled by the first try; `done` once it is right (or revealed); `tries`
+ * counts the tries up to the right one (absent in records saved before it was counted).
+ */
+export type CheckRecord = { first: boolean; done: boolean; at?: string; tries?: number };
 
 export const answerKeys = {
   check: (key: string) => `check:${key}`,
   guess: (key: string) => `guess:${key}`,
   tasks: (lab: string) => `tasks:${lab}`,
+  /** The lab notebook's entries (lab.note), as typed: { "glow-mA": "12.5 mA" }. Put back on the lab on resume. */
+  notes: (lab: string) => `notes:${lab}`,
   /** The fix-it clock: seconds the learner took, when they raced it. */
   clock: "fixit:clock",
 } as const;
@@ -146,6 +151,25 @@ export const tasksOf = (answers: Answers, lab: string): string[] => {
   return Array.isArray(v) ? (v as string[]) : [];
 };
 
+/** The lab notebook entries saved for a lab, as typed. */
+export const savedNotes = (answers: Answers, lab: string): Record<string, string> => notesIn(answers[answerKeys.notes(lab)]);
+
+/** Notebook entries from a saved answer (anything else reads as none). */
+export function notesIn(v: unknown): Record<string, string> {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+  return Object.fromEntries(Object.entries(v as Record<string, unknown>).filter((e): e is [string, string] => typeof e[1] === "string"));
+}
+
+/**
+ * The entries to save: the ones saved so far, plus what the lab session holds that they do not (a value a "Show me"
+ * wrote), written out as a plain number in the entry's unit.
+ */
+export function notesToSave(saved: Record<string, string>, session: Record<string, number | null>): Record<string, string> {
+  const out = { ...saved };
+  for (const [id, v] of Object.entries(session)) if (v !== null && Number.isFinite(v) && out[id] === undefined) out[id] = String(v);
+  return out;
+}
+
 /** What the lesson is worth so far, in the shape the progress store records (XP rules in docs/ARCHITECTURE.md). */
 export function scoreOf(lesson: BenchLessonData, moments: readonly Moment[], answers: Answers): { firstTry: number; items: number; tasks: string[] } {
   let items = 0;
@@ -163,6 +187,9 @@ export function recordTry(prev: CheckRecord | undefined, right: boolean, at?: st
   const rec: CheckRecord = { first: prev ? prev.first : right, done: !!prev?.done || right };
   const where = right ? at : prev?.at;
   if (where !== undefined) rec.at = where;
+  // Tries stop counting once it is right; a record saved before they were counted stays without a count.
+  const tries = prev?.done ? prev.tries : prev ? (prev.tries === undefined ? undefined : prev.tries + 1) : 1;
+  if (tries !== undefined) rec.tries = tries;
   return rec;
 }
 

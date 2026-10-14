@@ -1,0 +1,11 @@
+id: perfboard
+title: Perfboard
+summary: A mirrored board, a blinker built for keeps and a fault that comes and goes.
+# Reveal caption: Planks of perfboard reach out over the clouds, every joint shining.
+landmark:
+  id: perfboard-pier
+  name: the Perfboard Pier
+lessons:
+  - perfboard-plan
+  - pocket-blinker
+  - perfboard-debug

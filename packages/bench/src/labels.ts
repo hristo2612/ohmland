@@ -68,6 +68,15 @@ export type BenchLabels = {
     lo?: string;
     pulse?: string;
   };
+  /** The touch loupe's short names for what a drag would land on, written over it before the finger lifts. */
+  loupe: {
+    /** Leads by name ("long leg"); a lead not listed reads as its own name. */
+    legs: Record<string, string>;
+    /** A part seated across holes: "c6 to c10". */
+    span: (from: string, to: string) => string;
+    /** A meter probe's tip, by its colour's name. */
+    probe: (color: string) => string;
+  };
 };
 
 export type SolderLabels = {
@@ -326,6 +335,11 @@ export const DEFAULT_LABELS: BenchLabels = {
     lo: "LO",
     pulse: "PULSE",
   },
+  loupe: {
+    legs: { anode: "long leg", cathode: "short leg", pos: "plus", neg: "minus", wrap: "wrapper", base: "wood", com: "middle", wiper: "wiper" },
+    span: (from, to) => `${from} to ${to}`,
+    probe: (color) => `${color} probe`,
+  },
 };
 
 export function mergeLabels(over?: Partial<BenchLabels>): BenchLabels {
@@ -341,6 +355,7 @@ export function mergeLabels(over?: Partial<BenchLabels>): BenchLabels {
     actions: { ...DEFAULT_LABELS.actions, ...(over.actions ?? {}) },
     heat: { ...DEFAULT_LABELS.heat, ...(over.heat ?? {}) },
     solder: { ...DEFAULT_LABELS.solder, ...(over.solder ?? {}) },
+    loupe: { ...DEFAULT_LABELS.loupe, ...(over.loupe ?? {}), legs: { ...DEFAULT_LABELS.loupe.legs, ...(over.loupe?.legs ?? {}) } },
     print: { ...DEFAULT_LABELS.print, ...(over.print ?? {}), bands: { ...DEFAULT_LABELS.print.bands, ...(over.print?.bands ?? {}) } },
   };
 }
