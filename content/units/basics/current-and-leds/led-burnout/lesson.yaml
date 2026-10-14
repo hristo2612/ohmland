@@ -24,10 +24,11 @@ beats:
     done: Brighter! Same LED, same battery.
     note: { at: R2, text: the resistor sets the flow }
 
-  - say: Now 150 Ω. Watch the stress bar.
+  - say: Now 150 Ω. Watch the stress bar above the LED.
+    spot: [R2, D1]
     do: brighter-still
     done: Dazzling, and nearly at its limit.
-    note: { at: D1, text: "48 mA, limit 50 mA" }
+    note: { at: D1, text: "stress bar: 48 of 50 mA" }
 
   - say: Go on. Try 15 Ω.
     objective: Too far

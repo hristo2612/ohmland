@@ -66,7 +66,7 @@ export default defineLab({
     },
     {
       id: "brighter-still",
-      prompt: "Now **150 Ω**. Watch the stress bar.",
+      prompt: "Now **150 Ω**. Watch the stress bar above the LED.",
       goal: (lab) => loopOhms(lab) === 150 && glow(lab, "D1") > 0.8 && lab.part("D1")?.health !== "dead",
       hints: ["Swap the 470 Ω for the 150 Ω, same holes."],
       nudges: [{ when: twoAtOnce, say: "Two side by side. Pull the old one out." }],
