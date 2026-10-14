@@ -42,6 +42,7 @@ beats:
 
   - say: What is this?
     pick: { on: E1, options: [a conductor, an insulator], answer: an insulator }
+    wrong: { a conductor: "Across the gap, the eraser left my lamp dark." }
 
 secret:
   task: pencil-lead
