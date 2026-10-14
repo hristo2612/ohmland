@@ -109,6 +109,8 @@ export function replayLab(lab: LabDefinition, trace?: (line: string) => void): R
       if (!session.tapper) problems.push(`step ${i + 1}: no tapper`);
       session.setTapper(eff.tapper);
     }
+    if (eff.view) session.setView(eff.view.name, eff.view.on);
+    if (eff.trace !== undefined) session.setTrace(eff.trace);
     if (eff.check) {
       // Give the goal a moment: a check right after an action waits for the circuit to settle.
       if (session.status[eff.check] !== "done") advance(0.5);

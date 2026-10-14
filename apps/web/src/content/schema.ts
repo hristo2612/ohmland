@@ -359,8 +359,11 @@ const popupSchema = z.strictObject({
   props: z.record(z.string(), z.unknown()).default({}),
 });
 
-/** The one instrument or panel a moment shows: meter, scope, logger, stopwatch, tapper, controls, or a lab panel id. */
-const toolSchema = z.string().trim().regex(/^[a-z0-9-]+$/, "must be meter, scope, logger, stopwatch, tapper, controls or a panel id");
+/**
+ * The one instrument or panel a moment shows: meter, scope, logger, stopwatch, tapper, controls, views (the lab's
+ * overlay toggles), or a lab panel id.
+ */
+const toolSchema = z.string().trim().regex(/^[a-z0-9-]+$/, "must be meter, scope, logger, stopwatch, tapper, controls, views or a panel id");
 
 /** A prediction right before an action: the learner guesses, then does it and sees. Never graded. */
 const guessSchema = z
@@ -378,8 +381,14 @@ export const beatSchema = z
     /** Show the metal strips inside the breadboard during this beat. */
     xray: z.boolean().optional(),
     /**
-     * The one instrument or panel this beat needs: meter, scope, logger, stopwatch, tapper, controls, or a lab panel
-     * id. Without it, a lab panel tied to the beat's task (its `show`) appears; otherwise none.
+     * Run the loop tracer from this terminal (B1.neg) once the beat's action is done (the right tap), or as the beat
+     * begins when it has nothing to do. Its ink clears when the beat ends.
+     */
+    trace: anchor.optional(),
+    /**
+     * The one instrument or panel this beat needs: meter, scope, logger, stopwatch, tapper, controls, views (the lab's
+     * overlay toggles), or a lab panel id. Without it, a lab panel tied to the beat's task (its `show`) appears;
+     * otherwise none.
      */
     tool: toolSchema.optional(),
 

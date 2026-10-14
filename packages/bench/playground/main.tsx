@@ -5,7 +5,7 @@ import type { Health, PartState, Snapshot } from "@ohmland/sim";
 // galleries load their 3D code when opened.
 import { benchToNetlist, createBenchStore, emptyBench, type BenchAction, type BenchState, type InspectSpec, type Quality } from "../src/core";
 import { BenchView, type BenchController, type BenchViewKind } from "../src/view";
-import { FULL_TRAY, blocksBench, clipBench, demoBench, glowBench, modulesBench, propsBench, smokeBench } from "./scenes";
+import { FULL_TRAY, blocksBench, boxesBench, clipBench, demoBench, drawerBench, glowBench, lampBench, modulesBench, propsBench, smokeBench, staticBench, symbolsBench, tiredBench } from "./scenes";
 
 type GalleryProps = { view?: { position: [number, number, number]; target: [number, number, number] }; rows?: number[]; row: string | null; focus: string | null };
 const GalleryApp = lazy(() =>
@@ -46,6 +46,20 @@ function initialBench(): BenchState {
       return modulesBench();
     case "blocks":
       return blocksBench();
+    // Start here: `lamp` (wrap=1 clips TL1 to the wrapper, gates=1 adds two gates, off=1), `junk`, `boxes`
+    // (open=1), `tired`, `symbols`, `static`.
+    case "lamp":
+      return lampBench({ wrap: q.get("wrap") === "1", gates: q.get("gates") === "1", off: q.get("off") === "1" });
+    case "junk":
+      return drawerBench();
+    case "boxes":
+      return boxesBench(q.get("open") === "1");
+    case "tired":
+      return tiredBench();
+    case "symbols":
+      return symbolsBench();
+    case "static":
+      return staticBench();
     default:
       return demoBench();
   }
@@ -168,8 +182,64 @@ const viewButton: React.CSSProperties = {
 
 type Shown = BenchViewKind | "split";
 
+/**
+ * `sim=1`: run the real simulator in this thread instead of the mock snapshot (flow dots, gates and push need real
+ * currents). `speed=` runs it faster. Overlays: `flow=current|electrons`, `push=1`, `trace=pin:B1.neg`.
+ */
+function useLiveSim(store: ReturnType<typeof createBenchStore>, on: boolean) {
+  useEffect(() => {
+    if (!on) return;
+    let stop = false;
+    let raf = 0;
+    void import("@ohmland/sim").then(({ createSimulation }) => {
+      if (stop) return;
+      const sim = createSimulation();
+      const speed = Number(q.get("speed") ?? 1);
+      let bench = store.getState().bench;
+      sim.load(benchToNetlist(bench).netlist);
+      const unsub = store.subscribe((s) => {
+        if (s.txBase || s.bench === bench) return;
+        bench = s.bench;
+        sim.load(benchToNetlist(bench).netlist);
+      });
+      const offAct = store.subscribe((s, prev) => {
+        // Switch flips and button presses reach the simulator as they do in a lab.
+        if (s.ui.pressed !== prev.ui.pressed) for (const [id, v] of Object.entries(s.ui.pressed)) sim.setInput(id, "pressed", v);
+      });
+      const frame = () => {
+        if (stop) return;
+        store.setState({ snapshot: sim.step((1 / 30) * speed, { speed }) });
+        raf = requestAnimationFrame(frame);
+      };
+      // Settle first, so screenshots show a running circuit.
+      store.setState({ snapshot: sim.step(0.5) });
+      raf = requestAnimationFrame(frame);
+      cleanup = () => {
+        unsub();
+        offAct();
+        sim.dispose();
+      };
+    });
+    let cleanup = () => {};
+    return () => {
+      stop = true;
+      cancelAnimationFrame(raf);
+      cleanup();
+    };
+  }, [store, on]);
+}
+
 function BenchApp() {
   const [store] = useState(() => createBenchStore(initialBench()));
+  const live = q.get("sim") === "1";
+  useLiveSim(store, live);
+  useEffect(() => {
+    const flow = q.get("flow");
+    if (flow === "current" || flow === "electrons") store.getState().setOverlay({ flow });
+    if (q.get("push") === "1") store.getState().setOverlay({ push: true });
+    const trace = q.get("trace");
+    if (trace) setTimeout(() => store.getState().trace(trace), Number(q.get("traceAt") ?? 300));
+  }, [store]);
   const controller = useRef<BenchController | null>(null);
   const second = useRef<BenchController | null>(null);
   // Both views draw the same store: switching keeps the bench, the undo history and the snapshot. "Both" shows them
@@ -242,7 +312,7 @@ function BenchApp() {
               view={v}
               store={store}
               tray={q.get("tray") === "0" ? [] : FULL_TRAY}
-              snapshot={snapshot}
+              snapshot={live ? undefined : snapshot}
               quality={quality}
               readOnly={q.get("ro") === "1"}
               highlight={highlight}
@@ -275,6 +345,7 @@ function BenchApp() {
           <a href="?scene=glow">First glow</a>
           <a href="?scene=props">Props</a>
           <a href="?scene=modules">Modules</a>
+          <a href="?scene=lamp&gates=1&sim=1&flow=current">Start here</a>
           <a href="?scene=empty">Empty</a>
           <a href="?mode=gallery">Gallery</a>
           <a href="?mode=preview">Preview</a>

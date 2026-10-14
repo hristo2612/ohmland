@@ -1,134 +1,52 @@
+# Blueprint: docs/curriculum/unit-2.md, Lesson 5; conversion: docs/curriculum/conversion-guide.md, C2 (5).
+# A bench lesson (docs/LESSONS.md). One idea: a relay pulls in at one push and lets go at a much lower one.
+# New: the knob (potentiometer). Lab: content/labs/relay-thresholds.ts. The changeover moved to relay-chooser.
+format: bench
 id: relay-thresholds
-version: 1
+version: 2
 title: Click in, click out
-summary: Switch two LEDs with a relay, then find the exact voltages where it pulls in and lets go.
-minutes: 10
+summary: Turn a knob to find the exact coil voltages where a relay pulls in and lets go.
+minutes: 7
+lab: relay-thresholds
 unlocks:
   parts: [potentiometer]
   isle: wire-spool
-steps:
-  - type: hook
-    body: |
-      A relay doesn't care how gently you ask. Below a certain coil voltage, nothing. Above it, a confident click.
 
-      But here's the odd part: once it has clicked, you can turn the voltage way down and it still hangs on. Why would
-      a switch need more push to start than to stay? Grab a knob and find out exactly where those two points are.
-    visual: { kind: part, part: potentiometer }
-    predict:
-      prompt: The relay clicks on at about 6 V. As you turn the voltage back down, where will it let go?
-      options:
-        - Also at about 6 V
-        - Somewhere well below 6 V
-        - Above 6 V
-    mascot: Starting is hard. Staying is easy. Relays and I agree.
+start:
+  title: Click in, click out
+  say: How hard must you push a relay before it clicks?
+  go: Find out
 
-  - type: lab
-    lab: relay-thresholds
-    intro: Two batteries, one relay. The first battery drives the coil, the second lights the LEDs.
+beats:
+  - say: This is a knob, a potentiometer. Tap it.
+    objective: Find the pull-in
+    meet: P1
+    note: { at: P1, text: knob (potentiometer) }
 
-  - type: explain
-    cards:
-      - title: Why the gap?
-        body: |
-          A magnet's pull gets much stronger as the gap to the iron shrinks. To start, the coil must tug the armature
-          across a wide air gap. Once the armature is pulled in, the gap is tiny, so a weak current holds it.
+  - say: Turn it up slowly. Type the meter's reading at the click.
+    tool: controls
+    do: find-pull-in
+    done: Click! The green lamp agrees.
+    note: { at: K1, text: "pull-in: about 6 V" }
 
-          That difference gives the relay two thresholds: **pull-in** and **drop-out**.
-        mascot: Turn slowly. The click is sneaky.
-      - title: Hysteresis is a feature
-        body: |
-          Imagine a single threshold at 6 V and a supply wobbling between 5.9 V and 6.1 V. The relay would click on
-          and off like a nervous woodpecker.
+  - say: Now turn it down slowly. Where does it let go? Guess first.
+    objective: Find the drop-out
+    tool: controls
+    guess: { options: [Also about 6 V, Well below 6 V, Above 6 V], answer: Well below 6 V }
+    do: find-drop-out
+    done: Under 2 V! Once in, it hangs on.
+    note: { at: K1, text: "close up, the magnet pulls harder" }
+    rule: Two thresholds stop the chatter.
 
-          Two thresholds far apart mean a small wobble can't flip it. That gap is called **hysteresis**. You'll meet
-          the same idea in thermostats, and in chips in Unit 4.
-      - title: Reading a relay datasheet
-        body: |
-          **Coil voltage**: what it's designed for, say 9 V. **Coil resistance and current**: 540 Ω draws about
-          16.7 mA at 9 V, about 150 mW.
+  - say: In at 6.1 V, out at 1.7 V. Is this relay faulty?
+    pick: { options: [Working fine, Faulty], answer: Working fine }
+    wrong: { Faulty: "The gap is built in. That's what stops the chatter." }
 
-          **Must-operate voltage**: the most it can need to pull in, often 75% of the rated voltage.
-          **Must-release voltage**: below this it's guaranteed to let go, often 10%.
-      - title: Contact ratings
-        body: |
-          The contacts have their own limit, such as 2 A at 30 V DC. That number usually assumes a plain resistive
-          load. Motors and lamps draw a surge when they start, so leave plenty of margin.
+fixit:
+  say: The relay never clicks, whatever the knob. Fix it.
+  tool: controls
+  tasks:
+    - task: fix-wiper
 
-          A relay with a 9 V coil can switch a 24 V circuit, as long as its contacts are rated for it.
-        mascot: Two batteries, one magnet. No wires between them.
-
-  - type: quiz
-    items:
-      - id: coil-current
-        type: numeric
-        prompt: A 12 V relay coil measures 400 Ω. What current does it draw at 12 V?
-        answer: 30
-        unit: mA
-        tolerance: 3
-        hint: I = V ÷ R, then turn amps into milliamps.
-        explain: "12 V ÷ 400 Ω = 0.03 A = 30 mA. Its power is 12 V × 0.03 A = 0.36 W."
-
-      - id: working-normally
-        type: choice
-        prompt: A relay pulled in at 6.1 V and let go at 1.7 V. Which statement is true?
-        options:
-          - text: It's working normally
-            correct: true
-            why: Drop-out is always well below pull-in. That's hysteresis.
-          - text: It's faulty, because the two should match
-            why: The gap between them is designed in.
-          - text: The meter is broken
-            why: Both readings are typical for a 9 V relay.
-        explain: Pulling in needs more magnetic force than holding on, because the air gap is wider at rest.
-
-      - id: latching
-        type: choice
-        prompt: Which kind of relay keeps its position with no power at all?
-        options:
-          - text: A normally closed relay
-            why: Its contacts still spring back when the coil is off.
-          - text: A latching relay
-            correct: true
-            why: It stays where the last pulse put it.
-          - text: Any DPDT relay
-            why: Two poles don't change how it holds.
-        explain: Latching relays use a magnet or a mechanical catch, so a short pulse sets or resets them.
-
-      - id: datasheet-terms
-        type: match
-        prompt: Match each datasheet term to its meaning.
-        pairs:
-          - { left: Coil voltage, right: The voltage it's designed to run on }
-          - { left: Must-operate voltage, right: A voltage that guarantees it pulls in }
-          - { left: Must-release voltage, right: The voltage below which it's sure to let go }
-          - { left: Contact rating, right: The most the contacts can safely switch }
-        explain: These four lines tell you how to drive a relay and what it can switch.
-
-      - id: switch-24v
-        type: choice
-        prompt: Can a relay with a 9 V coil switch a 24 V lamp circuit?
-        options:
-          - text: Yes, if the contacts are rated for it
-            correct: true
-            why: Coil and contacts are isolated. Check the contact rating.
-          - text: No, only 9 V circuits
-            why: The coil voltage only describes the control side.
-          - text: Only with a second relay
-            why: One relay is enough.
-        explain: The contact rating decides what the relay can switch, not the coil voltage.
-
-  - type: wrap
-    rules:
-      - A relay pulls in at one voltage and drops out at a much lower one.
-      - Hysteresis stops chattering.
-      - Coil ratings describe the control side. Contact ratings describe the switched side.
-      - Leave margin for loads that surge when they start.
-    realWorld:
-      parts:
-        - A relay with a 9 V coil
-        - Two 9 V batteries and snaps
-        - A 1 kΩ potentiometer
-        - Two LEDs and two 470 Ω resistors
-        - A multimeter and clip leads
-      safety:
-        - Keep both circuits at battery voltage.
+end:
+  say: In high, out low. A relay with nerves of steel.
