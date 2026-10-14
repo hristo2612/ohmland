@@ -1,6 +1,6 @@
 id: cells-and-batteries
 title: Cells and batteries
-summary: Make a cell from fruit and two metals, stack cells in series, and learn to choose and handle real batteries.
+summary: Make a cell from fruit and two metals, stack cells in series, match real batteries to their jobs, and time them.
 landmark:
   id: lemon-grove
   name: the Lemon Grove
@@ -11,3 +11,4 @@ lessons:
   - lemon-cell
   - stack-the-cells
   - battery-field-guide
+  - how-long

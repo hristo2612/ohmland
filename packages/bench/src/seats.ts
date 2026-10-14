@@ -75,8 +75,11 @@ export function seatJoins(seat: SeatDef, held: PlacedPart): Readonly<Record<stri
   return typeof j === "function" ? j(held) : (j ?? {});
 }
 
-/** The nearest seat that accepts `part` within `reach` mm of a desk point (a full seat only when nothing else is free). */
-export function seatNear(bench: BenchState, part: PlacedPart, to: Vec2, reach = SEAT_REACH): { holder: PlacedPart; seat: SeatDef } | null {
+/**
+ * The nearest seat that accepts `part` within `reach` mm of a desk point (a full seat only when nothing else is free).
+ * `freeOnly`: never a seat another part sits in (a drop by hand never pushes a part out).
+ */
+export function seatNear(bench: BenchState, part: PlacedPart, to: Vec2, reach = SEAT_REACH, freeOnly = false): { holder: PlacedPart; seat: SeatDef } | null {
   let best: { holder: PlacedPart; seat: SeatDef; d: number } | null = null;
   for (const h of bench.parts) {
     if (h.id === part.id) continue;
@@ -87,6 +90,7 @@ export function seatNear(bench: BenchState, part: PlacedPart, to: Vec2, reach = 
       if (!seatFits(seat, part)) continue;
       const pose = seatPose(h, seat, part, bench);
       const taken = held[seat.name] && held[seat.name] !== part.id;
+      if (taken && freeOnly) continue;
       const d = Math.hypot(pose.origin[0] - to[0], pose.origin[2] - to[1]) + (taken ? reach * 0.75 : 0);
       if (d <= reach * (taken ? 1.75 : 1) && (!best || d < best.d)) best = { holder: h, seat, d };
     }

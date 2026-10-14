@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { partLegs, type BenchState } from "@ohmland/bench/core";
+import { targetPoint } from "@ohmland/bench/view";
 import { loadCourse, type BenchLessonData } from "../../content/load";
 import { resolveAttach } from "../../lab/anchors";
 import { buildBench } from "../../lab/build";
@@ -96,7 +97,9 @@ describe("bench lessons", () => {
           for (const a of [b.tap?.answer ?? [], b.tap?.among ?? []].flat()) anchors.add(a);
         }
         if (lesson.secret?.note && lesson.secret.note.at !== "tap") anchors.add(lesson.secret.note.at);
-        for (const a of anchors) expect(all.some((b) => resolveAnchor(b, a) !== null), `"${a}" on the bench`).toBe(true);
+        // A mark (part:M1/dial) must be one its part really has.
+        const on = (b: BenchState, a: string) => (/^part:[^/]+\//.test(a) ? targetPoint(b, a) !== null : resolveAnchor(b, a) !== null);
+        for (const a of anchors) expect(all.some((b) => on(b, a)), `"${a}" on the bench`).toBe(true);
       });
 
       it("applies each check's then steps to the bench", () => {

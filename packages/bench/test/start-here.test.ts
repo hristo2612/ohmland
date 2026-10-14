@@ -113,6 +113,20 @@ describe("everyday objects", () => {
     b = movePart(b, "R1", [180, -4]);
     expect(holderOf(b, "R1")?.holder.id).toBe("DR");
   });
+
+  it("a part dragged out of a bin over a full seat leaves the part in it alone", () => {
+    let b: BenchState = { ...emptyBench(null), parts: [part("BIN", "bin", {}, [0, 0]), part("R2", "resistor", { ohms: 470 }, [0, 80]), part("R5", "resistor", { ohms: 1000 }, [40, 80])] };
+    b = seatPart(seatPart(b, "R2", "BIN", "s2"), "R5", "BIN", "s3");
+    // On its way (as a drag moves it), right over R5's seat, then off to the desk; dropped there by hand.
+    for (const to of [[-12, 4], [0, 0], [4, 30], [10, 80]] as [number, number][]) b = movePart(b, "R2", to, { seat: false });
+    b = movePart(b, "R2", [10, 80], { seat: "free" });
+    expect(holderOf(b, "R2")).toBeNull();
+    expect(holderOf(b, "R5")?.seat.name).toBe("s3");
+    // Dropped right on R5's seat by hand, it takes a free one, never R5's.
+    b = movePart(b, "R2", [0, 0], { seat: "free" });
+    expect(holderOf(b, "R5")?.seat.name).toBe("s3");
+    expect(holderOf(b, "R2")?.seat.name).not.toBe("s3");
+  });
 });
 
 describe("a battery's starting charge", () => {

@@ -171,9 +171,10 @@ export function addPart<K extends BenchPartKind>(
 /**
  * Move a part so its footprint centre is near `to`. Dropped on a holder (resistor clips, a lemon's slot, a test
  * station, a bin) it goes into the nearest seat that fits; on the board it snaps into the nearest free holes;
- * otherwise (or when nothing fits) it lies on the desk.
+ * otherwise (or when nothing fits) it lies on the desk. `seat: false` never seats it (a part on its way, mid-drag);
+ * `seat: "free"` only into a seat nobody holds (a drop by hand never pushes another part out).
  */
-export function movePart(bench: BenchState, id: string, to: Vec2, opts: { rot?: number; reach?: number; seat?: boolean } = {}): BenchState {
+export function movePart(bench: BenchState, id: string, to: Vec2, opts: { rot?: number; reach?: number; seat?: boolean | "free" } = {}): BenchState {
   let part = bench.parts.find((p) => p.id === id);
   if (!part) return bench;
   const nose = (partDef(part.kind) as { nose?: string }).nose;
@@ -188,7 +189,7 @@ export function movePart(bench: BenchState, id: string, to: Vec2, opts: { rot?: 
   // A gate clips onto the clip lead it is dropped on, or lies on the desk.
   if (part.kind === "gate") return clipGate(bench, id, to);
   if (opts.seat !== false) {
-    const near = seatNear(bench, part, to);
+    const near = seatNear(bench, part, to, undefined, opts.seat === "free");
     if (near) {
       const cur = holderOf(bench, id);
       if (cur && cur.holder.id === near.holder.id && cur.seat.name === near.seat.name) return bench;
