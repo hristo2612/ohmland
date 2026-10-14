@@ -1,6 +1,8 @@
 // Screenshots of every moment of the bench lessons (Start here: welcome-to-the-bench and the Tool cases), played on the
 // real bench like a learner: desktop and phone, light and dark, 3D and ink views. Moves too fine for a phone (or a drag
-// that misses on a crowded bench) are played through the lab hook, so a run always reaches the end.
+// that misses on a crowded bench) are played through the lab hook, so a run always reaches the end. Any other bench
+// lesson can be named with --lessons: it is played from its lesson.yaml (generic(): taps, picks and guesses on the
+// page, each task through "Show me"), the way a stuck learner would see it.
 //
 //   pnpm build && node scripts/lesson-shots.mjs                       into ./screenshots-lessons
 //   node scripts/lesson-shots.mjs --lessons=first-glow --sizes=desktop --themes=light --views=3d
@@ -8,9 +10,11 @@
 //
 // Starts `astro preview` itself unless BASE_URL is set. Chromium runs with SwiftShader so the bench draws.
 import { spawn } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import YAML from "yaml";
 import { WEBGL_ARGS } from "./seed.mjs";
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/, "").split("=")).map(([k, v]) => [k, v ?? "true"]));
@@ -162,176 +166,6 @@ async function doneOr(page, task, fallback) {
     for (const s of fallback) await step(page, s);
     await page.waitForFunction((t) => window.ohmlandLab.status()[t] === "done", task, { timeout: 8000 });
   }
-}
-/** Turns the meter's dial on its panel in the tool dock, else through the lab hook. */
-async function dialTo(page, mode, label, range) {
-  const radio = page.locator(".bl-tool").getByRole("radio", { name: label });
-  if (await radio.count()) {
-    await radio.click();
-    if (range) await page.locator(".bl-tool select").selectOption(range);
-  } else await step(page, { do: "dial", mode, ...(range ? { range } : {}) });
-}
-/** Touches the probe tips to two points (through the lab hook: a tip is a thin target right by its lead's plug). */
-const probe = (page, red, black) => step(page, { do: "probe", red, black });
-
-async function meetTheMeter(page, shot) {
-  await shot("01-start");
-  await primary(page).click();
-  await at(page, "b0");
-  await settle(page, 1200);
-  await shot("02-meter");
-  await step(page, { do: "plug", probe: "black", socket: "com" });
-  await step(page, { do: "plug", probe: "red", socket: "vohm" });
-  await at(page, "b0", "done");
-  await settle(page);
-  await shot("03-plugged");
-  await primary(page).click();
-  await at(page, "b1");
-  await settle(page);
-  await shot("04-dial");
-  await dialTo(page, "dcv", "DC volts", "20V");
-  await at(page, "b1", "done");
-  await settle(page);
-  await shot("05-dial-note");
-  await primary(page).click();
-  await at(page, "b2");
-  await settle(page);
-  await shot("06-which-letter");
-  await page.locator("[data-pick='0']").click();
-  await settle(page, 500);
-  await shot("07-which-letter-wrong");
-  await page.locator("[data-pick='1']").click();
-  await at(page, "b3", "guess");
-  await settle(page);
-  await shot("08-guess");
-  await page.locator("[data-guess='2']").click();
-  await settle(page, 600);
-  await probe(page, "BX.t2", "BX.t1");
-  await doneOr(page, "read-battery", [{ do: "probe", red: "BX.t2", black: "BX.t1" }]);
-  await at(page, "b3", "done");
-  await settle(page);
-  await shot("09-reading");
-  await primary(page).click();
-  await at(page, "b4");
-  await probe(page, "BX.t1", "BX.t2");
-  await doneOr(page, "swap-probes", [{ do: "probe", red: "BX.t1", black: "BX.t2" }]);
-  await at(page, "b4", "done");
-  await settle(page);
-  await shot("10-minus-rule");
-  await primary(page).click();
-  await at(page, "b5");
-  await settle(page);
-  await shot("11-tap-plus");
-  await page.locator('[data-tap="BX.t1"]').click();
-  await settle(page, 500);
-  await shot("12-tap-plus-wrong");
-  await page.locator('[data-tap="BX.t2"]').click();
-  await at(page, "b6");
-  await settle(page);
-  await shot("13-open");
-  await clickTarget(page, "part:BX/lid");
-  await doneOr(page, "open-the-box", [{ do: "param", part: "BX", params: { lid: true } }]);
-  await at(page, "b6", "done");
-  await settle(page);
-  await shot("14-opened");
-  await primary(page).click();
-  await at(page, "b7");
-  await settle(page);
-  await shot("15-what-is-this");
-  await page.locator("[data-pick='0']").click();
-  await at(page, "secret");
-  await settle(page);
-  await shot("16-secret");
-  await probe(page, "B2.pos", "B2.neg");
-  await doneOr(page, "tired-battery", [{ do: "probe", red: "B2.pos", black: "B2.neg" }]);
-  await at(page, "secret", "done");
-  await settle(page);
-  await shot("17-secret-found");
-  await primary(page).click();
-  await at(page, "fix0");
-  await settle(page, 1500);
-  await shot("18-fixit");
-  await dialTo(page, "dcv", "DC volts", "20V");
-  await at(page, "end");
-  await settle(page);
-  await shot("19-end");
-  await finish(page, shot, 20);
-}
-
-async function milliAndKilo(page, shot) {
-  await shot("01-start");
-  await primary(page).click();
-  await at(page, "b0");
-  await settle(page, 1200);
-  await shot("02-gate");
-  await clickTarget(page, "part:G1/unit");
-  await doneOr(page, "tap-the-a", [{ do: "param", part: "G1", params: { unit: "mA" } }]);
-  await at(page, "b0", "done");
-  await settle(page);
-  await shot("03-milli");
-  await primary(page).click();
-  await at(page, "b1");
-  await settle(page);
-  await shot("04-tag");
-  await clickTarget(page, "part:L0/text");
-  await doneOr(page, "tap-the-k", [{ do: "param", part: "L0", params: { alt: true } }]);
-  await at(page, "b1", "done");
-  await settle(page);
-  await shot("05-kilo-rule");
-  await primary(page).click();
-  await at(page, "b2");
-  await settle(page);
-  await shot("06-show-me-milli");
-  await page.locator('[data-tap="L1"]').click();
-  await settle(page, 500);
-  await shot("07-show-me-milli-wrong");
-  await page.locator('[data-tap="L2"]').click();
-  await at(page, "b3");
-  await settle(page);
-  await shot("08-wheel-one");
-  await page.locator("[data-pick='1']").click();
-  await settle(page, 500);
-  await shot("09-wheel-one-wrong");
-  await page.locator("[data-pick='2']").click();
-  await at(page, "b4");
-  await settle(page);
-  await shot("10-wheel-two");
-  await page.locator("[data-pick='1']").click();
-  await at(page, "b5");
-  await settle(page);
-  await page.locator("[data-pick='2']").click();
-  await at(page, "b6");
-  await settle(page, 1200);
-  await shot("11-padlock-set");
-  await clickTarget(page, "part:CAB/lid");
-  await doneOr(page, "open-padlock", [{ do: "param", part: "CAB", params: { lid: true } }]);
-  await at(page, "b6", "done");
-  await settle(page);
-  await shot("12-cabinet-open");
-  await primary(page).click();
-  await at(page, "b7");
-  await settle(page);
-  await shot("13-what-does-k-mean");
-  await page.locator("[data-pick='0']").click();
-  await at(page, "secret");
-  await settle(page);
-  await shot("14-secret");
-  await clickTarget(page, "part:L4/text");
-  await doneOr(page, "mega", [{ do: "param", part: "L4", params: { alt: true } }]);
-  await at(page, "secret", "done");
-  await settle(page);
-  await shot("15-mega");
-  await primary(page).click();
-  await at(page, "fix0");
-  await settle(page, 1500);
-  await shot("16-fixit");
-  await step(page, { do: "move", part: "L6", at: "desk:-206,96" });
-  await movePart(page, "L1", "part:BN1", "in:BN1");
-  await doneOr(page, "fix-it", [{ do: "move", part: "L1", at: "in:BN1" }]);
-  await at(page, "end");
-  await settle(page);
-  await shot("17-end");
-  await finish(page, shot, 18);
 }
 
 async function breadboard(page, shot) {
@@ -667,12 +501,129 @@ async function finish(page, shot, n) {
 
 const PLAY = {
   "welcome-to-the-bench": welcome,
-  "meet-the-meter": meetTheMeter,
-  "milli-and-kilo": milliAndKilo,
   "how-a-breadboard-works": breadboard,
   "parts-drawer": partsDrawer,
   "first-glow": firstGlow,
 };
+
+// ---- Any bench lesson, from its lesson.yaml ----------------------------------------------------------------------
+
+/** content/units/<unit>/<module>/<id>/lesson.yaml for every bench lesson: { id: { unit, file } }. */
+function benchLessons() {
+  const root = fileURLToPath(new URL("../../../content/units/", import.meta.url));
+  const out = {};
+  for (const unit of readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory()))
+    for (const mod of readdirSync(join(root, unit.name), { withFileTypes: true }).filter((d) => d.isDirectory()))
+      for (const les of readdirSync(join(root, unit.name, mod.name), { withFileTypes: true }).filter((d) => d.isDirectory())) {
+        const file = join(root, unit.name, mod.name, les.name, "lesson.yaml");
+        if (existsSync(file)) out[les.name] = { unit: unit.name, file };
+      }
+  return out;
+}
+const LESSON_FILES = benchLessons();
+for (const [id, { unit }] of Object.entries(LESSON_FILES)) PATHS[id] ??= `${unit}/${id}`;
+
+const phaseOf = (page) => page.evaluate(() => {
+  const el = document.querySelector(".bl[data-moment]");
+  return el ? { moment: el.getAttribute("data-moment"), phase: el.getAttribute("data-phase") } : null;
+});
+/** Waits for a task to be done (the learner's move, or "Show me" played through the lab hook). */
+const taskDone = (page, task, timeout = 90_000) => page.waitForFunction((t) => window.ohmlandLab.status()[t] === "done", task, { timeout });
+/** After a moment's action: shoots and reads its discovery (then Next), or lets it move on by itself. */
+async function afterAction(page, shot, key, n) {
+  for (let i = 0; i < 40; i++) {
+    const p = await phaseOf(page);
+    if (!p || p.moment !== key) return;
+    if (p.phase === "done") {
+      await settle(page);
+      await shot(`${n}-${key}-done`);
+      const next = primary(page);
+      if (await next.count()) await next.click();
+      return;
+    }
+    await page.waitForTimeout(250);
+  }
+}
+
+/**
+ * Plays a bench lesson from its lesson.yaml like a learner: each guess, a wrong tap or pick first (so the bench names
+ * what was tapped), then the right one; each `do` task through "Show me" (the lab's own steps, as a stuck learner
+ * would see them); the secret and the fix-it the same way. A screenshot at the start and the discovery of each beat.
+ */
+async function generic(page, shot, id) {
+  const doc = YAML.parse(readFileSync(LESSON_FILES[id].file, "utf8"));
+  await shot("01-start");
+  await primary(page).click();
+  const show = async (task) => {
+    await page.evaluate((t) => void window.ohmlandLab.showMe(t), task);
+    await taskDone(page, task);
+  };
+  for (let i = 0; i < doc.beats.length; i++) {
+    const beat = doc.beats[i];
+    const key = `b${i}`;
+    await at(page, key);
+    await settle(page, 1200);
+    const n = String(i).padStart(2, "0");
+    if (beat.guess) {
+      await at(page, key, "guess");
+      await shot(`${n}-${key}-guess`);
+      const g = Math.max(0, beat.guess.options.indexOf(beat.guess.answer));
+      await page.locator(`[data-guess='${g}']`).click();
+      await settle(page, 600);
+    }
+    await shot(`${n}-${key}`);
+    if (beat.meet) await page.locator(`[data-tap="${beat.meet}"]`).click();
+    else if (beat.tap?.answer) {
+      const answers = [beat.tap.answer].flat();
+      const wrong = (beat.tap.among ?? []).find((a) => !answers.includes(a));
+      if (wrong) {
+        await page.locator(`[data-tap="${wrong}"]`).click();
+        await settle(page, 600);
+        await shot(`${n}-${key}-wrong`);
+      }
+      await page.locator(`[data-tap="${answers[0]}"]`).click();
+    } else if (beat.tap) await primary(page).click().catch(() => {});
+    else if (beat.pick) {
+      const right = beat.pick.answer === undefined ? 0 : beat.pick.options.indexOf(beat.pick.answer);
+      const wrong = beat.pick.options.findIndex((o) => o !== beat.pick.answer);
+      if (beat.pick.answer !== undefined && wrong >= 0) {
+        await page.locator(`[data-pick='${wrong}']`).click();
+        await settle(page, 600);
+        await shot(`${n}-${key}-wrong`);
+      }
+      await page.locator(`[data-pick='${right}']`).click();
+    } else if (beat.number) {
+      await page.locator(".bl-number input").first().fill(String(beat.number.answer));
+      await page.locator(".bl-number button[type=submit]").first().click();
+    } else if (beat.do) await show(beat.do);
+    else if (beat.popup) await page.getByRole("button", { name: "Got it" }).click();
+    else {
+      await primary(page).click();
+      continue;
+    }
+    await afterAction(page, shot, key, n);
+  }
+  if (doc.secret) {
+    await at(page, "secret");
+    await settle(page, 1200);
+    await shot("80-secret");
+    await show(doc.secret.task);
+    await afterAction(page, shot, "secret", "80");
+  }
+  for (let i = 0; i < (doc.fixit?.tasks.length ?? 0); i++) {
+    await at(page, `fix${i}`);
+    await settle(page, 3000);
+    await shot(`90-fix${i}`);
+    await show(doc.fixit.tasks[i].task);
+  }
+  await at(page, "end");
+  await settle(page);
+  await page.locator("[data-notebook-button]").click();
+  await settle(page, 600);
+  await shot("97-notebook");
+  await page.keyboard.press("Escape");
+  await finish(page, shot, 98);
+}
 
 async function run(browser, base, lesson, size, theme, view) {
   const context = await browser.newContext({ viewport: VIEWPORTS[size], colorScheme: theme, reducedMotion: "reduce", deviceScaleFactor: 1, hasTouch: size === "phone" });
@@ -696,7 +647,7 @@ async function run(browser, base, lesson, size, theme, view) {
     await page.mouse.move(5, 5);
     await page.locator("[data-bench-ready]").waitFor({ state: "attached", timeout: 60_000 });
     await settle(page, 800);
-    await PLAY[lesson](page, shot);
+    await (PLAY[lesson] ? PLAY[lesson](page, shot) : generic(page, shot, lesson));
   } catch (err) {
     console.error(`${lesson} ${size} ${theme} ${view}:`, err.message.split("\n")[0]);
     if (args.debug)
