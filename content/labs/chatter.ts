@@ -27,7 +27,7 @@ function oneEach(lab: LabView, trips: number): boolean {
   }
   const t0 = (lab.memory["t0"] ??= lab.t) as number;
   const c0 = (lab.memory["c0"] ??= count(lab, "U1") ?? 0) as number;
-  const done = lab.presses("SW2", lab.t - t0 + 0.01).filter((p) => p.end !== undefined).length;
+  const done = lab.presses("SW2", lab.t - t0 + 0.01).filter((p) => p.end != null).length;
   const c = count(lab, "U1") ?? 0;
   return done >= trips && (c - c0 + 10) % 10 === done % 10 && lab.prop("SW2")?.["to"] === "a";
 }
@@ -103,7 +103,7 @@ export default defineLab({
       // One press, and the count went up by two or more.
       goal: (lab) => {
         const p = lab.presses("S1", 20).at(-1);
-        if (!p || p.end === undefined || lab.t - p.end < 0.2) return false;
+        if (!p || p.end == null || lab.t - p.end < 0.2) return false;
         const a = countAt(lab, "U1", p.start - 0.05);
         const b = countAt(lab, "U1", p.end + 0.15);
         return a !== null && b !== null && (b - a + 10) % 10 >= 2;

@@ -7,8 +7,8 @@
 // while high and, sinking, the green GO lamp D2 while low. Its falling edge (GO) kicks U2's reset low through C3 (0.47
 // µF; R5 and R6 hold that reset at 7.8 V). U2 (e21) is a latch (threshold on minus): STOP (S2) sets it, its pin 3 goes
 // high. U3 (e31) is the clock: 10 kΩ, 68 kΩ, 1 µF, about 9.9 Hz. U4, a 4026B (e40) with its display DS1, counts it;
-// RESET (S3) clears it. START is green, STOP red, RESET white; the keys card names them. The inhibit wire W9 starts on
-// minus; the learner moves it to U2's pin 3. The timing parts carry no spread (tolerance 0), so the solution's rounds
+// RESET (S3) clears it. START is yellow, STOP red, RESET white; the keys card names them. The inhibit wire W9 starts on
+// minus; the learner moves it to U2's pin 3. The timing parts carry no spread (exact values), so the solution's rounds
 // land the same every time. The fix-it bench puts the inhibit wire on U2's pin 2, which idles high: the digit never
 // moves.
 import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
@@ -64,8 +64,8 @@ export default defineLab({
       { id: "U1", kind: "chip", at: "e5", params: { model: "555" }, locked: true, label: "Get-ready timer U1 (555)" },
       { id: "R1", kind: "resistor", at: "b6-rail+:6", params: { ohms: 10_000 }, locked: true, label: "10 kΩ pull-up R1" },
       { id: "R2", kind: "resistor", at: "top+:6-h6", params: { ohms: 270_000, tolerance: 0 }, locked: true, label: "270 kΩ resistor R2" },
-      { id: "C1", kind: "electrolytic-cap", at: "g7-top-:7", params: { farads: 10e-6, volts: 16, tolerance: 0 }, locked: true, label: "10 µF capacitor C1" },
-      { id: "S1", kind: "pushbutton", at: "e10", params: { cap: "green" }, locked: true, label: "START button S1" },
+      { id: "C1", kind: "electrolytic-cap", at: "g7-top-:7", params: { farads: 10e-6, volts: 16, actualFarads: 10e-6 }, locked: true, label: "10 µF capacitor C1" },
+      { id: "S1", kind: "pushbutton", at: "e10", params: { cap: "yellow" }, locked: true, label: "START button S1" },
       { id: "R3", kind: "resistor", at: "c7-c14", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor R3" },
       { id: "D1", kind: "led", at: "d14", params: { color: "red" }, locked: true, label: "WAIT lamp D1" },
       { id: "R4", kind: "resistor", at: "rail+:17-b17", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor R4" },
@@ -81,7 +81,7 @@ export default defineLab({
       { id: "U3", kind: "chip", at: "e31", params: { model: "555" }, locked: true, label: "Clock U3 (555)" },
       { id: "R8", kind: "resistor", at: "top+:33-h32", params: { ohms: 10_000, tolerance: 0 }, locked: true, label: "10 kΩ resistor R8" },
       { id: "R9", kind: "resistor", at: "g32-g36", params: { ohms: 68_000, tolerance: 0 }, locked: true, label: "68 kΩ resistor R9" },
-      { id: "C4", kind: "electrolytic-cap", at: "b32-rail-:33", params: { farads: 1e-6, volts: 16, tolerance: 0 }, locked: true, label: "1 µF capacitor C4" },
+      { id: "C4", kind: "electrolytic-cap", at: "b32-rail-:33", params: { farads: 1e-6, volts: 16, actualFarads: 1e-6 }, locked: true, label: "1 µF capacitor C4" },
       // U4: the counter, its reset pull-down and RESET.
       ...counter.parts,
       { id: "R10", kind: "resistor", at: "i41-top-:41", params: { ohms: 10_000 }, locked: true, label: "10 kΩ pull-down R10" },

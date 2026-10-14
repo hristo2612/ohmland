@@ -10,7 +10,7 @@
 // timing diagram (the secret) replays a tick: the count changes as the clock falls. The fix-it bench puts the clock
 // wire on the clear pin.
 import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
-import { count, logicRail, seen, went, wire } from "./lib/chip-bench";
+import { logicRail, seen, went, wire } from "./lib/chip-bench";
 
 const rail = logicRail(4, 61);
 const steps16 = (lab: LabView, seconds: number) => {
