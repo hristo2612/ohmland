@@ -4,13 +4,11 @@ title: Ohmland
 units:
   - basics
   - switching
+  - chips
 upcoming:
   - id: making-it-permanent
     title: Making it permanent
     summary: Soldering, perfboard and building circuits that last.
-  - id: chips
-    title: Chips
-    summary: The 555 timer, logic gates, counters and latches.
   - id: beyond
     title: Beyond
     summary: Magnetism, induction, radio and microcontrollers.

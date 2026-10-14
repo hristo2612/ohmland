@@ -1,0 +1,72 @@
+# Blueprint: docs/curriculum/unit-4.md, CH13. A bench lesson (docs/LESSONS.md).
+# One idea: seven bars (and a dot) make every digit. New: the seven-segment display (three periods: a note as it
+# lights, a tap on its shared minus pin, "What is this?"); the DIP switch is named by a note only.
+# Lab: content/labs/seven-segments.ts. The display sits on its carrier board, so its eight resistors come with it.
+format: bench
+id: seven-segments
+version: 1
+title: Eight lights make a digit
+summary: Flip eight little switches to light the bars of a display, and build every digit from seven bars.
+minutes: 6
+lab: seven-segments
+unlocks:
+  parts: [seven-segment, dip-switch]
+  isle: led-lamp # TODO piece: seven-seg
+
+start:
+  title: Eight lights make a digit
+  say: My billboard needs digits. Let's light some bars.
+  go: Light a bar
+
+beats:
+  - say: Flip switch a.
+    objective: First bars
+    spot: [DIP1, DS1]
+    do: light-a
+    note: { at: DS1, text: "seven bars and a dot" }
+
+  - say: Now b and c.
+    spot: [DIP1, DS1]
+    do: make-seven
+    note: { at: DS1, text: "a, b, c: a seven" }
+
+  - say: Flip d, e, f and g too. Guess first.
+    objective: All bars
+    spot: [DIP1, DS1]
+    guess: { options: [An 8, A 0, A box], answer: An 8 }
+    do: make-eight
+    done: Every bar lit. An 8.
+    rule: Seven bars make every digit.
+
+  - say: Now make a 4.
+    spot: [DIP1, DS1]
+    do: make-four
+    note: { at: DIP1, text: "eight switches in one block" }
+
+  - say: Every bar shares one minus pin. Tap it.
+    objective: One shared minus
+    tap:
+      answer: [DS1.com, DS1.com2]
+      among: [DS1.e, DS1.d, DS1.com, DS1.c, DS1.dp, DS1.b, DS1.a, DS1.com2, DS1.f, DS1.g]
+    hint: The minus pins sit in the middle of each row.
+    note: { at: tap, text: "common cathode: one shared minus" }
+
+  - say: What is this?
+    pick: { options: [A seven-segment display, Eight lamps, A counter], answer: A seven-segment display, on: DS1 }
+    wrong:
+      Eight lamps: Eight lamps, yes, shaped as bars. It has a name.
+      A counter: It only shows digits. Something else counts.
+
+secret:
+  task: hello
+  say: "Secret: spell HELLO, one letter at a time."
+  done: Hello to you too.
+  note: { at: DS1, text: "bars spell letters too" }
+
+fixit:
+  say: My 2 looks wrong. Fix it.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Every digit from seven bars. My billboard is ready.
