@@ -42,7 +42,6 @@ beats:
 
   - say: Both legs share strip 10. Dark. Fix it.
     objective: Light it up
-    spot: [D1]
     do: fix-led
     done: It glows! Each leg, its own strip.
     note: { at: D1, text: "in at 10, out at 11" }

@@ -42,6 +42,7 @@ type Hub = BenchController & { inner(): BenchController | null };
 
 export default function BenchSurface({ view, runtime, tray, quality, readOnly, highlight, locked, frame, controllerRef, onReady }: BenchSurfaceProps) {
   const [ready, setReady] = useState(false);
+  const host = useRef<HTMLDivElement>(null);
   const hub = controllerRef as RefObject<Hub | null>;
   const inner3d = () => hub.current?.inner() as Bench3DController | null | undefined;
   const standIn = view === "ink" && !INK_RENDERER;
@@ -75,7 +76,13 @@ export default function BenchSurface({ view, runtime, tray, quality, readOnly, h
   // A test and tutorial hook, the same as the classic lab step's (apps/web/e2e/lab.ts drives it): page coordinates.
   useEffect(() => {
     window.ohmlandLab = {
-      project: (anchor) => inner3d()?.projectClient(anchor as never) ?? null,
+      // Targets ("part:D1", anchors) through the view's controller; world points through the 3D one. Page px.
+      project: (target) => {
+        if (typeof target !== "string") return inner3d()?.projectClient(target as never) ?? null;
+        const p = hub.current?.project(target);
+        const r = host.current?.getBoundingClientRect();
+        return p && r ? { x: p.x + r.left, y: p.y + r.top } : null;
+      },
       pickAt: (x, y) => inner3d()?.pickAt(x, y) ?? null,
       bench: () => runtime.store.getState().bench,
       status: () => ({ ...runtime.session.status }),
@@ -102,7 +109,7 @@ export default function BenchSurface({ view, runtime, tray, quality, readOnly, h
   const shown = useMemo(() => (highlight?.length ? highlight : undefined), [highlight]);
 
   return (
-    <div className="bench-surface" data-view={view} data-ink-stand-in={standIn || undefined} style={{ position: "absolute", inset: 0 }}>
+    <div ref={host} className="bench-surface" data-view={view} data-ink-stand-in={standIn || undefined} style={{ position: "absolute", inset: 0 }}>
       <BenchView
         view={rendered(view)}
         store={runtime.store}

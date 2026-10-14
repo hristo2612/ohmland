@@ -96,6 +96,17 @@ async function flipBlockSwitch(page, id) {
   const pt = await project(page, [p.pos[0], 24, p.pos[1] - 5.5]);
   await page.mouse.click(pt.x, pt.y);
 }
+/** Picks the LED up by its dome (above its legs on screen) and turns it with the bench's Rotate button. */
+async function rotateLed(page) {
+  if (fine(page)) {
+    await page.evaluate(() => window.ohmlandLab.step({ do: "rotate", part: "D1" }));
+    return;
+  }
+  const a = await project(page, "pin:D1.anode");
+  const k = await project(page, "pin:D1.cathode");
+  await page.mouse.click((a.x + k.x) / 2, (a.y + k.y) / 2 - 36);
+  await page.getByRole("button", { name: "Rotate" }).first().click();
+}
 async function tapHole(page, hole) {
   const p = await project(page, `hole:${hole}`);
   await page.mouse.click(p.x, p.y);
@@ -228,9 +239,7 @@ async function breadboard(page, shot) {
   await at(page, "b5");
   await settle(page, 1500);
   await shot("11-led-wrong");
-  const d1 = await project(page, "part:D1");
-  await page.mouse.click(d1.x, d1.y);
-  await page.getByRole("button", { name: "Rotate" }).first().click();
+  await rotateLed(page);
   await at(page, "b5", "done");
   await settle(page);
   await shot("12-led-right");

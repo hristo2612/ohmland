@@ -8,7 +8,7 @@
  */
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useStore } from "zustand";
-import { boardGeometry } from "@ohmland/bench/core";
+import { boardGeometry, trayLeft } from "@ohmland/bench/core";
 import type { LabDefinition, LabTask } from "../../lab/define";
 import { m } from "../../i18n";
 import { useLearner } from "../../progress/store";
@@ -302,13 +302,8 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   // The tray shows only while a task may need it, and only with something left in it. It is decided as a beat begins
   // and kept for the whole beat: every change reframes the bench, which must never happen under the learner's hand.
   const trayHas = () => {
-    // The same count as the bench's tray: leads together, other parts by kind.
     const b = runtime.store.getState().bench;
-    return built.tray.some((item) => {
-      if (item.count === undefined) return true;
-      const used = item.kind === "lead" ? b.leads.length : b.parts.filter((p) => p.kind === item.kind).length;
-      return item.count - used > 0;
-    });
+    return built.tray.some((item) => trayLeft(item, b) !== 0);
   };
   const [trayShown, setTrayShown] = useState(false);
   useEffect(() => {
@@ -317,6 +312,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   }, [props.trayOpen, props.gate]);
   const [quality] = useState(() => pickQuality());
   const [benchReady, setBenchReady] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
   const readOnly = props.readOnly || !!ui.showing;
 
   // Frame and spotlight the parts in play (a whole-bench view when none are named). On a phone the bench is small, so
@@ -328,12 +324,14 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
     const b = runtime.store.getState().bench;
     const raw = (props.spot ?? []).map((s) => resolveAnchor(b, s)).filter((x): x is string => !!x);
     c.spotlight(raw.length ? raw : null);
-    c.focus(raw);
+    // A part in play keeps some bench around it: close enough to tell its legs apart, never a lone close-up.
+    const box = stageRef.current?.getBoundingClientRect();
+    c.focus(raw, raw.length && box ? { padding: Math.round(Math.min(box.width, box.height) * 0.26) } : {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spotKey, runtime, benchReady]);
 
   return (
-    <div className="bl-stage" data-bench-ready={benchReady || undefined} data-lab-ready data-lab={lab.id} onPointerDownCapture={() => audio.unlock()} onKeyDownCapture={() => audio.unlock()}>
+    <div ref={stageRef} className="bl-stage" data-bench-ready={benchReady || undefined} data-lab-ready data-lab={lab.id} onPointerDownCapture={() => audio.unlock()} onKeyDownCapture={() => audio.unlock()}>
       <Boundary onError={() => cb.current.onBenchFailed()}>
         <Suspense fallback={<StageSkeleton />}>
           <Surface
