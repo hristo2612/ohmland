@@ -5,7 +5,7 @@
  * bench. At the end the notebook page is signed off and the island grows.
  *
  * The shell (this file) is light: the bench, the simulator and three.js arrive in the Stage chunk, warmed on the
- * learner's first gesture or after a few seconds, never in the page's first load.
+ * learner's first gesture or once the loaded page goes idle, never in the page's first load.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { BenchLessonData } from "../../content/load";
@@ -50,6 +50,14 @@ import "@fontsource/kalam/700.css";
 import "./bench-lesson.css";
 
 const StageChunk = preloadable<StageProps, typeof import("./Stage")>(() => import("./Stage"));
+
+/**
+ * How long after the page's load event (ms) the bench starts warming by itself, at the browser's next idle moment (or
+ * WARM_IDLE_WAIT ms later on a busy one): past the first load, so a lesson's first load carries no three.js and no
+ * simulator, but well before most learners press Start.
+ */
+const WARM_AFTER_LOAD = 1000;
+const WARM_IDLE_WAIT = 500;
 
 const warmed = new Set<string>();
 /** Starts loading the bench: the stage chunk, the 3D chunk (and its textures when idle), the lab and the simulator. */
@@ -227,7 +235,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
     storeViewPref(pref);
   };
 
-  // ---- Warm the bench on the first gesture or after a few seconds, never in the first load ----------------------
+  // ---- Warm the bench on the first gesture, or once the loaded page goes idle, never in the first load -------------
   useEffect(() => {
     if (warm) {
       warmBench(lesson.lab);
@@ -243,12 +251,19 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
     window.addEventListener("pointerdown", go, opts);
     window.addEventListener("pointermove", go, opts);
     window.addEventListener("keydown", go, opts);
-    const timer = window.setTimeout(go, 3000);
+    // A learner reading the mission (a touch screen or a keyboard sends no gesture until Start) finds the bench built.
+    let timer = 0;
+    const settled = () => {
+      timer = window.setTimeout(() => whenIdle(go, WARM_IDLE_WAIT), WARM_AFTER_LOAD);
+    };
+    if (document.readyState === "complete") settled();
+    else window.addEventListener("load", settled, { once: true });
     return () => {
       done = true;
       window.removeEventListener("pointerdown", go);
       window.removeEventListener("pointermove", go);
       window.removeEventListener("keydown", go);
+      window.removeEventListener("load", settled);
       window.clearTimeout(timer);
     };
   }, [warm, lesson.lab]);
