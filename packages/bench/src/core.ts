@@ -41,6 +41,7 @@ export {
   SEVENSEG_LEGS,
   SEGMENTS,
   chipLeg,
+  chipDetail,
   chipPinName,
   chipPinCount,
   dipFootprint,

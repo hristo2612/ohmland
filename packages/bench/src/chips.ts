@@ -282,6 +282,22 @@ export function supplyVolts(pp: { position: number; max?: number }): number {
   return Math.round(Math.max(0, Math.min(1, pp.position)) * (pp.max ?? 12) * 10) / 10;
 }
 
+/**
+ * A short detail for a Unit 4 part or tray item (tray, selection bar, screen readers): what a chip has printed on it
+ * (a taped one, its tape), a pack's or the supply's volts.
+ */
+export function chipDetail(kind: string, params: Record<string, unknown>): string | undefined {
+  if (kind === "chip") {
+    const model = (params["model"] as ChipModel | undefined) ?? "555";
+    const print = params["hidden"] ? String(params["label"] ?? "?") : CHIP_PRINT[model];
+    return params["package"] === "soic" ? `${print} SOIC` : print;
+  }
+  if (kind === "battery-pack") return `${Number(params["cells"] ?? 3) * 1.5} V`;
+  if (kind === "bench-supply") return `${supplyVolts({ position: Number(params["position"] ?? 0.75), max: params["max"] as number | undefined })} V`;
+  if (kind === "ic-socket") return `${params["pins"] ?? 8} pins`;
+  return undefined;
+}
+
 /** Default emf and internal resistance of an AA pack (fresh alkaline cells, about 1.55 V and 0.15 ohm each). */
 export function packDefaults(cells: number): { emf: number; internalOhms: number; mAh: number } {
   return { emf: Math.round(cells * 1.55 * 100) / 100, internalOhms: Math.round(cells * 0.15 * 100) / 100, mAh: 2400 };

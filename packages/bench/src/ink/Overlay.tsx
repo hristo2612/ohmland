@@ -3,7 +3,7 @@
 
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useStore } from "zustand";
-import { CHIP_PRINT, supplyVolts } from "../chips";
+import { chipDetail } from "../chips";
 import { formatFarads, formatOhms } from "../colorCode";
 import { DIAL_MODES } from "../layout";
 import * as ops from "../ops";
@@ -32,6 +32,7 @@ export function itemLabel(item: TrayItem, labels: InkLabels): { name: string; de
   else if (item.kind === "led" && typeof p.color === "string") detail = labels.colors[p.color as WireColor] ?? String(p.color);
   else if (item.kind === "fuse" && typeof p.amps === "number") detail = `${p.amps} A`;
   else if (item.kind === "cup" && typeof p.water === "string") detail = labels.water[p.water as "tap"];
+  else detail = chipDetail(item.kind, p);
   if (item.label) return { name: item.label };
   return { name: labels.partName[item.kind] ?? item.kind, detail };
 }
@@ -42,11 +43,8 @@ export function partDetail(part: PlacedPart): string | undefined {
   if ((part.kind === "resistor" || part.kind === "trimmer") && typeof p.ohms === "number") return formatOhms(p.ohms);
   if ((part.kind === "ceramic-cap" || part.kind === "electrolytic-cap") && typeof p.farads === "number") return formatFarads(p.farads);
   if (part.kind === "fuse" && typeof p.amps === "number") return `${p.amps} A`;
-  // A chip is named by what is printed on it (a taped one by its tape).
-  if (part.kind === "chip") return part.params.hidden ? (part.params.label ?? "?") : CHIP_PRINT[part.params.model];
-  if (part.kind === "bench-supply") return `${supplyVolts(part.params)} V`;
-  if (part.kind === "battery-pack") return `${part.params.cells * 1.5} V`;
-  return undefined;
+  // A chip is named by what is printed on it (a taped one by its tape); packs and the supply by their volts.
+  return chipDetail(part.kind, p);
 }
 
 // ---------------------------------------------------------------------------------------------------------------

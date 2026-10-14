@@ -18,7 +18,7 @@ export { holeAnchor, pinAnchor, wireAnchor, leadAnchor, probeAnchor, socketAncho
 export { PITCH, boardGeometry, parseHole, holeWorld, nearestHole, type BoardGeometry, type HoleInfo, type StripInfo } from "./board";
 export { PART_KINDS, partDef, partLegs, defaultParams, footprintOf, isThrowSwitch, mysteryOrder, physicalLeg, wiredAs, terminalNumber, shuffleFor, skinOhms, pencilOhms, type PartDef, type FootprintLeg, type SeatDef, type SettingDef, type Hotspot } from "./parts";
 export { partPose, anchorPosition, clipTargets, rejectedParts, METER, DIAL_MODES, type PartPose, type ClipTarget } from "./layout";
-export { CHIP_MODELS, CHIP_PINOUTS, CHIP_PRINT, SEVENSEG_LEGS, SEGMENTS, chipLeg, chipPinName, chipPinCount, dipSwitchPins, socketPinFor, supplyVolts, packDefaults, type Segment } from "./chips";
+export { CHIP_MODELS, CHIP_PINOUTS, CHIP_PRINT, SEVENSEG_LEGS, SEGMENTS, chipLeg, chipDetail, chipPinName, chipPinCount, dipSwitchPins, socketPinFor, supplyVolts, packDefaults, type Segment } from "./chips";
 export { resolveLeg, canonicalAnchor, perches } from "./parts";
 export { logicProbeReading, useProbeState, PULSE_HOLD, type ProbeLevel, type ProbeReading } from "./probe";
 export { resistorBands, bandsToOhms, formatOhms, formatFarads, ceramicCode, isPreferredValue, BAND_HEX, type BandColor } from "./colorCode";

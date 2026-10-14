@@ -463,15 +463,11 @@ function dipSwitchTopTexture(n: number, len: number, tags: readonly string[], on
       // The slot.
       ctx.fillStyle = "rgba(20,20,24,0.9)";
       ctx.fillRect(x - 0.62 * PPM, h / 2 - (DIPSW.slot / 2) * PPM, 1.24 * PPM, DIPSW.slot * PPM);
-      ctx.fillStyle = "rgba(250,248,240,0.95)";
-      ctx.font = `700 ${0.95 * PPM}px ${FONT}`;
-      ctx.fillText(String(k + 1), x, h - 0.95 * PPM);
+      // Under each slider its number, or the name a lab tagged it with.
       const tag = tags[k];
-      if (tag) {
-        ctx.font = `600 ${0.85 * PPM}px ${FONT}`;
-        ctx.fillStyle = "rgba(255,240,200,0.95)";
-        ctx.fillText(tag, x, 2.15 * PPM);
-      }
+      ctx.fillStyle = "rgba(250,248,240,0.95)";
+      ctx.font = `700 ${(tag ? 1.1 : 0.95) * PPM}px ${FONT}`;
+      ctx.fillText(tag ?? String(k + 1), x, h - 0.95 * PPM);
     }
   });
 }
@@ -1000,9 +996,9 @@ function supplyTop(): THREE.CanvasTexture {
     }
     ctx.font = `700 ${5.5 * k}px ${FONT}`;
     ctx.fillStyle = "#e2664c";
-    ctx.fillText("+", X(-S.postX), Z(S.postZ + 7.6));
+    ctx.fillText("+", X(-S.postX - 8.5), Z(S.postZ));
     ctx.fillStyle = "#f2ede2";
-    ctx.fillText("−", X(S.postX), Z(S.postZ + 7.6));
+    ctx.fillText("−", X(S.postX + 8.5), Z(S.postZ));
   });
 }
 

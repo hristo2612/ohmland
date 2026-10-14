@@ -1,6 +1,7 @@
 // DOM controls over the 3D view: toolbar, tray, selection bar, context menu and hover status.
 
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { chipDetail } from "../chips";
 import { formatFarads, formatOhms } from "../colorCode";
 import { useLabels } from "../labels";
 import type { BenchLabels } from "../labels";
@@ -97,6 +98,7 @@ export function itemLabel(item: TrayItem, labels: BenchLabels): { name: string; 
   else if (item.kind === "led" && typeof p.color === "string") detail = labels.colors[p.color as WireColor] ?? String(p.color);
   else if (item.kind === "fuse" && typeof p.amps === "number") detail = `${p.amps} A`;
   else if (item.kind === "cup" && typeof p.water === "string") detail = labels.water[p.water as "tap"];
+  else detail = chipDetail(item.kind, p);
   return { name: item.label ? item.label : name, detail: item.label ? undefined : detail };
 }
 
@@ -105,6 +107,8 @@ function partTitle(part: PlacedPart, labels: BenchLabels): string {
   const p = part.params as Record<string, unknown>;
   if (part.kind === "resistor") return `${part.id} · ${formatOhms(p.ohms as number)}`;
   if (part.kind === "ceramic-cap" || part.kind === "electrolytic-cap") return `${part.id} · ${formatFarads(p.farads as number)}`;
+  const chip = chipDetail(part.kind, p);
+  if (chip) return `${part.id} · ${chip}`;
   return `${part.id} · ${base}`;
 }
 

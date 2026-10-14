@@ -41,17 +41,26 @@ function warmth(st: PartState | null): number {
   return Math.max(0, Math.min(1, ((st.temp ?? 25) - 45) / 80));
 }
 
-/** Wavy heat lines rising off a warm body (graphite, more of them as it heats). */
-function HeatLines({ x0, x1, z, heat }: { x0: number; x1: number; z: number; heat: number }) {
-  if (heat < 0.12) return null;
+/**
+ * Wavy heat lines rising off a warm body (graphite, more of them as it heats), up the page whatever the part's turn.
+ * The body is `len` by `w` in its frame, centred on (cx, cz). Smoke takes over once it smokes.
+ */
+function HeatLines({ cx, cz, len, w, rot, heat, st }: { cx: number; cz: number; len: number; w: number; rot: number; heat: number; st: PartState | null }) {
+  if (heat < 0.12 || st?.health === "smoking" || st?.health === "dead") return null;
   const n = heat > 0.66 ? 3 : heat > 0.33 ? 2 : 1;
-  const w = x1 - x0;
+  const across = Math.abs(Math.round(rot / 90)) % 2 === 1;
+  const hw = (across ? w : len) / 2;
+  const top = cz - (across ? len : w) / 2;
   const out: ReactNode[] = [];
   for (let i = 0; i < n; i++) {
-    const x = x0 + (w * (i + 1)) / (n + 1);
-    out.push(<path key={i} d={`M${n3(x)} ${n3(z - 0.6)}c-0.9 -0.8 0.9 -1.6 0 -2.4s0.9 -1.6 0 -2.4`} className="ln-faint" />);
+    const x = cx - hw + (2 * hw * (i + 1)) / (n + 1);
+    out.push(<path key={i} d={`M${n3(x)} ${n3(top - 0.6)}c-0.9 -0.8 0.9 -1.6 0 -2.4s0.9 -1.6 0 -2.4`} className="ln-faint" />);
   }
-  return <g opacity={0.5 + heat * 0.5}>{out}</g>;
+  return (
+    <g opacity={0.5 + heat * 0.5} transform={rot ? `rotate(${n3(rot)} ${n3(cx)} ${n3(cz)})` : undefined}>
+      {out}
+    </g>
+  );
 }
 
 /** A warm tint over a body (a hot chip or regulator). */
@@ -150,7 +159,7 @@ function Chip(props: DrawProps<"chip">) {
         </text>
       )}
       <Scorch d={body} hp={hp} crack={`M${n3(cx - len * 0.2)} ${n3(cz - w * 0.4)}l1.1 1.6l-0.4 1.2l1.4 1.5l-0.3 1.1`} />
-      <HeatLines x0={x0} x1={x0 + len} z={cz - w / 2} heat={heat} />
+      <HeatLines cx={cx} cz={cz} len={len} w={w} rot={rot} heat={heat} st={st} />
       {dipFootprint(n).map((f) => (
         <PinNo key={f.leg} x={ox + f.dx * P} z={cz + (f.dz === 0 ? 1 : -1) * (w / 2 - 0.8)} rot={rot}>
           {f.leg}
@@ -262,14 +271,10 @@ function DipSwitch({ pi }: DrawProps<"dip-switch">) {
             <g className="actuator" style={{ transform: `translate(0px,${n3(kz - cz)}px)` }}>
               <rect x={n3(x - 0.55)} y={n3(cz - knob / 2)} width={1.1} height={n3(knob)} rx={0.25} className="f-slip ln-thin" />
             </g>
-            <Upright x={x} z={cz + W / 2 - 1.0} rot={rot} fontSize={1.05} fontWeight={700} textAnchor="middle" dominantBaseline="central" className="print-light">
-              {String(k + 1)}
+            {/* Under each slider its number, or the name a lab tagged it with. */}
+            <Upright x={x} z={cz + W / 2 - 1.0} rot={rot} fontSize={tag ? 1.2 : 1.05} fontWeight={700} textAnchor="middle" dominantBaseline="central" className="print-light">
+              {tag ?? String(k + 1)}
             </Upright>
-            {tag && (
-              <Upright x={x} z={cz + W / 2 + 1.6} rot={rot} fontSize={1.35} fontWeight={600} textAnchor="middle" dominantBaseline="central" className="hand t-blue">
-                {tag}
-              </Upright>
-            )}
           </g>
         );
       })}
@@ -445,7 +450,7 @@ function Regulator({ pi, st }: DrawProps<"regulator7805">) {
         7805
       </Upright>
       <Scorch d={body} hp={hp} />
-      <HeatLines x0={cx - T.w / 2} x1={cx + T.w / 2} z={zTab - (sink ? T.sink.d + 1.6 : 0)} heat={heat} />
+      <HeatLines cx={cx} cz={(zTab - (sink ? T.sink.d + 1.6 : 0) + zFront) / 2} len={T.w} w={zFront - zTab + (sink ? T.sink.d + 1.6 : 0)} rot={rot} heat={heat} st={st} />
       {(["in", "gnd", "out"] as const).map((leg, i) => (
         <PinNo key={leg} x={i * P} z={zFront + 1.3} rot={rot} size={0.85}>
           {leg}
@@ -501,12 +506,13 @@ function LogicProbe({ pi, st }: DrawProps<"logic-probe">) {
       <path d={`M0 0L0 ${z(nz)}`} className="lead" />
       <path d={body} className="f-probe" />
       <path d={penPath(k, 6)} className="f-black" />
-      <rect x={-2.2} y={z(PROBE.lamps - 3.2)} width={4.4} height={n3((2 * PROBE.lamp + 6.4) * k)} rx={0.8} className="f-black-face" />
+      {/* The lamps in a dark strip, each named beside it on the barrel. */}
+      <rect x={-3.3} y={z(PROBE.lamps - 3)} width={3.2} height={n3((2 * PROBE.lamp + 6) * k)} rx={0.8} className="f-black-face" />
       {lamps.map(([on, name, at]) => (
         <g key={name}>
-          {on && <circle cx={0} cy={z(at)} r={2.4} className="f-amber-glow" />}
-          <circle cx={0} cy={z(at)} r={1.25} className={on ? "f-amber ln-thin" : "f-lamp-off ln-thin"} />
-          <Upright x={R + 0.9} z={at * k} rot={pi.f.rot} fontSize={1.6} fontWeight={700} dominantBaseline="central" className="print">
+          {on && <circle cx={-1.7} cy={z(at)} r={2.3} className="f-amber-glow" />}
+          <circle cx={-1.7} cy={z(at)} r={1.1} className={on ? "f-amber ln-thin" : "f-lamp-off ln-thin"} />
+          <Upright x={0.4} z={at * k} rot={pi.f.rot} fontSize={1.3} fontWeight={700} dominantBaseline="central" className="print">
             {name}
           </Upright>
         </g>
@@ -605,7 +611,7 @@ function Supply({ pi }: DrawProps<"bench-supply">) {
           <g key={leg}>
             <circle cx={n3(p[0])} cy={n3(p[1])} r={4.2} className={leg === "pos" ? "f-red ln" : "f-black ln"} />
             <circle cx={n3(p[0])} cy={n3(p[1])} r={1.2} className="f-brass ln-thin" />
-            <Upright x={p[0]} z={p[1] + 7.4} rot={rot} fontSize={4.4} fontWeight={700} textAnchor="middle" dominantBaseline="central" className="print-light">
+            <Upright x={p[0] + (leg === "pos" ? -8.5 : 8.5)} z={p[1]} rot={rot} fontSize={4.4} fontWeight={700} textAnchor="middle" dominantBaseline="central" className="print-light">
               {leg === "pos" ? "+" : "−"}
             </Upright>
           </g>
