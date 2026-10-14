@@ -5,15 +5,13 @@ units:
   - start-here
   - basics
   - switching
+  - chips
 upcoming:
   # Unit 3's folder will be content/units/permanent (docs/curriculum/unit-3.md, IC1), the id the isle uses for its
   # island. The isle reads this id as `permanent` too (packages/isle/src/catalog.ts, unitOf), so either id works.
   - id: making-it-permanent
     title: Making it permanent
     summary: Soldering, perfboard and building circuits that last.
-  - id: chips
-    title: Chips
-    summary: The 555 timer, logic gates, counters and latches.
   - id: beyond
     title: Beyond
     summary: Magnetism, induction, radio and microcontrollers.

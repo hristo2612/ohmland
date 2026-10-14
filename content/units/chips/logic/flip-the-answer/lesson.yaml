@@ -1,0 +1,77 @@
+# Blueprint: docs/curriculum/unit-4.md, CH19. A bench lesson (docs/LESSONS.md).
+# One idea: a bubble on a gate flips its answer: NAND is AND turned over, NOR is OR turned over. New: the logic probe
+# (three periods: a note as it reads, its lamps in use, "What is this?"). The chip x-ray shows the bubbles.
+# Lab: content/labs/flip-the-answer.ts.
+format: bench
+id: flip-the-answer
+version: 1
+title: The bubble flips it
+summary: Meet the logic probe, then probe two taped chips and find the gates whose answers are flipped.
+minutes: 6
+lab: flip-the-answer
+unlocks:
+  parts: [logic-probe]
+  isle: breadboard-patch
+
+start:
+  title: The bubble flips it
+  say: Two taped chips. A probe will tell us what they think.
+  go: Pick up the probe
+
+beats:
+  - say: This is a logic probe. Touch its tip to plus.
+    objective: Meet the probe
+    spot: [LP1]
+    do: probe-high
+    note: { at: LP1, text: "H lamp: the tip sees high" }
+
+  - say: Now touch minus.
+    spot: [LP1]
+    do: probe-low
+    done: L for low.
+
+  - say: Now an empty strip, with nothing on it.
+    spot: [LP1]
+    do: probe-float
+    note: { at: LP1, text: "neither lamp: floating" }
+
+  - say: Probe ?1's pin 3. Try all four key pairs.
+    objective: Taped chips
+    tool: tt1
+    spot: [U1, S1, S2]
+    do: nand-table
+    note: { at: U1, text: "AND, answer flipped: NAND" }
+
+  - say: Look inside ?1. See the little circles?
+    tool: xr1
+    do: look-inside
+    note: { at: U1, text: "small circle: a bubble" }
+    rule: A bubble flips the answer.
+
+  - say: ?2 is OR, bubbled. Probe its pin 1. Both off gives?
+    tool: tt2
+    spot: [U2, S1, S2]
+    guess: { options: [High, Low], answer: High }
+    do: nor-table
+    note: { at: U2, text: "NOR: high only when both low" }
+
+  - say: What is this?
+    pick: { options: [A logic probe, A meter, A scope], answer: A logic probe, on: LP1 }
+    wrong:
+      A meter: A meter shows volts. This one only says high or low.
+      A scope: A scope draws a wave. This pen just lights H or L.
+
+secret:
+  task: not-gate
+  spot: [U3]
+  say: "Secret: seat chip 04 in the empty spot. Probe pin 2."
+  done: A gate with one input.
+  note: { at: U3, text: "NOT: one in, flipped out" }
+
+fixit:
+  say: My probe shows nothing, anywhere. Fix it.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Bubbles flip answers. My castle reads them now.
