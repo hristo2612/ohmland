@@ -151,6 +151,10 @@ export function PartIcon({ kind, color }: { kind: BenchPartKind | "lead" | "mete
       return box([<rect key="b" x="4" y="6" width="24" height="20" rx="2" fill="#26272b" />, <path key="c" d="M9 9v14M16 9v14M23 9v14" stroke="#2f5f86" strokeWidth="5" />]);
     case "bench-supply":
       return box([<rect key="b" x="3" y="5" width="26" height="22" rx="2.5" fill="#d9d2c2" />, <rect key="l" x="8" y="8" width="16" height="5" fill="#c9d3bb" />, <circle key="k" cx="16" cy="18" r="3.5" fill="#2a2b2f" />, <circle key="p" cx="9" cy="23" r="1.6" fill="#c9372a" />, <circle key="n" cx="23" cy="23" r="1.6" fill="#2b2925" />]);
+    case "door":
+      return box([<rect key="w" x="3" y="12" width="26" height="4" fill="#e6dfcf" />, <path key="l" d="M7 14l14 12" stroke="#9a6a43" strokeWidth="2.4" />, <path key="a" d="M25 14a18 18 0 0 1-4 12" fill="none" strokeDasharray="2 2" />, <rect key="r" x="24" y="17" width="3" height="5" fill="#f3f1ec" />]);
+    case "plug-module":
+      return box([<rect key="b" x="4" y="6" width="24" height="18" rx="1.5" fill="#2f6e47" />, <path key="p" d="M9 24v4M14 24v4M19 24v4M24 24v4" />, <rect key="c" x="10" y="11" width="9" height="6" fill="#1c1d20" />]);
     case "lead":
       return box([<path key="c" d="M4 26c6-10 10 2 16-8" stroke={c} strokeWidth="2.4" />, <path key="j" d="M20 18l7-8M22 21l7-6" />]);
     case "meter":

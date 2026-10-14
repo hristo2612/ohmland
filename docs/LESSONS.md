@@ -98,9 +98,18 @@ when one fixed answer is right.
 
 Optional, on any beat:
 
+- `watch`: a quieter second line under the robot's, in graphite, while the learner acts: what to look for, or why
+  ("Watch the screen as the skin gets wet."). It counts toward the main path's words. A guess beat shows it once the
+  guess is made.
 - `objective`: starts an objective (a few words). The robot's eyes fill in equal steps as each objective (and the
   fix-it round) finishes, and the current objective's name shows as a quiet kicker. Objectives are never listed.
-- `spot: [parts]`: the parts in play. The bench frames and spotlights them. Meet, tap and pick beats spot their part by
+- `spot: [parts]`: the parts in play. The bench frames and spotlights them. While a beat's task is open (and its tool,
+  if any, is the meter), the parts its line names stay in view too, the meter's probe tips with them, and the view
+  comes no closer than a reading scale (holes about 20 px apart on a phone). On a phone a work beat also frames its
+  task's `highlight` (a lead with the parts it bites, a terminal or mark with its part), else where the hands last
+  worked, else the circuit on the board; it comes only as close as its choices need (neighbouring holes, or the
+  closest terminals of two different parts) and shows the lab's whole view when that is close enough. A drawing on
+  the bench (`schematic`) is docked as a slip above it while the work is framed. Meet, tap and pick beats spot their part by
   themselves; leave `spot` out when the result shows somewhere else (a switch that lights a lamp). The secret and the fix-it
   take a `spot` too (`secret: { spot: [R1, D1], ... }`, `fixit: { spot: [R3, D1], ... }`, framed through every fix-it
   task).
@@ -224,6 +233,15 @@ summary. Nothing to write.
 A part that dies while the learner works gets "off to the Hall" in red pencil and a Replace control beside it on the
 bench, for that beat only: a part fried on purpose (a fuse blown to be probed next) stays fried. Achievements a lesson
 earns on the way never toast over the bench; the finale lists them.
+
+## Try-out copies
+
+`content/variants/<set>/` holds copies of real lessons written another way, to compare before changing the course
+(`apps/web/src/content/variants.ts`). Each copy keeps its lesson's lab and tasks, has looser word budgets and may
+reword the lab's task hints, nudges and success lines (`labLines`). They play at `/variants/<set>/<variant>/<lesson>`
+(listed at `/variants/<set>`, linked from nowhere, not indexed) as a trial: nothing is saved or earned. A variant with
+`coach: true` turns on the coach mark: as a `do` beat starts, and after a quiet spell, an ink ghost draws the first move
+of the beat's task on the bench (`CoachMark.tsx`), never in a fix-it, the secret or a check.
 
 ## Trying a lesson
 

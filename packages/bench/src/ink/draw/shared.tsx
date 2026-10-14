@@ -62,6 +62,10 @@ export function InkDefs({ id }: { id: string }) {
         <stop offset="0" style={{ stopColor: "var(--k-scorch)", stopOpacity: 0.85 }} />
         <stop offset="1" style={{ stopColor: "var(--k-scorch)", stopOpacity: 0 }} />
       </radialGradient>
+      {/* A part lifted off the bench while it is dragged: a soft shadow (its size follows the zoom, BenchInk sets it). */}
+      <filter id={`${id}-lift`} x="-30%" y="-30%" width="160%" height="180%">
+        <feDropShadow id={`${id}-lift-sh`} dx="0.2" dy="0.6" stdDeviation="0.6" floodOpacity="0" style={{ floodColor: "var(--k-ink)" }} />
+      </filter>
     </defs>
   );
 }

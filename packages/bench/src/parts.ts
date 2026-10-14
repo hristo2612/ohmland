@@ -42,6 +42,7 @@ import {
 import type { BenchPartKind, BenchState, Moisture, PartParamsMap, PlacedPart, PlacedPartOf, SampleMaterial, SymbolKind, Vec3, WaterKind } from "./types";
 import { MCU_LEGS, MCU_SIM_PIN, mcuDeskLegs } from "./mcuBoard";
 import { CHIP_DEFS } from "./chips";
+import { ALARM_DEFS } from "./alarm";
 import { SOLDER_DEFS } from "./solder/parts";
 
 /** A lead position in board pitches at rotation 0, relative to the first lead. */
@@ -429,6 +430,8 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
         volts: p.params.volts ?? 16,
         polarized: true,
         ...(p.params.actualFarads !== undefined ? { actualFarads: p.params.actualFarads } : {}),
+        ...(p.params.tolerance !== undefined ? { tolerance: p.params.tolerance / 100 } : {}),
+        ...(p.params.leakOhms !== undefined ? { leakOhms: p.params.leakOhms } : {}),
       },
     ],
   },
@@ -728,12 +731,14 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     defaults: { moisture: "dry", pressure: "light" },
     deskLegs: () => Object.fromEntries([0, 1, 2, 3, 4].map((k) => [`m${k}`, [(k - 2) * SKIN.mark, SKIN.h + 0.2, SKIN.padZ] as Vec3])),
     hotspots: (pp) =>
-      (["dry", "damp", "wet", "salty"] as const).map((m, i) => ({
+      SKIN_TABS.map((m, i) => ({
         pick: { type: "setting" as const, key: "moisture", value: m },
-        at: [(i - 1.5) * 22, SKIN.base + 1, SKIN.baseD / 2 - 9] as Vec3,
+        at: skinTab(i),
         size: [20, 4, 12] as Vec3,
         on: pp.moisture === m,
       })),
+    // The moisture tabs by name (part:P1/wet), so a lesson can point at one.
+    marks: () => Object.fromEntries(SKIN_TABS.map((m, i) => [m, skinTab(i)])),
     settings: [
       { key: "moisture", values: ["dry", "damp", "wet", "salty"] },
       { key: "pressure", values: ["light", "firm"] },
@@ -985,6 +990,8 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
   },
   // ---- Chips (Unit 4): see chips.ts ------------------------------------------------------------------------------
   ...CHIP_DEFS,
+  // ---- Unit 4's door guard: a door with a reed switch, plug-in modules (see alarm.ts) ----------------------------
+  ...ALARM_DEFS,
   // ---- Unit 3: soldering, perfboard, wire and power from the wall (src/solder) ---------------------------------
   ...SOLDER_DEFS,
 };
@@ -1055,6 +1062,11 @@ export function conducts(material: SampleMaterial): boolean {
 
 const SKIN_CONTACT: Record<Moisture, [number, number]> = { dry: [400e3, 250e3], damp: [80e3, 50e3], wet: [18e3, 12e3], salty: [4e3, 3e3] };
 const SKIN_BULK: Record<Moisture, number> = { dry: 20e3, damp: 10e3, wet: 5e3, salty: 2e3 };
+/** The skin patch's moisture tabs, left to right along the front of its base, and where each one sits (local mm). */
+const SKIN_TABS = ["dry", "damp", "wet", "salty"] as const;
+function skinTab(i: number): Vec3 {
+  return [(i - 1.5) * 22, SKIN.base + 1, SKIN.baseD / 2 - 9];
+}
 
 function skinContact(moisture: Moisture, pressure: "light" | "firm"): number {
   const c = SKIN_CONTACT[moisture] ?? SKIN_CONTACT.dry;

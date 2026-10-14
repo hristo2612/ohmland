@@ -160,6 +160,18 @@ describe("ink hit testing", () => {
     expect(hitTest(model, corner[0], corner[1], 0.5)).toEqual({ type: "meter" });
   });
 
+  it("pads small things: the nearest within the padding when nothing is in reach, never over a body under the pointer", () => {
+    const [b, id] = ops.addLead(ops.emptyBench(null), "red", [0, 0]);
+    const lone = buildModel(b);
+    const e = lone.leads.get(id)!.b;
+    // A few mm off the jaws, away from the cable: out of reach, but inside a finger's padding.
+    const off: [number, number] = [e.tip[0] - e.dir[0] * 5, e.tip[1] - e.dir[1] * 5];
+    expect(hitTest(lone, ...off, 0.5)).toBeNull();
+    expect(hitTest(lone, ...off, 0.5, 6)).toMatchObject({ type: "clip", id, end: "b" });
+    const r1 = targetPoint(model, "part:R1")!;
+    expect(hitTest(model, r1[0], r1[1], 0.5, 6)).toMatchObject({ type: "part", id: "R1" });
+  });
+
   it("grabs clips, probes and plugs, and nothing on bare paper", () => {
     const li = model.leads.get("TL1")!;
     const mid: [number, number] = [(li.b.tip[0] + li.b.tail[0]) / 2, (li.b.tip[1] + li.b.tail[1]) / 2];

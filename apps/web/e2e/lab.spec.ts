@@ -98,6 +98,51 @@ test("first-glow: mend the torn drawing, build it on the board, see the drawing 
   await expect(page.locator("[data-finale]")).toContainText("4 lab tasks");
 });
 
+test("a part dragged from the tray shows where its legs will land, in both views, and drops there", async ({ page, isMobile }) => {
+  test.skip(isMobile, "mouse, on a desktop");
+  for (const view of ["3d", "ink"] as const) {
+    if (view === "ink") {
+      // A fresh learner for the second view: the lesson would otherwise resume with the resistor already placed.
+      const origin = new URL(page.url()).origin;
+      await page.goto("about:blank");
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Storage.clearDataForOrigin", { origin, storageTypes: "indexeddb,local_storage" });
+      await cdp.detach();
+    }
+    await page.addInitScript((v) => localStorage.setItem("ohmland:bench-view", v), view);
+    await start(page, "/learn/start-here/first-glow");
+    expect(await page.evaluate(() => window.ohmlandLab!.view!())).toBe(view);
+    await atMoment(page, "b0", "act");
+    await step(page, { do: "move", part: "PC", at: "in:CARD" });
+    for (let i = 0; i < 4 && (await page.evaluate(() => window.ohmlandLab!.status()["mend-blueprint"])) !== "done"; i++) {
+      const p = await project(page, "part:PC");
+      await page.mouse.click(p.x, p.y);
+      await page.waitForTimeout(300);
+    }
+    await atMoment(page, "b0", "done");
+    await primary(page).click();
+    await atMoment(page, "b1", "act");
+    await page.waitForTimeout(800);
+
+    // Out of the tray and over c7, still held: ghost marks on the two holes its legs will take, named in ink.
+    const box = (await page.locator(".ohb-tray .ohb-item, .ohi-tray .ohi-item", { hasText: "1 kΩ" }).first().boundingBox())!;
+    const to = await project(page, "hole:c7");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 14 });
+    await expect(page.locator("[data-drag-marks] [data-drag-ghost]")).toHaveCount(2);
+    const name = (await page.locator("[data-drag-name]").textContent()) ?? "";
+    expect(name).toMatch(/^c\d+ to c\d+$/);
+    await page.mouse.up();
+    await expect(page.locator("[data-drag-marks]")).toHaveCount(0);
+
+    // It dropped into the holes the marks named.
+    const r1 = (await page.evaluate(() => window.ohmlandLab!.bench())) as { parts: { id: string; holes?: Record<string, string> }[] };
+    const holes = Object.values(r1.parts.find((p) => p.id === "R1")?.holes ?? {}).sort();
+    expect(name.split(" to ").sort()).toEqual(holes);
+  }
+});
+
 test("welcome-to-the-bench: find the gap with the tracer, break and mend the loop, name it, fix the bench", async ({ page }) => {
   await start(page, "/learn/start-here/welcome-to-the-bench");
   await atMoment(page, "b0", "act");

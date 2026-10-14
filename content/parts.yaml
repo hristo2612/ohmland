@@ -296,7 +296,7 @@ parts:
     icon: capacitor
     blurb: A little can that stores a lot of charge for its size. It has a right way round.
     facts:
-      - Values run from about 1 µF to thousands of µF. Tolerance is often ±20%.
+      - "Values run from about 1 µF to thousands of µF. Tolerance is often ±20%: a 3 s delay it sets may run 2.4 to 3.6 s."
       - "Capacitance is in farads (F). 1 µF is a millionth of a farad, and 1,000 nF = 1 µF."
       - The stripe of minus signs and the shorter leg mark the negative side.
       - Reversed, or pushed past its voltage rating, it leaks, heats up and can vent.
@@ -577,3 +577,44 @@ parts:
       - Solder the socket, not the chip. The chip goes in last, and swaps in seconds.
       - "Sockets have a notch too. Line up the socket's notch, then the chip's."
       - "8, 14 and 16 pin sizes match the 555, the 74HC gates and the 4026B."
+
+  # Unit 4: Chips, CH1 to CH12 (the 555 timer and the lighthouse). The cards carry the datasheet names the lessons
+  # leave out (comparator, flip-flop, monostable, astable, bistable).
+
+  # description: A whole timing circuit in an 8-pin black block: two comparators watching a ladder of three equal
+  # resistors, a flip-flop, an output stage and a discharge transistor. Met pin by pin in CH1 to CH10.
+  - id: ic-555
+    name: 555 timer
+    icon: chip
+    blurb: Eight pins and a whole timer inside. It blinks, beeps, counts out delays and remembers.
+    facts:
+      - "Pins: 1 minus, 2 trigger, 3 output, 4 reset, 5 control, 6 threshold, 7 discharge, 8 plus. Pin 1 sits by the notch and dot."
+      - "Inside: three equal resistors set lines at 1/3 and 2/3 of the supply. Two comparators watch pins 2 and 6, and a flip-flop (the latch) remembers which fired last."
+      - "Three modes: monostable (one fixed pulse per trigger, about 1.1 × R × C), astable (it never rests) and bistable (set and reset)."
+      - "The bipolar 555 runs on 4.5 to 16 V; its output sits about 1.4 V below the supply. A CMOS 555 (7555) swings rail to rail."
+      - "Never join pin 7 straight to plus: keep 1 kΩ at least, 10 kΩ is usual. A 556 is two 555s in one 14-pin chip."
+
+  # description: The small glass signal diode: a one-way valve for small, fast currents. In CH9 it lets a 555's
+  # capacitor fill past R2, so the flash gets short.
+  - id: diode-1n4148
+    name: Signal diode (1N4148)
+    icon: diode
+    blurb: A small glass diode for small, fast currents. Steers a 555's filling current past a resistor.
+    facts:
+      - The black band marks the cathode, as on every diode.
+      - It drops about 0.6 to 0.7 V when it conducts a few milliamps.
+      - "Rated for about 100 V in reverse and 200 mA forward: a signal diode, not a power diode."
+      - "Across a 555's R2, band toward pin 6, it makes the flash shorter than the gap (a duty cycle under 50%)."
+
+  # description: Two springy contacts sealed in a small glass tube. A magnet nearby pulls them together. On a door frame,
+  # with a magnet on the door, it makes a sensor: shut, the loop is closed; opened (or the wire cut), the loop breaks.
+  - id: reed-switch
+    name: Reed switch
+    icon: switch
+    blurb: Two springy contacts in a glass tube that close when a magnet comes near. The door guard's sensor.
+    facts:
+      - Normally open (NO) reeds close while a magnet is near; the magnet goes on the door, the reed on the frame.
+      - "Wired so a shut door closes the loop, any opening, or a cut wire, breaks it: the alarm notices both."
+      - The glass is fragile; bend the leads gently, away from the tube.
+      - Its contacts are rated for small currents; let it signal a chip, not run a lamp or motor.
+      - "Several on one alarm go in series: every door and window must be shut to close the loop."

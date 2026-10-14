@@ -1002,6 +1002,8 @@ export const en = {
       comb: "Comb",
       wall: "Wall",
       "mcu-board": "Microcontroller board",
+      door: "Door with reed switch",
+      "plug-module": "Plug-in module",
     } as Record<string, string>,
     colors: { red: "Red", black: "Black", blue: "Blue", green: "Green", yellow: "Yellow", orange: "Orange", white: "White", purple: "Purple" },
     water: { distilled: "DISTILLED", tap: "TAP", salty: "SALT" },
@@ -1020,6 +1022,7 @@ export const en = {
       "skin.moisture": { label: "Skin", values: { dry: "Dry", damp: "Damp", wet: "Wet", salty: "Salty" } },
       "skin.pressure": { label: "Probe pressure", values: { light: "Light", firm: "Firm" } },
       "station.load": { label: "Test load", values: { false: "Off", true: "On" } },
+      "door.open": { label: "Door", values: { false: "Shut", true: "Open" } },
       "fruit.touching": { label: "Metals", values: { false: "Apart", true: "Touching" } },
       "card.length": { label: "Line", unit: "cm" },
       "card.layers": { label: "Layers" },
@@ -1450,6 +1453,14 @@ export const en = {
 
   dev: {
     label: "Dev only",
+  },
+
+  /** The hidden try-out pages (/variants/voice): lessons written other ways, played like real ones, saved nowhere. */
+  variants: {
+    kicker: "Try-out",
+    note: "Play each one like a real lesson. Nothing here is saved and no XP is earned.",
+    lessons: "Lessons",
+    finish: "Back to the variants",
   },
 };
 

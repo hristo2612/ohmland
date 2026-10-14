@@ -11,7 +11,7 @@ import { BenchStoreContext, createBenchStore } from "../store";
 import type { BenchAction } from "../types";
 import type { BenchController, ScreenPoint } from "../view/controller";
 import type { BenchRendererProps } from "../view/types";
-import { NO_PAD, fitRect, growRect, rectOfPoints, type Pad, type Rect } from "./camera";
+import { NO_PAD, fitRect, growRect, rectOfPoints, unionRect, type Pad, type Rect } from "./camera";
 import { BoardBase, BoardHoles, BoardXray } from "./draw/Board";
 import { GlowLayer, LeadView, PartView, SmokeLayer, WireView } from "./draw/layers";
 import { Marks } from "./draw/Marks";
@@ -19,7 +19,7 @@ import { BoxWires, InkOverlays, InkPush } from "./draw/Overlays";
 import { MeterBody, MeterLeads } from "./draw/Meter";
 import { Readouts } from "./draw/Readouts";
 import { DefsContext, InkDefs } from "./draw/shared";
-import { focalTargets, frameWithParts, needsReading } from "../view/framing";
+import { frameWithParts } from "../view/framing";
 import { boxCorners, n3 } from "./frame";
 import { attachInteraction, type InkApi } from "./interaction";
 import { KeyCursor, anchorName, handleInkKey, partName, startCursor, type KeyEnv } from "./keys";
@@ -30,6 +30,9 @@ import { INK_CSS } from "./styles";
 import { InkView } from "./view";
 import { TagSlips, type SlipProjector } from "../view/TagSlips";
 import { LOUPE, Loupe, createLoupeFeed } from "../view/Loupe";
+import { DragMarks, LensMarks } from "../view/DragMarks";
+import { createFeed, sameMarks, type DragMarksState, type Lift } from "../view/drag";
+import { partCenter } from "../ops";
 import { BoardRuler } from "../view/Ruler";
 import { SolderOverlay, type SolderViewApi } from "../solder/overlay/SolderOverlay";
 import { IronLayer, ScorchLayer } from "./kinds/solder";
@@ -136,6 +139,7 @@ export function BenchInk(props: BenchInkProps) {
   const [view] = useState(() => new InkView());
   const [keys] = useState(() => new KeyCursor());
   const [loupe] = useState(createLoupeFeed);
+  const [marks] = useState(() => createFeed<DragMarksState>(sameMarks));
   const api = useRef<InkApi | null>(null);
   const onAction = useRef(props.onAction);
   const onChange = useRef(props.onChange);
@@ -207,6 +211,9 @@ export function BenchInk(props: BenchInkProps) {
   padRef.current = pad;
   const trayStripRef = useRef(0);
   trayStripRef.current = showTray && compact ? trayCoverOf("ink", tray.length, size.w).bottom : 0;
+  /** The edges the tray covers: a drag near them does not pan the view (dropping there takes a part back). */
+  const coveredRef = useRef({ left: 0, bottom: 0 });
+  coveredRef.current = showTray ? trayCoverOf("ink", tray.length, size.w) : { left: 0, bottom: 0 };
   /** The part of the view a docked panel covers (focus's `inset`): framing keeps clear of it. */
   const insetRef = useRef<Pad>(NO_PAD);
   /** The room to keep clear at each edge: the view's own chrome plus the docked panel. */
@@ -254,32 +261,8 @@ export function BenchInk(props: BenchInkProps) {
     },
     [view, homeRect, compact, store, padNow],
   );
-  /**
-   * The rectangle that frames `rect` at no less than `read` px between neighbouring holes, when the targets need it:
-   * as much of `rect` as fits at that scale, moved only as far as it takes to keep the targets' anchors in view.
-   */
-  const readingRect = useCallback(
-    (rect: Rect, pad: Pad, read: number, targets: string[], zoom?: number): { rect: Rect; s: number } | null => {
-      const m = modelRef.current;
-      const fit = fitRect(rect, view.vp, pad, 60).s;
-      const s = Math.min(read / PITCH, zoom ? fit * zoom : Infinity);
-      if (!needsReading(m.bench, targets) || fit >= s) return null;
-      const hw = Math.max(1, view.vp.w - pad.left - pad.right) / s / 2;
-      const hh = Math.max(1, view.vp.h - pad.top - pad.bottom) / s / 2;
-      const focal = targetsRect(m, focalTargets(m.bench, targets)) ?? rect;
-      const keep = (c: number, lo: number, hi: number, half: number) => {
-        const room = 3;
-        if (hi - lo > (half - room) * 2) return (lo + hi) / 2;
-        return Math.min(lo + half - room, Math.max(hi - half + room, c));
-      };
-      const cx = keep((rect[0] + rect[2]) / 2, focal[0], focal[2], hw);
-      const cz = keep((rect[1] + rect[3]) / 2, focal[1], focal[3], hh);
-      return { rect: [cx - hw, cz - hh, cx + hw, cz + hh], s };
-    },
-    [view],
-  );
   /** What the view frames: home, or what focus() asked for. A resize frames it again (unless the learner moved). */
-  const framing = useRef<{ targets: string[]; padding?: number; read?: number; readZoom?: number } | null>(null);
+  const framing = useRef<{ targets: string[]; padding?: number; read?: number; near?: number; withHome?: boolean } | null>(null);
   const applyFraming = useCallback(
     (instant: boolean) => {
       if (!view.sized) return;
@@ -303,12 +286,22 @@ export function BenchInk(props: BenchInkProps) {
       const py = Math.min(p * 0.5, Math.max(0, view.vp.h - base.top - base.bottom) * 0.2);
       const pad = { top: base.top + py, right: base.right + px, bottom: base.bottom + py, left: base.left + px };
       const rect = growRect([cx - hw, cz - hh, cx + hw, cz + hh], 3);
-      // Hands-on work keeps holes and legs far enough apart to aim at, even when not everything fits.
-      const read = f.read ? readingRect(rect, pad, f.read, f.targets, f.readZoom) : null;
-      if (read) view.fit(read.rect, pad, { instant, max: Math.max(18, read.s) });
-      else view.fit(rect, pad, { instant, max: 18 });
+      // Hands-on work comes no closer than its reading scale: the whole job stays in view (the loupe aims).
+      const cap = f.read ? Math.min(18, f.read / PITCH) : 18;
+      if (f.withHome && f.near !== undefined) {
+        // The home view too, while it still shows the work close enough to aim at; else that close round the work.
+        const home = homeRect();
+        const ctx = unionRect(rect, growRect(home, Math.max(4, Math.max(home[2] - home[0], home[3] - home[1]) * 0.06)))!;
+        if (fitRect(ctx, view.vp, pad, cap).s >= f.near) {
+          view.fit(ctx, pad, { instant, max: cap });
+          return;
+        }
+        view.fit(rect, pad, { instant, max: Math.min(cap, Math.max(f.near, 0.6)) });
+        return;
+      }
+      view.fit(rect, pad, { instant, max: cap });
     },
-    [view, fitHomeNow, padNow, readingRect],
+    [view, fitHomeNow, padNow, homeRect],
   );
   const fitHome = useCallback(
     (instant = false) => {
@@ -343,6 +336,40 @@ export function BenchInk(props: BenchInkProps) {
     requestAnimationFrame(() => requestAnimationFrame(() => props.onReady?.()));
   }, [size.w, props.onReady]);
 
+  /**
+   * A dragged part drawn off its place in the state (view/drag.ts): moved, a little bigger and casting a soft shadow,
+   * by a CSS transform on its drawing, so nothing re-renders while it follows the pointer and settles.
+   */
+  const liftPart = useCallback(
+    (id: string, lift: Lift | null) => {
+      const el = element?.querySelector<SVGGElement>(`[data-kb="part:${CSS.escape(id)}"]`);
+      if (!el) return;
+      if (!lift) {
+        el.style.transform = "";
+        el.style.transformOrigin = "";
+        el.style.filter = "";
+        return;
+      }
+      const b = store.getState().bench;
+      const part = b.parts.find((p) => p.id === id);
+      const [cx, cz] = part ? partCenter(b, part) : [0, 0];
+      const k = lift.k;
+      el.style.transformOrigin = "0 0";
+      el.style.transform = `translate(${lift.dx + cx * (1 - k)}px, ${lift.dz + cz * (1 - k)}px) scale(${k})`;
+      // The shadow is sized in desk mm: keep it a few screen px at any zoom.
+      const sh = document.getElementById(`${defsId}-lift-sh`);
+      if (sh) {
+        const s = view.cam.s;
+        sh.setAttribute("dx", String(1 / s));
+        sh.setAttribute("dy", String(3 / s));
+        sh.setAttribute("stdDeviation", String(3 / s));
+        sh.setAttribute("flood-opacity", String(0.3 * lift.h));
+      }
+      el.style.filter = lift.h > 0.02 ? `url(#${defsId}-lift)` : "";
+    },
+    [element, store, view, defsId],
+  );
+
   // Pointer interaction.
   useEffect(() => {
     if (!element) return;
@@ -354,13 +381,16 @@ export function BenchInk(props: BenchInkProps) {
       readOnly: () => readOnlyRef.current,
       emit,
       loupe: { feed: loupe, labels: () => labelsNow.current },
+      marks,
+      lift: liftPart,
+      covered: () => coveredRef.current,
     });
     api.current = a;
     return () => {
       detach();
       api.current = null;
     };
-  }, [element, store, view, emit, loupe]);
+  }, [element, store, view, emit, loupe, marks, liftPart]);
 
   // The solder overlay draws over this view through the same projection.
   const solderView = useMemo<SolderViewApi>(
@@ -491,7 +521,8 @@ export function BenchInk(props: BenchInkProps) {
               targets: [...targets],
               ...(opts?.padding !== undefined ? { padding: opts.padding } : {}),
               ...(opts?.read ? { read: opts.read } : {}),
-              ...(opts?.readZoom ? { readZoom: opts.readZoom } : {}),
+              ...(opts?.near !== undefined ? { near: opts.near } : {}),
+              ...(opts?.withHome ? { withHome: true } : {}),
             }
           : null;
         const i = opts?.inset ?? {};
@@ -659,10 +690,17 @@ export function BenchInk(props: BenchInkProps) {
             />
             <SolderOverlay store={store} view={solderView} compact={compact} readOnly={readOnly} tray={showTray} />
             {/* The touch loupe: the drawing under the finger, cloned twice life size. */}
+            {/* Where a drag would land: ghost legs, glowing drop points, a cross, the target's name (on touch the loupe names it). */}
+            <DragMarks feed={marks} />
             <Loupe
               feed={loupe}
               size={size}
-              lens={(st, d) => <InkLens ids={[`${defsId}-desk`, `${defsId}-top`]} view={view} x={st.x} y={st.y} d={d} />}
+              lens={(st, d) => (
+                <>
+                  <InkLens ids={[`${defsId}-desk`, `${defsId}-top`]} view={view} x={st.x} y={st.y} d={d} />
+                  <LensMarks feed={marks} x={st.x} y={st.y} d={d} />
+                </>
+              )}
             />
             <div className="ohi-sr" aria-live="polite">
               {said}

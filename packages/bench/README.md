@@ -100,16 +100,19 @@ Interaction: drag parts from the tray (or tap a tray item, then tap the bench). 
 into the nearest free holes that fit its footprint, or it lies on the desk. Drag a resistor or diode lead to stretch it
 (3 to 8 holes). Wire mode: click a hole then another (or drag between them); pick the colour in the toolbar.
 Drag crocodile clips, probe tips and banana plugs; they snap to the nearest lead, terminal, wire end, hole or socket.
-Turn the meter dial by dragging it, clicking it (next position) or clicking a label. Hover a hole (or tap it on touch)
-to see everything metal-connected to it through the board; the X-ray toggle shows every strip. Right-click or
-long-press for a context menu.
+Turn the meter dial by dragging round it, tapping the knob where it should point (its middle: one step on) or
+clicking a label. A switch flips on a tap or a short drag of its lever. Hover a hole (or tap it on touch) to see
+everything metal-connected to it through the board; the X-ray toggle shows every strip. Right-click or long-press for
+a context menu. How a drag feels (lift, landing marks, magnet, glide back, edge pan, the finger's lift) is shared
+with the ink view: docs/BENCH-VIEWS.md, "Drag and drop".
 
 Keyboard (the bench is focusable): arrows move the selected part one hole (or turn a selected trimmer, or the meter
 dial), `R` rotates, `Delete` removes, `Space` presses a selected pushbutton or flips a switch, `W` wire mode, `X` x-ray,
 `T` top view, `Escape` cancels, `Ctrl/Cmd+Z` undo, `Ctrl/Cmd+Shift+Z` redo.
 
 Camera: left drag orbits (limited to the front half and above the desk), right drag pans within the work area, wheel
-or pinch zooms toward the cursor. A double click or double tap on a part frames it; on the empty desk it frames the
+or pinch zooms toward the cursor. On touch one finger on the empty bench pans (as in ink), two fingers zoom and pan,
+three orbit. A double click or double tap on a part frames it; on the empty desk it frames the
 work area again. The first view, and the view after a resize while the learner has not moved the camera, frames the
 work area: the lab's `frame` when it sets one, else the board, the parts, the meter and the leads that hold
 something. Rendering is on demand: nothing is drawn while nothing changes, except while smoke or a hint pulse
@@ -303,6 +306,8 @@ pin tables and `test/chips.test.ts` checks them against `TIMER555_PINS`, `LOGIC_
 | `logic-probe` | none | `tip`, `vcc` (red), `gnd` (black) | none (it draws no current) |
 | `battery-pack` | `cells` (3, 4), `emf`, `internalOhms`, `mAh` | `pos neg` (flying) | `battery`, 1.55 V and 0.15 Ω a cell, 2400 mAh |
 | `bench-supply` | `position` (0 to 1), `max` (12 V) | `pos neg` (binding posts) | `battery` of `supplyVolts(params)` behind 0.05 Ω |
+| `door` | `open`, `style` (`"door"`, `"window"`), `side` (`"left"`, `"right"`), `tag` | `a b` (screw terminals) | `switch`, closed while the door is shut |
+| `plug-module` | `model` (`"voice"`) | `vcc en out gnd` (a header row) | the voice module: a `timer555` astable near 440 Hz (`MOD1:U` and its parts), reset on EN |
 
 - **DIP chips** straddle the channel: pins 1 to n/2 along row e from the left, the rest back along row f, rows 7.62 mm
   apart. The body is black epoxy with the half-moon notch at the pin-1 end, a dimple by pin 1 and its part number
@@ -352,6 +357,20 @@ pin tables and `test/chips.test.ts` checks them against `TIMER555_PINS`, `LOGIC_
 - **Pin numbers** (and the display's segment letters, the regulator's in, gnd, out) show up close: in ink from about
   11 px per mm (`data-near`), in 3D when the camera is within about 16 cm; and in a spotlight in both.
 - The first `battery`, else `battery-pack`, else `bench-supply` minus terminal is `"gnd"`.
+- **The door guard** (`src/alarm.ts`, `models/Alarm.tsx`, `ink/kinds/alarm.tsx`): a door or a window in a short
+  stretch of wall on a wooden base, a magnet on its leaf and a normally open reed switch on the jamb beside it, wired
+  to a small terminal block where clip leads bite. Click the leaf (a hotspot that follows it) to swing it open toward
+  you; the reed then opens. `side` puts the block (and the reed) on the left of the wall (default, for a door to the
+  right of the board) or on its right, so the block faces the board. In ink it is drawn in plan, as an architect draws
+  a door: the cut wall, the leaf and the faint arc it swings along. Marks `reed`, `magnet` and `leaf` for notes and
+  taps.
+- **Plug-in modules**: a small green board over a header row of four pins in row e (it overhangs the channel and
+  the far half, so the strips in front of its pins stay free for wires), its pins and name printed on it. The voice
+  module sings near 440 Hz while EN is high (a 100 kΩ inside holds EN low when nothing drives it); OUT drives a
+  speaker through 100 Ω and 100 µF.
+- **Electrolytic timing.** `electrolytic-cap` takes `tolerance` (percent, default 20) and `leakOhms` (default 1 MΩ from
+  100 µF up). A lab that quotes a 555 delay sets the tolerance tight and the leakage high so the delay comes out as
+  the formula says.
 
 ### `@ohmland/bench/core`
 
@@ -436,8 +455,8 @@ as quiet context) and rings the targets in red pencil.
 
 **Interaction**, as in 3D: drag or tap-then-tap from the tray; drag parts (they snap into holes, drop into holders'
 seats, or swap with a part of the same kind they are dropped on); drag a resistor's or a capacitor's lead to stretch
-it; drag jumper ends, clips, probe tips, banana plugs, the meter and its dial (or click the knob, or a label); click a
-switch to flip it, hold a button, turn a trimmer, click a prop's printed setting (moisture tabs, the tester's load
+it; drag jumper ends, clips, probe tips, banana plugs, the meter and its dial (or tap the knob where it should point,
+or a label); tap a switch or flick its lever to flip it, hold a button, turn a trimmer, click a prop's printed setting (moisture tabs, the tester's load
 switch), drag along the pencil card to draw; Wire mode for hole to hole jumpers; X-ray; right-click or long-press for
 the menu. Hover a hole (or tap it) to light its metal strip and everything joined to it. Empty-paper drags pan; the
 wheel, trackpad pinch and two fingers zoom toward the pointer.

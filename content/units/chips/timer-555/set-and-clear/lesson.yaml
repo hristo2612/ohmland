@@ -1,0 +1,63 @@
+# Blueprint: docs/curriculum/unit-4.md, CH6. A bench lesson (docs/LESSONS.md).
+# One idea: with pin 6 tied to minus and no timing parts, the 555 remembers: SET dips pin 2, CLEAR pulls pin 4 low,
+# and reset beats everything. New: pin 4 (reset); the word "latch" (periods 1 here; its tap in the x-ray is not a
+# bench target yet, so period 2 waits for CH21 with period 3). Lab: content/labs/set-and-clear.ts.
+format: bench
+id: set-and-clear
+version: 1
+title: Set and clear
+summary: Turn a 555 into a memory with two buttons, meet pin 4, reset, and find out which button wins.
+minutes: 6
+lab: set-and-clear
+unlocks:
+  parts: []
+  isle: battery
+
+start:
+  title: Set and clear
+  say: A 555 with no timing parts. What could it do?
+  go: Find out
+
+beats:
+  - say: Press SET, then let go and wait.
+    objective: Set it
+    do: stays-on
+    note: { at: D1, text: "no timing parts: it stays on" }
+
+  - say: Now press CLEAR.
+    objective: Clear it
+    do: clear-it
+    note: { at: U1.4, text: "pin 4: reset, low clears it" }
+
+  - say: Look inside. Press SET, then CLEAR.
+    tool: xray
+    do: xray-latch
+    note: { at: U1, text: "latch: it remembers on or off" }
+
+  - say: Hold both buttons together.
+    objective: Both at once
+    tool: keys
+    guess: { options: [The lamp lights, It stays dark], answer: It stays dark }
+    do: reset-wins
+    rule: Reset beats everything.
+
+  - say: Show me the pin that clears it.
+    tap: { answer: U1.4, among: [U1.1, U1.2, U1.3, U1.4, U1.5, U1.6, U1.7, U1.8] }
+    hint: CLEAR's wire leads straight to it.
+
+  - say: What is pin 4?
+    pick: { on: U1.4, options: [Reset, Trigger, Threshold], answer: Reset }
+
+secret:
+  task: power-back
+  say: Curious? SET it, then unplug the battery's red lead and replug.
+  done: Back on, or not? A coin toss.
+  note: { at: B1, text: "power back: a coin toss" }
+
+fixit:
+  say: My latch only glows while I hold SET. Fix it.
+  tasks:
+    - task: fix-pin6
+
+end:
+  say: A timer that remembers. Pin 4 is on my map.
