@@ -10,7 +10,7 @@ import type { Quality } from "../types";
 import { isEffect } from "../effects/effects";
 
 /** Ink line width in CSS px. */
-export const INK_PX = 1.6;
+export const INK_PX = 1.8;
 
 /**
  * Takes over rendering (frame priority 1). High: render pass, spotlight veil, then ink, bloom and the paper tone

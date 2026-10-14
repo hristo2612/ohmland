@@ -17,6 +17,7 @@ const INK_FRAG = /* glsl */ `
 uniform vec3 ink;
 uniform float thickness;
 uniform float strength;
+uniform float crease;
 
 float wAt( const in vec2 uv ) {
   float d = readDepth( uv );
@@ -51,6 +52,17 @@ void mainImage( const in vec4 inputColor, const in vec2 uv, const in float depth
     float lapd = ( w4 + w5 + w6 + w7 - 4.0 * wc ) / ref;
     line = smoothstep( 0.0025, 0.012, max( lap, lapd ) ) * strength;
     line *= clamp( texture2D( inputBuffer, uv + dn ).a, 0.0, 1.0 );
+    // Creases: on a part's own surface, a sharp bend shows as a small second difference one pixel across (planes
+    // give none). Drawn lighter than silhouettes, like a pencil line inside an ink outline.
+    if ( crease > 0.0 && wc > 0.0 && line < 0.2 ) {
+      vec2 p = texelSize;
+      float a0 = wAt( uv - vec2( p.x, 0.0 ) ), a1 = wAt( uv + vec2( p.x, 0.0 ) );
+      float a2 = wAt( uv - vec2( 0.0, p.y ) ), a3 = wAt( uv + vec2( 0.0, p.y ) );
+      if ( min( min( a0, a1 ), min( a2, a3 ) ) > 0.0 ) {
+        float c = max( abs( a0 + a1 - 2.0 * wc ), abs( a2 + a3 - 2.0 * wc ) ) / wc;
+        line = max( line, smoothstep( 0.0006, 0.0022, c ) * crease * inputColor.a );
+      }
+    }
   }
   outputColor = vec4( mix( inputColor.rgb, ink, line ), 1.0 );
 }`;
@@ -64,6 +76,7 @@ export class InkEffect extends Effect {
         ["ink", new THREE.Uniform(new THREE.Color(ink))],
         ["thickness", new THREE.Uniform(thickness)],
         ["strength", new THREE.Uniform(strength)],
+        ["crease", new THREE.Uniform(0.38)],
       ]),
     });
   }
