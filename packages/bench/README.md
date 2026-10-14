@@ -9,7 +9,7 @@ Two interchangeable views draw the same bench (docs/BENCH-VIEWS.md): the 3D benc
 Three Fiber scene) and the 2D ink bench (`src/ink`). `<BenchView>` switches between them on one store.
 
 Consumed from source (`"exports"`: `.` everything, `./core` the pure half, `./view` the view switcher and controller
-types without three.js). Every model is built in code: no downloaded model or image files, no third-party model
+types without three.js, `./ink` the ink renderer alone). Every model is built in code: no downloaded model or image files, no third-party model
 libraries.
 
 ![Bench](screenshots/bench-desktop.png)
@@ -244,6 +244,81 @@ Mystery parts: `shuffleFor(seed, n)` gives a permutation (never the identity) fr
 leg)` is the terminal wired as `leg`, `wiredAs(part, terminal)` the reverse, and `terminalNumber(part, leg)` the
 number printed beside a terminal.
 
+## 2D ink view (`<BenchInk />`)
+
+The same bench as a top-down ink drawing on grid paper, in the Classic notebook style: graphite outlines, coloured
+pencil washes, blue ink for your selection and red pencil for the teacher's hints. It renders the same `BenchState`
+from the same store, emits the same actions through the same `benchOps`, and reads the same simulator snapshots, so
+a lab can switch between the 3D and ink views at any moment without losing anything (see `docs/BENCH-VIEWS.md`).
+It is plain SVG: nothing under `src/ink` imports three.js (a test walks the import graph to keep it that way).
+
+![Ink bench: first glow](screenshots/ink-glow.png)
+
+![Ink bench: a populated breadboard, the meter and the tray](screenshots/ink-desktop.png)
+
+Use it through `<BenchView view="ink">`, or alone:
+
+```tsx
+import { BenchInk } from "@ohmland/bench/ink";
+
+<BenchInk store={store} tray={tray} onAction={onAction} controllerRef={controller} />;
+```
+
+Props are `BenchRendererProps`, the same as the 3D `<Bench>`'s (`initial`, `store`, `tray`, `snapshot`, `onChange`,
+`onAction`, `quality`, `readOnly`, `locked`, `frame`, `highlight`, `labels`, `theme`, `className`, `style`,
+`onReady`, `controllerRef`); `camera` is accepted and ignored. `labels` also takes the ink view's few strings
+(`INK_LABELS`: fit, cursor and screen reader lines). `quality: "low"` drops the glow rays. `theme` forces the light
+or night page; by default the drawing follows the page's notebook tokens (`--paper`, `--ink`, `--sk-*`...).
+
+**Teaching scale.** Parts on the board are drawn at true size on their holes. Small parts lying on the desk are drawn
+larger than life (resistors 2x, LEDs and other radials 1.6x, 1 W resistors 1.35x, power resistors and props at true
+size), but every lead, terminal, clip point and socket is exactly where `partPose` and `anchorPosition` put it, so the
+drawing shows the connections BenchState holds. A 9 V battery on the desk is drawn standing, terminals on top at their
+clip points and its label below; seated in the battery tester it is seen from straight above. A probe resting on
+something is held nearly upright, so it is drawn short and see-through.
+
+**Live state.** LED glow (a halo in the LED's colour, rays above 12%, brighter in a dim room), dead parts (cracked and
+hatched LEDs and diodes, scorched resistors, a blown fuse's broken filament and smudge, a burst electrolytic), smoke
+wisps for `smoking` (still under reduced motion), relay blades that swing from NC to NO with `extra.armature`, the
+meter's seven-segment LCD with its unit and DC/AC marks, switch and slider positions, a held pushbutton, the desk
+clock, stress and heat readouts (`inspect`) and the room light (`ambient` dims the paper, never the glows).
+
+**Controller** (`InkController`: the shared `BenchController` plus `projectClient(target)`, `resetView()`, `atHome()`,
+`pickAt(x, y)` and `camera()`): `project(target)` takes every target in the table above, plus a bare part id (`D1`),
+`part:R1/a` (a lead), `part:M1/dialFace` and `part:M1/sockets`, `board` and `strip:14a-e`; `onViewChange(cb)` fires
+at most once a frame for a pan, zoom, glide, resize or bench change; `focus(targets, { padding, instant })` glides to
+frame them with some bench round them (never tighter than about 24 mm, an empty list frames the work area) and keeps
+that framing when the bench resizes; `spotlight(targets)` veils everything else in the page colour (the board less,
+as quiet context) and rings the targets in red pencil.
+
+**Interaction**, as in 3D: drag or tap-then-tap from the tray; drag parts (they snap into holes, drop into holders'
+seats, or swap with a part of the same kind they are dropped on); drag a resistor's or a capacitor's lead to stretch
+it; drag jumper ends, clips, probe tips, banana plugs, the meter and its dial (or click the knob, or a label); click a
+switch to flip it, hold a button, turn a trimmer, click a prop's printed setting (moisture tabs, the tester's load
+switch), drag along the pencil card to draw; Wire mode for hole to hole jumpers; X-ray; right-click or long-press for
+the menu. Hover a hole (or tap it) to light its metal strip and everything joined to it. Empty-paper drags pan; the
+wheel, trackpad pinch and two fingers zoom toward the pointer.
+
+**Keyboard.** The bench, every part, clip, probe, plug and the dial are focusable with names (jumpers are reached with
+the cursor, so a busy board does not fill the tab order); the focus ring is a dashed blue mark. The 3D view's keys
+work (arrows move the selected part a hole, `R`, `Delete`, `Space` flips or presses, `W`, `X`, `Ctrl/Cmd+Z`,
+`Ctrl/Cmd+Shift+Z`), plus `+`, `-` and `0` to zoom and fit. With nothing selected the arrows walk a cursor between
+holes and leads (screen readers hear the point and what is joined to it); `Enter` on a clip, probe or plug picks it
+up, the arrows carry it, `Enter` puts it down, `Delete` leaves it loose and `Escape` cancels. In Wire mode `Enter` on
+two holes adds a jumper; an armed tray item is placed with `Enter`.
+
+**Adding a part kind.** Each kind is one entry in the ink registry (`src/ink/kinds`): a `box` (its outline in the
+part's frame) and a `Draw` component (top down, millimetres, x right and z down the page), plus an optional
+`actuator`, `layer` and `clock`. Leads must end on `localLegs(pi)`. Desk modules (`base: true`) share `TerminalBlock`.
+A kind with no entry still works: it is drawn as a labelled slip with its leads, and the ink test fails until it has
+a drawing of its own.
+
+**Performance.** Pan and zoom never re-render React: the camera writes one transform per layer, the grid paper's
+background, a stroke-width variable and a level of detail (fine print and hole centres appear as they become
+readable). The board's 830 holes are one path, drawn once. A part's geometry is cached by identity, so a drag rebuilds
+only the moving part, and each part re-renders only when its look changes (glow in 2% steps), so a steady circuit
+costs nothing per snapshot. Outlines keep their pen width at every zoom (`vector-effect: non-scaling-stroke`).
+
 ## BenchState
 
 Plain JSON, millimetres on the desk (x right, z toward the viewer, y up).
@@ -303,15 +378,18 @@ pnpm --filter @ohmland/bench dev     # vite playground, http://localhost:5199
   also lists the live netlist and the action log.
 - `?scene=clips` a section-one bench with no board, everything joined by crocodile leads; `?scene=smoke` a small
   board with an overloaded resistor; `?scene=empty`, `?scene=half` (400-point board); `?scene=props` every lab
-  prop on one desk; `?scene=modules` the desk modules; `?scene=glow` the first-glow loop (`glow0` before it is
-  wired).
-- A toggle above the bench switches between the 3D and ink views on the same store (`view=ink` starts in ink,
-  `toggle=0` hides it). `theme=dark` shows the night page.
+  prop on one desk; `?scene=modules` the desk modules; `?scene=blocks` desk modules, single-pole and mystery relays
+  (closed and peeked) and bendable capacitor legs on a half board; `?scene=glow` the first-glow loop (`glow0` before
+  it is wired).
+- A toggle above the bench switches between the 3D and ink views on the same store, or shows both side by side
+  (`view=ink` starts in ink, `view=split` side by side, `toggle=0` hides it). `theme=dark` shows the night page. The
+  playground loads no three.js until the 3D view or a gallery is shown.
 - `?mode=gallery` every part in rows (`&rows=0-3`, `&row=2`, `&focus=4` for a close-up).
 - `?mode=preview` a few `<PartPreview>` turntables.
 - Screenshot helpers: `q=low`, `panel=0`, `tray=0`, `glow=0.8`, `health=R1:smoking,D1:dead`, `display=OL`,
   `unit=kΩ`, `closed=1`, `hover=hole:e12`, `xray=1`, `select=R1`, `hint=R1,hole:e12`, `cam=x,y,z&target=x,y,z`,
-  `focus=part:R1,part:D1` (or `all`), `spot=part:D1`.
+  `focus=part:R1,part:D1` (or `all`), `spot=part:D1`, `ambient=0.3` (room lights), `inspect=stress:D1;heat:R1`
+  (readouts), `t=5400` (simulated seconds, for the desk clock).
 
 ## Tests and screenshots
 
@@ -319,6 +397,7 @@ pnpm --filter @ohmland/bench dev     # vite playground, http://localhost:5199
 pnpm --filter @ohmland/bench test        # Vitest: netlist, snapping, colour code, controller hub, targets
 pnpm --filter @ohmland/bench typecheck
 pnpm --filter @ohmland/bench shots       # Playwright: interaction, controller and view switch checks + screenshots
+pnpm --filter @ohmland/bench shots:ink   # Playwright: the ink view driven by mouse, touch and keyboard + ink-*.png
 ```
 
 The Playwright run starts the playground itself. On macOS headless Chromium renders WebGL through Metal; elsewhere the

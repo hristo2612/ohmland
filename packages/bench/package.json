@@ -7,13 +7,15 @@
   "exports": {
     ".": "./src/index.ts",
     "./core": "./src/core.ts",
-    "./view": "./src/view/index.ts"
+    "./view": "./src/view/index.ts",
+    "./ink": "./src/ink/index.ts"
   },
   "scripts": {
     "dev": "vite playground",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "shots": "playwright test -c e2e/playwright.config.ts"
+    "shots": "playwright test -c e2e/playwright.config.ts",
+    "shots:ink": "playwright test -c e2e/ink.config.ts"
   },
   "dependencies": {
     "@ohmland/sim": "workspace:*",
