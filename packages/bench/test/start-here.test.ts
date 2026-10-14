@@ -5,7 +5,7 @@ import { createSimulation, type Snapshot } from "@ohmland/sim";
 import { advanceGates, dotRate, dotSpeed, expandPrefix, flowMap, formatGate, gateAmps, hatchSpacing, pushMap, tagText, traceLoop } from "../src/flow";
 import { anchorPosition, clipTargets } from "../src/layout";
 import { benchToNetlist } from "../src/netlist";
-import { addPart, emptyBench, movePart, removeLead, seatPart, setPartParams } from "../src/ops";
+import { addPart, emptyBench, movePart, removeLead, seatPart, setPartParams, swapTarget } from "../src/ops";
 import { conducts, materialOhms, partDef } from "../src/parts";
 import { hiddenParts, holderOf } from "../src/seats";
 import { APART_MM, MAX_MARKS, apart, lifting, stuckTo } from "../src/static";
@@ -112,6 +112,12 @@ describe("everyday objects", () => {
     b = { ...b, parts: [...b.parts, part("CN1", "sample", { material: "coin" }, [0, 140])] };
     b = movePart(b, "CN1", [-44, 20]);
     expect([holderOf(b, "K1")?.holder.id, holderOf(b, "CN1")?.holder.id]).toEqual(["YES", "YES"]);
+    // A battery dropped on a battery filed in the tray does not swap it out.
+    b = { ...b, parts: [...b.parts, part("B9", "battery", {}, [0, 160]), part("CC", "battery", { size: "coin" }, [0, 200])] };
+    b = movePart(b, "B9", [0, -4]);
+    const filed = b.parts.find((p) => p.id === "B9")!;
+    b = movePart(b, "CC", filed.pos, { seat: false });
+    expect(swapTarget(b, "CC")).toBeNull();
     b = movePart(b, "D1", [180, -4]);
     expect(holderOf(b, "D1")).toBeNull();
     b = movePart(b, "R1", [180, -4]);
