@@ -1,0 +1,50 @@
+# Blueprint: docs/curriculum/unit-2.md, Lesson 14; docs/curriculum/conversion-guide.md, 14a (split, the new half).
+# A bench lesson (docs/LESSONS.md). One idea: with enough base flow a transistor is fully on, and more changes nothing.
+# Lab: content/labs/all-the-way-on.ts (active-vs-saturated and no-brighter moved here from touch-switch).
+format: bench
+id: all-the-way-on
+version: 1
+title: All the way on
+summary: Give a transistor more and more base current until it is fully on, the way a switch should be.
+minutes: 6
+lab: all-the-way-on
+unlocks:
+  parts: []
+  isle: heatsink
+
+start:
+  title: All the way on
+  say: A switch is on or off. No dithering, please.
+  go: Let's push it
+
+beats:
+  - say: Probe Q1, red on C, black on E. Hold S1.
+    objective: Half on
+    tool: meter
+    do: half-on
+    note: { at: Q1, text: "half on: 5.5 V across" }
+
+  - say: Swap in 10 kΩ, 47 times the base flow. Hold S1.
+    objective: All the way on
+    tool: meter
+    do: active-vs-saturated
+    note: { at: Q1, text: "saturated: fully on, 0.1 V" }
+
+  - say: Now 4.7 kΩ, double again. Guess first.
+    guess: { options: [Brighter, The same, Dimmer], answer: The same }
+    do: no-brighter
+    note: { at: R1, text: "this resistor sets the flow" }
+    rule: "Fully on: the load sets the flow."
+
+  - say: Fully on, how much sits across Q1?
+    pick: { options: [About 0.1 V, About 0.7 V, Half the supply], answer: About 0.1 V }
+    wrong: { About 0.7 V: "That's base to emitter. You probed C to E.", Half the supply: "That was half on. Fully on is far less." }
+
+fixit:
+  say: Fix-it time. My lamp switch only glows dimly. Why?
+  tool: meter
+  tasks:
+    - task: fix-half-on
+
+end:
+  say: All the way on, and barely warm. That's a real switch.

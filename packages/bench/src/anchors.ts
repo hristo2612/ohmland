@@ -8,6 +8,8 @@ export const wireAnchor = (wireId: string, end: "a" | "b"): Anchor => `wire:${wi
 export const leadAnchor = (leadId: string, end: "a" | "b"): Anchor => `lead:${leadId}.${end}`;
 export const probeAnchor = (color: ProbeColor): Anchor => `probe:${color}`;
 export const socketAnchor = (socket: MeterSocket): Anchor => `socket:${socket}`;
+/** A soldering spot: a perfboard pad ("PB1.B4"), a lead ("D1.anode"), a splice, the iron's stand (src/solder/spots.ts). */
+export const spotAnchor = (spot: string): Anchor => `spot:${spot}`;
 
 export type ParsedAnchor =
   | { type: "hole"; hole: HoleId }
@@ -15,7 +17,8 @@ export type ParsedAnchor =
   | { type: "wire"; wire: string; end: "a" | "b" }
   | { type: "lead"; lead: string; end: "a" | "b" }
   | { type: "probe"; color: ProbeColor }
-  | { type: "socket"; socket: MeterSocket };
+  | { type: "socket"; socket: MeterSocket }
+  | { type: "spot"; spot: string };
 
 export function parseAnchor(a: Anchor): ParsedAnchor | null {
   const i = a.indexOf(":");
@@ -38,6 +41,8 @@ export function parseAnchor(a: Anchor): ParsedAnchor | null {
       return rest === "red" || rest === "black" ? { type, color: rest } : null;
     case "socket":
       return rest === "com" || rest === "vohm" || rest === "ma" || rest === "a10" ? { type, socket: rest } : null;
+    case "spot":
+      return rest ? { type, spot: rest } : null;
     default:
       return null;
   }

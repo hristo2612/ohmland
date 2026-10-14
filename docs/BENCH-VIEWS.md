@@ -119,6 +119,11 @@ resistor leads, rotate, delete, wire hole to hole, clip and unclip test leads, m
 meter dial, flip switches, press buttons, use sliders such as light and fingertip, x-ray the breadboard, undo and redo.
 Mouse, touch and keyboard in both.
 
+Soldering (Unit 3) is one DOM overlay (`SolderOverlay`) that both renderers mount over their canvas. It places its
+handles (the iron, the solder's end, every pad, lead and splice) with the view's `project()` on `spot:` anchors, and
+everything it does is a bench action or a step of the station engine in the store, so the iron, the joints and the
+heat view work and read the same in 3D and ink, with mouse, touch (press-and-hold quick mode) and keys.
+
 ## Accessibility
 
 The ink view is the accessible default for screen readers: every part and connection point is a focusable SVG element

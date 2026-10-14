@@ -330,11 +330,11 @@ parts:
     blurb: Three legs, no moving parts. A small base current controls a much larger collector current.
     facts:
       - "Flat face toward you, legs down: emitter, base, collector (E, B, C)."
-      - Its gain (β) is typically 100 to 300 at 10 mA, and it falls at high currents.
-      - The base turns on at about 0.65 to 0.7 V above the emitter.
+      - Its gain (β) is typically 100 to 300 at 10 mA. Two chained as a Darlington pair multiply their gains.
+      - The base turns on at about 0.65 to 0.7 V above the emitter. Always limit the base current with a resistor.
       - "Limits: 200 mA collector current, 40 V from collector to emitter, 625 mW."
-      - Fully on (saturated), only about 0.1 V sits between collector and emitter.
-      - Always limit the base current with a resistor.
+      - "As a switch, give the base two to five times the load current ÷ β. Fully on (saturated), about 0.1 V is left across it."
+      - Its mirror twin, the PNP (2N3906), turns on when its base is pulled below its emitter. Relays still win for AC and big loads.
 
   - id: touch-pads
     name: Touch pads

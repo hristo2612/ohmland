@@ -108,8 +108,26 @@ back to the desk; two charged balloons will not come closer than about 4.5 cm.
 Holders (`holder`, `station`, `fruit`, `bin`, `box`, `schematic`) have **seats**: a part dropped on one goes in (the one already there
 pops out), and a seated part's leads touch the holder's contacts. Props have **settings** (moisture, the test load,
 the pencil line) on their selection bar, and some have clickable spots on the model (the skin's moisture tabs, the
-tester's load switch); dragging along a pencil card draws or shades its line. Dropping a part right onto one of its
+tester's load switch); dragging along a pencil card draws or shades its line, and a cup's "Add salt" stirs in a pinch
+(`salt` counts them; each adds a parallel 7.5 kΩ). Dropping a part right onto one of its
 own kind swaps the two, clips and probe tips included (a fresh LED for a dead one, an old battery for a fresh one).
+
+**Unit 3 kinds** (soldering, perfboard, wire, wall power; models, numbers and screenshots in
+`packages/bench/README.md`, "Unit 3"): `solder-station` (`on`, `setC`, `iron`: `"stand"`, a spot such as `"PB1.C7"`,
+or `"desk"`; `tinning`, `spool`), `solder-spool` (`alloy`: `"leaded"`, `"lead-free"`, `"acid"`), `solder-braid`,
+`perfboard` (`cols`, `rows`, `flipped` copper side up, `tack` legs meet without solder, `flexed` intermittent joints
+open, `plan` a plan card's id, `joints`, `bends`, `links`), `plan-card` (`ghosts`, `lines`), `heat-sink-clip`
+(`metal`, `on: "D1.anode"`, `mm`), `hookup-wire` (`color`, `awg`, `stranded`, `len`; ends `a b`), `wire-stripper`,
+`heat-shrink` (`size`), `heat-gun`, `barrel-jack` (`tip sleeve`) and `wall-adapter` (`volts`, `amps`, `type`:
+`"regulated"`, `"unregulated"`, `"ac"`; `centre`: `"plus"`, `"minus"`; `into: "J1"`). A bench with a station gets the
+solder overlay in both views by itself: the iron, feeding, the magnifier, tugs, quick mode, heat view and the keys.
+
+Legs go through a perfboard with `holes: { anode: "PB1:C7", cathode: "PB1:C8" }`. A leg touches its pad only through
+a joint, so a fresh board conducts nothing until it is soldered (or `tack: true`). Setups and solutions cannot hold an
+iron: they write the joints a beat needs with `madeJoint` (`@ohmland/bench/core`), e.g. `{ do: "param", part: "PB1",
+params: { joints: { C7: madeJoint("good"), C8: madeJoint("cold") } } }`, and the iron's place with `{ do: "param",
+part: "ST1", params: { iron: "PB1.C7" } }`. Spots are anchors (`spot:PB1.C7`, `spot:D1.anode`, `spot:ST1.stand`) for
+`highlight` and the view's `focus`.
 
 **Places** (`at`):
 
@@ -322,6 +340,26 @@ microsecond between the clock edge and the ripple. Chip-driven clocks (a 555) ar
 | `lab.note(id)`, `lab.control(id)`, `lab.task(id)` | Typed numbers, slider values, other tasks' status |
 | `lab.memory`, `lab.shared` | Scratch space kept between checks of the same task; shared by every task of the lab |
 | `lab.trigger(name)` | Fire an achievement trigger from a goal |
+| `lab.solder` | Soldering, perfboard, wire and wall power (Unit 3): see below |
+
+**`lab.solder`** (`apps/web/src/lab/solder.ts`). Joints read from the live station while they are hot and from what
+the bench keeps once they set, so goals also hold in a headless replay.
+
+| Helper | |
+|---|---|
+| `lab.solder.iron` | `on`, `setC`, `tipC`, `tinned`, `at` (the spot it rests on), `inStand`, `onDesk`, `held`; null without a station |
+| `lab.solder.solderKind`, `lab.solder.meltC`, `lab.solder.spool(id)` | The spool in use and its melt (183 leaded, 220 lead-free); a spool's first melt on the tip (`firstMeltTipC`) |
+| `lab.solder.joint("PB1.C7")` | `state` (`bare`, `molten`, `set`), `verdict` (`good`, `cold`, `disturbed`, `too-much`, `too-little`, `bridge`, `burnt`), `wetted`, `volume` (1 is a good fillet), `peakC`, `tempC`, `fedAt` (`work` or `tip`), `moved`, `bridgeTo`, `coldTouch` |
+| `lab.solder.tug(spot)`, `lab.solder.viewed(spot)` | The last tug's answer (`held`, `loose`, `pulled`); looked at under the magnifier |
+| `lab.solder.temp("die:D1")` | °C at `tip`, `die:D1`, `clip:HS1`, `joint:PB1.C7`, `lead:D1.anode@6`, `tube:T1` |
+| `lab.solder.board("PB1")` | `flipped`, `flexed`, `tack`, `crossings`, `legs` (`{ part, leg, pad, bentTo }`), `joints` (verdicts by pad), `snipped(ids)`, `matchesPlan("PC1")` |
+| `lab.solder.plan("PC1")` | `{ lines, joined }`: which numbered lines are joined by metal now |
+| `lab.solder.clip(id)`, `strip(wire, end?)`, `tube(id)`, `adapter(id)` | A clip's lead and distance; a stripped end (`notch`, `mm`, `clean`, `nicked`, every try); a tube's wire, splice, `shrink`, `split`, `grip`; an adapter's jack and label |
+| `lab.solder.heatView`, `quickMode`, `spots()` | The learner's switches; every spot the iron can go to |
+
+`soundJoint(lab, spot)` and `padsOf(bench, part)` (same file) check a part's joints one by one. A cooked LED shows in
+`lab.part("D1")` (`glow` falls as its die warms; `lab.died("D1")` with cause `overheat`), and a wall adapter is a
+`supply` in the simulator (`lab.volts`, the meter and the scope read its ripple or its AC).
 
 Goals must be pure apart from `lab.memory`, `lab.shared` and `lab.trigger`: no timers, no globals. A goal that throws counts as
 false (and warns once in the console).

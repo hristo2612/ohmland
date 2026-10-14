@@ -1,0 +1,57 @@
+# Blueprint: docs/curriculum/unit-1.md, L10, the second half of the split (docs/curriculum/conversion-guide.md, B3).
+# A bench lesson (docs/LESSONS.md). One idea: around a loop, the parts share the battery's push.
+# Lab: content/labs/share-the-push.ts (battery-volts and add-them-up moved here from volts-across).
+format: bench
+id: share-the-push
+version: 1
+title: The shared push
+summary: Measure the battery, the resistor and the LED, and find that the parts share the battery's push.
+minutes: 6
+lab: share-the-push
+unlocks:
+  parts: [led-color]
+  isle: jumper-arch
+
+start:
+  title: The shared push
+  say: One battery, two parts. Who gets how much push?
+  go: Let's measure
+
+beats:
+  - say: The meter's set for volts. Probe across the battery.
+    objective: The whole push
+    do: battery-volts
+    note: { at: B1, text: "9.4 V: the whole push" }
+
+  - say: Now across the resistor. How much did it grab?
+    objective: Share it out
+    do: resistor-share
+    note: { at: R1, text: "7.4 V: the lion's share" }
+
+  - say: And across the LED. What's left for it?
+    do: led-share
+    note: { at: D1, text: "2 V: the rest" }
+
+  - say: Add the resistor and LED readings. Type the total.
+    objective: Add it up
+    do: add-them-up
+    done: Same as the battery. Not a volt lost!
+    rule: The drops add up to the battery.
+
+  - say: "New loop: 9 V battery, LED takes 2 V. The resistor?"
+    number: { answer: 7, unit: V, tolerance: 2 }
+    hint: The battery's push minus the LED's share.
+
+secret:
+  task: blue-led
+  say: Curious? Drop the blue LED right onto the red one.
+  done: Blue grabs more push. The resistor gets less.
+  note: { at: D2, text: "blue: about 3 V" }
+
+fixit:
+  say: The resistor gets 9.4 V, the LED none. Fix it.
+  tasks:
+    - task: fix-stray-lead
+
+end:
+  say: Shared out, added up. The loop balances its books.

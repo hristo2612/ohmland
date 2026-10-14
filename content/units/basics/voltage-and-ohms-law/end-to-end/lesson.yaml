@@ -1,0 +1,53 @@
+# Blueprint: docs/curriculum/unit-1.md, L12, the first half of the split (docs/curriculum/conversion-guide.md, B3).
+# A bench lesson (docs/LESSONS.md) on the half breadboard. One idea: in series, squeezes add.
+# Lab: content/labs/end-to-end.ts (series-ohms moved here from series-and-parallel).
+format: bench
+id: end-to-end
+version: 1
+title: End to end
+summary: Line two resistors up nose to tail on the breadboard, and find that their squeezes add.
+minutes: 5
+lab: end-to-end
+unlocks:
+  parts: []
+  isle: resistor
+
+start:
+  title: End to end
+  say: Two resistors, nose to tail. More squeeze, or less?
+  go: Line them up
+
+beats:
+  - say: The meter reads OL. Bridge the gap with R2. Guess first.
+    objective: Squeezes add
+    guess: { options: [About 1 kΩ, About 2 kΩ, About 500 Ω], answer: About 2 kΩ }
+    do: series-ohms
+    done: About 2 kΩ. One squeeze, then the next.
+    note: { at: R2, text: "1 kΩ + 1 kΩ: 2 kΩ" }
+    rule: In series, squeezes add.
+
+  - say: Now 1 kΩ then 3.3 kΩ, end to end. The total?
+    number: { answer: 4.3, unit: kΩ, tolerance: 2 }
+    hint: In series, just add them.
+
+  - say: Power's on. Set the meter to count the flow.
+    objective: Count the flow
+    do: meter-on-ma
+
+  - say: "Meter in the gap: red in strip 18, black in 22."
+    guess: { options: ["Like one: 9.3 mA", "Half: 4.7 mA", "Double: 19 mA"], answer: "Half: 4.7 mA" }
+    do: series-current
+    note: { at: R2, text: "twice the squeeze, half the flow" }
+
+secret:
+  task: swap-in-3k3
+  say: Curious? Drop the 3.3 kΩ onto R2.
+  done: 2.2 mA. Just what 4.3 kΩ should pass.
+
+fixit:
+  say: These two should pass 4.7 mA. Mine pass 9.3. Fix it.
+  tasks:
+    - task: fix-shorted
+
+end:
+  say: End to end, squeezes add. You proved it twice.

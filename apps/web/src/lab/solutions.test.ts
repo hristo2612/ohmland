@@ -23,8 +23,9 @@ describe("lab solutions", () => {
   it("finds the labs", () => {
     expect(labs.length).toBeGreaterThan(0);
     // 18 classic Unit 1 labs, plus how-a-breadboard-works (at the start of Your meter until Start here exists), plus
-    // the split halves count-the-watts, big-current and how-long.
-    expect(BASICS.size).toBe(22);
+    // the split halves salt-and-water, the-liar, share-the-push, use-the-law, end-to-end, count-the-watts, big-current
+    // and how-long.
+    expect(BASICS.size).toBe(27);
   });
 
   for (const { file, lab } of labs) {

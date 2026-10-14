@@ -37,9 +37,10 @@ import {
   electrolyticSize,
   PITCH,
 } from "./dims";
-import type { BenchPartKind, Moisture, PartParamsMap, PlacedPart, PlacedPartOf, SampleMaterial, SymbolKind, Vec3, WaterKind } from "./types";
+import type { BenchPartKind, BenchState, Moisture, PartParamsMap, PlacedPart, PlacedPartOf, SampleMaterial, SymbolKind, Vec3, WaterKind } from "./types";
 import { MCU_LEGS, MCU_SIM_PIN, mcuDeskLegs } from "./mcuBoard";
 import { CHIP_DEFS } from "./chips";
+import { SOLDER_DEFS } from "./solder/parts";
 
 /** A lead position in board pitches at rotation 0, relative to the first lead. */
 export type FootprintLeg = { leg: string; dx: number; dz: number };
@@ -88,14 +89,24 @@ export type Hotspot = {
   on?: boolean;
 };
 
-/** A one-shot action on a placed part (erase the pencil line). */
-export type ActionDef = { id: string; apply: (params: Record<string, unknown>) => Record<string, unknown> };
+/**
+ * A one-shot action on a placed part (erase the pencil line). `run`, when given, changes the whole bench instead (a
+ * stripper stripping the wire end in its jaws).
+ */
+export type ActionDef = {
+  id: string;
+  apply: (params: Record<string, unknown>) => Record<string, unknown>;
+  run?: (bench: BenchState, partId: string) => BenchState;
+};
 
 /** What a part's netlist mapping can look up beyond its own leads. */
 export type NetContext = {
   part: (id: string) => PlacedPart | undefined;
   /** The node another part's lead is on. */
   pin: (partId: string, leg: string) => NodeId;
+  /** The node of any anchor (a perfboard's wire link, another part's lead). */
+  node: (anchor: string) => NodeId;
+  bench: BenchState;
 };
 
 export type PartDef<K extends BenchPartKind = BenchPartKind> = {
@@ -156,12 +167,29 @@ export type PartDef<K extends BenchPartKind = BenchPartKind> = {
   marks?: (params: PartParamsMap[K]) => Record<string, Vec3>;
   /** Simulator parts for this bench part. `node(leg)` gives the node a lead is on. */
   toSpecs: (part: PlacedPartOf<K>, node: (leg: string) => NodeId, ctx: NetContext) => PartSpec[];
+  /** Metal contacts the part makes between anchors (a perfboard's solder joints, a splice), for connectivity. */
+  contacts?: (part: PlacedPartOf<K>, bench: BenchState) => [string, string][];
 };
 
 const WATER_OHMS: Record<WaterKind, number> = { distilled: 600_000, tap: 30_000, salty: 1_200 };
 
 export function waterOhms(water: WaterKind): number {
   return WATER_OHMS[water];
+}
+
+/**
+ * A pinch of salt stirred into a cup: its ions alone would conduct like 7.5 kΩ between the probes. Conductances add,
+ * so a pinch in tap water (30 to 40 kΩ) brings it to about 6 kΩ, and each pinch after that lowers it further.
+ */
+const PINCH_OHMS = 7_500;
+/** The most pinches a cup takes (about 750 Ω): past that the water is as salty as it gets here. */
+export const SALT_MAX = 10;
+
+/** Resistance between a cup's two probes: its water, plus whatever salt was stirred in. */
+export function cupOhms(params: { water: WaterKind; ohms?: number; salt?: number }): number {
+  const base = params.ohms ?? waterOhms(params.water);
+  const salt = Math.max(0, Math.min(SALT_MAX, params.salt ?? 0));
+  return 1 / (1 / base + salt / PINCH_OHMS);
 }
 
 const line = (...legs: string[]): FootprintLeg[] => legs.map((leg, i) => ({ leg, dx: i, dz: 0 }));
@@ -552,9 +580,9 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     legs: ["a", "b"],
     defaults: { water: "tap" },
     deskLegs: () => ({ a: [-12, CUP.water, 2], b: [12, CUP.water, 2] }),
-    toSpecs: (p, n) => [
-      { id: p.id, kind: "probe-resistance", pins: { a: n("a"), b: n("b") }, ohms: p.params.ohms ?? waterOhms(p.params.water) },
-    ],
+    // A pinch of salt from the selection bar, one per press.
+    actions: [{ id: "salt", apply: (pp) => ({ salt: Math.min(SALT_MAX, ((pp["salt"] as number | undefined) ?? 0) + 1) }) }],
+    toSpecs: (p, n) => [{ id: p.id, kind: "probe-resistance", pins: { a: n("a"), b: n("b") }, ohms: cupOhms(p.params) }],
   },
   lemon: {
     kind: "lemon",
@@ -917,6 +945,8 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
   },
   // ---- Chips (Unit 4): see chips.ts ------------------------------------------------------------------------------
   ...CHIP_DEFS,
+  // ---- Unit 3: soldering, perfboard, wire and power from the wall (src/solder) ---------------------------------
+  ...SOLDER_DEFS,
 };
 
 /**
@@ -1098,6 +1128,12 @@ export function partSpots(part: Pick<PlacedPart, "kind" | "params">): Record<str
   const d = partDef(part.kind) as PartDef;
   return d.spots ? (d.spots as (p: unknown) => Record<string, Vec3>)(part.params) : {};
 }
+
+/**
+ * Props that carry print the learner reads (a colour chart, a value tag, a card's ruler, a drawing, a bin's label, a
+ * clock face): a beat about one of them frames it close, and the 3D view keeps it upright on a tall screen.
+ */
+export const PRINTED_KINDS: ReadonlySet<string> = new Set(["chart", "tag", "card", "schematic", "bin", "clock"]);
 
 /** Named points on this part for `part:<id>/<name>` targets (local mm). */
 export function partMarks(part: Pick<PlacedPart, "kind" | "params">): Record<string, Vec3> {

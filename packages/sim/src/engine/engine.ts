@@ -238,11 +238,11 @@ export class Engine implements Ctx {
       if (ra !== rb) parent.set(ra, rb);
     }
 
-    // Reference node: "gnd" if any part uses it, else the first battery's negative terminal, else anything.
+    // Reference node: "gnd" if any part uses it, else the first battery's (or supply's) negative terminal, else anything.
     const usesGnd = e.devices.some((d) => d.pinNames.includes("gnd"));
     let refName = "gnd";
     if (!usesGnd) {
-      const src = e.devices.find((d) => d.kind === "battery" || d.kind === "cell");
+      const src = e.devices.find((d) => d.kind === "battery" || d.kind === "cell" || d.kind === "supply");
       refName = src ? src.pin("neg") : (e.devices.find((d) => d.pinNames.length > 0)?.pinNames[0] ?? "gnd");
     }
     add(refName);
@@ -318,7 +318,7 @@ export class Engine implements Ctx {
     for (const sourcesFirst of [true, false]) {
       e.devices.forEach((d, k) => {
         const ids = touchedBy[k]!;
-        const isSource = d.kind === "battery" || d.kind === "cell";
+        const isSource = d.kind === "battery" || d.kind === "cell" || d.kind === "supply";
         if (!ids.length || (sourcesFirst && !isSource)) return;
         const r = root(ids[0]!);
         if (grounded.has(r) || tieOf.has(r)) return;
@@ -397,6 +397,7 @@ export class Engine implements Ctx {
     e.xPrev = new Float64Array(Math.max(1, n));
     e.xAnchor = new Float64Array(Math.max(1, n));
     e.hmax = opts.maxStep ?? (e.hasSpeaker ? 1 / AUDIO_RATE : DEFAULT_MAX_STEP);
+    for (const d of e.devices) if (d.maxStep !== undefined && d.maxStep > 0 && d.maxStep < e.hmax) e.hmax = d.maxStep;
 
     if (prev) e.inherit(prev);
     if (netlist?.watch?.length) {
@@ -1077,7 +1078,7 @@ export class Engine implements Ctx {
   }
 }
 
-export const INPUT_KEYS: InputKey[] = ["pressed", "closed", "position", "light", "mode", "range", "to", "ohms", "bounce", "proximity", "power"];
+export const INPUT_KEYS: InputKey[] = ["pressed", "closed", "position", "light", "mode", "range", "to", "ohms", "bounce", "proximity", "power", "bodyC"];
 
 /**
  * Greedy minimum-degree ordering of the unknowns (devices couple all of their nodes). Eliminating low-degree nodes

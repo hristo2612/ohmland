@@ -31,6 +31,8 @@ export type InteractionApi = {
   stats: () => { calls: number; triangles: number; geometries: number; textures: number };
   /** What the pointer would grab at a client point (for tests and tutorials). */
   pickAt: (clientX: number, clientY: number) => Pick | null;
+  /** The desk point (mm) under an element-relative CSS px point. */
+  deskAt: (x: number, y: number) => [number, number] | null;
 };
 
 type Drag =
@@ -152,7 +154,9 @@ export function useInteraction({
         const p = pickOf(h.object);
         if (!p) continue;
         // Prefer handles, but only among things close to the nearest hit (do not reach through a whole part).
-        const score = PRIORITY[p.type] * 100 - (h.distance - nearest);
+        // A probe's tip end gives way to a pencil card's drawing strip under it (the grip does not).
+        const rank = p.type === "probe" && p.tip ? 1.4 : PRIORITY[p.type];
+        const score = rank * 100 - (h.distance - nearest);
         if (h.distance - nearest > 40) break;
         seen.push(p);
         if (score > bestScore) {
@@ -854,6 +858,11 @@ export function useInteraction({
         return true;
       },
       pickAt: (x, y) => hit(x, y),
+      deskAt: (x, y) => {
+        const r = element.getBoundingClientRect();
+        const p = planePoint(x + r.left, y + r.top, 0);
+        return p ? [p.x, p.z] : null;
+      },
       stats: () => ({
         calls: gl.info.render.calls,
         triangles: gl.info.render.triangles,
