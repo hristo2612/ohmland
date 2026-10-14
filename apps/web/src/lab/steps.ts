@@ -3,8 +3,10 @@
  */
 import { benchOps, chargeable, defaultParams, isThrowSwitch, type BenchState, type LeadColor, type PlacedPart, type WireColor } from "@ohmland/bench/core";
 import { deskSpot, resolveAttach, resolveHole } from "./anchors";
+import type { Diagnostic } from "@ohmland/code";
 import { addLeadBetween, placePart, seatSpot, type SimInput } from "./build";
-import type { SolutionStep } from "./define";
+import { isPanelView, type PanelViewName, type SolutionStep } from "./define";
+import { boardPart, uploadError, uploadTo } from "./mcu";
 
 export type StepEffect = {
   bench: BenchState;
@@ -20,8 +22,10 @@ export type StepEffect = {
   tapper?: boolean;
   /** Switch a view or overlay ("flow", "push", the board's "xray"), or a chip's x-ray panel ("xray:U1"). */
   view?: { name: "flow" | "electrons" | "push" | "xray"; on: boolean };
-  /** Open or close a chip's x-ray panel ("xray:U1"). */
-  panelView?: { name: `xray:${string}`; on: boolean };
+  /** Open or close a panel's view: a chip's x-ray ("xray:U1"), the code drawer's text, a board's millis or serial. */
+  panelView?: { name: PanelViewName; on: boolean };
+  /** An Upload press in the code drawer: the program, and the mistake it was refused for (null: it went up). */
+  code?: { part: string; source: string; error: Diagnostic | null };
   /** Run (or clear, with null) the loop tracer from an anchor. */
   trace?: string | null;
   /** Let a histogram's auto-roller roll. */
@@ -174,7 +178,7 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
       return { bench, inputs: [], wait: SETTLE, tapper: step.on };
     case "view": {
       const name = step.name;
-      if (name.startsWith("xray:")) return { bench, inputs: [], wait: SETTLE, panelView: { name: name as `xray:${string}`, on: step.on } };
+      if (isPanelView(name)) return { bench, inputs: [], wait: SETTLE, panelView: { name, on: step.on } };
       return { bench, inputs: [], wait: SETTLE, view: { name: name as "flow" | "electrons" | "push" | "xray", on: step.on } };
     }
     case "roll":
@@ -190,6 +194,12 @@ export function applyStep(bench: BenchState, step: SolutionStep): StepEffect {
     case "trace": {
       const from = step.from ? resolveAttach(bench, step.from) : null;
       return { bench, inputs: [], wait: SETTLE, trace: from, ...(step.from && !from ? { problem: `trace: nothing at ${step.from}` } : {}) };
+    }
+    case "code": {
+      if (!boardPart(bench, step.part)) return done(bench, { problem: `code: ${step.part} is not a microcontroller board` });
+      // Upload checks the program first: a mistake keeps the board as it was.
+      const error = uploadError(step.source);
+      return done(error ? bench : uploadTo(bench, step.part, step.source), { code: { part: step.part, source: step.source, error } });
     }
     case "wait":
       return { bench, inputs: [], wait: step.seconds };

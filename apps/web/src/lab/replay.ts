@@ -121,6 +121,7 @@ export function replayLab(lab: LabDefinition, trace?: (line: string) => void): R
       }
     }
     if (eff.trace !== undefined) session.setTrace(eff.trace);
+    if (eff.code) session.noteUpload(eff.code.part, eff.code.source, eff.code.error);
     if (eff.check) {
       // Give the goal a moment: a check right after an action waits for the circuit to settle.
       if (session.status[eff.check] !== "done") advance(0.5);
