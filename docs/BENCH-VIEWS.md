@@ -71,6 +71,15 @@ Implementation notes (both views):
   tighter than about 24 mm), and `spotlight` veils the rest of the bench in the page colour and rings each target in
   red pencil. The 3D controller (`Bench3DController`) adds `project([x, y, z])`, `projectClient()` (page px, for
   tests), `topView()`, `resetView()`, `atHome()`, `pickAt()` and `stats()`.
+- In ink, `focus` frames the targets' drawn outlines with some bench around them (never tighter than about 24 mm, a
+  comfortable reading scale at most) and keeps that framing when the bench resizes until the learner pans; it waits for
+  the view's first size, so a focus set before the ink view loads (the hub replays it) still lands. `spotlight` fades
+  the rest to the page colour (the board a little less, as context) and rings each target in red pencil. Besides the
+  shared targets, ink takes a bare part id, `part:R1/a` (a lead), `part:M1/dialFace`, `part:M1/sockets`, `board` and
+  `strip:14a-e`. The ink controller (`InkController`) adds `projectClient()`, `resetView()`, `atHome()`, `pickAt()`
+  and `camera()`. Its drawing works at teaching scale: small desk parts are drawn larger than life, but every lead,
+  terminal, clip point and socket sits exactly where `partPose` and `anchorPosition` put it, so `project()` agrees
+  with the 3D view on every anchor (see packages/bench/README.md, "2D ink view").
 
 ## Interaction parity
 

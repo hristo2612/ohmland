@@ -29,6 +29,13 @@ export interface Ctx {
   markDirty(): void;
   /** A discontinuity happened: restart integration with a small backward Euler step. */
   markBreak(): void;
+  /**
+   * A digital output changed (a logic level switched, a 555 flipped). Softer than markBreak: the engine first takes
+   * a nanosecond step so everything wired to the output responds at once (other chips see the new level within
+   * their propagation delay, not a microsecond later), then restarts integration at a moderate step, because
+   * capacitor voltages and inductor currents are continuous across the edge.
+   */
+  markEdge(): void;
   addBreakpoint(t: number): void;
 }
 
@@ -39,6 +46,12 @@ export interface Binder {
   internal(name: string): number;
   /** Registers a reactive element so the engine can stamp and error-check it. */
   reactive(r: Reactive): void;
+  /**
+   * Declares that these already bound unknowns couple with each other (an output with its supply pins, an LED
+   * with its internal node). A device that declares groups couples only within them; one that declares none
+   * couples all of its unknowns. Chips with many pins use this to keep the matrix sparse.
+   */
+  group(nodes: number[]): void;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -318,6 +331,15 @@ export abstract class Device {
   accept(_x: Float64Array, _ctx: Ctx): void {}
   /** Called at the start of each step with the step's start time. */
   beginStep(_ctx: Ctx): void {}
+  /**
+   * Event location for behavioural parts with thresholds (comparators, logic inputs). Given the accepted solution
+   * x0 and a candidate solution x1 at the end of the step, returns the fraction of the step (0..1) at which the
+   * first crossing that matters happens (linear interpolation), or Infinity when there is none. The engine then
+   * shortens the step to land just past the crossing, so switching times are exact rather than step-quantised.
+   */
+  crossing(_x0: Float64Array, _x1: Float64Array): number {
+    return Infinity;
+  }
   /** Currents flowing into the part at each pin (same order as pinNames). */
   abstract pinCurrents(x: Float64Array): PinCurrents;
   abstract state(x: Float64Array): PartState;

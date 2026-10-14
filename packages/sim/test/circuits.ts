@@ -131,6 +131,100 @@ export function siren(): Netlist {
   };
 }
 
+/** An exact capacitor (tolerance 0). */
+export const cap = (id: string, pos: string, neg: string, farads: number, polarized = false): PartSpec =>
+  polarized ? { id, kind: "capacitor", pins: { pos, neg }, farads, tolerance: 0, polarized, volts: 25, leakOhms: 1e9 } : { id, kind: "capacitor", pins: { pos, neg }, farads, tolerance: 0 };
+
+/**
+ * 555 astable: R1 from vcc to discharge, R2 from discharge to the joined trigger and threshold, C from there to
+ * ground, 10 nF on the control pin and an LED on the output. With `diode`, a 1N4148 across R2 (anode at pin 7)
+ * lets the capacitor charge through R1 alone.
+ */
+export function astable555(R1: number, R2: number, C: number, opts: { diode?: boolean; cmos?: boolean; emf?: number; ctrl?: string } = {}): Netlist {
+  const parts: PartSpec[] = [
+    battery9("B1", "vcc", "gnd", opts.emf ?? 9),
+    { id: "U1", kind: "timer555", cmos: opts.cmos === true, pins: { gnd: "gnd", trig: "th", out: "out", reset: "vcc", ctrl: opts.ctrl ?? "cv", thresh: "th", dis: "dis", vcc: "vcc" } },
+    resistor("R1", "vcc", "dis", R1),
+    resistor("R2", "dis", "th", R2),
+    cap("C1", "th", "gnd", C),
+    resistor("RL", "out", "l", 470),
+    led("D1", "l", "gnd"),
+  ];
+  if (!opts.ctrl) parts.push(cap("C2", "cv", "gnd", 10e-9));
+  if (opts.diode) parts.push({ id: "D2", kind: "diode", pins: { anode: "dis", cathode: "th" }, model: "1N4148" });
+  return { parts };
+}
+
+/** 555 monostable: trigger pulled up by 10 kΩ with button S1 to ground, reset pulled up with button S2. */
+export function monostable555(R: number, C: number): Netlist {
+  return {
+    parts: [
+      battery9(),
+      { id: "U1", kind: "timer555", pins: { gnd: "gnd", trig: "tr", out: "out", reset: "rs", ctrl: "cv", thresh: "th", dis: "th", vcc: "vcc" } },
+      resistor("RT", "vcc", "tr", 10e3),
+      { id: "S1", kind: "pushbutton", pins: { a: "tr", b: "gnd" } },
+      resistor("RR", "vcc", "rs", 10e3),
+      { id: "S2", kind: "pushbutton", pins: { a: "rs", b: "gnd" } },
+      resistor("R1", "vcc", "th", R),
+      cap("C1", "th", "gnd", C, true),
+      cap("C2", "cv", "gnd", 10e-9),
+      resistor("RL", "out", "l", 470),
+      led("D1", "l", "gnd"),
+    ],
+  };
+}
+
+/**
+ * A 555 astable (with an LED on its output) clocking a chain of 4026B decade counters, each into a common-cathode
+ * display through 1 kΩ per segment, carry out to the next clock: the counter and display chain of the reaction
+ * timer. Runs from a 9 V battery with 100 µF across it.
+ */
+export function counterChain(R1: number, R2: number, C: number, digits = 3): Netlist {
+  const segs = ["a", "b", "c", "d", "e", "f", "g"];
+  const parts: PartSpec[] = [
+    battery9(),
+    cap("CB", "vcc", "gnd", 100e-6, true),
+    { id: "U0", kind: "timer555", pins: { gnd: "gnd", trig: "th", out: "clk1", reset: "vcc", ctrl: "cv", thresh: "th", dis: "dis", vcc: "vcc" } },
+    resistor("RA", "vcc", "dis", R1),
+    resistor("RB", "dis", "th", R2),
+    cap("CT", "th", "gnd", C),
+    cap("CV", "cv", "gnd", 10e-9),
+    resistor("RL", "clk1", "l", 1000),
+    led("D1", "l", "gnd"),
+  ];
+  for (let k = 1; k <= digits; k++) {
+    parts.push({ id: `U${k}`, kind: "logic", model: "4026B", pins: { vdd: "vcc", vss: "gnd", clk: `clk${k}`, inh: "gnd", dei: "vcc", rst: "gnd", co: `clk${k + 1}`, ...Object.fromEntries(segs.map((s) => [s, `d${k}${s}`])) } } as PartSpec);
+    for (const s of segs) parts.push(resistor(`R${k}${s}`, `d${k}${s}`, `d${k}${s}x`, 1000));
+    parts.push({ id: `DS${k}`, kind: "sevenseg", common: "cathode", pins: { com: "gnd", ...Object.fromEntries(segs.map((s) => [s, `d${k}${s}x`])) } } as PartSpec);
+  }
+  return { parts };
+}
+
+/** Times at which a sampled value crosses a level going down. */
+export function fallingCrossings(samples: [number, number][], level: number): number[] {
+  return risingCrossings(
+    samples.map(([t, v]) => [t, -v]),
+    -level,
+  );
+}
+
+/** High time, low time and frequency of a square wave from its crossings of a level (whole cycles only). */
+export function squareWave(samples: [number, number][], level: number): { f: number; high: number; low: number; duty: number; cycles: number } {
+  const up = risingCrossings(samples, level);
+  const down = fallingCrossings(samples, level);
+  const period = (up[up.length - 1]! - up[0]!) / (up.length - 1);
+  let high = 0;
+  let n = 0;
+  for (const u of up) {
+    const d = down.find((t) => t > u);
+    if (d === undefined) break;
+    high += d - u;
+    n++;
+  }
+  high /= n;
+  return { f: 1 / period, high, low: period - high, duty: high / period, cycles: up.length - 1 };
+}
+
 export const last = (s: Snapshot[]): Snapshot => s[s.length - 1]!;
 
 export const allEvents = (s: Snapshot[]) => s.flatMap((x) => x.events);

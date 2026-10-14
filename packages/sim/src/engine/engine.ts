@@ -23,6 +23,19 @@ const RELTOL = 1e-3;
 const VNTOL = 1e-6;
 const H_BREAK = 1e-6;
 const H_MIN = 1e-12;
+/** First step after a digital edge: short enough that every input the edge reaches registers it at once. */
+const H_SETTLE = 1e-9;
+/** Restart step after a digital edge settled: this share of the smooth step before it, at most H_EDGE_RESTART. */
+const EDGE_RESTART_SHARE = 0.05;
+const H_EDGE_RESTART = 1e-4;
+/** Threshold crossings are located to within this time, or this share of the step that found them if more. */
+const EVENT_TOL = 2e-8;
+const EVENT_REL = 1e-3;
+/** Watchdog: this many accepted steps in a row under H_TINY force coarse steps of H_FORCED for FORCE_SPAN. */
+const H_TINY = 1e-8;
+const TINY_RUN = 500;
+const H_FORCED = 2e-7;
+const FORCE_SPAN = 1e-5;
 /** Below this step a Newton failure is treated as a fold (a regenerative snap) and solved as a jump at once. */
 const H_REDUCE_MIN = 6e-6;
 const MAX_ITER = 6;
@@ -69,6 +82,8 @@ export class Engine implements Ctx {
   private rhsDevs: Device[] = [];
   private timedDevs: Device[] = [];
   private acceptDevs: Device[] = [];
+  /** Devices with thresholds whose crossings the engine locates in time. */
+  private eventDevs: Device[] = [];
 
   private lu!: SparseLU;
   private nlPos!: Int32Array;
@@ -102,7 +117,13 @@ export class Engine implements Ctx {
   private lastH = -1;
   private lastMethod: Method = "be";
   private needBreak = true;
+  /** A digital edge happened (soft break, see markEdge). */
+  private edgeBreak = false;
+  /** Count of markBreak calls, to tell a device's hard break from the engine's own restarts. */
+  private breakMarks = 0;
   private hNext = H_BREAK;
+  /** Last step size accepted on a smooth stretch (what the error control allows), to restart at after an edge. */
+  private hSmooth = H_BREAK;
   hmax = DEFAULT_MAX_STEP;
   /**
    * Time-lapse: the scheduler multiplies the largest step by this when running much faster than real time. The
@@ -129,7 +150,9 @@ export class Engine implements Ctx {
   /** Optional hook called after every accepted step (audio sampling, meters). */
   onAccept: ((e: Engine) => void) | null = null;
 
-  stats = { steps: 0, iterations: 0, factorizations: 0, rejected: 0, failed: 0, rescued: 0, remembered: 0 };
+  stats = { steps: 0, iterations: 0, factorizations: 0, rejected: 0, failed: 0, rescued: 0, remembered: 0, located: 0, forced: 0 };
+  private tinySteps = 0;
+  private forceUntil = -1;
 
   // -------------------------------------------------------------------------------------------------------------
   // Ctx implementation
@@ -144,6 +167,10 @@ export class Engine implements Ctx {
   }
   markBreak(): void {
     this.needBreak = true;
+    this.breakMarks++;
+  }
+  markEdge(): void {
+    this.edgeBreak = true;
   }
   addBreakpoint(t: number): void {
     if (!(t > this.t + 1e-12) || !Number.isFinite(t)) return;
@@ -216,9 +243,13 @@ export class Engine implements Ctx {
     }
 
     // Pass 1: record which unknowns each device couples, to choose an elimination order with little fill-in.
+    // A device couples all of its unknowns unless it declares coupling groups (chips with many pins do).
     let extra: string[] = [];
     let touched: number[] = [];
-    const incidence: number[][] = [];
+    let declared: number[][] = [];
+    const deviceGroups: number[][][] = [];
+    /** Every unknown each device touches (for islands), whatever its coupling groups. */
+    const touchedBy: number[][] = [];
     let touchesRef = false;
     const refDevices: boolean[] = [];
     const recordId = (id: number) => {
@@ -237,14 +268,20 @@ export class Engine implements Ctx {
         return recordId(groups + extra.length - 1);
       },
       reactive: () => {},
+      group: (nodes: number[]) => {
+        declared.push(nodes.filter((u) => u >= 0));
+      },
     };
     for (const d of e.devices) {
       touched = [];
+      declared = [];
       touchesRef = false;
       d.bind(probe);
-      incidence.push(touched);
+      deviceGroups.push(declared.length > 0 ? declared : [touched]);
+      touchedBy.push(touched);
       refDevices.push(touchesRef);
     }
+    const incidence = deviceGroups.flat();
     const total = groups + extra.length;
     const order = minimumDegreeOrder(total, incidence);
     const finalOf = new Int32Array(total);
@@ -258,14 +295,14 @@ export class Engine implements Ctx {
       return k;
     };
     const grounded = new Set<number>();
-    for (const ids of incidence) for (let j = 1; j < ids.length; j++) up[root(ids[j]!)] = root(ids[0]!);
-    incidence.forEach((ids, k) => {
+    for (const ids of touchedBy) for (let j = 1; j < ids.length; j++) up[root(ids[j]!)] = root(ids[0]!);
+    touchedBy.forEach((ids, k) => {
       if (refDevices[k] && ids.length) grounded.add(root(ids[0]!));
     });
     const tieOf = new Map<number, number>();
     for (const sourcesFirst of [true, false]) {
       e.devices.forEach((d, k) => {
-        const ids = incidence[k]!;
+        const ids = touchedBy[k]!;
         const isSource = d.kind === "battery" || d.kind === "cell";
         if (!ids.length || (sourcesFirst && !isSource)) return;
         const r = root(ids[0]!);
@@ -307,6 +344,7 @@ export class Engine implements Ctx {
       reactive: (r: Reactive) => {
         e.reactives.push(r);
       },
+      group: () => {},
     };
     for (const d of e.devices) d.bind(binder);
     e.n = total;
@@ -316,6 +354,7 @@ export class Engine implements Ctx {
       if (overrides(d, "stampRhs")) e.rhsDevs.push(d);
       if (d.timed) e.timedDevs.push(d);
       if (d.accepts && overrides(d, "accept")) e.acceptDevs.push(d);
+      if (overrides(d, "crossing")) e.eventDevs.push(d);
     }
 
     const n = e.n;
@@ -330,8 +369,7 @@ export class Engine implements Ctx {
     for (let i = 0; i < n; i++) nl.add(i * n + i);
     e.devices.forEach((d, k) => {
       if (!d.nonlinear) return;
-      const nodes = incidence[k]!;
-      for (const u of nodes) for (const v of nodes) nl.add(finalOf[u]! * n + finalOf[v]!);
+      for (const nodes of deviceGroups[k]!) for (const u of nodes) for (const v of nodes) nl.add(finalOf[u]! * n + finalOf[v]!);
     });
     e.nlPos = Int32Array.from(nl);
     e.Alin = new Float64Array(Math.max(1, n * n));
@@ -425,27 +463,41 @@ export class Engine implements Ctx {
   stepOnce(tEnd: number): void {
     for (const d of this.timedDevs) d.beginStep(this);
 
-    const isBreak = this.needBreak;
+    // A hard break (switch, input, part dying) restarts with a small backward Euler step. A soft one (a digital
+    // edge) first settles the edge with a nanosecond step, then restarts at a moderate step (see markEdge).
+    const hard = this.needBreak;
+    const soft = !hard && this.edgeBreak;
+    const isBreak = hard || soft;
     let method: Method = isBreak ? "be" : "tr";
     if (isBreak) {
       this.needBreak = false;
+      this.edgeBreak = false;
       // Restart the error history at the discontinuity.
       this.histCount = 1;
       this.histT[0] = this.t;
       for (const r of this.reactives) r.hist[0] = r.state;
     }
     const limit = this.nextLimit(tEnd);
-    let h = isBreak ? Math.min(this.hNext, Math.max(H_BREAK, this.hRestart)) : this.hNext;
+    let h = soft ? H_SETTLE : isBreak ? Math.min(this.hNext, Math.max(H_BREAK, this.hRestart)) : this.hNext;
     this.hRestart = 0;
     h = Math.min(h, this.hmax * this.stepScale);
     const room = limit - this.t;
     if (room <= 0) return;
     if (!(h > 0)) h = H_BREAK;
+    // Watchdog: while forced, take steps of at least a fraction of a microsecond and never rescue (see below).
+    const forced = this.t < this.forceUntil;
+    if (forced) h = Math.max(h, H_FORCED);
+    const clipped = h >= room || room < 2 * h;
     if (h >= room) h = room;
     else if (room < 2 * h) h = room / 2;
 
-    const maxIter = this.freshStart ? 100 : MAX_ITER;
+    // A settle step solves a known discontinuity (an output switching): give Newton more room before rescue.
+    const maxIter = this.freshStart ? 100 : soft ? 4 * MAX_ITER : MAX_ITER;
     let failedHere = false;
+    let locates = 0;
+    let tol = EVENT_TOL;
+    /** Step the error control allowed before an event shortened this one (resumed afterwards). */
+    let hResume = 0;
     this.predict = !isBreak && this.canPredict;
     for (let attempt = 0; ; attempt++) {
       this.prepare(h, method);
@@ -465,7 +517,7 @@ export class Engine implements Ctx {
           method = "be";
           this.prepare(h, method);
         }
-        ok = this.rescue();
+        ok = !forced && this.rescue();
         if (ok) {
           this.stats.rescued++;
           this.needBreak = true;
@@ -478,6 +530,7 @@ export class Engine implements Ctx {
           this.needBreak = true;
         }
       }
+      let hGrow = h * 2;
       if (ok && !jumped && method === "tr" && this.histCount >= 3) {
         const ratio = this.lteRatio(h);
         if (ratio > 1 && h > 1e-9 && attempt < 12) {
@@ -486,15 +539,57 @@ export class Engine implements Ctx {
           continue;
         }
         const grow = ratio > 0 ? Math.min(2, 0.9 * Math.pow(ratio, -1 / 3)) : 2;
-        this.hNext = h * Math.max(0.25, grow);
-      } else {
-        this.hNext = h * 2;
+        hGrow = h * Math.max(0.25, grow);
+        // What the error control would allow next, unless this step was cut short (a breakpoint, an event).
+        if (!clipped && locates === 0) this.hSmooth = hGrow;
+      } else if (ok && !jumped && !isBreak && this.reactives.length === 0) this.hSmooth = hGrow;
+      // Event location: on a smooth stretch, land just past the first threshold crossing instead of jumping over it.
+      if (ok && !jumped && !isBreak && !forced && this.eventDevs.length > 0 && locates < 16) {
+        let f = Infinity;
+        for (const d of this.eventDevs) {
+          const fd = d.crossing(this.x, this.xIter);
+          if (fd < f) f = fd;
+        }
+        if (f < 1) {
+          const tc = Math.max(0, f) * h;
+          // Located to a small share of the step the error control wanted: a crossing on a millisecond curve
+          // needs no nanosecond precision.
+          if (locates === 0) tol = Math.max(EVENT_TOL, EVENT_REL * h);
+          if (h - tc > tol) {
+            this.stats.located++;
+            locates++;
+            if (hResume === 0) hResume = hGrow;
+            h = Math.max(tc + 0.5 * tol, H_MIN);
+            continue;
+          }
+        }
       }
+      this.hNext = Math.max(hGrow, hResume);
       // Be careful for a few steps after a convergence failure: those cluster near sharp transitions.
       if (failedHere) this.cautious = 3;
       else if (this.cautious > 0) this.cautious--;
       if (this.cautious > 0 || this.lastIters > 8) this.hNext = Math.min(this.hNext, h);
+      const marks = this.breakMarks;
       this.acceptStep(h, limit, !isBreak && !jumped && ok);
+      if (soft && this.breakMarks === marks) {
+        // The edge has settled (everything wired to it has seen the new level). Restart integration with a
+        // backward Euler step that is a small share of what the error control used before the edge: capacitor
+        // voltages are continuous across it, and the first-order error of that one step (it grows with the square
+        // of its size) stays well under 0.1% of the timing.
+        this.needBreak = true;
+        const hr = Math.min(H_EDGE_RESTART, this.hmax * this.stepScale, Math.max(H_BREAK, EDGE_RESTART_SHARE * this.hSmooth));
+        this.hRestart = hr;
+        this.hNext = hr;
+      }
+      // Watchdog: a long run of tiny steps (a circuit the solver keeps snapping back and forth on) would stall
+      // simulated time and freeze the bench. Then skip ahead for a moment with coarse steps instead.
+      if (h < H_TINY && !soft) this.tinySteps++;
+      else this.tinySteps = 0;
+      if (this.tinySteps > TINY_RUN) {
+        this.tinySteps = 0;
+        this.forceUntil = this.t + FORCE_SPAN;
+        this.stats.forced++;
+      }
       return;
     }
   }
@@ -953,7 +1048,7 @@ export class Engine implements Ctx {
   }
 }
 
-export const INPUT_KEYS: InputKey[] = ["pressed", "closed", "position", "light", "mode", "range", "to", "ohms"];
+export const INPUT_KEYS: InputKey[] = ["pressed", "closed", "position", "light", "mode", "range", "to", "ohms", "bounce", "proximity"];
 
 /**
  * Greedy minimum-degree ordering of the unknowns (devices couple all of their nodes). Eliminating low-degree nodes

@@ -1,8 +1,23 @@
-import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
+import { StrictMode, Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Health, PartState, Snapshot } from "@ohmland/sim";
-import { type BenchController, BenchView, type BenchViewKind, DEFAULT_GALLERY, PartGallery, PartPreview, benchToNetlist, createBenchStore, emptyBench, type BenchAction, type BenchState, type Quality } from "../src";
-import { FULL_TRAY, clipBench, demoBench, glowBench, modulesBench, propsBench, smokeBench } from "./scenes";
+// No three.js up front: BenchView loads each renderer on demand, so `?view=ink` never fetches three.js, and the
+// galleries load their 3D code when opened.
+import { benchToNetlist, createBenchStore, emptyBench, type BenchAction, type BenchState, type InspectSpec, type Quality } from "../src/core";
+import { BenchView, type BenchController, type BenchViewKind } from "../src/view";
+import { FULL_TRAY, blocksBench, clipBench, demoBench, glowBench, modulesBench, propsBench, smokeBench } from "./scenes";
+
+type GalleryProps = { view?: { position: [number, number, number]; target: [number, number, number] }; rows?: number[]; row: string | null; focus: string | null };
+const GalleryApp = lazy(() =>
+  import("../src").then((m) => ({
+    default: ({ view, rows, row, focus }: GalleryProps) => {
+      const all = m.DEFAULT_GALLERY;
+      const items = row !== null ? [all[Number(row)]!] : rows ? all.slice(rows[0], (rows[1] ?? rows[0]!) + 1) : all;
+      return <m.PartGallery onReady={markReady} view={view} items={items} focus={focus === null ? undefined : Number(focus)} quality={quality} />;
+    },
+  })),
+);
+const PartPreview = lazy(() => import("../src").then((m) => ({ default: m.PartPreview })));
 
 const q = new URLSearchParams(location.search);
 const num3 = (s: string | null) => (s ? (s.split(",").map(Number) as [number, number, number]) : undefined);
@@ -29,6 +44,8 @@ function initialBench(): BenchState {
       return propsBench();
     case "modules":
       return modulesBench();
+    case "blocks":
+      return blocksBench();
     default:
       return demoBench();
   }
@@ -59,13 +76,20 @@ function initialMock(): Mock {
 
 function toSnapshot(bench: BenchState, m: Mock): Snapshot {
   const parts: Record<string, PartState> = {};
+  const temps: Record<string, number> = { hot: 58, smoking: 96, dead: 140 };
   for (const p of bench.parts) {
-    const s: PartState = { i: 0, v: 0, p: 0, temp: 25, health: m.health[p.id] ?? "ok", glow: m.glow[p.id] ?? 0 };
-    if (p.kind === "relay") s.closed = m.closed;
+    const health = m.health[p.id] ?? "ok";
+    const s: PartState = { i: 0, v: 0, p: 0, temp: temps[health] ?? 31, health, glow: m.glow[p.id] ?? 0 };
+    if (p.kind === "relay") {
+      s.closed = m.closed;
+      s.extra = { armature: m.closed ? 1 : 0 };
+    }
+    if (p.kind === "led") s.extra = { stress: Math.min(1.2, (m.glow[p.id] ?? 0) * 0.7) };
     parts[p.id] = s;
   }
   if (bench.meter) parts[bench.meter.id] = { i: 0, v: 0, p: 0, temp: 25, health: "ok", display: m.display, unit: m.unit };
-  return { t: 0, nodes: {}, parts, events: [] };
+  // `t` (simulated seconds) runs the desk clock.
+  return { t: Number(q.get("t") ?? 0), nodes: {}, parts, events: [] };
 }
 
 const panelStyle: React.CSSProperties = {
@@ -142,11 +166,28 @@ const viewButton: React.CSSProperties = {
   color: "#24221E",
 };
 
+type Shown = BenchViewKind | "split";
+
 function BenchApp() {
   const [store] = useState(() => createBenchStore(initialBench()));
   const controller = useRef<BenchController | null>(null);
-  // Both views draw the same store: switching keeps the bench, the undo history and the snapshot.
-  const [view, setView] = useState<BenchViewKind>(q.get("view") === "ink" ? "ink" : "3d");
+  const second = useRef<BenchController | null>(null);
+  // Both views draw the same store: switching keeps the bench, the undo history and the snapshot. "Both" shows them
+  // side by side on that one store.
+  const [view, setView] = useState<Shown>(q.get("view") === "ink" ? "ink" : q.get("view") === "split" ? "split" : "3d");
+  useEffect(() => {
+    // Lab instruments over the bench and the room lights, for screenshots.
+    const ambient = q.get("ambient");
+    const inspect = q.get("inspect");
+    const patch: { ambient?: number; inspect?: InspectSpec[] } = {};
+    if (ambient) patch.ambient = Number(ambient);
+    if (inspect)
+      patch.inspect = inspect.split(";").map((x) => {
+        const [show, ids] = x.split(":");
+        return { show: show === "heat" ? "heat" : "stress", parts: (ids ?? "").split(",") };
+      });
+    store.setState(patch);
+  }, [store]);
   useEffect(() => {
     const focus = q.get("focus");
     const spot = q.get("spot");
@@ -157,9 +198,9 @@ function BenchApp() {
     }, 50);
     return () => clearTimeout(t);
   }, []);
-  // Handles for the Playwright scripts.
+  // Handles for the Playwright scripts (in split view `__controller` is the 3D side, `__second` the ink side).
   useEffect(() => {
-    Object.assign(window, { __bench: store, __controller: controller });
+    Object.assign(window, { __bench: store, __controller: controller, __second: second });
   }, [store]);
   const [bench, setBench] = useState(() => store.getState().bench);
   const [mock, setMock] = useState(initialMock);
@@ -194,19 +235,25 @@ function BenchApp() {
   const showPanel = q.get("panel") !== "0";
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
-      <BenchView
-        view={view}
-        store={store}
-        tray={q.get("tray") === "0" ? [] : FULL_TRAY}
-        snapshot={snapshot}
-        quality={quality}
-        readOnly={q.get("ro") === "1"}
-        highlight={highlight}
-        camera={camera}
-        onAction={onAction}
-        onReady={markReady}
-        controllerRef={controller}
-      />
+      <div style={{ position: "absolute", inset: 0, display: "flex" }}>
+        {(view === "split" ? (["3d", "ink"] as const) : [view]).map((v, i) => (
+          <div key={v} style={{ position: "relative", flex: 1, minWidth: 0, borderLeft: i ? "1px solid #D8D0C1" : undefined }}>
+            <BenchView
+              view={v}
+              store={store}
+              tray={q.get("tray") === "0" ? [] : FULL_TRAY}
+              snapshot={snapshot}
+              quality={quality}
+              readOnly={q.get("ro") === "1"}
+              highlight={highlight}
+              camera={camera}
+              onAction={onAction}
+              onReady={i === 0 ? markReady : undefined}
+              controllerRef={i === 0 ? controller : second}
+            />
+          </div>
+        ))}
+      </div>
       {showPanel && <MockPanel bench={bench} mock={mock} setMock={setMock} log={log} />}
       {q.get("toggle") !== "0" && (
         <div
@@ -214,9 +261,9 @@ function BenchApp() {
           aria-label="View"
           style={{ position: "absolute", left: "50%", top: 12, transform: "translateX(-50%)", display: "flex", background: "#FCFAF5", border: "1px solid #D8D0C1", boxShadow: "2px 2px 0 #E1D9CA", borderRadius: 2, zIndex: 2 }}
         >
-          {(["3d", "ink"] as const).map((v) => (
+          {(["3d", "ink", "split"] as const).map((v) => (
             <button key={v} type="button" aria-pressed={view === v} style={{ ...viewButton, background: view === v ? "#E1E6F4" : undefined, color: view === v ? "#1F3C9A" : viewButton.color }} onClick={() => setView(v)}>
-              {v === "3d" ? "3D" : "Ink"}
+              {v === "3d" ? "3D" : v === "ink" ? "Ink" : "Both"}
             </button>
           ))}
         </div>
@@ -226,6 +273,8 @@ function BenchApp() {
           <a href="?scene=demo">Demo</a>
           <a href="?scene=clips">Clip leads</a>
           <a href="?scene=glow">First glow</a>
+          <a href="?scene=props">Props</a>
+          <a href="?scene=modules">Modules</a>
           <a href="?scene=empty">Empty</a>
           <a href="?mode=gallery">Gallery</a>
           <a href="?mode=preview">Preview</a>
@@ -259,11 +308,19 @@ function App() {
     // row=2 shows one row; rows=0-3 shows a range.
     const row = q.get("row");
     const rows = q.get("rows")?.split("-").map(Number);
-    const items = row !== null ? [DEFAULT_GALLERY[Number(row)]!] : rows ? DEFAULT_GALLERY.slice(rows[0], (rows[1] ?? rows[0]!) + 1) : DEFAULT_GALLERY;
     const focus = q.get("focus");
-    return <PartGallery onReady={markReady} view={view} items={items} focus={focus === null ? undefined : Number(focus)} quality={quality} />;
+    return (
+      <Suspense fallback={null}>
+        <GalleryApp view={view} rows={rows} row={row} focus={focus} />
+      </Suspense>
+    );
   }
-  if (mode === "preview") return <PreviewApp />;
+  if (mode === "preview")
+    return (
+      <Suspense fallback={null}>
+        <PreviewApp />
+      </Suspense>
+    );
   return <BenchApp />;
 }
 

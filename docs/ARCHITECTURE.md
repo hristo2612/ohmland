@@ -283,6 +283,15 @@ A Modified Nodal Analysis engine with Newton-Raphson for nonlinear parts and com
 inductors, run in a Web Worker. Small circuits (under about 60 nodes) must run in real time; the heaviest Unit 2
 circuit (the five-transistor siren) runs at about 4 x real time. Models, defaults and numbers: `packages/sim/README.md`.
 
+It is mixed-signal for the later units. The 555 and logic chips are behavioural: comparators and logic levels are read
+from node voltages, internal state (a latch, a count) changes as events, and the solver sees only what the pins do (an
+output is a source behind a resistance, an input is a protection diode to each rail plus a very weak pickup, so an
+unconnected input reads noise, not 0). The engine locates threshold crossings in time (`Device.crossing`), applies
+output changes after their propagation delay as soft breaks (`Ctx.markEdge`: a nanosecond settle step, then a
+moderate restart), lets many-pin devices declare sparse coupling (`Binder.group`), and has a watchdog that skips ahead
+if a circuit ever pins it to nanosecond steps. A 1 kHz 555 clock into three 4026B counters and displays (89 unknowns)
+runs at about 3.7 x real time.
+
 Netlist contract (stable; `packages/bench` and `content/labs` depend on it):
 
 ```ts
@@ -293,12 +302,12 @@ type PartSpec =                            // discriminated by kind; pins map pi
       tolerance?: number; actualOhms?: number }        // tolerance default 0.05; actualOhms forces the real value
   | { id: string; kind: "battery"; pins: { pos: NodeId; neg: NodeId }; emf: number; internalOhms: number; mAh?: number }
   | { id: string; kind: "led"; pins: { anode: NodeId; cathode: NodeId }; color: LedColor; maxmA?: number }
-  | { id: string; kind: "switch"; pins: { a: NodeId; b: NodeId }; closed: boolean }        // input: closed
+  | { id: string; kind: "switch"; pins: { a: NodeId; b: NodeId }; closed: boolean; bounce?: Bounce }  // input: closed
   | { id: string; kind: "pushbutton"; pins: { a: NodeId; b: NodeId }; pressed?: boolean;
-      normallyClosed?: boolean }                                                            // input: pressed
-  | { id: string; kind: "spdt"; pins: { com: NodeId; a: NodeId; b: NodeId }; to: "a" | "b" }  // input: to
+      normallyClosed?: boolean; bounce?: Bounce }                                           // input: pressed
+  | { id: string; kind: "spdt"; pins: { com: NodeId; a: NodeId; b: NodeId }; to: "a" | "b"; bounce?: Bounce }  // input: to
   | { id: string; kind: "dpdt"; pins: { com1: NodeId; a1: NodeId; b1: NodeId; com2: NodeId; a2: NodeId; b2: NodeId };
-      to: "a" | "b" }                                       // two SPDT poles on one actuator; input: to
+      to: "a" | "b"; bounce?: Bounce }                      // two SPDT poles on one actuator; input: to
   | { id: string; kind: "fuse"; pins: { a: NodeId; b: NodeId }; amps: number }
   | { id: string; kind: "capacitor"; pins: { pos: NodeId; neg: NodeId }; farads: number; volts?: number; polarized?: boolean;
       leakOhms?: number; esrOhms?: number; tolerance?: number; actualFarads?: number }
@@ -315,8 +324,20 @@ type PartSpec =                            // discriminated by kind; pins map pi
       mode: MeterMode; range?: string }                     // input: mode, range, replaceFuse
   | { id: string; kind: "probe-resistance"; pins: { a: NodeId; b: NodeId }; ohms: number }  // skin, water; input: ohms
   | { id: string; kind: "cell"; pins: { pos: NodeId; neg: NodeId }; emf: number; internalOhms: number }  // fruit cell etc.
-  | { id: string; kind: "wire"; pins: { a: NodeId; b: NodeId }; ohms?: number };  // ohms: clip and test leads
+  | { id: string; kind: "wire"; pins: { a: NodeId; b: NodeId }; ohms?: number }   // ohms: clip and test leads
+  // Later units. Chip pins are named (pin-number order: TIMER555_PINS, LOGIC_PINOUTS[model], SEVENSEG_PINS) and may
+  // be left out; an unconnected chip input floats.
+  | { id: string; kind: "inductor"; pins: { a: NodeId; b: NodeId }; henries: number; ohms?: number; watts?: number }
+  | { id: string; kind: "timer555"; pins: Partial<Record<"gnd" | "trig" | "out" | "reset" | "ctrl" | "thresh" | "dis" | "vcc", NodeId>>;
+      cmos?: boolean }                                      // input: proximity
+  | { id: string; kind: "logic"; model: LogicModel; pins: Partial<Record<string, NodeId>> }   // input: proximity
+  | { id: string; kind: "sevenseg"; pins: Partial<Record<"a" | "b" | "c" | "d" | "e" | "f" | "g" | "dp" | "com" | "com2", NodeId>>;
+      common: "cathode" | "anode"; color?: LedColor; maxmA?: number }
+  | { id: string; kind: "regulator7805"; pins: { in: NodeId; gnd: NodeId; out: NodeId }; heatsink?: boolean };
 type MeterMode = "off" | "dcv" | "acv" | "dca-ma" | "dca-10a" | "ohm" | "continuity" | "diode";
+type Bounce = boolean | number;                // contact chatter: true 1 to 5 ms (seeded), or the longest in ms
+type LogicModel = "74HC00" | "74HC02" | "74HC04" | "74HC08" | "74HC14" | "74HC27" | "74HC32" | "74HC74" | "74HC86"
+  | "74HC393" | "4026B";                       // each model has its own pin-name type in types.ts
 ```
 
 The sim package owns the exact types (`packages/sim/src/types.ts`) and may add kinds and optional params, but must
@@ -331,7 +352,8 @@ import { createSimClient } from "@ohmland/sim/client"; // main thread: no engine
 const sim = await createSimClient();            // createSimulation() is the same API in-thread
 sim.load(netlist);                               // full rebuild; keeps state (charge, damage, heat, wear) of parts whose id survives
 sim.setInput(partId, key, value);                // pressed, closed, to, position, light, ohms, mode, range,
-                                                 // replaceFuse (meter: fit a new mA fuse), replace (any part: fresh part, same id)
+                                                 // replaceFuse (meter: fit a new mA fuse), replace (any part: fresh part, same id),
+                                                 // bounce (contacts), proximity (chips: a hand near floating inputs, 0..1)
 sim.run({ speed: 1 });                           // real time; below 1 slow motion; up to 3600 time-lapse (audio muted above 4)
                                                  // in-thread step(dt, { speed }) takes a time-lapse's larger steps (replays)
 sim.onSnapshot((s: Snapshot) => ...);            // about 30 per second
@@ -346,7 +368,7 @@ type PartState = {
   i: number; v: number; p: number;               // current through (first pin to second), voltage across, power
   temp: number;                                  // degrees C
   health: "ok" | "hot" | "smoking" | "dead";     // dead parts become open
-  glow?: number;                                 // LEDs: 0..1 perceived brightness (30 ms average, brief flashes held)
+  glow?: number;                                 // LEDs, displays: 0..1 perceived brightness (30 ms average, brief flashes held)
   closed?: boolean;                              // relays, switches
   display?: string;                              // multimeter: "9.12", "OL", "-0.42", " .000"
   unit?: string;                                 // multimeter annunciator
@@ -354,20 +376,28 @@ type PartState = {
 };
 type SimEventType = "damaged" | "died" | "blown" | "clicked" | "shorted" | "reversed" | "smoke" | "meter-fuse"
   | "spark" | "warning";                        // data.cause on damage events: reverse, overvoltage, overcurrent,
-                                                 // overheat, overpower, worn; clicked has data.to ("no" | "nc")
+                                                 // overheat, overpower, worn; on warnings: a10-heat, overload,
+                                                 // oscillating, undervoltage, overvoltage, thermal-shutdown;
+                                                 // clicked has data.to ("no" | "nc"); a display's events data.segment
 ```
 
 Sign conventions worth knowing: a battery's `i` flows from `pos` to `neg` through the part, so it is negative while
 the battery discharges; `extra.out` is the current it delivers from its + terminal. For transistors `i` is the
-collector current and `v` is Vce (collector minus emitter), not the first-pin-to-second-pin rule.
+collector current and `v` is Vce (collector minus emitter), not the first-pin-to-second-pin rule. For a 555 `i` is
+the current pin 3 sources (negative while sinking) and `v` its voltage above ground; for a logic chip `i` is its
+supply current and `v` its supply voltage, and `extra` holds each pin's level by name (`L`, `H`, `X` for the undefined
+band, `Z` floating, `~` held by the oscillation guard) plus counts (`count`, `count1`, `digit`); a display's `extra`
+has each segment's glow (`a` to `g`, `dp`) and the `digit` they make.
 
 Audio: speakers expose an audio-rate sample stream (`sim.onAudio`, 44.1 kHz with the rate passed along) for an
 AudioWorklet.
 
 Damage is part of the lesson design: LEDs die above their current rating, resistors smoke above their power rating,
 fuses blow on I squared t, the meter's mA input fuse blows, batteries heat when shorted, electrolytics vent when
-reversed or over-volted, speakers cook above their rating, contacts spark and wear out. Every damage event carries
-enough context for the lab to explain what happened.
+reversed or over-volted, speakers cook above their rating, contacts spark and wear out, coils cook on a battery, a
+555 dies with pin 7 tied to + or its output shorted, 9 V destroys a 74HC chip, a backwards chip dies, shorted or
+fighting logic outputs warn and then wear out, a 7805 without a heat sink goes into thermal shutdown. Every damage
+event carries enough context for the lab to explain what happened.
 
 ## Workbench (`packages/bench`)
 
