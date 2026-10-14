@@ -8,8 +8,9 @@
 // to see it. Desoldering braid wicks extra solder when the iron rests on it over a joint (about a second is enough; a
 // longer rest takes it all, and a little fresh solder puts it right). The fix-it: the battery joint at A8 turns cold,
 // and the lamp flickers when the board flexes.
-// The work area is tight round the board: the iron's grip, the solder's end and the braid's end reach into it, while
-// the station's dial and the battery sit off its edges.
+// The work area holds the board, the stand and the grip of an iron resting on the board (it leans back toward its
+// stand, about 75 mm), the solder's end and the braid; the station's dial and the battery sit off its edges (the ink
+// view draws a battery larger than life, so it stays well behind the board).
 // Headless replays have no station engine: the solution writes the joints a learner would make (lib/solder.ts).
 import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 import { joint, jointsStep, setAs, sound, type JointRecord } from "./lib/solder";
@@ -35,22 +36,22 @@ export default defineLab({
   title: "The joint doctor",
   bench: {
     board: "none",
-    frame: ["desk:0,-40", "desk:72,22"],
+    frame: ["desk:-55,-60", "desk:105,65"],
     parts: [
       { id: "ST1", kind: "solder-station", at: "desk:-60,-20", params: { on: true, setC: 370, iron: "stand", spool: "SD1" }, locked: true, label: "Soldering iron" },
       // The spool lies in front of the board, the braid beside it.
-      { id: "SD1", kind: "solder-spool", at: "desk:12,45", params: { alloy: "lead-free" }, locked: true, label: "Lead-free solder" },
-      { id: "BR1", kind: "solder-braid", at: "desk:78,-18", locked: true, label: "Desoldering braid" },
+      { id: "SD1", kind: "solder-spool", at: "desk:-10,45", params: { alloy: "lead-free" }, locked: true, label: "Lead-free solder" },
+      { id: "BR1", kind: "solder-braid", at: "desk:88,10", locked: true, label: "Desoldering braid" },
       // The lamp board, copper side up: its parts stand in it from the top, only their legs show.
       {
         id: "PB1",
         kind: "perfboard",
-        at: "desk:40,-10",
+        at: "desk:45,-10",
         params: { cols: 10, rows: 6, flipped: true, joints: SICK, bends: { "R1.b": "D7", "D1.cathode": "A8" }, links: [{ id: "L1", a: "A2", b: "D2" }] } as never,
         locked: true,
         label: "Lamp board",
       },
-      { id: "B1", kind: "battery", at: "desk:40,-62", holes: { pos: "PB1:A2", neg: "PB1:A8" }, params: { snap: true, emf: 9.4, internalOhms: 1.7 }, locked: true, label: "9 V battery" },
+      { id: "B1", kind: "battery", at: "desk:90,-80", holes: { pos: "PB1:A2", neg: "PB1:A8" }, params: { snap: true, emf: 9.4, internalOhms: 1.7 }, locked: true, label: "9 V battery" },
       { id: "R1", kind: "resistor", holes: { a: "PB1:D2", b: "PB1:D6" }, params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor" },
       { id: "D1", kind: "led", holes: { anode: "PB1:D7", cathode: "PB1:D8" }, params: { color: "red" }, locked: true, label: "Lamp" },
     ],

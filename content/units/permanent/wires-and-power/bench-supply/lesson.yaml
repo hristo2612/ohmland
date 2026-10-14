@@ -30,9 +30,10 @@ beats:
     note: { at: J1.tip, text: "reads plus: red is on plus" }
 
   - say: The label knows too. Plus goes to the dot.
-    pick: { on: AD1, options: [Centre plus, Centre minus], answer: Centre plus }
+    pick: { options: [Centre plus, Centre minus], answer: Centre plus }
+    spot: [AD1]
     wrong: { Centre minus: "Follow the plus sign. Where does it go?" }
-    note: { at: AD1, text: "dot in the middle: centre plus" }
+    note: { at: J1, text: "dot in the middle: centre plus" }
 
   - say: Plus pin into the plus rail.
     objective: Plus meets plus

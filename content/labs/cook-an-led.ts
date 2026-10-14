@@ -28,10 +28,9 @@ export default defineLab({
   title: "Too hot to glow",
   bench: {
     board: "none",
-    frame: ["desk:-150,-60", "desk:105,75"],
+    frame: ["desk:-150,-60", "desk:105,70"],
     parts: [
-      { id: "ST1", kind: "solder-station", at: "desk:-95,-25", params: { on: true, setC: 370, iron: "stand", spool: "SD1" }, locked: true, label: "Soldering iron" },
-      { id: "SD1", kind: "solder-spool", at: "desk:-120,55", params: { alloy: "lead-free" }, locked: true, label: "Lead-free solder" },
+      { id: "ST1", kind: "solder-station", at: "desk:-95,-25", params: { on: true, setC: 370, iron: "stand" }, locked: true, label: "Soldering iron" },
       { id: "B1", kind: "battery", at: "desk:-40,50", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 }, locked: true, label: "9 V battery" },
       { id: "R1", kind: "resistor", at: "desk:15,62", params: { ohms: 470 }, locked: true, label: "470 Ω resistor" },
       { id: "D1", kind: "led", at: "desk:30,5", params: { color: "red", size: 3, maxmA: 20 }, locked: true, label: "Antenna lamp" },

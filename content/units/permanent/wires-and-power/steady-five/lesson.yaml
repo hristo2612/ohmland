@@ -52,7 +52,8 @@ secret:
   task: spare-heat
   say: Curious? Hang the big 47 Ω load on its output.
   tool: controls
-  note: { at: U1, text: "spare volts turn into heat" }
+  done: Over 50 °C! Spare volts turn into heat.
+  note: { at: U1, text: "too hot to touch" }
 
 fixit:
   say: Fix-it time. My 5 V lamp sees about 10 V.

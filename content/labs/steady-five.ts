@@ -58,7 +58,6 @@ export default defineLab({
     instruments: [
       { kind: "scope", traces: [{ label: "IN", volts: "in" }, { label: "OUT", volts: "out" }], window: 0.05, range: [0, 14] },
       { kind: "inspect", show: "stress", parts: ["D5"] },
-      { kind: "inspect", show: "heat", parts: ["U1"] },
     ],
     controls: [{ id: "lapse", label: "Time-lapse speed", key: "speed", min: 1, max: 3600, value: 1, scale: "log", unit: "×" }],
   },
@@ -95,7 +94,7 @@ export default defineLab({
       setup: ADAPTER,
       goal: (lab) => plugged(lab) && lab.joins("RL", "U1.out", "rail-:1") && (lab.part("U1")?.temp ?? 0) >= 50,
       hints: ["Drop the 47 Ω resistor from the output strip to the − rail.", "Then speed up time and watch its heat."],
-      success: "Spare volts turn into heat.",
+      success: "Over 50 °C now.",
       bonus: true,
     },
     {

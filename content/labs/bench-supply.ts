@@ -30,22 +30,22 @@ export default defineLab({
   title: "The flat batteries",
   bench: {
     board: "half",
-    frame: ["desk:-130,-120", "desk:150,90"],
+    frame: ["desk:-215,-140", "desk:125,105"],
     parts: [
       { id: "R1", kind: "resistor", at: "rail+:10-c10", params: { ohms: 1000 }, locked: true, label: "1 kΩ resistor" },
       { id: "D1", kind: "led", at: "d10", params: { color: "red" }, locked: true, label: "Lamp" },
-      { id: "J1", kind: "barrel-jack", at: "desk:-85,50", label: "Barrel jack" },
+      { id: "J1", kind: "barrel-jack", at: "desk:-75,55", label: "Barrel jack" },
       // The adapters stand behind the board, their plugs lying loose in front of them.
-      { id: "AD1", kind: "wall-adapter", at: "desk:-100,-115", params: { volts: 9, amps: 1, type: "regulated", centre: "plus" }, locked: true, label: "9 V adapter, centre plus" },
-      { id: "AD3", kind: "wall-adapter", at: "desk:-35,-115", params: { volts: 9, amps: 0.5, type: "regulated", centre: "minus" }, locked: true, label: "9 V adapter, centre minus" },
-      { id: "AD2", kind: "wall-adapter", at: "desk:95,-115", params: { volts: 9, amps: 1, type: "ac" }, locked: true, label: "9 V AC adapter" },
-      { id: "J2", kind: "barrel-jack", at: "desk:110,-15", label: "Spare jack" },
+      { id: "AD1", kind: "wall-adapter", at: "desk:-75,-110", params: { volts: 9, amps: 1, type: "regulated", centre: "plus" }, locked: true, label: "9 V adapter, centre plus" },
+      { id: "AD3", kind: "wall-adapter", at: "desk:-140,-110", params: { volts: 9, amps: 0.5, type: "regulated", centre: "minus" }, locked: true, label: "9 V adapter, centre minus" },
+      { id: "AD2", kind: "wall-adapter", at: "desk:95,-110", params: { volts: 9, amps: 1, type: "ac" }, locked: true, label: "9 V AC adapter" },
+      { id: "J2", kind: "barrel-jack", at: "desk:95,0", label: "Spare jack" },
     ],
     wires: [{ id: "W1", from: "a11", to: "rail-:11", color: "black" }],
     tray: [],
     instruments: [
-      { kind: "meter", at: "desk:115,55", mode: "off", tips: { red: "desk:-60,70", black: "desk:-45,75" } },
-      { kind: "scope", traces: [{ label: "J2", volts: "J2.tip", ref: "J2.sleeve" }], window: 0.05, range: [-15, 15] },
+      { kind: "meter", at: "desk:-165,50", mode: "off", tips: { red: "desk:-55,85", black: "desk:-45,92" } },
+      { kind: "scope", traces: [{ label: "J2", volts: "J2.tip", ref: "J2.sleeve" }], window: 0.5, range: [-15, 15] },
     ],
   },
   mascot: {

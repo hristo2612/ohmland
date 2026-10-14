@@ -39,16 +39,21 @@ beats:
     do: batch-three
     spot: [PB2, C1, C2]
 
+  - say: Underneath now. Tap C1's stripe leg.
+    tap: { answer: C1.neg, among: [C1.pos, C1.neg, C2.pos, C2.neg] }
+    spot: [PB2]
+    hint: From the top, C1 sits bottom left. Mirror it.
+    wrong:
+      C1.pos: "That's its plus leg. Mirrored, remember?"
+      C2.pos: "That's C2. Find C1 on the plan."
+      C2.neg: "That's C2. Find C1 on the plan."
+
   - say: Battery leads in and soldered. Flip it back. Guess first.
     objective: Test it
     guess: { options: [It blinks, It stays dark, It stays lit], answer: It blinks }
     do: it-blinks
     spot: [PB2, B1]
     note: { at: PB2, text: "same blink, now for keeps" }
-
-  - say: Show me C1's stripe leg.
-    tap: { answer: C1.neg, among: [C1.pos, C1.neg] }
-    wrong: { C1.pos: "That's its plus leg. The stripe marks minus." }
 
 secret:
   task: flex-test

@@ -32,7 +32,7 @@ beats:
 
   - say: Bend the legs to meet, like the plan's lines.
     do: route-it
-    spot: [PB1, PC1]
+    spot: [PB1]
     rule: Underneath, the plan is mirrored.
 
   - say: Show me the LED's long leg, underneath.

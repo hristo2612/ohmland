@@ -26,6 +26,7 @@ beats:
 
   - say: Show me the hot end.
     tap: { answer: "spot:ST1.tip", among: ["spot:ST1.tip", "spot:ST1.grip", "spot:ST1.dial"] }
+    spot: [ST1]
     wrong:
       "spot:ST1.grip": "That's the grip. Cool and safe to hold."
       "spot:ST1.dial": "That's the dial. It sets the heat."

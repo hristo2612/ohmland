@@ -20,13 +20,13 @@ export default defineLab({
   title: "The mirror board",
   bench: {
     board: "none",
-    frame: ["desk:-95,-45", "desk:85,55"],
+    frame: ["desk:-140,-50", "desk:100,55"],
     parts: [
-      { id: "PB1", kind: "perfboard", at: "desk:0,0", params: { cols: 10, rows: 6, tack: true, plan: "PC1" }, locked: true, label: "Perfboard" },
+      { id: "PB1", kind: "perfboard", at: "desk:20,0", params: { cols: 10, rows: 6, tack: true, plan: "PC1" }, locked: true, label: "Perfboard" },
       {
         id: "PC1",
         kind: "plan-card",
-        at: "desk:-60,-5",
+        at: "desk:-72,0",
         params: {
           title: "Lamp",
           cols: 10,
@@ -45,9 +45,9 @@ export default defineLab({
         locked: true,
         label: "Plan",
       },
-      { id: "R1", kind: "resistor", at: "desk:20,-35", params: { ohms: 1000 }, label: "1 kΩ resistor" },
-      { id: "D1", kind: "led", at: "desk:-15,35", params: { color: "red" }, label: "Red LED" },
-      { id: "B1", kind: "battery", at: "desk:60,20", params: { snap: true, emf: 9.4, internalOhms: 1.7 }, label: "9 V battery" },
+      { id: "R1", kind: "resistor", at: "desk:15,32", params: { ohms: 1000 }, label: "1 kΩ resistor" },
+      { id: "D1", kind: "led", at: "desk:45,28", params: { color: "red" }, label: "Red LED" },
+      { id: "B1", kind: "battery", at: "desk:80,5", params: { snap: true, emf: 9.4, internalOhms: 1.7 }, label: "9 V battery" },
     ],
     tray: [],
     instruments: [],
@@ -119,7 +119,7 @@ export default defineLab({
   solution: [
     { do: "move", part: "R1", at: "desk:0,0", holes: { a: "PB1:A2", b: "PB1:A6" } },
     { do: "move", part: "D1", at: "desk:0,0", holes: { anode: "PB1:C2", cathode: "PB1:C3" } },
-    { do: "move", part: "B1", at: "desk:60,20", holes: { pos: "PB1:A7", neg: "PB1:F3" } },
+    { do: "move", part: "B1", at: "desk:80,5", holes: { pos: "PB1:A7", neg: "PB1:F3" } },
     { do: "check", task: "place-parts" },
     { do: "param", part: "PB1", params: { flipped: true } },
     { do: "check", task: "flip-it" },

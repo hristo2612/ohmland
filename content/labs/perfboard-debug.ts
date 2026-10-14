@@ -10,7 +10,7 @@
 // D2 stares.
 // Headless replays have no station engine: the solution writes the joints a learner would make (lib/solder.ts).
 import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
-import { GHOSTS, LINKS, goodAt, padsOf, takingTurns } from "./lib/blinker";
+import { GHOSTS, LINES, LINKS, goodAt, padsOf, takingTurns } from "./lib/blinker";
 import { joint, jointsStep, sound } from "./lib/solder";
 
 const board = (lab: LabView) => lab.solder.board("PB3");
@@ -33,6 +33,21 @@ const onPads = (lab: LabView, a: string, b: string) => {
   const k = padAt(lab, m.blackAt);
   return (r === a && k === b) || (r === b && k === a);
 };
+/** The plan's nets: pads its lines join, directly or through other lines. */
+const NET: Record<string, number> = (() => {
+  const net: Record<string, number> = {};
+  let n = 0;
+  for (const [a, b] of LINES) {
+    const na = net[a];
+    const nb = net[b];
+    if (na === undefined && nb === undefined) net[a] = net[b] = ++n;
+    else if (na === undefined) net[a] = nb!;
+    else if (nb === undefined) net[b] = na;
+    else if (na !== nb) for (const k of Object.keys(net)) if (net[k] === nb) net[k] = na;
+  }
+  return net;
+})();
+const planJoins = (a: string, b: string) => NET[a] !== undefined && NET[a] === NET[b];
 const batteryOn = (lab: LabView) => lab.connected("B1.pos", "PB3.A12") && lab.connected("B1.neg", "PB3.I12");
 
 /** The fix-it bench: another blinker, every joint good but a bridge from Q1's base pad to its emitter's. */
@@ -49,7 +64,7 @@ export default defineLab({
   title: "The winking fault",
   bench: {
     board: "none",
-    frame: ["desk:-70,-45", "desk:120,60"],
+    frame: ["desk:-80,-45", "desk:150,70"],
     parts: [
       {
         id: "PB3",
@@ -67,17 +82,18 @@ export default defineLab({
         locked: true,
       })) as never[],
       { id: "PC3", kind: "plan-card", at: "desk:-130,0", params: { title: "Blinker", cols: 12, rows: 9, ghosts: GHOSTS.filter((g) => g.id !== "B1"), lines: LINKS.map((l) => [l.a, l.b]) } as never, locked: true, label: "Plan" },
-      { id: "B1", kind: "battery", at: "desk:60,-25", rot: 270, params: { emf: 9.4, internalOhms: 1.7 }, locked: true, label: "9 V battery" },
+      // The battery sits off the board's left edge, where the copper side shows its + and − pads.
+      { id: "B1", kind: "battery", at: "desk:-50,25", params: { emf: 9.4, internalOhms: 1.7 }, locked: true, label: "9 V battery" },
       { id: "ST1", kind: "solder-station", at: "desk:-95,-80", params: { on: true, setC: 370, iron: "stand", spool: "SD1" }, locked: true, label: "Soldering iron" },
-      { id: "SD1", kind: "solder-spool", at: "desk:-40,45", params: { alloy: "lead-free" }, locked: true, label: "Lead-free solder" },
-      { id: "BR1", kind: "solder-braid", at: "desk:-5,48", locked: true, label: "Desoldering braid" },
+      { id: "SD1", kind: "solder-spool", at: "desk:40,50", params: { alloy: "lead-free" }, locked: true, label: "Lead-free solder" },
+      { id: "BR1", kind: "solder-braid", at: "desk:12,45", locked: true, label: "Desoldering braid" },
     ],
     leads: [
       { id: "TL1", from: "B1.pos", to: "PB3.A12", color: "red" },
       { id: "TL2", from: "B1.neg", to: "PB3.I12", color: "black" },
     ],
     tray: [],
-    instruments: [{ kind: "meter", at: "desk:95,25", mode: "off", tips: { red: "desk:40,40", black: "desk:52,46" } }],
+    instruments: [{ kind: "meter", at: "desk:125,10", mode: "off", tips: { red: "desk:35,15", black: "desk:40,24" } }],
   },
   mascot: {
     hint: "One line at a time. Beep, then the next.",
@@ -132,7 +148,7 @@ export default defineLab({
         const m = lab.meter;
         const r = padAt(lab, m?.redAt ?? null);
         const k = padAt(lab, m?.blackAt ?? null);
-        return lab.heldFor(0.5, !!m && m.mode === "continuity" && !!r && !!k && r !== k && !lab.connected(`PB3.${r}`, `PB3.${k}`) && !m.beep);
+        return lab.heldFor(0.5, !!m && m.mode === "continuity" && !!r && !!k && r !== k && !planJoins(r, k) && !m.beep);
       },
       hints: ["Pick two pads with no line between them on the plan."],
       success: "Silence.",
