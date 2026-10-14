@@ -23,7 +23,7 @@ import { Desk, StudioEnvironment, StudioLights } from "./Studio";
 import { useInteraction, handleBenchKey, type InteractionApi } from "./Interaction";
 import { Overlay, trayCover } from "./Overlay";
 import { PaletteContext, useReadPalette } from "./palette";
-import { Readouts, inspectKey } from "./Readouts";
+import { Readouts, StressTags, inspectKey } from "./Readouts";
 import type { Pick } from "./pick";
 import { PaperRenderer, PaperUpkeep, SoftShadows, type ShadowArea } from "./Render";
 import { SpotlightRig, ViewRig, type ViewApi } from "./viewRig";
@@ -183,6 +183,7 @@ export function Bench(props: BenchProps) {
           <div
             ref={setElement}
             className={className ? `ohb-root ${className}` : "ohb-root"}
+            data-dark={palette.dark || undefined}
             tabIndex={0}
             role="application"
             aria-label={labels.canvas}
@@ -222,6 +223,7 @@ export function Bench(props: BenchProps) {
               />
               <Warmup held={held} offscreen={quality === "high"} dark={palette.dark} onWarm={release} />
             </Canvas>
+            <StressTags controller={controller} />
             <Overlay tray={tray} readOnly={readOnly} compact={compact} api={api} size={size} controller={controller} />
           </div>
         </PaletteContext.Provider>
