@@ -76,6 +76,8 @@ export function Bench(props: BenchProps) {
   onChange.current = props.onChange;
   const emit = useCallback((a: BenchAction) => onAction.current?.(a), []);
   const [spotTargets, setSpotTargets] = useState<string[] | null>(null);
+  // A pin check: the spotlit chips hide their pin numbers.
+  const [quietPins, setQuietPins] = useState(false);
   // Listeners live here, not in the canvas, so a subscription made before the first frame still hears it.
   const listeners = useMemo(() => new Set<() => void>(), []);
   const notify = useCallback(() => {
@@ -114,7 +116,10 @@ export function Bench(props: BenchProps) {
         if (view.current) view.current.focus(targets, opts);
         else pendingFocus.current = { targets: [...targets], opts };
       },
-      spotlight: (targets) => setSpotTargets(targets && targets.length ? [...targets] : null),
+      spotlight: (targets, opts) => {
+        setSpotTargets(targets && targets.length ? [...targets] : null);
+        setQuietPins(opts?.pins === false);
+      },
       topView: () => api.current?.topView(),
       resetView: () => api.current?.resetView(),
       atHome: () => view.current?.atHome() ?? true,
@@ -230,6 +235,7 @@ export function Bench(props: BenchProps) {
                 palette={palette}
                 margin={props.margin ?? true}
                 spotTargets={spotTargets}
+                quietPins={quietPins}
                 setSpotTargets={setSpotTargets}
                 notify={notify}
                 pendingFocus={pendingFocus}
@@ -412,6 +418,7 @@ function BenchScene({
   palette,
   margin,
   spotTargets,
+  quietPins,
   setSpotTargets,
   notify,
   pendingFocus,
@@ -431,6 +438,7 @@ function BenchScene({
   palette: PaperPalette;
   margin: boolean;
   spotTargets: string[] | null;
+  quietPins: boolean;
   setSpotTargets: (t: string[] | null) => void;
   notify: () => void;
   pendingFocus: React.MutableRefObject<{ targets: string[]; opts?: FocusOptions } | null>;
@@ -561,7 +569,7 @@ function BenchScene({
       <PaperUpkeep version={changed} dark={palette.dark} shadows={quality === "high"} />
       <CameraRig center={center} initial={camera} bench={bench} viewPad={viewPad} />
       <ViewRig store={store} apiRef={view} viewPad={viewPad} inset={inset} setSpotTargets={setSpotTargets} initialCamera={!!camera} onChange={notify} pendingFocus={pendingFocus} />
-      <SpotlightRig store={store} targets={spotTargets} spot={spot} palette={palette} />
+      <SpotlightRig store={store} targets={spotTargets} quietPins={quietPins} spot={spot} palette={palette} />
       <ReadySignal onReady={onReady} />
       <RoomLight.Provider value={ambient}>
       {bench.board && <Breadboard spec={bench.board} xray={ui.xray} litStrips={xr?.strips} litHoles={xr?.holes} />}

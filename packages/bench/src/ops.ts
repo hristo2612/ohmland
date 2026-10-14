@@ -3,6 +3,7 @@
 
 import { parseAnchor } from "./anchors";
 import { PITCH, boardGeometry, boardOrigin, holeAtOffset, holeWorld, nearestHole } from "./board";
+import { AA, BATTERY, COIN } from "./dims";
 import { anchorPosition, gateSpot, isOnBoard, partPose } from "./layout";
 import { chargeable, rub, settle } from "./static";
 import { canMountOnBoard, defaultParams, footprintOf, isFlying, partDef, rotateXZ } from "./parts";
@@ -308,7 +309,7 @@ export function unseat(bench: BenchState, id: string): BenchState {
 
 /**
  * Puts a part in a holder's seat: `seatName`, else the first free seat that fits, else the first that fits. Whoever
- * sat there before is pushed out onto the desk in front of the holder.
+ * sat there before is pushed out onto the desk in front of the holder, beside any part pushed out before it.
  */
 export function seatPart(bench: BenchState, id: string, holderId: string, seatName?: string): BenchState {
   let b = unseat(bench, id);
@@ -325,9 +326,65 @@ export function seatPart(bench: BenchState, id: string, holderId: string, seatNa
   b = replacePart(b, holder);
   if (prev && prev !== id) {
     const out = b.parts.find((p) => p.id === prev);
-    if (out) b = replacePart(b, { ...out, pos: popSpot(holder, seatsOf(holder).indexOf(seat)), rot: holder.rot } as PlacedPart);
+    if (out) b = replacePart(b, { ...out, pos: popOutSpot(b, holder, seatsOf(holder).indexOf(seat), out), rot: holder.rot } as PlacedPart);
   }
   return syncHeld(b, holder.id);
+}
+
+/** Room left between parts pushed out side by side (mm). */
+const POP_GAP = 8;
+
+/**
+ * A loose part's desk box in its own frame (mm: x0, z0, x1, z1), roomy enough for both views: the ink view draws a
+ * standing 9 V battery tall, toward the viewer.
+ */
+function looseBox(part: PlacedPart): [number, number, number, number] {
+  if (part.kind === "battery") {
+    const size = part.params.size ?? "9v";
+    if (size === "aa") return [-AA.len / 2 - 1, -AA.dia / 2 - 1.5, AA.len / 2 + 1, AA.dia / 2 + 1.5];
+    if (size === "coin") return [-COIN.tab - 2, -COIN.holder / 2, COIN.tab + 2, COIN.holder / 2];
+    return [-BATTERY.wid / 2, -BATTERY.thick / 2, BATTERY.wid / 2 + 4.5, BATTERY.len];
+  }
+  return [-6, -6, 6, 6];
+}
+
+/**
+ * Where a part pushed out of a holder's seat lands: the seat's spot in front of the holder (`popSpot`), or, when a
+ * loose part already lies there, the nearest free place along that row, so parts swapped out one after another line
+ * up side by side instead of piling up.
+ */
+function popOutSpot(bench: BenchState, holder: PlacedPart, index: number, part: PlacedPart): Vec2 {
+  // The row in the holder's frame: the popped part turns with the holder, so its box is its own.
+  const base = popSpot(holder, index);
+  const [ox, oz] = rotateXZ(base[0] - holder.pos[0], base[1] - holder.pos[1], -holder.rot);
+  const [px0, pz0, px1, pz1] = looseBox(part);
+  const held = new Set(bench.parts.flatMap((h) => Object.values(heldOf(h))));
+  // Spans of the row where the part's origin would overlap a loose part (open intervals).
+  const blocked: [number, number][] = [];
+  for (const q of bench.parts) {
+    if (q.id === part.id || q.id === holder.id || held.has(q.id) || isOnBoard(bench, q)) continue;
+    const [bx0, bz0, bx1, bz1] = looseBox(q);
+    let [x0, z0, x1, z1] = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const [cx, cz] of [[bx0, bz0], [bx1, bz0], [bx0, bz1], [bx1, bz1]] as const) {
+      const [wx, wz] = rotateXZ(cx, cz, q.rot);
+      const [hx, hz] = rotateXZ(q.pos[0] + wx - holder.pos[0], q.pos[1] + wz - holder.pos[1], -holder.rot);
+      [x0, z0, x1, z1] = [Math.min(x0, hx), Math.min(z0, hz), Math.max(x1, hx), Math.max(z1, hz)];
+    }
+    if (oz + pz1 + POP_GAP <= z0 || oz + pz0 - POP_GAP >= z1) continue;
+    blocked.push([x0 - px1 - POP_GAP, x1 - px0 + POP_GAP]);
+  }
+  const free = (x: number) => blocked.every(([a, b]) => x <= a + 1e-6 || x >= b - 1e-6);
+  // The nearest free place: the seat's own spot, or right beside a part in the way (to the right on a tie).
+  let x = ox;
+  if (!free(ox)) {
+    let best = Infinity;
+    for (const c of blocked.flat()) {
+      const d = Math.abs(c - ox);
+      if (free(c) && (d < best - 1e-6 || (Math.abs(d - best) <= 1e-6 && c > x))) [best, x] = [d, c];
+    }
+  }
+  const [rx, rz] = rotateXZ(x, oz, holder.rot);
+  return [holder.pos[0] + rx, holder.pos[1] + rz];
 }
 
 /** Keeps the stored position of every part in a holder in step with its seat (after the holder moves or changes). */

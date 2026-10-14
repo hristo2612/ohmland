@@ -20,7 +20,8 @@ const THEMES: { id: Settings["theme"]; label: string }[] = [
 /**
  * Your notebook: the level and XP, small and quiet, and behind them the one menu for everything that is not Learn or
  * Isle (parts, achievements, the free bench, the account and the page's theme). In the header it opens from the XP
- * chip; on a phone it is the bottom bar's third tab and opens upwards.
+ * chip; on a phone it is the bottom bar's third tab and opens upwards. Before the first XP there are no numbers yet:
+ * the chip is just the notebook.
  */
 export function NotebookMenu({ outline, place = "header", active }: { outline: CourseOutline; place?: "header" | "bar"; active?: NavId | undefined }) {
   const ready = useLearnerReady(outline);
@@ -70,13 +71,15 @@ export function NotebookMenu({ outline, place = "header", active }: { outline: C
   };
 
   const count = ACHIEVEMENTS.filter((a) => unlocked[a.id]).length;
+  /** Levels and XP stay out of sight until there is some XP to show. */
+  const scored = ready && level.xp > 0;
   const links: { id: NavId; href: string; icon: IconName; label: string; meta?: string }[] = [
     { id: "parts", href: "/parts", icon: "parts", label: m.nav.menu.parts, ...(ready ? { meta: String(parts.length) } : {}) },
     { id: "achievements", href: "/achievements", icon: "trophy", label: m.nav.menu.achievements, ...(ready ? { meta: String(count) } : {}) },
     { id: "bench", href: "/bench", icon: "bench", label: m.nav.menu.bench },
     { id: "account", href: "/account", icon: "user", label: signed ? m.nav.menu.account : m.nav.menu.signIn, ...(signed ? { meta: m.account.status[status] ?? "" } : {}) },
   ];
-  const chipLabel = [ready ? m.level.chipLabel(level.level, level.title, level.xp) : m.nav.notebook, signed && m.nav.signedIn(m.account.status[status] ?? "")]
+  const chipLabel = [scored ? m.level.chipLabel(level.level, level.title, level.xp) : m.nav.notebook, signed && m.nav.signedIn(m.account.status[status] ?? "")]
     .filter(Boolean)
     .join(". ");
   const toggle = (keyboard: boolean) => {
@@ -95,10 +98,19 @@ export function NotebookMenu({ outline, place = "header", active }: { outline: C
           aria-label={chipLabel}
           aria-expanded={open}
           aria-controls={panelId}
-          data-level={ready ? level.level : undefined}
+          data-level={scored ? level.level : undefined}
           onClick={(e) => toggle(e.detail === 0)}
         >
-          {ready && (
+          {ready && !scored && (
+            <>
+              <Icon name="notebook" size={18} />
+              <span className="xp-chip__name" aria-hidden="true">
+                {m.nav.notebook}
+              </span>
+              <Icon name="chevron-down" size={16} className="xp-chip__more" />
+            </>
+          )}
+          {scored && (
             <>
               <span className="xp-chip__lvl" aria-hidden="true">
                 {m.level.short(level.level)}
@@ -132,7 +144,7 @@ export function NotebookMenu({ outline, place = "header", active }: { outline: C
 
       {open && (
         <div className="nb__panel" id={panelId}>
-          {ready && (
+          {scored && (
             <div className="nb__level">
               <p className="nb__level-top">
                 <span className="nb__level-name">{m.finale.level(level.level, level.title)}</span>

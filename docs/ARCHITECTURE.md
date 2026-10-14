@@ -559,7 +559,8 @@ Bench lessons (`apps/web/src/lesson/bench`):
   moments, first tries, score, rules, the eyes) and tested.
 - The first screen is the mission (title, the robot's line, one button) over a paper placeholder. The `Stage` chunk
   (the lab runtime, the bench, the ink layer) and the bench renderer warm on the learner's first gesture (pointer
-  move, tap or key) or after 3 s, so a lesson's first load has no three.js and no simulator.
+  move, tap or key) or, without one, when the browser is idle a second after the page's load event, so a lesson's
+  first load has no three.js and no simulator, and a learner who reads the mission first finds the bench built.
 - `Stage` runs a `LabRuntime` on a gated copy of the lab: only the current beat's task (and the secret) can complete,
   so the session's in-order task checks follow the beats. Entering a beat applies its task's `setup` on top of the
   task's solution checkpoint (`runtime.checkpoint`), frames and spotlights its parts (`controller.focus`,
@@ -708,8 +709,9 @@ question, account deletion, a change sent while the tab closes) against an emula
 
 `apps/web/scripts/lesson-shots.mjs` plays the reference bench lessons on the real bench and screenshots every moment
 (desktop and phone, light and dark, 3D and ink). `apps/web/scripts/screenshots.mjs` takes screenshots of every page
-and stepper lesson step in both themes at 1440x900 and 390x844 for visual review; a curated set lives in `apps/web/screenshots/` (with the lab shots from
-`scripts/lab-shots.mjs`). Headless Chromium gets WebGL from SwiftShader (`--use-angle=swiftshader
+(a bench lesson at its start screen and resumed at a beat, the module reveal) in both themes at 1440x900 and 390x844
+for visual review; a curated set lives in `apps/web/screenshots/` (with the lab shots from `scripts/lab-shots.mjs`
+and shots picked from `scripts/lesson-shots.mjs` and `scripts/code-shots.mjs`). Headless Chromium gets WebGL from SwiftShader (`--use-angle=swiftshader
 --enable-unsafe-swiftshader`). The island's clock is pinned (`?time=12:00` in light shots, `22:00` in dark ones),
 seeded learners (`scripts/seed.mjs`: one lesson done, the first module done, or one lesson short of it) use fixed
 dates, and shots wait for islands to settle, so islands look the same in every run. The app's islands stand on the
