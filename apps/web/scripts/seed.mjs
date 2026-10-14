@@ -3,7 +3,7 @@
 /** SwiftShader gives headless Chromium WebGL, so the 3D island draws in screenshots and tests. */
 export const WEBGL_ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"];
 
-/** The first module of the course (Your meter): its lessons in order, and the step index of the last one's wrap. */
+/** The Your meter module (after the Start here module): its lessons in order, and the step index of the last one's wrap. */
 export const MODULE_ONE = ["welcome-to-the-bench", "meet-the-meter", "tiny-and-huge-numbers"];
 export const MODULE_ONE_WRAP = 4;
 

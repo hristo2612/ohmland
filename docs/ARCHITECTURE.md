@@ -9,7 +9,9 @@ same commit.
 
 ## Principles
 
-1. **Discover first.** Every lesson starts with something to try (and often to break), then explains it.
+1. **Discover first.** Every lesson starts with something to try (and often to break), then explains it. Bench
+   lessons (below) keep the learner at the bench the whole time; `docs/DESIGN-PRINCIPLES.md` sets how much goes on a
+   screen and how much we say.
 2. **The simulator is the teacher.** LEDs glow because current flows, parts burn out because power exceeds a rating,
    capacitors charge along a real curve. Labs check goals against simulated state, never against scripted fakes.
 3. **Local first.** Guests can do everything with no account. Progress lives on the device and syncs to Firebase
@@ -113,8 +115,44 @@ upcoming:                     # planned units, shown as "coming soon" until thei
   - { id: switching, title: Switching, summary: "..." }
 ```
 
-`lesson.yaml` (fields marked md accept a small markdown subset: paragraphs, `-`/`1.` lists, `**bold**`, `*italic*`,
-`` `code` ``, `[links](https://...)`; everything else is escaped):
+A lesson comes in one of two formats. **Bench lessons** (`format: bench`) are the format every lesson is moving to:
+the lab is the lesson, a short run of beats, each a robot line plus one thing to do on the bench plus an optional
+discovery. **Stepper lessons** (no `format`) are the classic hook, lab, explain, quiz and wrap. The loader reads both
+during the migration (`lessonSchema` and `benchLessonSchema` in `schema.ts`, told apart by `format`); `LessonData` is
+their union.
+
+A bench lesson (full guide: `docs/LESSONS.md`):
+
+```yaml
+format: bench
+id: first-glow                # globally unique, kebab-case, stable forever
+version: 2
+title: Your first glow
+summary: One sentence for the course map.
+minutes: 8
+lab: first-glow               # content/labs/first-glow.ts: the bench, the tasks (goals, setups, nudges), the solution
+unlocks: { parts: [led-red], isle: led-lamp }
+start: { title: "Wake the robot's face", say: "My face is one LED. Dark for weeks. Wire me a glow?", go: "Let's wire it" }
+beats:                        # 1 to 16; each: say + at most one of meet | do | tap | pick | number | popup
+  - { say: "This is an LED. Tap it.", objective: Make it glow, meet: D1, note: { at: D1, text: LED } }
+  - { say: "Clip a loop. Plus, resistor, LED, minus.", do: build-loop, done: "It glows!", note: { at: R1, text: "holds it to about 5 mA" } }
+  - { say: "Quick one. Tap the long leg.", tap: { answer: D1.anode, among: [D1.anode, D1.cathode] }, rule: "LED: long leg to plus." }
+  - { say: "Swap the LED's legs. Guess first.", guess: { options: [...], answer: It goes dark }, do: flip-led }
+secret: { task: no-resistor, say: "Curious? Leave the resistor out.", done: "...", note: { ... }, rule: "..." }   # a bonus task
+fixit: { say: "Fix-it time.", tasks: [{ task: fix-reversed }], timer: 60 }   # tasks with a `setup`; the clock is opt-in
+end: { say: "You built that from scratch." }
+```
+
+Optional on a beat: `objective` (groups beats; the robot's eyes fill per objective), `spot` (parts to frame and
+spotlight), `xray`, `tool` (the one instrument or panel shown), `guess` (before a `do`), `done`, `note`, `rule`,
+`hint` and `wrong` (on demand). Word limits per kind of line (robot line 12, note 6, rule 8, chip 4), at most 3 rules
+and one pop-up card, and the budgets (main path under 150 words, on-demand text under 60) are build errors. The
+loader checks the lab file exists; `apps/web/src/lesson/bench/lessons.test.ts` checks a bench lesson against its lab
+(tasks exist, the lab's required tasks are the beats' and fix-it's tasks in order, setups open their solution
+segments, tools and anchors exist).
+
+A stepper `lesson.yaml` (fields marked md accept a small markdown subset: paragraphs, `-`/`1.` lists, `**bold**`,
+`*italic*`, `` `code` ``, `[links](https://...)`; everything else is escaped):
 
 ```yaml
 id: meet-the-meter            # globally unique, kebab-case, stable forever (progress keys on it)
@@ -208,8 +246,11 @@ type LearnerState = {
 ```
 
 `inProgress[id].version` is the lesson version the answers belong to; answers for another version are not resumed.
-`answers` keys are the player's own (`item:<quizItemId>`, `predict:<step>`, `card:<step>`, `quiz:<step>`,
-`tasks:<labId>`). Theme and motion are also mirrored to `localStorage` (`ohmland:theme`, `ohmland:motion`) so an
+`answers` keys are the player's own: stepper lessons use `item:<quizItemId>`, `predict:<step>`, `card:<step>`,
+`quiz:<step>` and `tasks:<labId>`; bench lessons save `step` as the current beat plus one (0 is the start screen) and
+`check:<beatKey>` (`{ first, done, at? }`), `guess:<beatKey>`, `tasks:<labId>` and `fixit:clock`. Bench lessons
+record XP like stepper lessons: graded checks are `items`, those right on the first try are `firstTry`, lab tasks are
+`tasks`. Theme and motion are also mirrored to `localStorage` (`ohmland:theme`, `ohmland:motion`) so an
 inline head script can apply them before the first paint.
 
 Derived, never stored:
@@ -269,7 +310,7 @@ some) is asked whether to add it; a guest signing in to a new account is not ask
 `[A-Za-z0-9_-]{1,64}` to sync.
 
 The lesson player reports to the island through `IsleHooks` (`lesson/isle-hooks.ts`): `prefetch()` once the learner
-moves past the quiz (never on a lesson's first load), `prime()` inside the tap on "Finish lesson" (the isle's
+moves past the quiz, or in a bench lesson reaches the fix-it round or the sign-off (never on a lesson's first load), `prime()` inside the tap on "Finish lesson" (the isle's
 `primeAudio()`), and `reveal({ before, after, outline, muted, signal, onShow })` after a first finish is saved. The
 reveal frames the island above its caption card (`inset`). The reveal is a modal
 dialog (`isle/reveal.tsx`, loaded on demand) that resolves with what it showed once the learner closes it. Through
@@ -496,9 +537,36 @@ each one headlessly (`replay.ts`: bench ops + the in-thread simulator) and fails
 a lab has no solution. Controls can drive a part's input (every part of a kind with `part: "*"`), the run speed
 (`key: "speed"`, a time-lapse the replay fast-forwards too) or the room lights (`key: "room"`).
 
+Bench lessons (`apps/web/src/lesson/bench`):
+
+- `LessonPlayer` hands a `format: bench` lesson to `BenchLesson`, the shell: the bar (close, title, the 3D or ink
+  toggle, the notebook button), the margin (the robot, whose eyes are the progress; its one line; the current
+  objective as a kicker; the one action: a button, chips, a number box, Hint and Show me) and the bench. On phones the
+  bench is on top and the margin is a strip under it; the notebook page is a sheet. The flow is pure (`flow.ts`:
+  moments, first tries, score, rules, the eyes) and tested.
+- The first screen is the mission (title, the robot's line, one button) over a paper placeholder. The `Stage` chunk
+  (the lab runtime, the bench, the ink layer) and the bench renderer warm on the learner's first gesture (pointer
+  move, tap or key) or after 3 s, so a lesson's first load has no three.js and no simulator.
+- `Stage` runs a `LabRuntime` on a gated copy of the lab: only the current beat's task (and the secret) can complete,
+  so the session's in-order task checks follow the beats. Entering a beat applies its task's `setup` on top of the
+  task's solution checkpoint (`runtime.checkpoint`), frames and spotlights its parts (`controller.focus`,
+  `spotlight`), toggles the x-ray and shows its one tool. Task nudges are checked about five times a second and said
+  once a mistake has held for 0.8 s of simulated time. The tray shows only during task beats with something left in
+  it, decided per beat so the bench never reframes under the learner's hand.
+- The ink layer (`Annotations.tsx`) draws notes (an arrow and one line that write themselves, then fade to a dot),
+  part names, ticks, pencil rings and breadboard strip outlines in an SVG over the bench, placed with
+  `BenchController.project()`, so it is the same over both views. Tap targets (spread apart with leader lines when
+  they would overlap), the hole layer (nearest hole; a hole's name is the keyboard path) and the one pop-up card sit
+  over it as HTML.
+- The bench comes through the adapter `lab/bench-view.ts` (the view preference, `ohmland:bench-view` in
+  `localStorage`: ink on phones, 3D on desktops; the controller contract; the `BenchSurface` chunk, which renders
+  packages/bench's `<BenchView>` and passes its controller hub on).
+- Finishing: `completeLesson` with the score, the island reveal through `IsleHooks`, then `BenchFinale`: the robot's
+  eyes full, the XP tally in blue ink, the level, and the notebook page (`NotebookPage.tsx`) signed off.
+
 Runtime (`apps/web/src/lab`):
 
-- `LabStepHost` (lesson player) lazy-loads `LabStep` and the lab module (`import.meta.glob`, one chunk per lab);
+- `LabStepHost` (stepper lesson player) lazy-loads `LabStep` and the lab module (`import.meta.glob`, one chunk per lab);
   `LabStep` lazy-loads `BenchView`, the only module that imports three.js. `prefetch.ts` warms all three, spawns
   the simulator worker and draws the bench's desk texture (`prepareBench()`, when idle) on the learner's first tap on
   the step before the lab (or after 4 s), never during first load; a lesson resumed at its lab starts them all at
@@ -524,8 +592,8 @@ Runtime (`apps/web/src/lab`):
 - Layout: bench beside the panel on desktops; on phones the bench takes 55% and the panel is a bottom sheet. Quality
   is automatic (low on phones, small or weak devices and software WebGL) with a toggle remembered in
   `localStorage` (`ohmland:bench-quality`).
-- `window.ohmlandLab` (`project`, `pickAt`, `bench`, `status`, `part`, `meter`, `sim`, `showMe`, `panel`) is a test
-  and tutorial hook.
+- `window.ohmlandLab` (`project`, `pickAt`, `bench`, `status`, `part`, `meter`, `sim`, `showMe`, `panel`, and in bench
+  lessons `step` (apply one solution step) and `view`) is a test and tutorial hook.
 
 The free-build bench (`/bench`, `Sandbox.tsx`) is the same runtime with no tasks: the tray comes from the parts bin
 (`sandbox-parts.ts`, a battery and three clip leads for everyone), the meter and scope come with their parts, builds
@@ -581,8 +649,9 @@ wire roots. The mascot (a small voxel robot with an LED face) floats over the sq
 
 Vitest for pure logic that is easy to get wrong: simulator golden circuits, netlist building, XP/levels, progress
 merge, island determinism, SI parsing, the resistor colour code, the cloud document packing and the sync write queue.
-Playwright for a few critical paths: finish a lesson as a guest, a guest's pages load no Firebase, complete a lab,
-island reveal. Plus `pnpm lint:copy` (no em dashes), the content check (the web build fails on invalid content) and
+Playwright for a few critical paths: finish the first lesson (a bench lesson) as a guest, a lesson's first load has no
+three.js, a guest's pages load no Firebase, play the two other reference bench lessons through on the real bench,
+switch the bench view mid-lesson, the island reveal, the free-build bench. Plus `pnpm lint:copy` (no em dashes), the content check (the web build fails on invalid content) and
 `pnpm --filter @ohmland/web lint:colors` (no raw colours or durations outside `tokens.css`).
 
 With the Firebase emulators (Java 21+, `docs/ACCOUNTS.md`): `pnpm test:rules` runs `apps/web/rules` (Vitest and
@@ -590,8 +659,9 @@ With the Firebase emulators (Java 21+, `docs/ACCOUNTS.md`): `pnpm test:rules` ru
 (sign in with the Auth emulator's fake Google user, sync, offline, a second device, the "progress from before"
 question, account deletion, a change sent while the tab closes) against an emulator build.
 
-`apps/web/scripts/screenshots.mjs` takes screenshots of every page and lesson step in both themes at 1440x900 and
-390x844 for visual review; a curated set lives in `apps/web/screenshots/` (with the lab shots from
+`apps/web/scripts/lesson-shots.mjs` plays the reference bench lessons on the real bench and screenshots every moment
+(desktop and phone, light and dark, 3D and ink). `apps/web/scripts/screenshots.mjs` takes screenshots of every page
+and stepper lesson step in both themes at 1440x900 and 390x844 for visual review; a curated set lives in `apps/web/screenshots/` (with the lab shots from
 `scripts/lab-shots.mjs`). Headless Chromium gets WebGL from SwiftShader (`--use-angle=swiftshader
 --enable-unsafe-swiftshader`). The island's clock is pinned (`?time=12:00` in light shots, `22:00` in dark ones),
 seeded learners (`scripts/seed.mjs`: one lesson done, the first module done, or one lesson short of it) use fixed

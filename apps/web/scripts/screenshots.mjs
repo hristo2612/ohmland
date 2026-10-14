@@ -223,75 +223,14 @@ async function landingLive(browser, url) {
     }
 }
 
-/** Plays the first lesson of the course, capturing each step (and quiz feedback), the island reveal and the finale. */
-async function lesson(browser, url) {
+/**
+ * The first lessons are bench lessons now: scripts/lesson-shots.mjs plays every moment of the three reference lessons
+ * (start, beats, checks, the secret, the fix-it, the notebook, the reveal and the signed-off page). The stepper's own
+ * steps are still covered by lesson2 below and the module reveal.
+ */
+async function lesson() {
   if (ONLY && !ONLY.has("lesson")) return;
-  for (const size of SIZES)
-    for (const theme of THEMES) {
-      const { context, page } = await newPage(browser, size, theme);
-      let n = 0;
-      const step = async (label) => {
-        n++;
-        await shot(page, `lesson-${String(n).padStart(2, "0")}-${label}-${size}-${theme}`);
-      };
-      const primary = () => page.locator("[data-primary]").click();
-      await page.goto(`${url}${withClock(`/learn/basics/${MODULE_ONE[0]}`, theme)}`, { waitUntil: "networkidle" });
-      await page.waitForSelector("[data-step-type]");
-      await step("hook");
-      await page.locator("[data-predict-option]").nth(2).click();
-      await step("hook-predicted");
-      await primary();
-      await page.waitForSelector("[data-step-type=lab]");
-      await page.waitForSelector("[data-bench-ready]", { timeout: 60000 }).catch(() => undefined);
-      await step("lab");
-      await primary();
-      await page.waitForSelector("[data-step-type=explain]");
-      await step("explain");
-      for (let i = 0; i < 4; i++) {
-        await primary();
-        await page.waitForTimeout(150);
-        if (i === 2) await step("explain-last");
-      }
-      await page.waitForSelector("[data-step-type=quiz]");
-      // Choice: pick the right one.
-      await page.locator("[data-option]").filter({ hasText: "None of them" }).click();
-      await step("quiz-choice");
-      await primary();
-      await step("quiz-right");
-      await primary();
-      // Match: pair one, then the rest in order.
-      await step("quiz-match");
-      const rights = ["the flow of charge", "the push that drives the flow", "how hard a path is to flow through", "a complete loop current can flow around"];
-      await page.locator("[data-match-right]").filter({ hasText: rights[0] }).click();
-      await step("quiz-match-one");
-      for (const r of rights.slice(1)) await page.locator("[data-match-right]").filter({ hasText: r }).click();
-      await primary();
-      await primary();
-      // Choice: one wrong first, then right.
-      await page.locator("[data-option]").filter({ hasText: "It glows dimly" }).click();
-      await primary();
-      await step("quiz-wrong");
-      await primary();
-      await page.locator("[data-option]").filter({ hasText: "It stays dark" }).click();
-      await primary();
-      await primary();
-      await page.locator("[data-option]").filter({ hasText: "From the battery's plus terminal" }).click();
-      await primary();
-      await primary();
-      await page.locator("[data-option]").filter({ hasText: "A 9 V battery" }).click();
-      await primary();
-      await primary();
-      await page.waitForSelector("[data-step-type=wrap]");
-      await step("wrap");
-      await primary();
-      await revealShown(page);
-      await step("reveal");
-      await page.locator("[data-reveal-continue]").click();
-      await page.waitForSelector("[data-finale]");
-      await page.waitForTimeout(1600);
-      await step("finale");
-      await context.close();
-    }
+  console.log("lesson: bench lessons are shot by scripts/lesson-shots.mjs");
 }
 
 /** Finishes the first module's last lesson (resumed at its wrap step), which builds the module's landmark. */
@@ -373,20 +312,7 @@ async function lesson2(browser, url) {
       }
       await shot(page, `lesson2-05-colour-built-${size}-${theme}`);
 
-      // Hotspot and order (Your first glow).
-      await toQuiz(page, url, "first-glow", 4);
-      await shot(page, `lesson2-06-hotspot-${size}-${theme}`);
-      await page.locator('[data-region="cathode"]').click();
-      await primary();
-      await shot(page, `lesson2-07-hotspot-right-${size}-${theme}`);
-      await primary();
-      await page.locator("[data-option]").filter({ hasText: "It goes dark" }).click();
-      await primary();
-      await primary();
-      await shot(page, `lesson2-08-order-${size}-${theme}`);
-      await solveOrder(page);
-      await primary();
-      await shot(page, `lesson2-09-order-right-${size}-${theme}`);
+      // Hotspot and order lived in Your first glow's quiz; it is a bench lesson now (checks on the bench instead).
       await context.close();
     }
 }
@@ -397,7 +323,7 @@ const browser = await chromium.launch({ args: WEBGL_ARGS });
 try {
   await pages(browser, server.url);
   await landingLive(browser, server.url);
-  await lesson(browser, server.url);
+  await lesson();
   await moduleReveal(browser, server.url);
   await lesson2(browser, server.url);
 } finally {

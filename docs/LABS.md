@@ -4,8 +4,10 @@ A lab is the hands-on step of a lesson: a 3D bench driven by the real simulator,
 solution that proves the tasks can be done. This guide covers the lab file. For the bigger picture see
 `docs/ARCHITECTURE.md` (Labs, Workbench, Simulator); for wording rules see `docs/CONTENT.md`.
 
-The two reference labs are `content/labs/welcome-to-the-bench.ts` (a pre-wired loop on the desk) and
-`content/labs/first-glow.ts` (a loop built from the tray, with a part to burn out). Copy one to start.
+The reference labs are `content/labs/welcome-to-the-bench.ts` (a pre-wired loop on the desk),
+`content/labs/first-glow.ts` (a loop built from the tray, a part to burn out, a fix-it bench) and
+`content/labs/how-a-breadboard-works.ts` (parts that come into play on a breadboard). They are bench lessons' labs
+(`docs/LESSONS.md`). Copy one to start.
 
 ## The file
 
@@ -174,6 +176,8 @@ with the forms above and move old ones over when you finish their goals.
   note: { id: "sum", label: "Your total", unit: "V" },      // a notebook entry: lab.note("sum")
   trigger: "some-achievement",          // fired when the task is done (see Achievements)
   bonus: true,                          // or optional: true
+  setup: BREAK_IT,                      // bench lessons: steps applied as the task's beat begins (see below)
+  nudges: [{ when: (lab) => backwards(lab), say: "Dark? Turn the LED around." }],   // bench lessons
 }
 ```
 
@@ -181,6 +185,12 @@ with the forms above and move old ones over when you finish their goals.
   second). So a later task can assume the earlier ones happened ("mend the loop" just checks `isLit`).
 - Bonus tasks are checked **all the time** and never block Continue. The learner can skip them.
 - Continue is always available: the tasks guide, they never trap (a browser without WebGL can finish the lesson).
+- In a bench lesson (`docs/LESSONS.md`) the lesson's beats name the tasks, and only the current beat's task (and the
+  lesson's secret) can complete. `setup` lists solution steps the lesson applies when the task's beat begins, on top
+  of the bench at the previous check (parts coming into play, a fix-it round's broken circuit); the solution must
+  start the task's own steps with the same steps (spread one const into both). `nudges` are short robot lines for a
+  mistake the bench is showing; the first whose `when` holds for a moment is said. The `success` line is what the
+  robot says when a beat has no line of its own.
 - Each task done is worth `XP.task` (15) when the lesson completes. Task ids are kept even if the lab changes.
 - "Show me" appears once every hint has been read and plays the task's part of the solution on the bench.
 
