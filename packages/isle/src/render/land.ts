@@ -6,7 +6,7 @@
  * clouds. Noise comes from integer hashes, so the board looks the same on every device.
  */
 import * as THREE from "three";
-import { REF } from "../catalog";
+import { REF, type ThemeId } from "../catalog";
 import { hash2 } from "../math";
 import { PLAZA_R, footCells, key, radiusOf, ringOpen, roadCells, tierAt, type IslandPlan, type IsleItem } from "../plan";
 import { PAL, Q, glyph, type Built, type Col, type Shape } from "./kit";
@@ -42,10 +42,40 @@ const LAND = {
 } as const;
 export type LandPalette = Record<keyof typeof LAND, THREE.Color> & { wires: THREE.Color[]; top: THREE.Color[] };
 
-/** The land's colours for a look (null: as they are). */
-export function landPalette(grade: Grade | null): LandPalette {
+/**
+ * Sketch Isle: the board drawn on notebook paper. The top is paper with faint grid dots, traces and pads are graphite
+ * and pale pencil shading, outlines and designators are ink, and the keel is a stack of pages. Moss is a soft
+ * coloured-pencil green; the wire ends keep their colours.
+ */
+const SKETCH: Partial<Record<keyof typeof LAND, string>> = {
+  mask: "#F4EEE0",
+  mask2: "#F0E9DA",
+  maskDark: "#8C857A",
+  copper: "#857E72",
+  copperDark: "#AFA799",
+  gold: "#E0D6C2",
+  silk: "#3A3731",
+  hole: "#2B2925",
+  dot: "#D6CCB8",
+  fr4: "#F8F3E8",
+  fr4b: "#E9E1CF",
+  rock: "#EFE8D9",
+  rock2: "#E3DAC7",
+  rock3: "#D7CDB8",
+  ore: "#CABFA8",
+  moss: "#A6BC90",
+  moss2: "#97AE82",
+  mossHi: "#BDCEAA",
+};
+const THEME_LAND: Record<ThemeId, Partial<Record<keyof typeof LAND, string>>> = { "green-board": {}, "sketch-isle": SKETCH };
+
+/** The land's colours for a theme and a look (null: as they are). */
+export function landPalette(grade: Grade | null, theme: ThemeId = "green-board"): LandPalette {
   const p = {} as Record<keyof typeof LAND, THREE.Color>;
-  for (const [k, hex] of Object.entries(LAND) as [keyof typeof LAND, string][]) p[k] = grade ? grade(hex, new THREE.Color()) : new THREE.Color(hex);
+  for (const [k, base] of Object.entries(LAND) as [keyof typeof LAND, string][]) {
+    const hex = THEME_LAND[theme][k] ?? base;
+    p[k] = grade ? grade(hex, new THREE.Color()) : new THREE.Color(hex);
+  }
   return {
     ...p,
     wires: [p.wireRed, p.wireBlack, p.wireYellow, p.wireBlue, p.wireRed, p.wireGreen],

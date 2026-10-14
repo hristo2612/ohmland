@@ -8,7 +8,7 @@
  */
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { tiersOf, variantsOf } from "../catalog";
+import { themeOf, tiersOf, variantsOf, type ThemeId } from "../catalog";
 import { EN, type IsleMessages } from "../messages";
 import { key, tierAt, type IsleItem, type IslePlan } from "../plan";
 import { play } from "./audio";
@@ -17,7 +17,7 @@ import { Shape, type Built } from "./kit";
 import { buildLandmark } from "./landmarks";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { InkPass } from "./ink";
-import { bridge, cloud, designators, landAt, landMesh, landPalette, paintBoard, turn, type Board, type LandInfo } from "./land";
+import { bridge, cloud, designators, landAt, landMesh, landPalette, paintBoard, turn, type Board, type LandInfo, type LandPalette } from "./land";
 import { NOTEBOOK, gradeFor, type Look, type Paper } from "./look";
 import { SMALL, buildPiece } from "./pieces";
 import { makeRobot } from "./robot";
@@ -181,7 +181,14 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
   const paper: Paper = opts.paper ?? "grid";
   const mo = MOTION[look];
   const grade = gradeFor(look);
-  const landPal = landPalette(grade);
+  /** Each island's land colours, by its unit's theme (Start here's Sketch Isle is paper, the rest green board). */
+  const landPals = new Map<ThemeId, LandPalette>();
+  const landPalOf = (island: number): LandPalette => {
+    const theme = themeOf(plan.islands[island]?.unit ?? "");
+    let pal = landPals.get(theme);
+    if (!pal) landPals.set(theme, (pal = landPalette(grade, theme)));
+    return pal;
+  };
   const amberC = new THREE.Color(NOTEBOOK.amber);
   /** A teaser that turns round (unless motion is reduced), framed as it stands at each angle. */
   const turning = !opts.interactive && !!opts.autoRotate && !reduced;
@@ -470,7 +477,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       const fresh = newLand.get(i);
       const keep = fresh ? new Set([...info.cells.keys()].filter((c) => !fresh.has(c))) : null;
       // the board's top takes shadows; its sides and keel only cast them (self-shadowed steps look streaky)
-      const geo = landMesh(info, board, keep, landPal);
+      const geo = landMesh(info, board, keep, landPalOf(i));
       const mesh = new THREE.Mesh(geo.top, landMat);
       mesh.position.set(isl.x, isl.y, isl.z);
       mesh.receiveShadow = true;
@@ -1016,7 +1023,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
       const board = boards[i];
       const isl = plan.islands[i]!;
       if (!info2) continue;
-      const parts = landMesh(info2, board ?? null, cells, landPal);
+      const parts = landMesh(info2, board ?? null, cells, landPalOf(i));
       const g = mergeGeometries([parts.top, parts.sides], false);
       parts.top.dispose();
       parts.sides.dispose();
@@ -1054,7 +1061,7 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
         const b = paintBoard(isl, land, [{ it, built: g.built }], refs, false);
         const own = new Set<number>();
         for (const c of land.cells.values()) if (Math.abs(c.x - it.x) <= it.foot + 2 && Math.abs(c.z - it.z) <= it.foot + 2.5) own.add(key(c.x, c.z));
-        const mg = markMesh(b, land, own);
+        const mg = markMesh(b, land, own, landPalOf(it.island));
         if (mg) {
           mg.translate(-it.x, 0, -it.z);
           const mm = new THREE.Mesh(mg, landMat);
@@ -1093,10 +1100,10 @@ export function createIsleView(el: HTMLElement, initial: IslePlan, opts: MountOp
     });
   };
   /** The marks of one item (pads, outline, designator) as a mesh over the cells round it. */
-  const markMesh = (b: Board, land: LandInfo, own: Set<number>): THREE.BufferGeometry | null => {
+  const markMesh = (b: Board, land: LandInfo, own: Set<number>, pal: LandPalette): THREE.BufferGeometry | null => {
     const sub: LandInfo = { cells: new Map([...land.cells].filter(([k]) => own.has(k)).map(([k, c]) => [k, { ...c, depth: 0.001 }])), radius: land.radius };
     if (!sub.cells.size) return null;
-    const parts = landMesh(sub, b, null, landPal);
+    const parts = landMesh(sub, b, null, pal);
     parts.sides.dispose();
     const g = parts.top;
     // keep only the marks: drop the cell tops and sides the land mesh already has

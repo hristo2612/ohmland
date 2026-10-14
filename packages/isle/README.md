@@ -18,6 +18,11 @@ with every module, one island per unit, linked by ribbon cable bridges (the Pitk
 - **Units**, one island each, by the id of their folder in `content/units`: `start-here`, `basics`, `switching`,
   `permanent`, `chips`, `beyond`. `content/course.yaml` still lists Unit 3 among its upcoming units as
   `making-it-permanent`; the planner reads that id as `permanent` (`unitOf`), so either builds the same island.
+- **Themes**, how a unit's island is drawn, by the ids content gives a unit's `isle.theme` (`THEMES`, `themeOf`).
+  `green-board` is the green circuit board every island used to be. `sketch-isle` is Start here's Sketch Isle: the same
+  board drawn in pencil on notebook paper (a paper top with faint grid dots, graphite traces, ink outlines and
+  designators, a keel of stacked pages), which Basics makes real as Bareboard Isle. A theme only changes the land's
+  colours (`src/render/land.ts`), never the plan; a web test checks each unit's `isle.theme` against `themeOf`.
 - **Pieces**, one per lesson. Units 3 to 5 add `iron-stand`, `solder-spool`, `regulator` (Making it permanent),
   `chip-block`, `reed-gate`, `seven-seg`, `logic-chip`, `dice-block` (Chips), `coil-bolt`, `magnet`, `antenna` and
   `mcu-board` (Beyond), drawn in `src/render/pieces.ts`.
