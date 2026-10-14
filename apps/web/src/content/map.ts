@@ -1,11 +1,13 @@
 /** The light course structure the course map island receives (no lesson bodies). */
+import { momentsOf } from "../lesson/bench/flow";
 import type { PartIconKind } from "../parts/kinds";
 import type { Course } from "./load";
 
 /**
  * `icon` is a part drawing for the lesson (its opening scene's part, else the first part it unlocks): the map shows it
- * instead of words. `steps` counts what the player steps through (steps, or a bench lesson's beats); `bench` lessons
- * save their place one ahead (0 before the bench opens).
+ * instead of words. `steps` counts what the player steps through, as its own "1 of 9" counts them (steps, or a bench
+ * lesson's moments: its beats, the secret, the fix-it benches and the sign-off); `bench` lessons save their place one
+ * ahead (0 before the bench opens).
  */
 export type MapLesson = {
   id: string;
@@ -39,7 +41,7 @@ export function mapOf(course: Course): { units: MapUnit[]; upcoming: MapUpcoming
           const hook = "steps" in l ? l.steps[0] : undefined;
           const shown = hook?.type === "hook" && hook.visual?.kind === "part" ? hook.visual.part : undefined;
           const part = shown ?? l.unlocks.parts[0];
-          const steps = "steps" in l ? l.steps.length : l.beats.length;
+          const steps = "steps" in l ? l.steps.length : momentsOf(l).length;
           return { id: l.id, title: l.title, summary: l.summary, minutes: l.minutes, steps, bench, href: l.href, icon: part ? icons.get(part) : undefined };
         }),
       })),

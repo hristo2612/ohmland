@@ -60,13 +60,15 @@
 .btn--danger:hover { background: var(--red-wash); }
 
 .btn:not(:disabled, [aria-disabled="true"]):active { transform: translateY(1px); }
+/* Not available yet: a faint solid outline. (Dashed means "optional" or "still to come", never "disabled".) */
 .btn:disabled, .btn[aria-disabled="true"] {
   cursor: not-allowed;
   background: transparent;
   color: var(--ink-3);
-  border: var(--border-1) dashed var(--ink-3);
+  border: var(--border-1) solid color-mix(in srgb, var(--ink-3) 40%, transparent);
+  box-shadow: none;
 }
-.btn--tertiary:disabled { border: 0; text-decoration-style: dashed; }
+.btn--tertiary:disabled { border: 0; text-decoration-color: color-mix(in srgb, var(--ink-3) 40%, transparent); }
 
 /* Icon buttons ------------------------------------------------------------------------------------------------- */
 .icon-btn {
@@ -275,11 +277,12 @@ body:has(dialog[open]) { overflow: hidden; }
   width: min(380px, calc(100vw - 2 * var(--s-4)));
   pointer-events: none;
 }
-@media (max-width: 720px) {
-  .has-bottom-nav .toasts { bottom: calc(var(--bar-h) + var(--s-3) + env(safe-area-inset-bottom)); }
-}
 /* In a lesson, toasts sit above the step's action bar. */
 .lesson-page .toasts { bottom: calc(var(--action-bar-h) + var(--s-3) + env(safe-area-inset-bottom)); }
+/* On a phone a toast drops in under the header, never over the page's primary action at the bottom. */
+@media (max-width: 720px) {
+  .toasts, .has-bottom-nav .toasts, .lesson-page .toasts { top: calc(var(--header-h) + var(--s-2) + env(safe-area-inset-top)); bottom: auto; }
+}
 .toast {
   pointer-events: auto;
   display: flex;

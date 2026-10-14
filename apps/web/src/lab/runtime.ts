@@ -34,7 +34,8 @@ export type RuntimeUi = {
   readings: Reading[];
   fried: FriedCard[];
   mascot: { line: string; mood: MascotMood } | null;
-  notice: { key: number; message: string } | null;
+  /** The latest simulator warning: its words (the sandbox shows them), and what and where it was (a lesson draws it). */
+  notice: { key: number; message: string; type: string; partId: string; cause?: string } | null;
   /** A task being shown by "Show me". */
   showing: string | null;
   spareFuses: number | null;
@@ -411,7 +412,7 @@ export class LabRuntime {
     }
     if (u.captured.length) patch.readings = [...this.session.readings];
     if (this.session.mcu.version !== this.ui.getState().code) patch.code = this.session.mcu.version;
-    if (u.notices.length) patch.notice = { key: this.cardKey++, message: noticeText(u.notices[u.notices.length - 1]!) };
+    if (u.notices.length) patch.notice = noticeOf(u.notices[u.notices.length - 1]!, this.cardKey++);
     for (const name of u.triggers) this.hooks.onTrigger?.(name);
     if (Object.keys(patch).length) this.ui.setState(patch);
     this.hooks.onTick?.();
@@ -767,6 +768,7 @@ export class LabRuntime {
   }
 }
 
-function noticeText(e: SimEvent): string {
-  return e.message;
+function noticeOf(e: SimEvent, key: number): NonNullable<RuntimeUi["notice"]> {
+  const cause = e.data?.["cause"];
+  return { key, message: e.message, type: e.type, partId: e.partId, ...(typeof cause === "string" ? { cause } : {}) };
 }
