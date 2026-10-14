@@ -1,16 +1,23 @@
-// Blueprint: docs/curriculum/unit-2.md, Lesson 9. Fill button S1 (rows 5 and 7) charges C1 (1,000 µF, + in row 11)
-// through R1 (1 kΩ, on the far half from row 7 to row 11). R2 (1 kΩ) and the red LED drain it; the empty button S2
-// (rows 9 and 11) dumps it through R3 (100 Ω). C1's striped leg sits in row 13, which reaches the minus rail only
-// through one black jumper: pulling that jumper out lifts the capacitor's minus plate off the circuit.
+// Blueprint: docs/curriculum/unit-2.md, Lesson 9; conversion: docs/curriculum/conversion-guide.md, C2 lesson 9. The lab
+// of a bench lesson (docs/LESSONS.md): content/units/switching/capacitors/capacitor-fill-fade/lesson.yaml.
+// One idea: through a resistor, a capacitor fills and empties gradually.
+//
+// Fill button S1 (rows 5 and 7) charges C1 (1,000 µF, + in row 11) through R1 (1 kΩ, on the far half from row 7 to row
+// 11). R2 (1 kΩ) and the red LED drain it; the empty button S2 (rows 9 and 11) dumps it through R3 (100 Ω). C1's
+// striped leg sits in row 13, which reaches the minus rail only through one black jumper (W2): the fix-it pulls that
+// jumper, so the capacitor's minus plate goes nowhere.
 //
 // Measured in the simulator: C1 fills toward 5.4 V with a time constant near 0.5 s, the LED creeping up over about
 // 1.5 s (glow 0.59 at 3.5 mA); after letting go the LED fades out in about 4 s; the empty button drops C1 below 0.5 V
-// in about 0.25 s.
-import { defineLab, type LabView } from "@ohmland/lab";
+// in about 0.25 s. With W2 gone, the LED follows the button: dark within 0.2 s of letting go.
+import { defineLab, type LabView, type SolutionStep } from "@ohmland/lab";
 
 const vc = (lab: LabView) => lab.volts("C1.pos", "C1.neg") ?? 0;
 const glow = (lab: LabView) => lab.part("D1")?.glow ?? 0;
 const grounded = (lab: LabView) => lab.connected("C1.neg", "B1.neg");
+
+/** The fix-it bench: the jumper from C1's stripe row to the minus rail is gone. */
+const LIFT_LEG: SolutionStep[] = [{ do: "unwire", wire: "W2" }];
 
 export default defineLab({
   id: "capacitor-fill-fade",
@@ -34,23 +41,17 @@ export default defineLab({
       { id: "W3", from: "a17", to: "rail-:17", color: "black" },
     ],
     tray: [],
-    instruments: [
-      { kind: "meter", at: "desk:-178,22", rot: 16, mode: "dcv", tips: { red: "desk:-52,48", black: "desk:-40,54" } },
-      { kind: "logger", traces: [{ label: "C1", volts: "C1.pos" }], start: { part: "S1", pressed: true }, seconds: 10, range: [0, 7] },
-    ],
+    instruments: [],
   },
   mascot: {
-    start: "The capacitor that tamed your buzzer deserves a closer look.",
     hint: "Fill first, then watch. It's slower than you think.",
-    success: "Watch it fade. Slowly. Like a sunset in a box.",
-    fried: "Straight from a full capacitor into an LED: too much at once. There's a spare in the bench reset.",
-    exit: "A capacitor gives back exactly what you put in. Fair, really.",
+    fried: "Straight from a full capacitor into an LED: too much at once.",
   },
   fried: { led: "Red LED, flooded by a full capacitor" },
   tasks: [
     {
       id: "fill",
-      prompt: "Hold the red **fill** button for five seconds. Watch the LED.",
+      prompt: "Hold the red button. Watch the LED.",
       goal: (lab) => {
         // From dark, held down until settled: the glow took over half a second to climb from 10% to 90% of its final
         // value, and C1 settled between 5.0 and 5.8 V.
@@ -67,13 +68,13 @@ export default defineLab({
         const t90 = h.find(([, g]) => g >= 0.9 * end)?.[0];
         return t10 !== undefined && t90 !== undefined && t90 - t10 > 0.5;
       },
-      hints: ["Keep holding. It's slower than you think.", "Keep the pointer down on it, or select it and hold Space."],
+      hints: ["Keep holding. It's slower than you think.", "Hold the pointer down on it, or select it and hold Space."],
       highlight: ["S1"],
-      success: "The light crept up. The meter rose fast, then slower and slower.",
+      success: "It crept up.",
     },
     {
       id: "fade",
-      prompt: "Let go and watch.",
+      prompt: "Fill it once more, then let go and watch.",
       goal: (lab) => {
         const m = lab.memory as { let?: number };
         if (lab.closed("S1")) {
@@ -88,11 +89,11 @@ export default defineLab({
         return glow(lab) < 0.1 && dt >= 1 && dt <= 8;
       },
       hints: ["Fill until the LED is bright, then let go and watch."],
-      success: "The capacitor is powering the LED by itself, and running out gently.",
+      success: "It faded out.",
     },
     {
       id: "dump",
-      prompt: "Fill it again, then press the **empty** button (black).",
+      prompt: "Fill it again, then press the black button.",
       goal: (lab) => {
         const m = lab.memory as { at?: number; dark?: number };
         if (!lab.closed("S2")) {
@@ -106,30 +107,36 @@ export default defineLab({
         if (m.dark === undefined && glow(lab) < 0.05) m.dark = lab.t;
         return m.dark !== undefined && m.dark - m.at <= 0.3 && vc(lab) < 0.5;
       },
-      hints: ["Fill it until the LED is bright, then press the second button."],
+      hints: ["Fill it until the LED is bright, then press the black button."],
       highlight: ["S2"],
-      success: "Through just 100 Ω the charge rushes out almost at once.",
+      nudges: [{ when: (lab) => lab.closed("S2") && vc(lab) < 0.5 && glow(lab) < 0.05, say: "It's empty already. Fill it first." }],
+      success: "Gone in a blink.",
     },
     {
       id: "lift-a-leg",
-      prompt:
-        "Pull the black jumper at row 13. Fill, then let go.",
+      prompt: "My LED won't fade any more. Fix it.",
+      setup: LIFT_LEG,
+      // Cut off first (the setup), then grounded again and fading after a fill.
       goal: (lab) => {
-        const m = lab.memory as { let?: number };
-        if (grounded(lab)) return false;
+        const m = lab.memory as { lifted?: boolean; let?: number };
+        if (!grounded(lab)) {
+          m.lifted = true;
+          delete m.let;
+          return false;
+        }
+        if (!m.lifted) return false;
         if (lab.closed("S1")) {
-          if (glow(lab) > 0.3) m.let = Infinity;
+          m.let = glow(lab) > 0.4 && vc(lab) > 4 ? Infinity : undefined;
           return false;
         }
         if (m.let === Infinity) m.let = lab.t;
         if (m.let === undefined) return false;
-        return glow(lab) < 0.1 && lab.t - m.let <= 0.2;
+        // Still glowing a moment after letting go: the capacitor is feeding it again.
+        return lab.t - m.let >= 0.6 && glow(lab) > 0.15;
       },
-      hints: ["It joins the capacitor's stripe to minus. Select it, then Delete.", "Then hold the fill button and let go."],
-      highlight: ["W2"],
-      success: "No fade. With one plate cut off, it can't hold anything.",
-      notice: "Charge on one plate needs a matching charge on the other.",
-      mascot: { success: "No plate, no party." },
+      hints: ["Follow the capacitor's striped leg. Where does it go?", "Wire its row, 13, to the minus rail. Then fill and let go."],
+      highlight: ["pin:C1.neg", "hole:a13"],
+      success: "Fixed.",
     },
   ],
   solution: [
@@ -140,9 +147,12 @@ export default defineLab({
     { do: "press", part: "S1", seconds: 4 },
     { do: "press", part: "S2", seconds: 0.8 },
     { do: "check", task: "dump" },
-    { do: "unwire", wire: "W2" },
+    ...LIFT_LEG,
     { do: "press", part: "S1", seconds: 2 },
     { do: "wait", seconds: 0.4 },
+    { do: "wire", id: "W4", from: "b13", to: "rail-:13", color: "black" },
+    { do: "press", part: "S1", seconds: 4 },
+    { do: "wait", seconds: 0.8 },
     { do: "check", task: "lift-a-leg" },
   ],
 });
