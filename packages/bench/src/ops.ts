@@ -3,9 +3,10 @@
 
 import { parseAnchor } from "./anchors";
 import { PITCH, boardGeometry, boardOrigin, holeAtOffset, holeWorld, nearestHole } from "./board";
-import { anchorPosition, isOnBoard, partPose } from "./layout";
+import { anchorPosition, gateSpot, isOnBoard, partPose } from "./layout";
+import { chargeable, rub, settle } from "./static";
 import { canMountOnBoard, defaultParams, footprintOf, isFlying, partDef, rotateXZ } from "./parts";
-import { heldOf, holderOf, popSpot, seatNear, seatPose, seatsOf } from "./seats";
+import { heldOf, holderOf, popSpot, seatFits, seatNear, seatPose, seatsOf } from "./seats";
 import { flyingToPerf, moveClip, movePlug, moveTube, perfCenter, placeOnPerf, solderedIn, tidyBends } from "./solder/ops";
 import { perfMount } from "./solder/perfboard";
 import type {
@@ -174,17 +175,29 @@ export function addPart<K extends BenchPartKind>(
 /**
  * Move a part so its footprint centre is near `to`. Dropped on a holder (resistor clips, a lemon's slot, a test
  * station, a bin) it goes into the nearest seat that fits; on the board it snaps into the nearest free holes;
- * otherwise (or when nothing fits) it lies on the desk.
+ * otherwise (or when nothing fits) it lies on the desk. `seat: false` never seats it (a part on its way, mid-drag);
+ * `seat: "free"` only into a seat nobody holds (a drop by hand never pushes another part out).
  */
-export function movePart(bench: BenchState, id: string, to: Vec2, opts: { rot?: number; reach?: number; seat?: boolean } = {}): BenchState {
+export function movePart(bench: BenchState, id: string, to: Vec2, opts: { rot?: number; reach?: number; seat?: boolean | "free" } = {}): BenchState {
   const next = movePartTo(bench, id, to, opts);
   // A part lifted off a perfboard takes its bent legs with it.
   return next !== bench && perfMount(bench, bench.parts.find((p) => p.id === id)!) ? tidyBends(next) : next;
 }
 
-function movePartTo(bench: BenchState, id: string, to: Vec2, opts: { rot?: number; reach?: number; seat?: boolean }): BenchState {
-  const part = bench.parts.find((p) => p.id === id);
+function movePartTo(bench: BenchState, id: string, to: Vec2, opts: { rot?: number; reach?: number; seat?: boolean | "free" }): BenchState {
+  let part = bench.parts.find((p) => p.id === id);
   if (!part) return bench;
+  const nose = (partDef(part.kind) as { nose?: string }).nose;
+  if (nose) return moveNose(bench, part, nose, to, opts.rot);
+  // The static toy: moving a balloon, a comb or a plastic spoon over the scarf rubs it; a balloon sticks to a wall
+  // (or falls from it) and keeps away from another charged balloon.
+  if (chargeable(part)) {
+    bench = rub(bench, id, to);
+    part = bench.parts.find((p) => p.id === id)!;
+  }
+  if (part.kind === "balloon") to = settle(bench, id, to);
+  // A gate clips onto the clip lead it is dropped on, or lies on the desk.
+  if (part.kind === "gate") return clipGate(bench, id, to);
   // Unit 3: clips snap onto leads, tubes slide along wires, soldered parts stay put, parts go through perfboard.
   if (part.kind === "heat-sink-clip") return moveClip(bench, part, to);
   if (part.kind === "heat-shrink") return moveTube(bench, part, to);
@@ -194,7 +207,7 @@ function movePartTo(bench: BenchState, id: string, to: Vec2, opts: { rot?: numbe
     if (onPerf) return tidyBends(replacePart(holderOf(bench, id) ? unseat(bench, id) : bench, onPerf));
   }
   if (opts.seat !== false) {
-    const near = seatNear(bench, part, to);
+    const near = seatNear(bench, part, to, undefined, opts.seat === "free");
     if (near) {
       const cur = holderOf(bench, id);
       if (cur && cur.holder.id === near.holder.id && cur.seat.name === near.seat.name) return bench;
@@ -208,12 +221,66 @@ function movePartTo(bench: BenchState, id: string, to: Vec2, opts: { rot?: numbe
     const holes = fitOnBoard(free, part.kind, part.params, rot, to, { exceptId: id, span, reach: opts.reach });
     if (holes) {
       const moved = { ...part, rot, holes, pos: to } as PlacedPart;
-      return replacePart(free, { ...moved, pos: partCenter({ ...free, parts: [moved] }, moved) } as PlacedPart);
+      // A holder in the board (an IC socket) keeps what it holds.
+      return syncHeld(replacePart(free, { ...moved, pos: partCenter({ ...free, parts: [moved] }, moved) } as PlacedPart), id);
     }
   }
   const { holes: _h, ...rest } = part;
   const flyingHoles = isFlying(part) ? { holes: part.holes } : {};
   return syncHeld(replacePart(free, { ...rest, ...flyingHoles, pos: to, rot } as PlacedPart), id);
+}
+
+/**
+ * Moves a part whose tip is one of its flying leads (the logic probe): over a free hole the tip drops into it and the
+ * body follows the tip; elsewhere it lies on the desk. Its other flying leads stay where they are.
+ */
+function moveNose(bench: BenchState, part: PlacedPart, nose: string, to: Vec2, rot?: number): BenchState {
+  const holes = { ...(part.holes ?? {}) };
+  const ends = { ...(part.ends ?? {}) };
+  delete ends[nose];
+  const hole = bench.board ? nearestHole(bench.board, to[0], to[1]) : null;
+  const occupied = occupiedHoles(bench, { part: part.id, leg: nose });
+  let pos: Vec2 = to;
+  if (hole && !occupied.has(hole)) {
+    holes[nose] = hole;
+    pos = holeWorld(bench.board!, hole)!;
+  } else delete holes[nose];
+  return replacePart(bench, { ...part, holes, ends, pos, rot: rot ?? part.rot } as PlacedPart);
+}
+
+// Gates -------------------------------------------------------------------------------------------------------------
+
+/** How close (mm) to a lead's line a gate must be dropped to clip onto it. */
+export const GATE_REACH = 14;
+
+/** The clip lead nearest a desk point (measured to the straight line between its clips), within `reach` mm. */
+export function leadNear(bench: BenchState, to: Vec2, reach = GATE_REACH): { lead: string; at: number } | null {
+  let best: { lead: string; at: number; d: number } | null = null;
+  for (const l of bench.leads) {
+    const a = anchorPosition(bench, `lead:${l.id}.a`);
+    const b = anchorPosition(bench, `lead:${l.id}.b`);
+    if (!a || !b) continue;
+    const dx = b[0] - a[0];
+    const dz = b[2] - a[2];
+    const len2 = dx * dx + dz * dz;
+    if (len2 < 1) continue;
+    const t = Math.max(0, Math.min(1, ((to[0] - a[0]) * dx + (to[1] - a[2]) * dz) / len2));
+    const d = Math.hypot(a[0] + dx * t - to[0], a[2] + dz * t - to[1]);
+    if (d <= reach && (!best || d < best.d)) best = { lead: l.id, at: Math.round(Math.max(0.15, Math.min(0.85, t)) * 100) / 100, d };
+  }
+  return best ? { lead: best.lead, at: best.at } : null;
+}
+
+/** Puts a gate on the lead nearest `to` (or on `lead`, `at` of the way along), or on the desk when none is near. */
+export function clipGate(bench: BenchState, id: string, to: Vec2 | null, lead?: { lead: string; at?: number }): BenchState {
+  const gate = bench.parts.find((p) => p.id === id);
+  if (gate?.kind !== "gate") return bench;
+  const near = lead ? (bench.leads.some((l) => l.id === lead.lead) ? { lead: lead.lead, at: lead.at ?? 0.5 } : null) : to ? leadNear(bench, to) : null;
+  const { on: _on, at: _at, ...rest } = gate.params;
+  if (!near) return replacePart(bench, { ...gate, params: rest, pos: to ?? gate.pos } as PlacedPart);
+  const moved = { ...gate, params: { ...rest, on: near.lead, at: near.at } } as PlacedPart;
+  const spot = gateSpot({ ...bench, parts: [moved] }, moved);
+  return replacePart(bench, { ...moved, pos: spot ? [spot.origin[0], spot.origin[2]] : (to ?? gate.pos) } as PlacedPart);
 }
 
 // Holders ---------------------------------------------------------------------------------------------------------
@@ -236,7 +303,7 @@ export function seatPart(bench: BenchState, id: string, holderId: string, seatNa
   const part = b.parts.find((p) => p.id === id);
   let holder = b.parts.find((p) => p.id === holderId);
   if (!part || !holder || part.id === holder.id) return bench;
-  const seats = seatsOf(holder).filter((s) => s.accepts.includes(part.kind));
+  const seats = seatsOf(holder).filter((s) => seatFits(s, part));
   const held = { ...heldOf(holder) };
   const seat = (seatName ? seats.find((s) => s.name === seatName) : seats.find((s) => !held[s.name])) ?? seats[0];
   if (!seat) return bench;
@@ -261,7 +328,7 @@ export function syncHeld(bench: BenchState, holderId: string): BenchState {
     const id = held[seat.name];
     const part = id ? b.parts.find((p) => p.id === id) : undefined;
     if (!part) continue;
-    const sp = seatPose(holder, seat, part);
+    const sp = seatPose(holder, seat, part, b);
     const { holes: _h, ...rest } = part;
     const pos: Vec2 = [sp.origin[0], sp.origin[2]];
     if (!part.holes && part.pos[0] === pos[0] && part.pos[1] === pos[1] && part.rot === sp.rot) continue;
@@ -336,7 +403,15 @@ export function swapTarget(bench: BenchState, id: string, reach = 9): PlacedPart
 /** Rotate a part a quarter turn about its centre. On the board, keeps it seated or leaves it unchanged. */
 export function rotatePart(bench: BenchState, id: string, step = 90): BenchState {
   const part = bench.parts.find((p) => p.id === id);
-  if (!part || holderOf(bench, id)) return bench;
+  // A torn piece of a drawing turns its symbol, the same as tapping it, in or out of the card's gap.
+  if (part?.kind === "piece") return setPartParams(bench, id, { turn: ((((part.params.turn ?? 0) + step) % 360) + 360) % 360 } as never);
+  if (!part) return bench;
+  const seated = holderOf(bench, id);
+  if (seated) {
+    // A seat may let its part turn round in it (a chip in its socket); otherwise a seated part keeps its turn.
+    if (!seated.seat.turn) return bench;
+    return syncHeld(setPartParams(bench, seated.holder.id, seated.seat.turn() as never), seated.holder.id);
+  }
   if (seatsOf(part).length) return syncHeld(replacePart(bench, { ...part, rot: (((part.rot + step) % 360) + 360) % 360 } as PlacedPart), id);
   const center = partCenter(bench, part);
   if (perfMount(bench, part)) {
@@ -347,11 +422,15 @@ export function rotatePart(bench: BenchState, id: string, step = 90): BenchState
   }
   if (isOnBoard(bench, part)) {
     const pose = partPose(bench, part);
-    const rot = (((Math.round(pose.rot / 90) * 90 + step) % 360) + 360) % 360;
     const span = currentSpan(bench, part);
-    const holes = fitOnBoard(bench, part.kind, part.params, rot, center, { exceptId: id, span, reach: 1.1 });
-    if (!holes) return bench;
-    return replacePart(bench, { ...part, rot, holes } as PlacedPart);
+    // A DIP across the channel cannot stand sideways: a quarter turn that does not fit tries a half turn.
+    const turns = (partDef(part.kind) as { turnsRound?: boolean }).turnsRound ? [step, step * 2] : [step];
+    for (const t of turns) {
+      const rot = (((Math.round(pose.rot / 90) * 90 + t) % 360) + 360) % 360;
+      const holes = fitOnBoard(bench, part.kind, part.params, rot, center, { exceptId: id, span, reach: 1.1 });
+      if (holes) return syncHeld(replacePart(bench, { ...part, rot, holes } as PlacedPart), id);
+    }
+    return bench;
   }
   return replacePart(bench, { ...part, rot: (((part.rot + step) % 360) + 360) % 360 } as PlacedPart);
 }
@@ -447,8 +526,25 @@ export function runAction(bench: BenchState, id: string, action: string): BenchS
 export function setPartParams<K extends BenchPartKind>(bench: BenchState, id: string, params: Partial<PartParamsMap[K]>): BenchState {
   const part = bench.parts.find((p) => p.id === id);
   if (!part) return bench;
-  const next = replacePart(bench, { ...part, params: { ...part.params, ...params } } as PlacedPart);
+  // A box's knob turns the trimmer inside it.
+  const knob = part.kind === "box" ? (params as { position?: number }).position : undefined;
+  let next = replacePart(bench, { ...part, params: { ...part.params, ...params } } as PlacedPart);
+  if (knob !== undefined) {
+    const trimmer = boxTrimmer(next, id);
+    if (trimmer) next = replacePart(next, { ...trimmer, params: { ...trimmer.params, position: knob } } as PlacedPart);
+  }
   return seatsOf(part).length ? syncHeld(next, id) : next;
+}
+
+/** The trimmer inside a box (the one its knob turns), if any. */
+export function boxTrimmer(bench: BenchState, boxId: string): PlacedPart | null {
+  const box = bench.parts.find((p) => p.id === boxId);
+  if (!box) return null;
+  for (const held of Object.values(heldOf(box))) {
+    const p = held ? bench.parts.find((x) => x.id === held) : undefined;
+    if (p?.kind === "trimmer") return p;
+  }
+  return null;
 }
 
 /** The params a setting change sets: the value, plus whatever the setting brings along (see SettingDef.also). */
@@ -538,7 +634,13 @@ export function clipLead(bench: BenchState, id: string, end: "a" | "b", to: Anch
 
 export function removeLead(bench: BenchState, id: string): BenchState {
   const detached = detach(bench, (a) => a.startsWith(`lead:${id}.`));
-  return { ...detached, leads: detached.leads.filter((l) => l.id !== id) };
+  // Gates on it drop onto the desk where they were.
+  const parts = detached.parts.map((p) => {
+    if (p.kind !== "gate" || p.params.on !== id) return p;
+    const { on: _on, at: _at, ...rest } = p.params;
+    return { ...p, params: rest } as PlacedPart;
+  });
+  return { ...detached, parts, leads: detached.leads.filter((l) => l.id !== id) };
 }
 
 export function setLeadColor(bench: BenchState, id: string, color: LeadColor): BenchState {

@@ -394,8 +394,10 @@ export function handleInkKey(e: KeyboardEvent, env: KeyEnv, kb: string | null): 
     }
     const part = s.bench.parts.find((p) => p.id === sel.id);
     if (!part) return false;
-    if (part.kind !== "trimmer" && s.locked.includes(part.id)) return true;
-    if (part.kind === "trimmer") {
+    // A knob (a trimmer, the bench supply's) turns with the arrows.
+    const knob = part.kind === "trimmer" || part.kind === "bench-supply";
+    if (!knob && s.locked.includes(part.id)) return true;
+    if (knob) {
       const position = Math.max(0, Math.min(1, Math.round((part.params.position + dx * 0.05 - dz * 0.05) * 100) / 100));
       s.setParams<"trimmer">(part.id, { position });
       return true;

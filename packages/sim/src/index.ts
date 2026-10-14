@@ -17,3 +17,5 @@ export { ledGlow, ledHeatDim, ledHeatRate, LED_FITS, LED_HOT_C } from "./devices
 export { formatReading } from "./devices/meter";
 export { DIGIT_SEGMENTS, LOGIC_PINOUTS, REGULATOR7805_PINS, SEVENSEG_PINS, TIMER555_PINS, digitOf } from "./devices/pinouts";
 export { MAINS_HZ } from "./devices/chips";
+export { MCU_PINS, mcuPin, type McuPinMode, type McuPinState } from "./devices/mcuPins";
+export { MCU } from "./devices/mcu";

@@ -1,14 +1,16 @@
 /**
  * Bench lessons against their labs: every beat's task exists, the lab's required tasks are exactly the lesson's do
  * and fix-it tasks in the same order (the runtime checks them one at a time), setups open their task's solution
- * steps, and every anchor a beat names exists on the bench. The content loader cannot see the TypeScript labs, so
+ * steps, and every anchor a beat names (and every terminal it traces from) exists on the bench. The content loader cannot see the TypeScript labs, so
  * this is where the two meet.
  */
 import { describe, expect, it } from "vitest";
-import type { BenchState } from "@ohmland/bench/core";
+import { partLegs, type BenchState } from "@ohmland/bench/core";
+import { targetPoint } from "@ohmland/bench/view";
 import { loadCourse, type BenchLessonData } from "../../content/load";
+import { resolveAttach } from "../../lab/anchors";
 import { buildBench } from "../../lab/build";
-import { isOptional, type LabDefinition } from "../../lab/define";
+import { isOptional, type LabDefinition, type SolutionStep } from "../../lab/define";
 import { applyStep, solutionSegments } from "../../lab/steps";
 import { momentsOf } from "./flow";
 import { resolveAnchor } from "./marks";
@@ -77,7 +79,9 @@ describe("bench lessons", () => {
         if (built.stopwatch) have.add("stopwatch");
         if (built.tapper) have.add("tapper");
         if (built.controls.length) have.add("controls");
-        for (const b of lesson.beats) if (b.tool) expect(have.has(b.tool), `tool "${b.tool}"`).toBe(true);
+        if (built.overlays?.offer?.length) have.add("views");
+        const tools = [...lesson.beats.map((b) => b.tool), lesson.fixit?.tool, lesson.secret?.tool];
+        for (const tool of tools) if (tool) expect(have.has(tool), `tool "${tool}"`).toBe(true);
       });
 
       it("points only at things on the bench", () => {
@@ -93,7 +97,45 @@ describe("bench lessons", () => {
           for (const a of [b.tap?.answer ?? [], b.tap?.among ?? []].flat()) anchors.add(a);
         }
         if (lesson.secret?.note && lesson.secret.note.at !== "tap") anchors.add(lesson.secret.note.at);
-        for (const a of anchors) expect(all.some((b) => resolveAnchor(b, a) !== null), `"${a}" on the bench`).toBe(true);
+        // A mark (part:M1/dial) must be one its part really has.
+        const on = (b: BenchState, a: string) => (/^part:[^/]+\//.test(a) ? targetPoint(b, a) !== null : resolveAnchor(b, a) !== null);
+        for (const a of anchors) expect(all.some((b) => on(b, a)), `"${a}" on the bench`).toBe(true);
+      });
+
+      it("applies each check's then steps to the bench", () => {
+        const all = benches(lab);
+        for (const b of lesson.beats) {
+          if (!b.then) continue;
+          const steps = b.then as SolutionStep[];
+          // Somewhere in the lab's run the steps fit: every part, lead and spot they name is there.
+          const fits = all.some((bench) => {
+            let cur = bench;
+            for (const s of steps) {
+              const e = applyStep(cur, s);
+              if (e.problem) return false;
+              cur = e.bench;
+            }
+            return true;
+          });
+          expect(fits, `then: ${JSON.stringify(steps)}`).toBe(true);
+        }
+      });
+
+      it("traces only from terminals on the bench", () => {
+        const all = benches(lab);
+        for (const b of lesson.beats) {
+          if (!b.trace) continue;
+          const from = b.trace;
+          // The tracer starts at a part's terminal or a lead's clip, as the lab's `trace` step does.
+          const found = all.some((bench) => {
+            const a = resolveAttach(bench, from);
+            if (!a?.startsWith("pin:")) return !!a?.startsWith("lead:");
+            const [id, leg] = a.slice(4).split(".");
+            const part = bench.parts.find((p) => p.id === id);
+            return !!part && partLegs(part).includes(leg!);
+          });
+          expect(found, `trace "${from}" on the bench`).toBe(true);
+        }
       });
     });
   }

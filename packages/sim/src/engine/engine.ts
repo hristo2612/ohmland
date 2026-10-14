@@ -10,6 +10,7 @@ import type { InputKey, InputValue, Netlist, PartState, SimEvent, SimEventType }
 import { createDevice } from "../devices";
 import { Device, GMIN, type Binder, type Ctx, type Method, type Reactive } from "./device";
 import { WireDevice } from "../devices/basic";
+import { EdgeWatch } from "./watch";
 
 export type EngineOptions = {
   /** Largest step in seconds. Defaults to 2 ms, or one audio sample period when a speaker is present. */
@@ -149,6 +150,8 @@ export class Engine implements Ctx {
   events: SimEvent[] = [];
   /** Optional hook called after every accepted step (audio sampling, meters). */
   onAccept: ((e: Engine) => void) | null = null;
+  /** Watched nodes (Netlist.watch): crossings counted and timed after every accepted step. */
+  edgeWatch: EdgeWatch | null = null;
 
   stats = { steps: 0, iterations: 0, factorizations: 0, rejected: 0, failed: 0, rescued: 0, remembered: 0, located: 0, forced: 0 };
   private tinySteps = 0;
@@ -171,6 +174,18 @@ export class Engine implements Ctx {
   }
   markEdge(): void {
     this.edgeBreak = true;
+  }
+  drivingOhms(i: number, j: number): number {
+    const n = this.n;
+    if (n === 0 || i === j || !this.lu) return Infinity;
+    // One more solve with the factors in hand: a unit current in at i and out at j, the voltage that results.
+    const b = new Float64Array(n);
+    const x = new Float64Array(n);
+    if (i >= 0) b[i] = 1;
+    if (j >= 0) b[j] = -1;
+    this.lu.solve(b, x);
+    const v = (i >= 0 ? x[i]! : 0) - (j >= 0 ? x[j]! : 0);
+    return Number.isFinite(v) && v > 0 ? v : Infinity;
   }
   addBreakpoint(t: number): void {
     if (!(t > this.t + 1e-12) || !Number.isFinite(t)) return;
@@ -385,6 +400,10 @@ export class Engine implements Ctx {
     for (const d of e.devices) if (d.maxStep !== undefined && d.maxStep > 0 && d.maxStep < e.hmax) e.hmax = d.maxStep;
 
     if (prev) e.inherit(prev);
+    if (netlist?.watch?.length) {
+      const named = [...new Set([...e.nodeIndex.values()].filter((k) => k >= 0))];
+      e.edgeWatch = new EdgeWatch(netlist.watch, (nm) => e.nodeIndex.get(nm), named, prev?.edgeWatch ?? null);
+    }
     e.needBreak = true;
     e.freshStart = true;
     return e;
@@ -578,7 +597,11 @@ export class Engine implements Ctx {
         // voltages are continuous across it, and the first-order error of that one step (it grows with the square
         // of its size) stays well under 0.1% of the timing.
         this.needBreak = true;
-        const hr = Math.min(H_EDGE_RESTART, this.hmax * this.stepScale, Math.max(H_BREAK, EDGE_RESTART_SHARE * this.hSmooth));
+        // Without capacitors or coils there is nothing to integrate: carry on with full steps.
+        const hr =
+          this.reactives.length === 0
+            ? this.hmax * this.stepScale
+            : Math.min(H_EDGE_RESTART, this.hmax * this.stepScale, Math.max(H_BREAK, EDGE_RESTART_SHARE * this.hSmooth));
         this.hRestart = hr;
         this.hNext = hr;
       }
@@ -923,6 +946,7 @@ export class Engine implements Ctx {
     this.stats.steps++;
     for (const d of this.acceptDevs) d.accept(x, this);
     if (this.onAccept) this.onAccept(this);
+    if (this.edgeWatch) this.edgeWatch.accept(this.t, this.x);
   }
 
   // -------------------------------------------------------------------------------------------------------------
@@ -944,7 +968,12 @@ export class Engine implements Ctx {
 
   partStates(): Record<string, PartState> {
     const out: Record<string, PartState> = {};
-    for (const d of this.devices) if (!(d instanceof WireDevice)) out[d.id] = d.state(this.x);
+    for (const d of this.devices) {
+      if (d instanceof WireDevice) continue;
+      out[d.id] = d.state(this.x);
+      const sub = d.subStates(this.x);
+      if (sub) Object.assign(out, sub);
+    }
     if (this.wires.length > 0) {
       const wi = this.wireCurrents();
       for (const w of this.wires) {
@@ -1049,7 +1078,7 @@ export class Engine implements Ctx {
   }
 }
 
-export const INPUT_KEYS: InputKey[] = ["pressed", "closed", "position", "light", "mode", "range", "to", "ohms", "bounce", "proximity", "bodyC"];
+export const INPUT_KEYS: InputKey[] = ["pressed", "closed", "position", "light", "mode", "range", "to", "ohms", "bounce", "proximity", "power", "bodyC"];
 
 /**
  * Greedy minimum-degree ordering of the unknowns (devices couple all of their nodes). Eliminating low-degree nodes

@@ -1,0 +1,55 @@
+# Split from watts-and-heat (docs/curriculum/conversion-guide.md, B3 13a). A bench lesson (docs/LESSONS.md).
+# One idea: power is push times flow, in watts. Lab: content/labs/count-the-watts.ts.
+format: bench
+id: count-the-watts
+version: 1
+title: Count the watts
+summary: Measure the push across a resistor, multiply by the flow, and count the watts it turns into heat.
+minutes: 6
+lab: count-the-watts
+unlocks:
+  parts: []
+  isle: heatsink
+
+start:
+  title: Count the watts
+  say: Heat is power you can feel. Let's count some.
+  go: Let's count
+
+beats:
+  - say: Drop the 1 kΩ resistor into the holder.
+    objective: A cool one
+    do: hold-1k
+    tool: meter
+    note: { at: R1, text: "9.4 V across it" }
+
+  - say: Power is push times flow. Here, 9.4 V × 9.4 mA.
+    do: cool-one
+    note: { at: R1, text: "88 mW: barely warm" }
+    rule: P = V × I.
+
+  - say: Now swap in the big 15 Ω, 5 W one.
+    objective: A hot one
+    guess: { options: [Cooler, Hotter, The same], answer: Hotter }
+    do: hold-hot
+    tool: meter
+    note: { at: R5, text: "about 8 V across it" }
+
+  - say: Same sum. 8.0 V × 0.53 A, in watts.
+    do: power-it
+    done: Over 4 W. Watch its temperature climb.
+    note: { at: R5, text: "watts: energy every second" }
+
+  - say: Quick one. What does a watt count?
+    pick: { options: [Energy per second, Push, Squeeze], answer: Energy per second }
+    wrong:
+      Push: "Push is volts. Watts are push times flow."
+      Squeeze: "Squeeze is ohms. Watts count energy each second."
+
+fixit:
+  say: Fix-it time. This heater makes 4 W. I want half.
+  tasks:
+    - task: halve-it
+
+end:
+  say: You can count heat now. Fingers stay cool.

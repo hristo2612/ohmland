@@ -1,0 +1,184 @@
+/* The landing: one circuit, one headline, one switch; then the course on one wire. Tokens only. */
+
+/* The hero sheet: artwork and type scale together, like one printed poster. */
+.hero { overflow-x: clip; }
+.hero__stage {
+  position: relative;
+  width: min(100%, calc((100svh - var(--header-h)) * 1440 / 828));
+  min-width: 0;
+  aspect-ratio: 1440 / 828;
+  margin: 0 auto;
+  container-type: inline-size;
+}
+.hero__defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.hero__art { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.hero__art--narrow { display: none; }
+
+/* Ink and coloured pencil */
+.lp-hatch { stroke: var(--ink); stroke-width: 0.9; opacity: 0.42; }
+.lp-hatch--light { stroke-width: 0.8; opacity: 0.26; }
+.lp-glow-0 { stop-color: var(--sk-glow); stop-opacity: 0.9; }
+.lp-glow-1 { stop-color: var(--sk-glow); stop-opacity: 0.42; }
+.lp-glow-2 { stop-color: var(--sk-glow); stop-opacity: 0; }
+.lp-ln { fill: none; stroke: var(--ink); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.lp-ln--narrow { stroke-width: 2; }
+.lp-thin { fill: none; stroke: var(--ink); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.lp-slip { fill: var(--paper-slip); }
+.lp-slip.lp-ln { fill: var(--paper-slip); }
+.lp-shade { fill: var(--sk-shade); }
+.lp-dot { fill: var(--ink); }
+.lp-edge { fill: none; stroke: var(--ink); stroke-width: 11; stroke-linecap: round; stroke-linejoin: round; }
+.lp-edge--narrow { stroke-width: 8; }
+.lp-core { fill: none; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+.lp-core--narrow { stroke-width: 4.5; }
+.lp-core--pos { stroke: var(--sk-wire-red); }
+.lp-core--neg { stroke: var(--sk-wire-neg); }
+.lp-lead { fill: none; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
+.lp-lead--narrow { stroke-width: 2.4; }
+.lp-terminal { fill: var(--paper); stroke: var(--ink); stroke-width: 3; transition: fill var(--dur-ui) var(--ease-out); }
+.lp-terminal--narrow { stroke-width: 2.4; }
+.lp-r-body { fill: var(--sk-body); stroke: var(--ink); stroke-width: 2.4; }
+.lp-r-body--narrow { stroke-width: 2; }
+.lp-b-yellow { fill: var(--sk-band-yellow); }
+.lp-b-violet { fill: var(--sk-band-violet); }
+.lp-b-brown { fill: var(--sk-band-brown); }
+.lp-b-gold { fill: var(--sk-band-gold); }
+.lp-batt-label { fill: var(--sk-battery-label); }
+.lp-batt-tx { fill: var(--sk-battery); font-family: var(--font-serif); font-weight: var(--weight-heavy); font-size: 24px; }
+.lp-hand { fill: var(--ink-2); font-family: var(--font-hand); }
+.lp-hand--red { fill: var(--red); }
+.lp-pencil { fill: none; stroke: var(--red); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.lp-led { fill: var(--sk-led); stroke: var(--ink); stroke-width: 2.6; stroke-linejoin: round; transition: fill var(--dur-fade) var(--ease-out); }
+.lp-led--narrow { stroke-width: 2.2; }
+.lp-led--lit { fill: var(--sk-led-lit); }
+.lp-shine { fill: none; stroke: var(--paper-slip); stroke-width: 3; stroke-linecap: round; opacity: 0.8; }
+.lp-shine--narrow { stroke-width: 2.4; }
+.lp-shine--soft { stroke-width: 2.4; opacity: 0.5; }
+.lp-chip { fill: var(--sk-chip); }
+.lp-chip-tx { fill: var(--sk-cover-ink); font-family: var(--font-serif); font-weight: var(--weight-heavy); }
+.lp-meter { fill: var(--sk-meter); }
+.lp-joint { fill: var(--sk-band-gold); stroke: var(--ink); stroke-width: 1.4; }
+.lp-smoke { fill: none; stroke: var(--ink-3); stroke-width: 2; stroke-linecap: round; }
+.lp-waves { fill: none; stroke: var(--red); stroke-width: 2.6; stroke-linecap: round; }
+.lp-rays path, .lp-flow path { fill: none; stroke: var(--red); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.lp-rays--narrow path, .lp-flow--narrow path { stroke-width: 2.4; }
+
+/* Closing the loop: the LED lights, the robot smiles, the current runs plus to minus. */
+.lp-glow, .lp-rays, .lp-flow { opacity: 0; transition: opacity var(--dur-write) var(--ease-out); }
+.lp-rays--on { opacity: 1; }
+.is-lit .lp-led { fill: var(--sk-led-lit); }
+.is-lit .lp-glow, .is-lit .lp-rays, .is-lit .lp-flow { opacity: 1; }
+.is-lit .lp-terminal { fill: var(--ink); }
+.lp-flow .up { --dx: 0px; --dy: -12px; }
+.lp-flow .down { --dx: 0px; --dy: 12px; }
+.lp-flow .left { --dx: -12px; --dy: 0px; }
+.lp-flow .right { --dx: 12px; --dy: 0px; }
+:root[data-motion="full"] .is-lit .lp-flow path { animation: flow var(--dur-flow) var(--ease-in-out) 3; }
+@keyframes flow {
+  0% { transform: translate(calc(var(--dx) * -1), calc(var(--dy) * -1)); }
+  100% { transform: translate(var(--dx), var(--dy)); }
+}
+
+.hero__robot { position: absolute; left: 77.22%; top: 77.3%; width: 7.22cqw; }
+.hero__robot .mascot { width: 100%; height: auto; }
+.hero__robot-happy, .is-lit .hero__robot-idle { display: none; }
+.is-lit .hero__robot-happy { display: block; }
+
+/* Type sits inside the loop */
+.hero__copy { position: absolute; left: 0; right: 0; top: 35.6%; display: grid; justify-items: center; gap: 2.2cqw; text-align: center; }
+.hero__copy h1 { font-size: 9.2cqw; line-height: 1; font-weight: var(--weight-strong); letter-spacing: var(--track-poster); }
+.hero__copy p { max-width: 44cqw; color: var(--ink-2); font-size: max(var(--text-sm), 1.6cqw); line-height: 1.45; text-wrap: balance; }
+
+/* The switch: the one action, sitting in the gap of the loop. */
+.hero__switch {
+  position: absolute;
+  left: 50%;
+  top: 72.46%;
+  width: 25cqw;
+  min-height: max(48px, 4.45cqw);
+  padding: 0;
+  font-size: max(var(--text-sm), 1.53cqw);
+  transform: translate(-50%, -50%);
+}
+.hero__switch:not(:disabled):active { transform: translate(-50%, calc(-50% + 1px)); }
+
+/* The course on one wire ---------------------------------------------------------------------------------------- */
+.journey { padding-top: var(--s-16); }
+.journey__title { font-size: var(--text-2xl); line-height: var(--lh-2xl); letter-spacing: var(--track-title); }
+.journey__route { position: relative; margin-top: var(--s-8); }
+.journey__wire { position: absolute; left: calc(50% - 50vw); top: 168px; width: 100vw; max-width: none; height: 24px; overflow: visible; }
+.lp-edge--route { stroke-width: 9; vector-effect: non-scaling-stroke; }
+.lp-core--route { stroke-width: 4.6; vector-effect: non-scaling-stroke; }
+.journey__stations { position: relative; display: grid; grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr)); list-style: none; }
+.station { position: relative; display: grid; justify-items: center; align-content: start; text-align: center; }
+.station__art { width: min(200px, 100%); height: auto; aspect-ratio: 1; overflow: visible; }
+.station__unit { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-3); font-size: var(--text-md); line-height: var(--lh-md); font-weight: var(--weight-strong); }
+.station__n {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: var(--border-1) solid currentColor;
+  font-size: var(--text-xs);
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.station__what { color: var(--ink-2); font-family: var(--font-hand); font-size: var(--text-lg); line-height: var(--lh-md); }
+.station--you .station__n { background: var(--blue); border-color: var(--blue); color: var(--paper); }
+.station--you .station__what { color: var(--blue); }
+.station__here { position: absolute; left: -40px; top: -12px; color: var(--blue); font-family: var(--font-hand); font-size: var(--text-lg); line-height: var(--lh-md); white-space: nowrap; }
+.station__here .mark { position: absolute; right: -44px; top: 16px; width: 44px; height: 36px; }
+
+/* The page turn: pressing the switch turns this page over, onto the lesson. Never under reduced motion. */
+:root[data-turning] body { overflow: hidden; perspective: 2400px; perspective-origin: 50% 40vh; }
+:root[data-turning] .leaf {
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(to bottom, var(--grid) var(--border-1), transparent var(--border-1)),
+    linear-gradient(to right, var(--grid) var(--border-1), transparent var(--border-1));
+  background-size: var(--cell) var(--cell);
+  background-position: calc(50vw - var(--page-w) / 2 + var(--margin-col)) 0;
+  box-shadow: var(--slip-shadow-lift);
+  transform-origin: 0 50%;
+  backface-visibility: hidden;
+  animation: leaf-turn var(--dur-turn) var(--ease-in-out) forwards;
+}
+:root[data-turning] .bottom-nav, :root[data-turning] .toasts { opacity: 0; transition: opacity var(--dur-ui) var(--ease-out); }
+@keyframes leaf-turn { from { transform: rotateY(0deg); } to { transform: rotateY(-94deg); } }
+
+@media (max-width: 1100px) and (min-width: 721px) {
+  .station__here { display: none; }
+  .journey__wire { top: calc(50% - 64px); }
+}
+
+@media (max-width: 720px) {
+  .hero__stage { width: 100%; aspect-ratio: 390 / 760; }
+  .hero__art--wide { display: none; }
+  .hero__art--narrow { display: block; }
+  .hero__copy { top: 30.5%; gap: 4.1cqw; padding: 0 12cqw; }
+  .hero__copy h1 { font-size: 17.4cqw; }
+  .hero__copy p { max-width: none; font-size: 4.62cqw; line-height: 1.5; }
+  .hero__switch { left: 56.4%; top: 73.68%; width: 56cqw; min-height: 48px; font-size: 4.36cqw; }
+  .hero__switch svg { display: none; }
+  .hero__robot { left: 82.56%; top: 82.6%; width: 12.3cqw; }
+  :root[data-turning] .leaf { background-position: 0 0; }
+
+  .journey { padding-top: var(--s-12); }
+  .journey__title { font-size: var(--text-xl); line-height: var(--lh-xl); }
+  .journey__wire, .station__here, .lp-deco { display: none; }
+  .journey__stations { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .journey__stations::before {
+    content: "";
+    position: absolute;
+    left: 45px;
+    top: 48px;
+    bottom: 48px;
+    width: 5px;
+    background: var(--sk-wire-red);
+    box-shadow: 0 0 0 var(--border-2) var(--ink);
+  }
+  .station { grid-template-columns: 96px minmax(0, 1fr); grid-template-rows: auto auto; justify-items: start; align-items: center; column-gap: var(--s-4); padding: var(--s-2) 0; text-align: left; }
+  .station__art { grid-row: 1 / 3; width: 96px; background: var(--paper); border-radius: var(--radius-round); }
+  .station__unit { margin-top: 0; align-self: end; }
+  .station__what { align-self: start; }
+}

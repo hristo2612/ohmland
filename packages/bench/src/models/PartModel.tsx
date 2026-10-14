@@ -13,6 +13,9 @@ import { PushbuttonModel, SlideSwitchModel, ToggleSwitchModel } from "./Switches
 import { ButtonBlock, DpdtBlock, KnobBlock, RelayBlock, SlideBlock } from "./Blocks";
 import { TouchPadsModel } from "./Props";
 import { AdapterModel, BraidModel, ClipModel, GunModel, JackModel, PerfboardModel, PlanCardModel, SolderStationModel, SpoolModel, StripperModel, TubeModel, solderFlying } from "./Solder";
+import { AaCutawayModel, BalloonModel, BoxModel, CombModel, DrawerModel, EverydayModel, GateModel, PaperBitsModel, PieceModel, ScarfModel, SchematicModel, TrayModel, WallModel } from "./StartProps";
+import { McuBoardModel } from "./McuBoard";
+import { ChipModel, DipSwitchModel, LogicProbeModel, PackModel, RegulatorModel, SevenSegModel, SocketModel, SupplyModel, packExits, probeExits } from "./Chips";
 import type { Mount } from "./common";
 
 export type PartModelProps<K extends BenchPartKind = BenchPartKind> = {
@@ -27,6 +30,12 @@ export type PartModelProps<K extends BenchPartKind = BenchPartKind> = {
   held?: boolean;
   /** Simulated minutes since the lab started (the desk clock). */
   minutes?: number;
+  /** The part's id (a gate reads its count from the bench store by it). */
+  id?: string;
+  /** Lying on top of the board because it will not seat (a surface mount chip). */
+  perched?: boolean;
+  /** The logic probe's tip is in a hole (the pen leans back from it). */
+  probing?: boolean;
 };
 
 /** Renders any bench part in its local frame. See `Mount` for what the origin means. */
@@ -43,6 +52,7 @@ export function PartModel(props: PartModelProps) {
     case "phototransistor":
       return <PhototransistorModel {...p} />;
     case "battery":
+      if ((props.params as { size?: string; xray?: boolean }).size === "aa" && (props.params as { xray?: boolean }).xray) return <AaCutawayModel />;
       return <BatteryModel {...p} />;
     case "ceramic-cap":
       return <CeramicCapModel {...p} />;
@@ -86,14 +96,21 @@ export function PartModel(props: PartModelProps) {
       return <ElectrodeModel {...p} held={props.held} />;
     case "skin":
       return <SkinModel {...p} />;
-    case "sample":
+    case "sample": {
+      const m = (props.params as { material: string }).material;
+      if (m !== "copper" && m !== "plastic") return <EverydayModel material={m as never} quality={props.quality} />;
       return <SampleModel {...p} />;
+    }
     case "card":
       return <CardModel {...p} />;
     case "tag":
       return <TagModel {...p} />;
-    case "bin":
+    case "bin": {
+      const b = props.params as { style?: string; face?: never; label?: string };
+      if (b.style === "tray") return <TrayModel label={b.label ?? ""} />;
+      if (b.style === "drawer") return <DrawerModel face={b.face} label={b.label ?? ""} />;
       return <BinModel {...p} />;
+    }
     case "chart":
       return <ChartModel />;
     case "clock":
@@ -125,6 +142,42 @@ export function PartModel(props: PartModelProps) {
       return <JackModel {...p} />;
     case "wall-adapter":
       return <AdapterModel {...p} />;
+    case "gate":
+      return <GateModel id={props.id ?? ""} params={props.params as never} />;
+    case "box":
+      return <BoxModel params={props.params as never} />;
+    case "schematic":
+      return <SchematicModel params={props.params as never} />;
+    case "piece":
+      return <PieceModel params={props.params as never} />;
+    case "balloon":
+      return <BalloonModel params={props.params as never} id={props.id} />;
+    case "scarf":
+      return <ScarfModel params={props.params as never} />;
+    case "paper":
+      return <PaperBitsModel id={props.id} />;
+    case "comb":
+      return <CombModel params={props.params as never} />;
+    case "wall":
+      return <WallModel />;
+    case "mcu-board":
+      return <McuBoardModel {...p} />;
+    case "chip":
+      return <ChipModel {...p} held={props.held} perched={props.perched} />;
+    case "sevenseg":
+      return <SevenSegModel {...p} />;
+    case "regulator7805":
+      return <RegulatorModel {...p} />;
+    case "ic-socket":
+      return <SocketModel {...p} />;
+    case "dip-switch":
+      return <DipSwitchModel {...p} />;
+    case "logic-probe":
+      return <LogicProbeModel {...p} probing={props.probing} />;
+    case "battery-pack":
+      return <PackModel {...p} />;
+    case "bench-supply":
+      return <SupplyModel {...p} />;
   }
 }
 
@@ -132,7 +185,17 @@ export function PartModel(props: PartModelProps) {
 export function flyingLeads(
   kind: BenchPartKind,
   params: Record<string, unknown>,
+  /** The logic probe's tip is in a hole (its leads leave the raised tail). */
+  probing = false,
 ): Record<string, { pos: Vec3; dir: Vec3; color: string; radius: number; length: number }> | null {
+  if (kind === "logic-probe") {
+    const ex = probeExits(probing);
+    return { vcc: { ...ex.vcc, color: "red", radius: 0.6, length: 220 }, gnd: { ...ex.gnd, color: "black", radius: 0.6, length: 220 } };
+  }
+  if (kind === "battery-pack") {
+    const ex = packExits((params.cells as number) ?? 3);
+    return { pos: { ...ex.pos, color: "red", radius: 0.6, length: 170 }, neg: { ...ex.neg, color: "black", radius: 0.6, length: 170 } };
+  }
   if (kind === "battery" && params.snap) {
     return {
       pos: { ...SNAP_EXITS.pos, color: "red", radius: 0.65, length: 160 },

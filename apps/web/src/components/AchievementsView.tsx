@@ -1,14 +1,14 @@
 import type { CourseOutline } from "../content/outline";
 import { m } from "../i18n";
-import { MascotSay } from "./MascotSay";
 import { PartIcon } from "../parts/PartIcon";
 import type { PartIconKind } from "../parts/kinds";
 import { ACHIEVEMENTS } from "../progress/achievements";
-import { useLearner, useLearnerReady } from "../progress/useLearner";
-import { Badge } from "./Badge";
+import { useDerived, useLearner, useLearnerReady } from "../progress/useLearner";
 import { Button } from "./Button";
-import { Icon } from "./Icon";
+import { MascotSay } from "./MascotSay";
+import { ProgressBar } from "./ProgressBar";
 import { Skeleton } from "./Skeleton";
+import { Stamp } from "./Stamp";
 import "./achievements.css";
 
 const FRIED_ICON: Record<string, PartIconKind> = {
@@ -29,8 +29,27 @@ const FRIED_ICON: Record<string, PartIconKind> = {
   pushbutton: "pushbutton",
   multimeter: "multimeter",
 };
+/** Stamps and taped parts sit a little crooked, the way a hand puts them down. */
+const TILTS = [-6, 4, -2, 7, -5, 3, -8, 5];
 
-/** The achievements grid. */
+/** Your level, in one line: the level, the XP in blue, the way to the next. */
+export function LevelLine({ outline }: { outline: CourseOutline }) {
+  const ready = useLearnerReady(outline);
+  const { level } = useDerived(outline);
+  if (!ready) return <Skeleton height={56} className="level-line" />;
+  return (
+    <div className="level-line">
+      <p className="level-line__top">
+        <span className="level-line__name">{m.finale.level(level.level, level.title)}</span>
+        <span className="level-line__xp">{m.common.xp(level.xp)}</span>
+      </p>
+      <ProgressBar value={level.ratio} label={m.level.long(level.level)} valueText={`${level.into} / ${level.span} XP`} />
+      <p className="small muted">{m.level.toNext(level.next - level.xp)}</p>
+    </div>
+  );
+}
+
+/** The achievements: a page of rubber stamps, pressed in red once earned, a dashed ring while still waiting. */
 export function AchievementGrid({ outline }: { outline: CourseOutline }) {
   const ready = useLearnerReady(outline);
   const unlocked = useLearner((s) => s.learner.achievements);
@@ -39,32 +58,26 @@ export function AchievementGrid({ outline }: { outline: CourseOutline }) {
     <section className="ach" aria-labelledby="ach-title">
       <div className="ach__head">
         <h2 id="ach-title">{m.achievements.gridTitle}</h2>
-        <p className="small muted tabular">{ready ? m.achievements.unlockedCount(count, ACHIEVEMENTS.length) : " "}</p>
+        <p className="small muted">{ready ? m.achievements.unlockedCount(count, ACHIEVEMENTS.length) : " "}</p>
       </div>
-      <ul className="ach__grid">
-        {ACHIEVEMENTS.map((a) => {
+      <ul className="stamps">
+        {ACHIEVEMENTS.map((a, i) => {
           const got = ready ? unlocked[a.id] : undefined;
           const secret = a.hidden && !got;
           return (
-            <li key={a.id} className="ach-card" data-state={got ? "unlocked" : "locked"}>
-              <span className="ach-card__icon" aria-hidden="true">
-                <Icon name={secret ? "lock" : a.icon} size={26} />
-              </span>
-              <div className="ach-card__text">
-                <h3 className="ach-card__title">{secret ? m.achievements.hiddenTitle : a.title}</h3>
-                <p className="small muted">{secret ? m.achievements.hiddenBody : a.description}</p>
-                <p className="ach-card__meta small">
-                  {got ? (
-                    <span className="ach-card__date">
-                      <Icon name="check-circle" size={16} />
-                      {m.achievements.unlockedOn(m.common.date(got.at))}
-                    </span>
-                  ) : (
-                    <span className="muted">{m.achievements.locked}</span>
-                  )}
-                  <Badge tone={got ? "accent" : "outline"}>{m.common.plusXp(a.xp)}</Badge>
-                </p>
-              </div>
+            <li key={a.id} className="stamps__item" data-state={got ? "earned" : "todo"}>
+              <Stamp
+                icon={secret ? "lock" : a.icon}
+                state={got ? "earned" : "todo"}
+                ring={got ? m.achievements.stampRing(m.common.date(got.at)) : undefined}
+                tilt={got ? TILTS[i % TILTS.length] : 0}
+                size={96}
+              />
+              <h3 className="stamps__title">
+                {secret ? m.achievements.hiddenTitle : a.title}
+                <span className="sr-only">, {got ? m.achievements.unlockedOn(m.common.date(got.at)) : m.achievements.locked}</span>
+              </h3>
+              {!got && <p className="stamps__how">{secret ? m.achievements.hiddenBody : a.description}</p>}
             </li>
           );
         })}
@@ -73,52 +86,44 @@ export function AchievementGrid({ outline }: { outline: CourseOutline }) {
   );
 }
 
-/** The Hall of Fried Parts: a shelf of burned-out parts, newest first, each with a little plaque. */
+/** The Hall of Fried Parts: every part you burned out, taped into the notebook with its date and where it happened. */
 export function HallOfFriedParts({ outline, firstLabHref }: { outline: CourseOutline; firstLabHref: string }) {
   const ready = useLearnerReady(outline);
   const fried = useLearner((s) => s.learner.fried);
   const list = [...fried].reverse();
   return (
     <section className="hall" aria-labelledby="hall-title">
-      <div className="hall__head">
-        <div>
-          <h2 id="hall-title">{m.achievements.hall.title}</h2>
-          <p className="muted">{m.achievements.hall.lead}</p>
-        </div>
-        {ready && list.length > 0 && <Badge tone="solid" icon="flame">{m.achievements.hall.count(list.length)}</Badge>}
+      <div className="ach__head">
+        <h2 id="hall-title">{m.achievements.hall.title}</h2>
+        {ready && list.length > 0 && <p className="small muted">{m.achievements.hall.count(list.length)}</p>}
       </div>
       {!ready ? (
         <Skeleton height={220} />
       ) : list.length === 0 ? (
-        <div className="empty hall__empty">
+        <div className="hall__empty">
           <MascotSay pose="oops" size={96}>
             {m.achievements.hall.emptyBody}
           </MascotSay>
-          <h3>{m.achievements.hall.emptyTitle}</h3>
-          <Button href={firstLabHref} variant="secondary" icon="flame">
+          <Button href={firstLabHref} variant="secondary">
             {m.achievements.hall.emptyCta}
           </Button>
         </div>
       ) : (
-        <div className="shelf">
-          <ul className="shelf__row">
-            {list.map((f, i) => {
-              const lesson = f.lessonId ? outline.lessons[f.lessonId] : undefined;
-              return (
-                <li key={`${f.kind}-${f.at}`} className="shelf__item" style={{ ["--i" as string]: i % 7 }}>
-                  <span className="shelf__part">
-                    <PartIcon kind={FRIED_ICON[f.kind] ?? "resistor"} size={72} state="burned" />
-                  </span>
-                  <span className="shelf__plaque">
-                    <span className="shelf__label">{f.label}</span>
-                    <span className="shelf__date mono">{m.common.date(f.at)}</span>
-                    <span className="shelf__where">{lesson ? m.achievements.hall.inLesson(lesson.title) : m.achievements.hall.inSandbox}</span>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <ul className="taped">
+          {list.map((f, i) => {
+            const lesson = f.lessonId ? outline.lessons[f.lessonId] : undefined;
+            return (
+              <li key={`${f.kind}-${f.at}`} className="taped__item" style={{ ["--tilt" as string]: `${TILTS[i % TILTS.length]! / 4}deg` }}>
+                <span className="tape" aria-hidden="true" />
+                <PartIcon kind={FRIED_ICON[f.kind] ?? "resistor"} size={72} state="burned" />
+                <span className="taped__label">{f.label}</span>
+                <span className="taped__where">
+                  {m.common.date(f.at)} · {lesson ? m.achievements.hall.inLesson(lesson.title) : m.achievements.hall.inSandbox}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </section>
   );

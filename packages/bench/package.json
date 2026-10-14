@@ -16,7 +16,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "shots": "playwright test -c e2e/playwright.config.ts",
     "shots:ink": "playwright test -c e2e/ink.config.ts",
-    "shots:solder": "playwright test -c e2e/solder.config.ts"
+    "shots:solder": "playwright test -c e2e/solder.config.ts",
+    "shots:mcu": "playwright test -c e2e/mcu.config.ts"
   },
   "dependencies": {
     "@ohmland/sim": "workspace:*",

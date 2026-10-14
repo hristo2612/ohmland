@@ -1,12 +1,11 @@
 /**
- * The /isle page: the learner's island, full screen. The page shows at once with a sky and a loading line; the island
+ * The /isle page: the learner's island, full screen on the notebook's own paper. The page shows at once with a loading line; the island
  * code (and three.js) loads after hydration. Drag to turn, pinch or scroll to zoom, tap a piece for its label. A new
  * learner sees the bare starting plot and the way to their first lesson.
  */
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { IsleLabel, IsleView } from "@ohmland/isle";
 import { Button } from "../components/Button";
-import { Icon } from "../components/Icon";
 import { IconButton } from "../components/IconButton";
 import { IsleArt } from "../components/IsleArt";
 import type { CourseOutline } from "../content/outline";
@@ -15,7 +14,7 @@ import { resumeTarget } from "../progress/derive";
 import { prefersReducedMotion } from "../progress/prefs";
 import { useLearner, useLearnerReady } from "../progress/useLearner";
 import { completedModules } from "../progress/xp";
-import { timeOption } from "./env";
+import { onThemeChange, pageTime } from "./env";
 import { loadIsle } from "./load";
 import type { IsleEntry } from "./runtime";
 import "./isle-page.css";
@@ -69,7 +68,9 @@ export default function IslePage({ outline }: { outline: CourseOutline }) {
           reducedMotion: prefersReducedMotion(),
           messages,
           onPick: setLabel,
-          ...timeOption(),
+          // the page's own grid paper shows through, and night follows the page's theme
+          paper: "clear",
+          time: pageTime(),
         });
         if (cancelled) {
           v.dispose();
@@ -78,8 +79,10 @@ export default function IslePage({ outline }: { outline: CourseOutline }) {
         view.current = v;
         shownKey.current = `${seed}:${events.length}`;
         const stopPausing = rt.pauseWhenHidden(v);
+        const stopTheme = onThemeChange(() => v.setTime(pageTime()));
         cleanup = () => {
           stopPausing();
+          stopTheme();
           v.dispose();
           view.current = null;
         };
@@ -143,21 +146,10 @@ export default function IslePage({ outline }: { outline: CourseOutline }) {
     <div className="isle-screen" data-status={status}>
       <header className="isle-bar">
         <div className="isle-bar__group isle-bar__group--title">
-          <IconButton label={m.isle.close} icon="close" href="/learn" variant="outline" />
+          <IconButton label={m.isle.close} icon="arrow-left" href="/learn" />
           <div className="isle-bar__title">
             <h1>{m.isle.title}</h1>
-            {ready && !empty && (
-              <p className="isle-bar__counts">
-                <span>
-                  <Icon name="isle" size={14} />
-                  {m.isle.lessons(lessons)}
-                </span>
-                <span>
-                  <Icon name="landmark" size={14} />
-                  {m.isle.modules(modules)}
-                </span>
-              </p>
-            )}
+            {ready && !empty && <p className="isle-bar__counts">{m.isle.cardCounts(lessons, modules)}</p>}
           </div>
         </div>
         <div className="isle-bar__group isle-bar__tools">
@@ -179,7 +171,6 @@ export default function IslePage({ outline }: { outline: CourseOutline }) {
 
         {status === "loading" && (
           <p className="isle-stage__loading" role="status">
-            <span className="isle-spinner" aria-hidden="true" />
             {m.isle.loading}
           </p>
         )}

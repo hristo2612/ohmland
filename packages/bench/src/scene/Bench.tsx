@@ -10,14 +10,14 @@ import { LabelsContext, mergeLabels } from "../labels";
 import { anchorPosition, benchBounds, fitCamera, workCenter } from "../layout";
 import { connectivity } from "../netlist";
 import { BenchStoreContext, createBenchStore, useBench, type BenchStore } from "../store";
-import { heldOf } from "../seats";
+import { heldOf, hiddenParts } from "../seats";
 import type { BenchAction, BenchState, PlacedPart, Quality, Vec3 } from "../types";
 import { Breadboard, XRAY_HEX } from "../models/Breadboard";
 import { RoomLight } from "../models/common";
 import { JumperWire } from "../models/Leads";
 import { installPaperTone, paperizeScene, type PaperPalette } from "../three/paper";
 import { Spotlight } from "../three/post";
-import type { BenchController, ScreenPoint } from "../view/controller";
+import type { BenchController, FocusOptions, Inset, ScreenPoint } from "../view/controller";
 import type { BenchRendererProps } from "../view/types";
 import { Desk, StudioEnvironment, StudioLights } from "./Studio";
 import { useInteraction, handleBenchKey, type InteractionApi } from "./Interaction";
@@ -31,6 +31,7 @@ import { SolderOverlay, type SolderViewApi } from "../solder/overlay/SolderOverl
 import { IronModel, ScorchMarks } from "../models/Solder";
 import { perfMount } from "../solder/perfboard";
 import { LeadView, MeterView, PartView, TargetMarker, WireView, makeFloor, snapshotKey } from "./views";
+import { BoxWires3D, Overlays3D } from "./Overlays3D";
 
 export type BenchProps = BenchRendererProps & {
   /** Initial camera. Defaults to a framing of the work area. */
@@ -60,10 +61,14 @@ export function Bench(props: BenchProps) {
   const [store] = useState(() => props.store ?? createBenchStore(props.initial));
   const labels = useMemo(() => mergeLabels(props.labels), [props.labels]);
   const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const elementRef = useRef<HTMLDivElement | null>(null);
+  elementRef.current = element;
   const palette = useReadPalette(element, props.theme);
   const api = useRef<InteractionApi | null>(null);
   const view = useRef<ViewApi | null>(null);
   const viewPad = useRef({ left: 0, bottom: 0 });
+  /** The part of the view a docked panel covers (focus's `inset`): framing keeps clear of it. */
+  const inset = useRef<Required<Inset>>({ top: 0, right: 0, bottom: 0, left: 0 });
   const onAction = useRef(props.onAction);
   const onChange = useRef(props.onChange);
   onAction.current = props.onAction;
@@ -81,17 +86,30 @@ export function Bench(props: BenchProps) {
       }
     }
   }, [listeners]);
-  const pendingFocus = useRef<{ targets: string[]; opts?: { padding?: number; instant?: boolean } } | null>(null);
+  const pendingFocus = useRef<{ targets: string[]; opts?: FocusOptions } | null>(null);
 
   const controller = useMemo<Bench3DController>(
     () => ({
       project: (t) => view.current?.project(t) ?? null,
-      projectClient: (t) => api.current?.project(t as string) ?? null,
+      // Any target (a part, a mark, an anchor) in page coordinates, as the ink view's projectClient gives it.
+      projectClient: (t) => {
+        const p = typeof t === "string" ? view.current?.project(t) : null;
+        if (p && elementRef.current) {
+          const r = elementRef.current.getBoundingClientRect();
+          return { x: p.x + r.left, y: p.y + r.top };
+        }
+        return api.current?.project(t as string) ?? null;
+      },
       onViewChange: (cb) => {
         listeners.add(cb);
         return () => listeners.delete(cb);
       },
       focus: (targets, opts) => {
+        const i = opts?.inset ?? {};
+        inset.current = { top: i.top ?? 0, right: i.right ?? 0, bottom: i.bottom ?? 0, left: i.left ?? 0 };
+        // The selection bar keeps clear of a docked panel too (Overlay.tsx reads these).
+        elementRef.current?.style.setProperty("--ohb-inset-bottom", `${inset.current.bottom}px`);
+        elementRef.current?.style.setProperty("--ohb-inset-right", `${inset.current.right}px`);
         if (view.current) view.current.focus(targets, opts);
         else pendingFocus.current = { targets: [...targets], opts };
       },
@@ -202,6 +220,7 @@ export function Bench(props: BenchProps) {
                 camera={props.camera}
                 onReady={props.onReady}
                 viewPad={viewPad}
+                inset={inset}
                 palette={palette}
                 margin={props.margin ?? true}
                 spotTargets={spotTargets}
@@ -381,6 +400,7 @@ function BenchScene({
   camera,
   onReady,
   viewPad,
+  inset,
   palette,
   margin,
   spotTargets,
@@ -389,6 +409,7 @@ function BenchScene({
   pendingFocus,
 }: {
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
+  inset: React.MutableRefObject<Required<Inset>>;
   store: BenchStore;
   element: HTMLElement | null;
   api: React.MutableRefObject<InteractionApi | null>;
@@ -404,7 +425,7 @@ function BenchScene({
   spotTargets: string[] | null;
   setSpotTargets: (t: string[] | null) => void;
   notify: () => void;
-  pendingFocus: React.MutableRefObject<{ targets: string[]; opts?: { padding?: number; instant?: boolean } } | null>;
+  pendingFocus: React.MutableRefObject<{ targets: string[]; opts?: FocusOptions } | null>;
 }) {
   const bench = useBench((s) => s.bench);
   const ui = useBench((s) => s.ui);
@@ -475,6 +496,20 @@ function BenchScene({
   }, [ui.hover, conn, bench.board]);
 
   const hl = useMemo(() => new Set(highlight ?? []), [highlight]);
+  // Parts shut in a box are not drawn; gates on a lead ride that lead's cable.
+  const hidden = useMemo(() => hiddenParts(bench), [bench]);
+  const gatesOn = useMemo(() => {
+    const out = new Map<string, PlacedPart[]>();
+    for (const p of bench.parts) {
+      if (p.kind !== "gate" || !p.params.on || !bench.leads.some((l) => l.id === p.params.on)) continue;
+      const list = out.get(p.params.on) ?? [];
+      list.push(p);
+      out.set(p.params.on, list);
+    }
+    return out;
+  }, [bench]);
+  const riding = useMemo(() => new Set([...gatesOn.values()].flat().map((p) => p.id)), [gatesOn]);
+  const selectedPart = ui.selection?.type === "part" ? ui.selection.id : null;
   // Parts sitting in holders take their pose from the holder.
   const holders = useMemo(() => {
     const out = new Map<string, PlacedPart>();
@@ -517,12 +552,12 @@ function BenchScene({
       <SoftShadows areas={shadowAreas} version={changed} palette={palette} />
       <PaperUpkeep version={changed} dark={palette.dark} shadows={quality === "high"} />
       <CameraRig center={center} initial={camera} bench={bench} viewPad={viewPad} />
-      <ViewRig store={store} apiRef={view} viewPad={viewPad} setSpotTargets={setSpotTargets} initialCamera={!!camera} onChange={notify} pendingFocus={pendingFocus} />
+      <ViewRig store={store} apiRef={view} viewPad={viewPad} inset={inset} setSpotTargets={setSpotTargets} initialCamera={!!camera} onChange={notify} pendingFocus={pendingFocus} />
       <SpotlightRig store={store} targets={spotTargets} spot={spot} palette={palette} />
       <ReadySignal onReady={onReady} />
       <RoomLight.Provider value={ambient}>
       {bench.board && <Breadboard spec={bench.board} xray={ui.xray} litStrips={xr?.strips} litHoles={xr?.holes} />}
-      {bench.parts.map((p) => (
+      {bench.parts.filter((p) => !hidden.has(p.id) && !riding.has(p.id)).map((p) => (
         <PartView
           key={p.id}
           part={p}
@@ -548,8 +583,13 @@ function BenchScene({
           hinted={hl.has(l.id)}
           open={{ a: leadOpen(l.id), b: leadOpen(l.id) }}
           floor={floor}
+          gates={gatesOn.get(l.id)}
+          selectedPart={selectedPart}
+          hintedParts={hl}
         />
       ))}
+      <BoxWires3D bench={bench} />
+      <Overlays3D bench={bench} store={store} floor={floor} />
       {bench.meter && <MeterView meter={bench.meter} bench={bench} selected={ui.selection?.type === "meter"} floor={floor} />}
       {hasStation && <IronModel bench={bench} />}
       {hasStation && <ScorchMarks />}

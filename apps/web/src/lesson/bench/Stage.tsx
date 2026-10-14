@@ -8,15 +8,15 @@
  */
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useStore } from "zustand";
-import { boardGeometry, trayLeft } from "@ohmland/bench/core";
-import type { LabDefinition, LabTask } from "../../lab/define";
+import { boardGeometry, trayLeft, type BenchState } from "@ohmland/bench/core";
+import { isOptional, type LabDefinition, type LabTask, type SolutionStep } from "../../lab/define";
 import { m } from "../../i18n";
 import { useLearner } from "../../progress/store";
 import { prefersReducedMotion } from "../../progress/prefs";
 import { LabAudio } from "../../lab/audio";
-import { buildBench } from "../../lab/build";
+import { buildBench, type SimInput } from "../../lab/build";
 import { BenchSurfaceChunk, type BenchController, type BenchViewKind } from "../../lab/bench-view";
-import { ConnectionsPanel, ControlsPanel, MeterPanel, ScopePanel } from "../../lab/instruments";
+import { ConnectionsPanel, ControlsPanel, MeterPanel, ScopePanel, ViewsPanel } from "../../lab/instruments";
 import { LabPanels } from "../../lab/panels-ui";
 import { LoggerPanel, StopwatchPanel, TapperPanel } from "../../lab/timing";
 import { friedLabel } from "../../lab/labels";
@@ -25,6 +25,7 @@ import { takeSim } from "../../lab/prefetch";
 import { pickQuality } from "../../lab/quality";
 import { LabRuntime, type FriedCard } from "../../lab/runtime";
 import { applyStep } from "../../lab/steps";
+import { resolveAttach } from "../../lab/anchors";
 import { Annotations, useSize, useViewTick } from "./Annotations";
 import { holeName } from "./flow";
 import { allHoles, resolveAnchor, type Mark } from "./marks";
@@ -43,6 +44,8 @@ export type StageApi = {
   task(id: string): LabTask | undefined;
   /** Puts the bench where this task starts (the solution's state at the previous check) and applies its setup. */
   applySetup(taskId: string): void;
+  /** Applies bench steps on top of the bench as it is now (a check's `then`), the way a setup's are applied. */
+  applySteps(steps: readonly SolutionStep[]): void;
   showMe(taskId: string): void;
   skip(taskIds: string[]): void;
   replace(card: FriedCard): void;
@@ -54,6 +57,8 @@ export type StageApi = {
   holeFor(text: string): string | null;
   /** Lets go of whatever the bench has selected (a new beat starts clean). */
   calm(): void;
+  /** Runs the loop tracer from a terminal (lab shorthand, "B1.neg"), or clears its ink with null. */
+  trace(from: string | null): void;
 };
 
 export type StageProps = {
@@ -79,8 +84,8 @@ export type StageProps = {
   marks: Mark[];
   check: StageCheck;
   popup: Popup | null;
-  /** The one instrument or panel the beat needs ("meter", "scope", "logger", "stopwatch", "tapper", "controls" or a
-   * lab panel id). Null: the panel the lab ties to the current task, if any. */
+  /** The one instrument or panel the beat needs ("meter", "scope", "logger", "stopwatch", "tapper", "controls", "views"
+   * or a lab panel id). Null: the panel the lab ties to the current task, if any. */
   tool: string | null;
   keyboardOpen: boolean;
   onApi(api: StageApi | null): void;
@@ -151,10 +156,14 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   gate.current = { task: props.gate, secret: props.secret };
 
   // The lab as the lesson runs it: a task's goal only counts while the lesson waits for it (or it is the secret).
+  // A bonus task that fires an achievement trigger stays armed the whole lesson, so a clean run can still earn it.
   const gated = useMemo<LabDefinition>(
     () => ({
       ...lab,
-      tasks: lab.tasks.map((t) => ({ ...t, goal: (v) => (t.id === gate.current.task || t.id === gate.current.secret) && t.goal(v) })),
+      tasks: lab.tasks.map((t) => {
+        const always = isOptional(t) && !!t.trigger;
+        return { ...t, goal: (v) => (always || t.id === gate.current.task || t.id === gate.current.secret) && t.goal(v) };
+      }),
     }),
     [lab],
   );
@@ -238,8 +247,35 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
 
   const controllerRef = useRef<BenchController | null>(null);
 
-  const api = useMemo<StageApi>(
-    () => ({
+  const api = useMemo<StageApi>(() => {
+    /**
+     * Puts `base` with `steps` applied on the bench (a task's setup, a check's `then`): their inputs after `before`, so
+     * they win; their views and overlays (flow dots, push, x-ray) and controls (time back to normal speed); the loop
+     * tracer last, on the bench as it now is. A setup starts the circuit fresh; a check's steps carry on from the bench
+     * as it is (a charged capacitor stays charged). Neither can be undone.
+     */
+    const loadSteps = (base: BenchState, steps: readonly SolutionStep[], before: SimInput[], fresh: boolean) => {
+      let b = base;
+      const inputs = [...before];
+      const views: { name: "flow" | "electrons" | "push" | "xray"; on: boolean }[] = [];
+      const controls: { id: string; value: number }[] = [];
+      let trace: string | null | undefined;
+      for (const step of steps) {
+        const e = applyStep(b, step);
+        b = e.bench;
+        for (const { after: _after, ...i } of e.inputs) inputs.push(i);
+        if (e.view) views.push(e.view);
+        if (e.control) controls.push(e.control);
+        if (e.trace !== undefined) trace = e.trace;
+      }
+      if (fresh) runtime.loadBench(b);
+      else runtime.store.getState().load(b);
+      for (const i of inputs) runtime.setInput(i.id, i.key, i.value);
+      for (const c of controls) runtime.setControl(c.id, c.value);
+      for (const v of views) runtime.setView(v.name, v.on);
+      if (trace !== undefined) runtime.trace(trace);
+    };
+    return {
       lab,
       runtime,
       task: (id) => lab.tasks.find((t) => t.id === id),
@@ -247,10 +283,11 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         const task = lab.tasks.find((t) => t.id === taskId);
         if (!task?.setup?.length) return;
         const start = runtime.checkpoint(taskId);
-        let b = start?.bench ?? runtime.store.getState().bench;
-        for (const step of task.setup) b = applyStep(b, step).bench;
-        runtime.loadBench(b);
-        for (const i of start?.inputs ?? []) runtime.setInput(i.id, i.key, i.value);
+        // The setup's own inputs (a meter's mode or range, a switch) go after the checkpoint's, so they win.
+        loadSteps(start?.bench ?? runtime.store.getState().bench, task.setup, start?.inputs ?? [], true);
+      },
+      applySteps(steps) {
+        if (steps.length) loadSteps(runtime.store.getState().bench, steps, [], false);
       },
       showMe(taskId) {
         void runtime.showMe(taskId);
@@ -267,14 +304,20 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         const [kind, rest = ""] = raw.split(":") as [string, string?];
         if (kind === "hole") return holeName(rest);
         const [id = "", leg] = rest.split(".");
-        const name = built.labels[id] ?? b.parts.find((p) => p.id === id)?.kind ?? id;
-        if (kind === "part") return name;
-        const legName = leg ? (m.lessonBench.legs[leg] ?? leg) : "";
+        const [partId = "", mark] = id.split("/");
+        const name = built.labels[partId] ?? b.parts.find((p) => p.id === partId)?.kind ?? partId;
+        if (kind === "part") return mark ? `${name}: ${markNameOf(b, partId, mark)}` : name;
+        const legName = leg ? legNameOf(b, id, leg) : "";
         return legName ? `${name}: ${legName}` : name;
       },
       calm() {
         const st = runtime.store.getState();
         if (st.ui.selection || st.ui.menu) st.setUi({ selection: null, menu: null });
+      },
+      trace(from) {
+        if (from === null) return runtime.trace(null);
+        const a = resolveAttach(runtime.store.getState().bench, from);
+        if (a) runtime.trace(a);
       },
       nameOf(anchor) {
         const b = runtime.store.getState().bench;
@@ -282,7 +325,9 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         const [kind, rest = ""] = raw.split(":") as [string, string?];
         if (kind === "hole") return holeName(rest);
         const [id = "", leg] = rest.split(".");
-        if (leg) return m.lessonBench.legs[leg] ?? leg;
+        if (leg) return legNameOf(b, id, leg);
+        const [partId = "", mark] = id.split("/");
+        if (mark) return markNameOf(b, partId, mark);
         return (built.labels[id] ?? id).toLowerCase();
       },
       holeFor(text) {
@@ -293,9 +338,8 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
         const id = rail ? `${rail[1] === "+" ? "bp" : "bn"}${rail[2]}` : t;
         return boardGeometry(b.board).holes.has(id) ? id : null;
       },
-    }),
-    [lab, runtime, built],
-  );
+    };
+  }, [lab, runtime, built]);
   useEffect(() => {
     cb.current.onApi(api);
     return () => cb.current.onApi(null);
@@ -317,23 +361,40 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const readOnly = props.readOnly || !!ui.showing;
 
-  // Frame and spotlight the parts in play (a whole-bench view when none are named). On a phone the bench is small, so
-  // a beat about one part brings that part close.
+  // Frame and spotlight the parts in play (a whole-bench view when none are named), in the part of the bench the
+  // docked tool leaves free. On a phone the bench is small, so a beat about one part brings that part close.
   const spotKey = (props.spot ?? []).join(",");
   const frameKey = (props.frame ?? []).join(",");
+  const tool = props.tool ?? defaultTool(lab, props.gate);
+  // The docked tool's size: when it comes, goes or changes size the bench is framed again.
+  const [dockKey, setDockKey] = useState("");
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || !benchReady) return;
+    const measure = () => setDockKey(insetKey(dockInset(stage)));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(stage);
+    const dock = stage.querySelector(":scope > .bl-tool");
+    if (dock) ro.observe(dock);
+    return () => ro.disconnect();
+  }, [tool, benchReady]);
   useEffect(() => {
     const c = controllerRef.current;
-    if (!c || !benchReady) return;
+    const stage = stageRef.current;
+    if (!c || !stage || !benchReady) return;
     const b = runtime.store.getState().bench;
     const resolve = (list: string[] | null) => (list ?? []).map((s) => resolveAnchor(b, s)).filter((x): x is string => !!x);
     const spotted = resolve(props.spot);
     const framed = [...spotted, ...resolve(props.frame)];
     c.spotlight(spotted.length ? spotted : null);
+    const inset = dockInset(stage);
+    const box = stage.getBoundingClientRect();
     // A part in play keeps some bench around it: close enough to tell its legs apart, never a lone close-up.
-    const box = stageRef.current?.getBoundingClientRect();
-    c.focus(framed, framed.length && box ? { padding: Math.round(Math.min(box.width, box.height) * 0.3) } : {});
+    const free = Math.min(box.width - (inset.right ?? 0), box.height - (inset.bottom ?? 0));
+    c.focus(framed, framed.length ? { padding: Math.round(Math.max(0, free) * 0.3), inset } : { inset });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spotKey, frameKey, runtime, benchReady]);
+  }, [spotKey, frameKey, runtime, benchReady, dockKey]);
 
   return (
     <div ref={stageRef} className="bl-stage" data-bench-ready={benchReady || undefined} data-lab-ready data-lab={lab.id} onPointerDownCapture={() => audio.unlock()} onKeyDownCapture={() => audio.unlock()}>
@@ -368,7 +429,7 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
           )}
         </div>
       )}
-      <ToolDock runtime={runtime} built={built} tool={props.tool ?? defaultTool(lab, props.gate)} />
+      <ToolDock runtime={runtime} built={built} tool={tool} />
       {props.keyboardOpen && (
         <div className="bl-keyboard">
           <p className="bl-keyboard__hint">{m.lessonBench.keyboardHint}</p>
@@ -379,6 +440,20 @@ function StageRunner(props: StageProps & { lab: LabDefinition }) {
   );
 }
 
+/** A leg's name for the learner, by the kind of part it belongs to (a diode's band end, a transistor's base). */
+function legNameOf(bench: BenchState, partId: string, leg: string): string {
+  const kind = bench.parts.find((p) => p.id === partId)?.kind;
+  return (kind ? m.lessonBench.legsByKind[kind]?.[leg] : undefined) ?? m.lessonBench.legs[leg] ?? leg;
+}
+
+/** A mark's name for the learner (part:M1/dial, part:CAB/wheel1, part:SD1/R1): its own name, else its id. */
+function markNameOf(bench: BenchState, partId: string, mark: string): string {
+  if (bench.parts.find((p) => p.id === partId)?.kind === "schematic") return m.lessonBench.markSymbol(mark);
+  const wheel = /^wheel(\d+)$/.exec(mark);
+  if (wheel) return m.lessonBench.markWheel(Number(wheel[1]));
+  return m.lessonBench.marks[mark] ?? mark;
+}
+
 /** A seed that is the same for a learner every visit (their first finished lesson), for shuffled mystery parts. */
 function learnerSeed(): string {
   const lessons = Object.entries(useLearner.getState().learner.lessons);
@@ -386,6 +461,26 @@ function learnerSeed(): string {
   const [id, rec] = lessons.reduce((a, b) => (b[1].at < a[1].at ? b : a));
   return `${id}|${rec.at}`;
 }
+
+/**
+ * The part of the bench the docked tool covers, as a focus inset: along the bottom on a phone (the dock spans the
+ * width), else beside it on the right when that leaves more of the bench in view. Rounded to 16 px, so a tool that
+ * grows by a line does not move the bench under the learner's hand.
+ */
+function dockInset(stage: HTMLElement): { bottom?: number; right?: number } {
+  const dock = stage.querySelector<HTMLElement>(":scope > .bl-tool");
+  if (!dock) return {};
+  const s = stage.getBoundingClientRect();
+  const d = dock.getBoundingClientRect();
+  const GAP = 8;
+  const step = (v: number) => Math.ceil(Math.max(0, v) / 16) * 16;
+  const bottom = step(s.bottom - d.top + GAP);
+  const right = step(s.right - d.left + GAP);
+  const beside = (s.width - right) * s.height;
+  const above = s.width * (s.height - bottom);
+  return s.width - right >= 320 && beside > above ? { right } : { bottom };
+}
+const insetKey = (i: { bottom?: number; right?: number }) => `${i.bottom ?? 0},${i.right ?? 0}`;
 
 /** The panel a lab ties to a task (`show`), when the beat names no tool. */
 function defaultTool(lab: LabDefinition, task: string | null): string | null {
@@ -403,6 +498,7 @@ function ToolDock({ runtime, built, tool }: { runtime: LabRuntime; built: Return
   else if (tool === "stopwatch" && built.stopwatch) body = <StopwatchPanel runtime={runtime} config={built.stopwatch} />;
   else if (tool === "tapper" && built.tapper) body = <TapperPanel runtime={runtime} config={built.tapper} />;
   else if (tool === "controls" && built.controls.length) body = <ControlsPanel runtime={runtime} controls={built.controls} />;
+  else if (tool === "views" && built.overlays?.offer?.length) body = <ViewsPanel runtime={runtime} offer={built.overlays.offer} />;
   else if (runtime.lab.panels?.some((p) => p.id === tool)) body = <LabPanels runtime={runtime} only={tool} />;
   if (!body) return null;
   return (
@@ -478,7 +574,8 @@ function TapLayer({
   const placed = spread(
     targets.flatMap((t) => {
       const p = pointOf(t);
-      return p ? [{ id: t, x: p.x, y: p.y, big: check.kind === "meet" || !t.includes(".") }] : [];
+      // A whole part gets a wide target; a leg or a mark on a part (part:M1/dial) a round one on its spot.
+      return p ? [{ id: t, x: p.x, y: p.y, big: check.kind === "meet" || !/[./]/.test(t) }] : [];
     }),
   );
   return (

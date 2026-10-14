@@ -20,6 +20,10 @@ export type Moment = {
   task?: string;
   /** The part a meet beat names. */
   part?: string;
+  /** The one instrument or panel the moment shows (a beat's, the fix-it round's or the secret's `tool`). */
+  tool?: string;
+  /** The terminal the loop tracer runs from once the moment's action is done (or as it begins, with no action). */
+  trace?: string;
   done?: string;
   note?: BeatNote;
   rule?: string;
@@ -46,6 +50,8 @@ export function momentsOf(lesson: BenchLessonData): Moment[] {
     const m: Moment = { key: `b${i}`, kind: "beat", say: beat.say, action: actionOf(beat), beat };
     if (beat.do) m.task = beat.do;
     if (beat.meet) m.part = beat.meet;
+    if (beat.tool) m.tool = beat.tool;
+    if (beat.trace) m.trace = beat.trace;
     if (beat.done) m.done = beat.done;
     if (beat.note) m.note = beat.note;
     if (beat.rule) m.rule = beat.rule;
@@ -58,18 +64,21 @@ export function momentsOf(lesson: BenchLessonData): Moment[] {
     if (s.done) m.done = s.done;
     if (s.note) m.note = s.note;
     if (s.rule) m.rule = s.rule;
+    if (s.tool) m.tool = s.tool;
     out.push(m);
   }
   const fixit = lesson.fixit;
   fixit?.tasks.forEach((t, i) => {
-    out.push({
+    const m: Moment = {
       key: `fix${i}`,
       kind: "fix",
       say: t.say ?? fixit.say,
       action: "task",
       task: t.task,
       fix: { index: i, count: fixit.tasks.length, intro: fixit.say, timer: fixit.timer },
-    });
+    };
+    if (fixit.tool) m.tool = fixit.tool;
+    out.push(m);
   });
   out.push({ key: "end", kind: "end", say: lesson.end.say, action: "finish" });
   return out;
@@ -134,12 +143,15 @@ export function isMomentDone(m: Moment, answers: Answers, tasks: readonly string
   return false;
 }
 
-/** The rules found: those of moments before `index` (all finished), plus the secret's once its task is done. */
+/**
+ * The rules found: those of moments before `index` (all finished), the current one's once it is done (a beat with
+ * nothing to do stamps its rule as it begins), plus the secret's once its task is done.
+ */
 export function rulesFound(moments: readonly Moment[], index: number, tasks: readonly string[], currentDone: boolean): string[] {
   const out: string[] = [];
   moments.forEach((m, i) => {
     if (!m.rule) return;
-    const done = m.kind === "secret" ? !!m.task && tasks.includes(m.task) : i < index || (i === index && currentDone);
+    const done = m.kind === "secret" ? !!m.task && tasks.includes(m.task) : i < index || (i === index && (currentDone || m.action === "next"));
     if (done) out.push(m.rule);
   });
   return out;

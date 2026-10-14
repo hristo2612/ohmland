@@ -1,10 +1,19 @@
 // Part catalog: leads, breadboard footprints, defaults and the mapping to simulator PartSpecs. Pure data.
 
 import type { NodeId, PartSpec } from "@ohmland/sim";
+import { parseAnchor } from "./anchors";
 import {
   AA,
   BATTERY,
   BIN,
+  BOX,
+  CABINET,
+  DRAWER,
+  GATE,
+  OBJECT,
+  SCHEM,
+  STATIC,
+  TRAY,
   CARD,
   BLOCK,
   CERAMIC,
@@ -28,7 +37,9 @@ import {
   electrolyticSize,
   PITCH,
 } from "./dims";
-import type { BenchPartKind, BenchState, Moisture, PartParamsMap, PlacedPart, PlacedPartOf, Vec3, WaterKind } from "./types";
+import type { BenchPartKind, BenchState, Moisture, PartParamsMap, PlacedPart, PlacedPartOf, SampleMaterial, SymbolKind, Vec3, WaterKind } from "./types";
+import { MCU_LEGS, MCU_SIM_PIN, mcuDeskLegs } from "./mcuBoard";
+import { CHIP_DEFS } from "./chips";
 import { SOLDER_DEFS } from "./solder/parts";
 
 /** A lead position in board pitches at rotation 0, relative to the first lead. */
@@ -44,10 +55,18 @@ export type SeatDef = {
   name: string;
   /** Kinds that fit. */
   accepts: readonly BenchPartKind[];
-  /** Where the held part's origin sits in the holder's frame (mm, y up) and its turn relative to the holder. */
-  place: (held: PlacedPart) => { at: Vec3; rot?: number };
+  /** A finer test than `accepts` (a 16-pin chip does not fit an 8-pin socket). */
+  fits?: (held: PlacedPart) => boolean;
+  /**
+   * Where the held part's origin sits in the holder's frame (mm, y up), its turn relative to the holder, and `lie`: a
+   * 9 V battery laid on its back, terminals toward the back (a sealed box is not deep enough to stand it up). The frame
+   * is the holder's body origin, or its footprint centre when it stands in the board (`at.board`, an IC socket).
+   */
+  place: (held: PlacedPart, at?: { board: boolean }) => { at: Vec3; rot?: number; lie?: boolean };
   /** Metal contacts: a held part's lead -> the holder's lead it touches (leads the held part lacks are ignored). */
-  joins?: Readonly<Record<string, string>>;
+  joins?: Readonly<Record<string, string>> | ((held: PlacedPart) => Readonly<Record<string, string>>);
+  /** Turning a seated part (R) sets these params on the holder instead (a chip turned round in its socket). */
+  turn?: () => Record<string, unknown>;
 };
 
 /** A setting the learner can change on a placed part from its selection bar (moisture, a test load switch). */
@@ -56,6 +75,8 @@ export type SettingDef = {
   values: readonly (string | number | boolean)[];
   /** More params to set along with a value (a pencil line drawn longer also gets its first layer). */
   also?: (value: string | number | boolean, params: Record<string, unknown>) => Record<string, unknown>;
+  /** Shown only when this holds (contact bounce shows once a lab gives the part a `bounce` param). */
+  when?: (params: Record<string, unknown>) => boolean;
 };
 
 /** A spot on a part's model: clicking a setting sets it; dragging over a "draw" spot draws (the pencil card). */
@@ -115,8 +136,35 @@ export type PartDef<K extends BenchPartKind = BenchPartKind> = {
   settings?: readonly SettingDef[];
   /** One-shot actions shown on the selection bar. */
   actions?: readonly ActionDef[];
-  /** Clickable or draggable spots on the model (a moisture tab, a load switch, a card's drawing strip), local mm. */
-  hotspots?: (params: PartParamsMap[K]) => Hotspot[];
+  /**
+   * Clickable or draggable spots on the model (a moisture tab, a load switch, a card's drawing strip), local mm in the
+   * part's frame for that mount (first lead's hole on the board, body origin on the desk).
+   */
+  hotspots?: (params: PartParamsMap[K], mount?: "board" | "desk") => Hotspot[];
+  /** Will not seat in the holes (a surface mount chip): dropped over the board it lies askew on top of it. */
+  perch?: (params: PartParamsMap[K]) => boolean;
+  /** Another name for a lead ("trig" for a 555's pin "2"); anchors and the netlist accept it. */
+  alias?: (params: PartParamsMap[K], name: string) => string | null;
+  /**
+   * A flying lead that is the body's own tip (the logic probe's): it sits at the body origin, is not dragged on its
+   * own, and drops into the hole under the part when the part is moved over the board.
+   */
+  nose?: string;
+  /**
+   * On the board, a quarter turn that does not fit tries a half turn: a DIP across the channel cannot stand
+   * sideways, so turning it turns it round (pin 1 to the far end).
+   */
+  turnsRound?: boolean;
+  /**
+   * Insulated spots a clip can bite that join nothing (a battery's plastic wrapper, a switch's wooden block, a paper
+   * clip's coating), local mm like `deskLegs`. Their anchors are `pin:<id>.<spot>`; they are not leads.
+   */
+  spots?: (params: PartParamsMap[K]) => Record<string, Vec3>;
+  /**
+   * Named points on the model for `part:<id>/<name>` targets (project, focus, notes, tap checks): a schematic's symbols,
+   * a padlock's wheels, a gate's unit button. Local mm.
+   */
+  marks?: (params: PartParamsMap[K]) => Record<string, Vec3>;
   /** Simulator parts for this bench part. `node(leg)` gives the node a lead is on. */
   toSpecs: (part: PlacedPartOf<K>, node: (leg: string) => NodeId, ctx: NetContext) => PartSpec[];
   /** Metal contacts the part makes between anchors (a perfboard's solder joints, a splice), for connectivity. */
@@ -183,6 +231,12 @@ const TOGGLE_FP: FootprintLeg[] = [
 const RELAY_1POLE = ["coil1", "coil2", "com1", "nc1", "no1"] as const;
 
 const isBase = (pp: unknown): boolean => !!(pp as { base?: boolean }).base;
+
+/** The contact bounce a switch or pushbutton was given, for its simulator part. */
+const bounceOf = (pp: { bounce?: boolean | number }) => (pp.bounce !== undefined ? { bounce: pp.bounce } : {});
+
+/** Contact bounce on the selection bar, once a lab gives the part a `bounce` param (Unit 4). */
+const BOUNCE_SETTING: SettingDef = { key: "bounce", values: [false, true], when: (pp) => pp["bounce"] !== undefined };
 
 /** Screw terminals along the front of a desk block, left to right, for these legs. */
 export function blockTerminals(legs: readonly string[]): Record<string, Vec3> {
@@ -352,7 +406,8 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     footprint: (pp) => (pp.base ? [] : line("a", "com", "b")),
     defaults: { to: "a" },
     deskLegs: (pp) => (pp.base ? blockTerminals(["a", "com", "b"]) : deskFromFootprint(line("a", "com", "b"))),
-    toSpecs: (p, n) => [{ id: p.id, kind: "spdt", pins: { com: n("com"), a: n("a"), b: n("b") }, to: p.params.to }],
+    settings: [BOUNCE_SETTING],
+    toSpecs: (p, n) => [{ id: p.id, kind: "spdt", pins: { com: n("com"), a: n("a"), b: n("b") }, to: p.params.to, ...bounceOf(p.params) }],
   },
   "toggle-switch": {
     kind: "toggle-switch",
@@ -370,7 +425,10 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
             b: [pp.throws === 1 ? TOGGLE_BASE.screwX / 2 : TOGGLE_BASE.screwX, TOGGLE_BASE.h + 1.2, TOGGLE_BASE.screwZ],
           }
         : deskFromFootprint(TOGGLE_FP),
-    toSpecs: (p, n) => [{ id: p.id, kind: "spdt", pins: { com: n("com"), a: n("a"), b: n("b") }, to: p.params.to }],
+    // The wooden block a desk switch sits on: a clip biting it joins nothing.
+    spots: (pp): Record<string, Vec3> => (pp.base ? { base: [-TOGGLE_BASE.w / 2 + 3.6, TOGGLE_BASE.h + 0.4, 1.5] } : {}),
+    settings: [BOUNCE_SETTING],
+    toSpecs: (p, n) => [{ id: p.id, kind: "spdt", pins: { com: n("com"), a: n("a"), b: n("b") }, to: p.params.to, ...bounceOf(p.params) }],
   },
   pushbutton: {
     kind: "pushbutton",
@@ -385,8 +443,9 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     ],
     defaults: { cap: "black" },
     deskLegs: (pp) => (pp.base ? blockTerminals(["a1", "b1"]) : deskFromFootprint(PUSH_FP)),
+    settings: [BOUNCE_SETTING],
     toSpecs: (p, n) => [
-      { id: p.id, kind: "pushbutton", pins: { a: n("a1"), b: n("b1") }, ...(p.params.normallyClosed ? { normallyClosed: true } : {}) },
+      { id: p.id, kind: "pushbutton", pins: { a: n("a1"), b: n("b1") }, ...(p.params.normallyClosed ? { normallyClosed: true } : {}), ...bounceOf(p.params) },
     ],
   },
   relay: {
@@ -423,8 +482,9 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     legs: ["a1", "com1", "b1", "a2", "com2", "b2"],
     defaults: { to: "a" },
     deskLegs: () => blockTerminals(["a1", "com1", "b1", "a2", "com2", "b2"]),
+    settings: [BOUNCE_SETTING],
     toSpecs: (p, n) => [
-      { id: p.id, kind: "dpdt", pins: { com1: n("com1"), a1: n("a1"), b1: n("b1"), com2: n("com2"), a2: n("a2"), b2: n("b2") }, to: p.params.to },
+      { id: p.id, kind: "dpdt", pins: { com1: n("com1"), a1: n("a1"), b1: n("b1"), com2: n("com2"), a2: n("a2"), b2: n("b2") }, to: p.params.to, ...bounceOf(p.params) },
     ],
   },
   "touch-pads": {
@@ -467,6 +527,15 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
         ? { pos: [-24, 0.7, 34], neg: [-12, 0.7, 38] }
         : { pos: [-BATTERY.termSpacing / 2, BATTERY.len - 0.9, 0], neg: [BATTERY.termSpacing / 2, BATTERY.len - 0.9, 0] };
     },
+    // The plastic wrapper: on a 9 V battery beside the + snap, on an AA or a coin cell its side.
+    spots: (pp): Record<string, Vec3> => {
+      if (pp.size === "aa") return { wrap: [-6, AA.lift + AA.dia - 0.4, 0] };
+      if (pp.size === "coin") return {};
+      return { wrap: [-BATTERY.wid / 2 + 2.6, BATTERY.len - 0.8, BATTERY.thick / 2 - 2.2] };
+    },
+    // An AA cell set up for it (`xray` given, true or false) can be cut open: tap it to see inside. Other cells are
+    // plain batteries to pick up.
+    hotspots: (pp) => (pp.size === "aa" && pp.xray !== undefined ? [{ pick: { type: "setting", key: "xray", value: !pp.xray }, at: [-4, AA.lift + AA.dia / 2, 0], size: [32, AA.dia, AA.dia], on: !!pp.xray }] : []),
     toSpecs: (p, n) => {
       const spec: PartSpec = {
         id: p.id,
@@ -476,6 +545,8 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
         internalOhms: p.params.internalOhms ?? 1.7,
       };
       if (p.params.mAh !== undefined) spec.mAh = p.params.mAh;
+      // A starting charge is the simulator's state of charge (only a battery new to the circuit takes it).
+      if (p.params.charge !== undefined && spec.kind === "battery") spec.soc = Math.max(0, Math.min(1, p.params.charge));
       return [spec];
     },
   },
@@ -638,13 +709,18 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
     prefix: "P",
     legs: ["a", "b"],
     defaults: { material: "copper" },
-    deskLegs: (pp) =>
-      pp.material === "plastic"
-        ? { a: [-SAMPLE.ruler / 2 + 9, SAMPLE.rulerT + 0.1, 3], b: [SAMPLE.ruler / 2 - 9, SAMPLE.rulerT + 0.1, 3] }
-        : { a: [-SAMPLE.wire / 2 + 3, SAMPLE.wireR * 2, 0], b: [SAMPLE.wire / 2 - 3, SAMPLE.wireR * 2, 0] },
-    toSpecs: (p, n) => [
-      { id: p.id, kind: "probe-resistance", pins: { a: n("a"), b: n("b") }, ohms: p.params.ohms ?? (p.params.material === "plastic" ? 1e13 : 0.02) },
-    ],
+    deskLegs: (pp) => {
+      if (pp.material === "plastic") return { a: [-SAMPLE.ruler / 2 + 9, SAMPLE.rulerT + 0.1, 3], b: [SAMPLE.ruler / 2 - 9, SAMPLE.rulerT + 0.1, 3] };
+      if (pp.material === "copper") return { a: [-SAMPLE.wire / 2 + 3, SAMPLE.wireR * 2, 0], b: [SAMPLE.wire / 2 - 3, SAMPLE.wireR * 2, 0] };
+      const o = OBJECT[pp.material];
+      const y = pp.material === "marble" ? o.t / 2 : o.t;
+      // The coated paper clip's two cut ends poke out of its loops, one each side (see CLIP_PATH).
+      if (pp.material === "clip") return { a: [CLIP_PATH.a[0], y, CLIP_PATH.a[1]], b: [CLIP_PATH.b[0], y, CLIP_PATH.b[1]] };
+      return { a: [-o.len / 2 + o.clip, y, 0], b: [o.len / 2 - o.clip, y, 0] };
+    },
+    // A coated paper clip is bare only at its cut ends: a clip on the coating joins nothing.
+    spots: (pp): Record<string, Vec3> => (pp.material === "clip" ? { coat: [CLIP_PATH.coat[0], OBJECT.clip.t, CLIP_PATH.coat[1]] } : {}),
+    toSpecs: (p, n) => [{ id: p.id, kind: "probe-resistance", pins: { a: n("a"), b: n("b") }, ohms: p.params.ohms ?? materialOhms(p.params.material) }],
   },
   card: {
     kind: "card",
@@ -676,28 +752,249 @@ const defs: { [K in BenchPartKind]: PartDef<K> } = {
       return specs;
     },
   },
-  tag: { kind: "tag", prefix: "L", legs: [], defaults: { text: "" }, deskLegs: () => ({}), toSpecs: () => [] },
+  tag: {
+    kind: "tag",
+    prefix: "L",
+    legs: [],
+    defaults: { text: "" },
+    deskLegs: () => ({}),
+    // Tap the label: the value written out without its prefix, and back.
+    hotspots: (pp) => [{ pick: { type: "setting", key: "alt", value: !pp.alt }, at: [1, 0.5, 0], size: [22, 2, 12], on: !!pp.alt }],
+    marks: () => ({ text: [1.6, 0.6, 0] }),
+    toSpecs: () => [],
+  },
   bin: {
     kind: "bin",
     prefix: "BIN",
     legs: [],
     defaults: {},
     deskLegs: () => ({}),
-    seats: () =>
-      [0, 1, 2, 3, 4].map((i) => ({
-        name: `s${i + 1}`,
-        accepts: ["resistor", "led", "fuse", "diode"] as BenchPartKind[],
-        place: () => ({ at: [(i - 2) * 12, 2.4, 0] as Vec3, rot: 90 }),
-      })),
+    seats: (pp) => {
+      const accepts = pp.accepts ?? (pp.style === "drawer" && pp.face ? FACE_KINDS[pp.face] : pp.style === "tray" ? TRAY_KINDS : BIN_KINDS);
+      if (pp.style === "tray") {
+        return [0, 1, 2, 3, 4].map((i) => ({ name: `s${i + 1}`, accepts, place: () => ({ at: [(i - 2) * 24, 2.6, -4] as Vec3, rot: 90 }) }));
+      }
+      if (pp.style === "drawer") {
+        return [0, 1, 2].map((i) => ({ name: `s${i + 1}`, accepts, place: (held: PlacedPart) => ({ at: [(i - 1) * 20, 2.4, -4] as Vec3, rot: held.kind === "battery" ? 0 : 90 }) }));
+      }
+      return [0, 1, 2, 3, 4].map((i) => ({ name: `s${i + 1}`, accepts, place: () => ({ at: [(i - 2) * 12, 2.4, 0] as Vec3, rot: 90 }) }));
+    },
+    marks: (pp): Record<string, Vec3> => (pp.style === "drawer" ? { face: [0, DRAWER.h * 0.6, DRAWER.d / 2 + 1] } : pp.style === "tray" ? { label: [0, TRAY.h, TRAY.d / 2 + 2] } : { label: [0, BIN.h, BIN.d / 2 + 2] }),
     toSpecs: () => [],
   },
   chart: { kind: "chart", prefix: "CH", legs: [], defaults: { bands: 4 }, deskLegs: () => ({}), toSpecs: () => [] },
   clock: { kind: "clock", prefix: "CK", legs: [], defaults: {}, deskLegs: () => ({}), toSpecs: () => [] },
   showcase: { kind: "showcase", prefix: "SC", legs: [], defaults: {}, deskLegs: () => ({}), toSpecs: () => [] },
 
+  // ---- Start here -------------------------------------------------------------------------------------------------
+
+  gate: {
+    kind: "gate",
+    prefix: "G",
+    legs: [],
+    defaults: { mode: "ticks", unit: "A" },
+    deskLegs: () => ({}),
+    // In number mode the unit on the flag is a button: A or mA.
+    // (The flag stands above the collar in 3D and is drawn up the page in ink: z is -lift there.)
+    hotspots: (pp) => (pp.mode === "number" ? [{ pick: { type: "setting", key: "unit", value: pp.unit === "mA" ? "A" : "mA" }, at: [GATE.flagW / 2 - 5.8, GATE.lift, -GATE.lift], size: [10, 9, 9] }] : []),
+    marks: () => ({ flag: [0, GATE.lift, 0], unit: [GATE.flagW / 2 - 5.8, GATE.lift, 0] }),
+    settings: [
+      { key: "mode", values: ["ticks", "number"] },
+      { key: "unit", values: ["A", "mA"] },
+    ],
+    toSpecs: () => [],
+  },
+  box: {
+    kind: "box",
+    prefix: "BX",
+    legs: ["t1", "t2"],
+    legsFor: (pp) => (pp.style === "cabinet" ? [] : ["t1", "t2"]),
+    defaults: { lid: false, marks: "pm" },
+    deskLegs: (pp): Record<string, Vec3> => (pp.style === "cabinet" ? {} : { t1: [-BOX.termX, BOX.h + 3.6, BOX.d / 2 - BOX.strip / 2], t2: [BOX.termX, BOX.h + 3.6, BOX.d / 2 - BOX.strip / 2] }),
+    seats: (pp) => {
+      const cab = pp.style === "cabinet";
+      const floor = cab ? CABINET.wall : BOX.wall;
+      const spots: [number, number][] = cab
+        ? [-62, -21, 21, 62].flatMap((x) => [[x, -24], [x, 12]] as [number, number][])
+        : [[-20, -7], [27, -7], [-20, 12], [27, 12]];
+      const wiring = pp.wiring ?? {};
+      return spots.map(([x, z], i) => {
+        const name = `s${i + 1}`;
+        const joins: Record<string, string> = {};
+        for (const [k, v] of Object.entries(wiring)) if (k.startsWith(`${name}.`)) joins[k.slice(name.length + 1)] = v;
+        return {
+          name,
+          accepts: BOX_KINDS,
+          place: (held: PlacedPart) => {
+            if (held.kind === "battery" && (held.params.size ?? "9v") === "9v" && !held.params.snap) {
+              // A 9 V battery lies on its back, its snaps toward the back of the box.
+              const front = (cab ? CABINET.d / 2 - CABINET.strip : BOX.d / 2 - BOX.strip) - 4;
+              return { at: [x, floor + BATTERY.thick / 2, Math.min(z + BATTERY.len / 2, front)] as Vec3, lie: true };
+            }
+            // An AA lies plus to the left, by the + terminal (so its wires do not cross).
+            return { at: [x, floor, z] as Vec3, rot: held.kind === "battery" && held.params.size === "aa" ? 180 : 0 };
+          },
+          joins,
+        };
+      });
+    },
+    settings: [{ key: "lid", values: [false, true] }],
+    // The lid: tap it to open it (a closed cabinet stays locked while its padlock has wheels to set).
+    hotspots: (pp) => {
+      const cab = pp.style === "cabinet";
+      const W = cab ? CABINET.w : BOX.w;
+      const D = cab ? CABINET.d : BOX.d;
+      const H = cab ? CABINET.h : BOX.h;
+      const strip = cab ? CABINET.strip : BOX.strip;
+      const locked = cab && !!pp.lock && pp.lock.set.some((x) => !x) && !pp.lid;
+      const lidD = D - strip;
+      // Shut, the whole lid opens it; open, the lid standing up at the back shuts it (the parts inside stay reachable).
+      const lid: Hotspot = pp.lid
+        ? { pick: { type: "setting", key: "lid", value: false }, at: [0, H + lidD * 0.4, -D / 2 - lidD * 0.16], size: [W - 8, lidD * 0.8, lidD * 0.32], on: true }
+        : { pick: { type: "setting", key: "lid", value: true }, at: [0, H, -strip / 2], size: [W - 8, 6, lidD - 6] };
+      const out: Hotspot[] = locked ? [] : [lid];
+      if (pp.tag) out.push({ pick: { type: "setting", key: "tagAlt", value: !pp.tagAlt }, at: [W / 2 + 8, H * 0.5, D / 2 - 6], size: [22, 6, 14], on: !!pp.tagAlt });
+      return out;
+    },
+    marks: (pp) => {
+      const cab = pp.style === "cabinet";
+      const D = cab ? CABINET.d : BOX.d;
+      const H = cab ? CABINET.h : BOX.h;
+      const strip = cab ? CABINET.strip : BOX.strip;
+      const out: Record<string, Vec3> = { lid: [0, H, -strip / 2], front: [0, H, D / 2 - strip / 2] };
+      if (pp.knob) out.knob = [0, H + 4, D / 2 - strip / 2];
+      if (pp.tag) out.tag = [(cab ? CABINET.w : BOX.w) / 2 + 8, H * 0.5, D / 2 - 6];
+      if (pp.lock) pp.lock.wheels.forEach((_, i) => (out[`wheel${i + 1}`] = [(i - (pp.lock!.wheels.length - 1) / 2) * 16, H + 2, D / 2 - strip / 2]));
+      return out;
+    },
+    // Pure metal: the seats join the held parts' leads to the terminals and to each other (see `wiring`).
+    toSpecs: () => [],
+  },
+  schematic: {
+    kind: "schematic",
+    prefix: "SD",
+    legs: [],
+    defaults: { symbols: [] },
+    deskLegs: () => ({}),
+    // The torn-off symbol's place is a seat: a piece dropped near it lies in the gap (`turn` decides which way).
+    seats: (pp) => {
+      if (pp.torn === undefined) return [];
+      const [x, z] = schematicSlot(pp.symbols.length, pp.torn);
+      return [{ name: "torn", accepts: ["piece"], place: () => ({ at: [x, SCHEM.t + 0.2, z] }) }];
+    },
+    marks: (pp) => {
+      const out: Record<string, Vec3> = {};
+      pp.symbols.forEach((sym, i) => {
+        const [x, z] = schematicSlot(pp.symbols.length, i);
+        out[sym.part ?? `s${i + 1}`] = [x, SCHEM.t, z];
+      });
+      return out;
+    },
+    toSpecs: () => [],
+  },
+  piece: {
+    kind: "piece",
+    prefix: "PC",
+    legs: [],
+    defaults: { symbol: "led", turn: 0 },
+    deskLegs: () => ({}),
+    // Tap it to turn it a quarter (it can be turned while it sits in the card's gap, too).
+    hotspots: (pp) => [{ pick: { type: "setting", key: "turn", value: (((pp.turn ?? 0) + 90) % 360 + 360) % 360 }, at: [0, 0.8, 0], size: [SCHEM.piece - 6, 2, SCHEM.piece - 6] }],
+    toSpecs: () => [],
+  },
+  balloon: { kind: "balloon", prefix: "BL", legs: [], defaults: { color: "red" }, deskLegs: () => ({}), marks: () => ({ patch: [0, STATIC.balloon * 0.9, STATIC.balloon * 0.3] }), toSpecs: () => [] },
+  scarf: { kind: "scarf", prefix: "SF", legs: [], defaults: {}, deskLegs: () => ({}), toSpecs: () => [] },
+  paper: { kind: "paper", prefix: "PB", legs: [], defaults: {}, deskLegs: () => ({}), toSpecs: () => [] },
+  comb: { kind: "comb", prefix: "CB", legs: [], defaults: {}, deskLegs: () => ({}), toSpecs: () => [] },
+  wall: { kind: "wall", prefix: "WL", legs: [], defaults: {}, deskLegs: () => ({}), toSpecs: () => [] },
+  // ---- Unit 5 ---------------------------------------------------------------------------------------------------
+
+  "mcu-board": {
+    kind: "mcu-board",
+    prefix: "U",
+    legs: MCU_LEGS,
+    // The two GND sockets are one conductor on the board.
+    bridges: [["gnd", "gnd2"]],
+    defaults: { power: "usb" },
+    deskLegs: () => mcuDeskLegs(),
+    toSpecs: (p, n) => {
+      const pins: Record<string, NodeId> = {};
+      for (const leg of MCU_LEGS) if (leg !== "gnd2") pins[MCU_SIM_PIN[leg]] = n(leg);
+      const spec: PartSpec = { id: p.id, kind: "mcuboard", pins, power: p.params.power ?? "usb" };
+      if (p.params.program !== undefined) spec.program = p.params.program;
+      if (p.params.upload !== undefined) spec.upload = p.params.upload;
+      if (p.params.clockStart !== undefined) spec.clockStart = p.params.clockStart;
+      if (p.params.seed !== undefined) spec.seed = p.params.seed;
+      return [spec];
+    },
+  },
+  // ---- Chips (Unit 4): see chips.ts ------------------------------------------------------------------------------
+  ...CHIP_DEFS,
   // ---- Unit 3: soldering, perfboard, wire and power from the wall (src/solder) ---------------------------------
   ...SOLDER_DEFS,
 };
+
+/**
+ * The coated paper clip, lying flat (x, z in mm): the bare cut end `a` pokes out left of the outer loop, `b` out right
+ * of the inner tongue, and `coat` is a spot on the plastic coating. `coated` is the coated wire as an SVG path.
+ */
+export const CLIP_PATH = {
+  a: [-15.8, 3.2] as [number, number],
+  b: [15.8, 1.6] as [number, number],
+  coat: [0, -3.8] as [number, number],
+  coated: "M-12.4 3.2H10A3.5 3.5 0 0 0 10 -3.8H-10A2.7 2.7 0 0 0 -10 1.6H12.4",
+  bare: "M-15.8 3.2H-12.4M12.4 1.6H15.8",
+};
+
+/** Where symbol `i` of `n` sits on a schematic card's loop (card mm): the first on the left, the rest clockwise. */
+export function schematicSlot(n: number, i: number): [number, number] {
+  const W = SCHEM.loopW / 2;
+  const D = SCHEM.loopD / 2;
+  const z0 = 4;
+  if (n <= 1) return [-W, z0];
+  if (n === 2) return i === 0 ? [-W, z0] : [W, z0];
+  if (n === 3) return ([[-W, z0], [0, z0 - D], [W, z0]] as [number, number][])[i]!;
+  return ([[-W, z0], [0, z0 - D], [W, z0], [0, z0 + D]] as [number, number][])[i % 4]!;
+}
+
+/** The kinds a drawer with this symbol on it takes (when it sets no `accepts`). */
+const FACE_KINDS: Record<SymbolKind, BenchPartKind[]> = {
+  battery: ["battery"],
+  cell: ["battery"],
+  resistor: ["resistor"],
+  led: ["led"],
+  switch: ["toggle-switch", "slide-switch", "pushbutton"],
+  lamp: ["led"],
+};
+const BIN_KINDS: BenchPartKind[] = ["resistor", "led", "fuse", "diode", "sample"];
+const TRAY_KINDS: BenchPartKind[] = ["sample", "resistor", "led", "diode", "fuse", "electrode", "battery", "tag"];
+const BOX_KINDS: BenchPartKind[] = ["battery", "resistor", "trimmer", "led", "diode", "toggle-switch", "slide-switch", "pushbutton", "fuse", "tag", "sample", "electrolytic-cap", "ceramic-cap"];
+
+/** Resistance between a material sample's two clip points. */
+export function materialOhms(material: SampleMaterial): number {
+  return MATERIAL_OHMS[material] ?? 1e13;
+}
+
+const MATERIAL_OHMS: Record<SampleMaterial, number> = {
+  copper: 0.02,
+  plastic: 1e13,
+  key: 0.02,
+  coin: 0.02,
+  foil: 0.01,
+  pencil: 5,
+  spoon: 1e13,
+  "metal-spoon": 0.02,
+  eraser: 1e13,
+  marble: 1e13,
+  wood: 1e12,
+  string: 1e12,
+  clip: 0.03,
+};
+
+/** The materials that let flow through (the junk drawer's "conductors"). */
+export function conducts(material: SampleMaterial): boolean {
+  return materialOhms(material) < 1e3;
+}
 
 // Material numbers for the lab props (docs/curriculum/unit-1.md, L4 and L5).
 
@@ -782,6 +1079,45 @@ export function isThrowSwitch(kind: BenchPartKind): kind is "slide-switch" | "to
 export function partLegs(part: Pick<PlacedPart, "kind" | "params">): readonly string[] {
   const d = partDef(part.kind) as PartDef;
   return d.legsFor ? (d.legsFor as (p: unknown) => readonly string[])(part.params) : d.legs;
+}
+
+/**
+ * The lead a name stands for on this part: the name itself when the part has that lead, else what its kind calls it
+ * ("trig" is a 555's lead "2", "co" a 4026B's "5"), else null.
+ */
+export function resolveLeg(part: Pick<PlacedPart, "kind" | "params">, name: string): string | null {
+  const legs = partLegs(part);
+  if (legs.includes(name)) return name;
+  const d = partDef(part.kind) as PartDef;
+  const a = d.alias ? (d.alias as (p: unknown, n: string) => string | null)(part.params, name) : null;
+  return a && legs.includes(a) ? a : null;
+}
+
+/** A pin anchor with its lead's alias resolved ("pin:U1.trig" -> "pin:U1.2"); other anchors unchanged. */
+export function canonicalAnchor(parts: readonly PlacedPart[], anchor: string): string {
+  const a = parseAnchor(anchor);
+  if (a?.type !== "pin") return anchor;
+  const part = parts.find((p) => p.id === a.part);
+  const leg = part ? resolveLeg(part, a.leg) : null;
+  return leg && leg !== a.leg ? `pin:${a.part}.${leg}` : anchor;
+}
+
+/** True for a part whose legs will not seat in the holes (a surface mount chip): over the board it lies on top. */
+export function perches(part: Pick<PlacedPart, "kind" | "params">): boolean {
+  const d = partDef(part.kind) as PartDef;
+  return !!d.perch && (d.perch as (p: unknown) => boolean)(part.params);
+}
+
+/** Insulated spots a clip can bite on this part (local mm), keyed by name. */
+export function partSpots(part: Pick<PlacedPart, "kind" | "params">): Record<string, Vec3> {
+  const d = partDef(part.kind) as PartDef;
+  return d.spots ? (d.spots as (p: unknown) => Record<string, Vec3>)(part.params) : {};
+}
+
+/** Named points on this part for `part:<id>/<name>` targets (local mm). */
+export function partMarks(part: Pick<PlacedPart, "kind" | "params">): Record<string, Vec3> {
+  const d = partDef(part.kind) as PartDef;
+  return d.marks ? (d.marks as (p: unknown) => Record<string, Vec3>)(part.params) : {};
 }
 
 /** A mystery part's permutation as numbers (terminal i is wired as leg perm[i]), or null when it is not one. */

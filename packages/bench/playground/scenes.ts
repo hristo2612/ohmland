@@ -1,6 +1,6 @@
 // Ready-made benches for the playground and the screenshot script.
 
-import { defaultMeter, emptyBench, type BenchState, type TrayItem } from "../src/core";
+import { defaultMeter, emptyBench, holeWorld, type BenchState, type TrayItem } from "../src/core";
 
 /** A red LED with a 470 ohm resistor on the board, fed by a 9 V battery, with the meter across the LED. */
 export function demoBench(): BenchState {
@@ -178,6 +178,25 @@ export function glowBench(wired = true): BenchState {
   return b;
 }
 
+/**
+ * Unit 5's first bench (`?scene=mcu`): the microcontroller board on the desk, pin 7 clipped to a 470 Ω resistor and
+ * a red LED on a half breadboard, back to the board's GND. The board runs a blink on pin 7 (and lights L on 13).
+ */
+export function mcuBench(): BenchState {
+  const b = emptyBench({ kind: "bb400", pos: [46, 18] });
+  const program = "void setup() {\n  pinMode(13, OUTPUT);\n  pinMode(7, OUTPUT);\n}\nvoid loop() {\n  digitalWrite(13, HIGH);\n  digitalWrite(7, HIGH);\n}\n";
+  b.parts = [
+    { id: "U1", kind: "mcu-board", params: { program, upload: 1 }, pos: [-62, -6], rot: 0 },
+    { id: "R1", kind: "resistor", params: { ohms: 470 }, pos: [0, 0], rot: 0, holes: { a: "e10", b: "e14" } },
+    { id: "D1", kind: "led", params: { color: "red" }, pos: [0, 0], rot: 0, holes: { anode: "d14", cathode: "d15" } },
+  ];
+  b.leads = [
+    { id: "TL1", color: "yellow", a: { to: "pin:U1.d7", pos: [0, 0] }, b: { to: "hole:a10", pos: [0, 0] } },
+    { id: "TL2", color: "black", a: { to: "hole:a15", pos: [0, 0] }, b: { to: "pin:U1.gnd", pos: [0, 0] } },
+  ];
+  return b;
+}
+
 /** Desk modules (switches, a trimmer and relays on wooden blocks), a mystery relay, touch pads and bent capacitor legs. */
 export function modulesBench(): BenchState {
   const b = emptyBench({ kind: "bb400", pos: [80, 80] });
@@ -194,6 +213,275 @@ export function modulesBench(): BenchState {
     p("TP1", "touch-pads", {}, [0, 0], { holes: { a: "e5", b: "e7" } }),
     p("C1", "electrolytic-cap", { farads: 100e-6, span: 4 }, [0, 0], { holes: { pos: "c12", neg: "c16" } }),
     p("C2", "ceramic-cap", { farads: 100e-9 }, [0, 0], { holes: { a: "h20", b: "h22" } }),
+  ];
+  return b;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Unit 4: chips.
+
+type Part = BenchState["parts"][number];
+const part = (id: string, kind: Part["kind"], params: Record<string, unknown>, holes?: Record<string, string>, pos: [number, number] = [0, 0], rot = 0): Part =>
+  ({ id, kind, params, pos, rot, ...(holes ? { holes } : {}) }) as Part;
+
+/** Holes for a DIP with pin 1 in row e at `col` (rot 0): pins 1 to n/2 along row e, the rest back along row f. */
+export function dipHoles(n: number, col: number): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (let k = 1; k <= n; k++) out[String(k)] = k <= n / 2 ? `e${col + k - 1}` : `f${col + n - k}`;
+  return out;
+}
+
+/** The same holes with the chip turned round: pin 1 in row f at the right-hand end. */
+export function dipHolesTurned(n: number, col: number): Record<string, string> {
+  const out: Record<string, string> = {};
+  const last = col + n / 2 - 1;
+  for (let k = 1; k <= n; k++) out[String(k)] = k <= n / 2 ? `f${last - (k - 1)}` : `e${col + k - n / 2 - 1}`;
+  return out;
+}
+
+/**
+ * Unit 4's counting demo on a full board (`?scene=chips`): a 555 blinker (10 kOhm, 68 kOhm, 10 uF, about 1 Hz) lights
+ * an LED and clocks a 4026B, whose outputs drive a 7-segment display on its carrier board (3.3 kOhm a bar).
+ */
+export function chipsBench(): BenchState {
+  const b = emptyBench({ kind: "bb830" });
+  const seg = { e: "c50", d: "c51", com: "c52", c: "c53", dp: "c54", g: "g50", f: "g51", com2: "g52", a: "g53", b: "g54" };
+  b.parts = [
+    part("B1", "battery", { snap: true, emf: 9.4 }, { pos: "bp3", neg: "bn3" }, [-150, 30]),
+    part("U1", "chip", { model: "555" }, dipHoles(8, 20)),
+    part("R1", "resistor", { ohms: 10_000 }, { a: "tp21", b: "h21" }),
+    part("R2", "resistor", { ohms: 68_000 }, { a: "g21", b: "g26" }),
+    part("C1", "electrolytic-cap", { farads: 10e-6, volts: 16 }, { pos: "b21", neg: "bn21" }),
+    part("R3", "resistor", { ohms: 470 }, { a: "c22", b: "c26" }),
+    part("D1", "led", { color: "red" }, { anode: "d26", cathode: "d27" }),
+    part("U2", "chip", { model: "4026B" }, dipHoles(16, 35)),
+    part("DS1", "sevenseg", { common: "cathode", carrier: true, segmentOhms: 3300 }, seg),
+  ];
+  const w = (id: string, a: string, to: string, color: BenchState["wires"][number]["color"]) => ({ id, a, b: to, color });
+  b.wires = [
+    // Rails: the far pair joins the near pair.
+    w("W1", "tp58", "bp58", "red"),
+    w("W2", "tn60", "bn60", "black"),
+    // The 555: ground, supply, reset held high, trigger round the chip's end to threshold, threshold over to R2.
+    w("W3", "a20", "bn19", "black"),
+    w("W4", "j20", "tp19", "red"),
+    w("W5", "a23", "bp23", "red"),
+    w("W6", "d21", "d17", "yellow"),
+    w("W23", "c17", "h17", "yellow"),
+    w("W24", "i17", "i22", "yellow"),
+    w("W7", "h22", "h26", "yellow"),
+    w("W8", "a27", "bn27", "black"),
+    // The blinker clocks the counter.
+    w("W9", "b22", "b35", "orange"),
+    // The 4026B: supply, clock enabled (inhibit low), display enabled, reset held low.
+    w("W10", "j35", "tp35", "red"),
+    w("W11", "a42", "bn42", "black"),
+    w("W12", "a36", "bn36", "black"),
+    w("W13", "a37", "bp37", "red"),
+    w("W14", "j36", "tn36", "black"),
+    // Segments a to g to the display; its common cathode to minus.
+    w("W15", "d40", "h51", "green"),
+    w("W16", "c41", "i50", "green"),
+    w("W17", "g40", "b50", "blue"),
+    w("W18", "h41", "j53", "blue"),
+    w("W19", "i42", "a51", "blue"),
+    w("W20", "j39", "f54", "blue"),
+    w("W21", "g38", "d53", "blue"),
+    w("W22", "a52", "bn52", "black"),
+  ];
+  return b;
+}
+
+/** The Unit 4 tray (the chips scenes use it). */
+export const CHIP_TRAY: TrayItem[] = [
+  { kind: "chip", params: { model: "555" } },
+  { kind: "chip", params: { model: "555-cmos" } },
+  { kind: "chip", params: { model: "74HC00" } },
+  { kind: "chip", params: { model: "4026B" } },
+  { kind: "chip", params: { model: "74HC86", hidden: true, label: "?1" } },
+  { kind: "chip", params: { model: "74HC08", package: "soic" } },
+  { kind: "ic-socket", params: { pins: 8 } },
+  { kind: "sevenseg", params: { common: "cathode" } },
+  { kind: "sevenseg", params: { common: "cathode", carrier: true } },
+  { kind: "regulator7805", params: { heatsink: false } },
+  { kind: "dip-switch", params: { positions: 8 } },
+  { kind: "pushbutton", params: { bounce: false } },
+  { kind: "diode", params: { model: "1N4148" } },
+  { kind: "logic-probe" },
+  { kind: "battery-pack", params: { cells: 3 } },
+  { kind: "bench-supply", params: { position: 0.5 } },
+  { kind: "resistor", params: { ohms: 10_000 } },
+  { kind: "led", params: { color: "red" } },
+];
+
+/** Every Unit 4 part on one bench (`?scene=chipparts`): on the board and on the desk. */
+export function chipPartsBench(): BenchState {
+  const b = emptyBench({ kind: "bb830" });
+  const probeAt = holeWorld(b.board!, "a5")!;
+  b.parts = [
+    part("U1", "chip", { model: "555" }, dipHoles(8, 3)),
+    part("DS1", "sevenseg", { common: "cathode" }, { e: "c9", d: "c10", com: "c11", c: "c12", dp: "c13", g: "g9", f: "g10", com2: "g11", a: "g12", b: "g13" }),
+    part("D2", "diode", { model: "1N4148" }, { anode: "a16", cathode: "a20" }),
+    // Turned round: pin 1 at the far right of the same holes.
+    part("U2", "chip", { model: "74HC00" }, dipHolesTurned(14, 16), [0, 0], 180),
+    part("U5", "chip", { model: "74HC08", package: "soic" }, undefined, [-22, -11], 0),
+    part("U3", "chip", { model: "4026B" }, dipHoles(16, 25)),
+    part("U4", "chip", { model: "74HC86", hidden: true, label: "?1" }, dipHoles(14, 35)),
+    part("XU1", "ic-socket", { pins: 8, held: { chip: "U6" } }, dipHoles(8, 44)),
+    part("U6", "chip", { model: "555-cmos" }),
+    part("DIP1", "dip-switch", { positions: 8, s1: true, s2: true, s3: true, s7: true, tags: ["a", "b", "c", "d", "e", "f", "g", "dp"] }, dipHoles(16, 50)),
+    part("VR1", "regulator7805", { heatsink: true }, { in: "j59", gnd: "j60", out: "j61" }),
+    part("LP1", "logic-probe", {}, { tip: "a5", vcc: "bp9", gnd: "bn9" }, probeAt),
+    part("BT1", "battery-pack", { cells: 3 }, undefined, [-215, 95]),
+    part("BT2", "battery-pack", { cells: 4 }, undefined, [-150, 95]),
+    part("VR2", "regulator7805", {}, undefined, [-35, 62]),
+    part("DS2", "sevenseg", { common: "anode", carrier: true, color: "green" }, undefined, [-5, 64]),
+    part("DIP2", "dip-switch", { positions: 4, s2: true }, undefined, [25, 58]),
+    part("U7", "chip", { model: "74HC393" }, undefined, [52, 58]),
+    part("XU2", "ic-socket", { pins: 14 }, undefined, [84, 58]),
+    part("PS1", "bench-supply", { position: 0.75 }, undefined, [150, 85]),
+  ];
+  return b;
+}
+
+// Start here (docs/curriculum/start-here.md). Run them with `sim=1` for live flow dots, gates and push.
+
+type P = BenchState["parts"][number];
+const q = (k: string) => (typeof location !== "undefined" ? new URLSearchParams(location.search).get(k) : null);
+const pp = (id: string, kind: P["kind"], params: Record<string, unknown>, pos: [number, number], rot = 0): P => ({ id, kind, params, pos, rot }) as P;
+const clip = (id: string, color: BenchState["leads"][number]["color"], a: string | null, b: string | null, apos: [number, number] = [0, 0], bpos: [number, number] = [0, 0]) => ({
+  id,
+  color,
+  a: { to: a, pos: apos },
+  b: { to: b, pos: bpos },
+});
+
+/** Seats `id` in a holder's seat (sets the holder's `held`; the bench places it from there). */
+function held(b: BenchState, holder: string, seat: string, id: string): BenchState {
+  return { ...b, parts: b.parts.map((p) => (p.id === holder ? ({ ...p, params: { ...p.params, held: { ...((p.params as { held?: object }).held ?? {}), [seat]: id } } } as P) : p)) };
+}
+
+/**
+ * The lamp loop on the desk (SH1, SH4): the bench battery, the switch on its block, 1 kΩ and the red lamp, four clip
+ * leads. `wrap` puts TL1's clip on the battery's wrapper (the case's gap); `gates` clips G1 and G2 either side of the
+ * lamp; `off` leaves the switch off.
+ */
+export function lampBench(opts: { wrap?: boolean; gates?: boolean; off?: boolean; charge?: number } = {}): BenchState {
+  const b = emptyBench(null);
+  b.parts = [
+    pp("B1", "battery", { emf: 9.4, internalOhms: 1.7, mAh: 500, ...(opts.charge !== undefined ? { charge: opts.charge } : {}) }, [-92, -12]),
+    pp("S1", "toggle-switch", { base: true, to: opts.off ? "a" : "b", tag: "S1" }, [-18, -66]),
+    pp("R1", "resistor", { ohms: 1000 }, [58, -48]),
+    pp("D1", "led", { color: "red", maxmA: 50 }, [62, 30], 180),
+  ];
+  b.leads = [
+    clip("TL1", "red", opts.wrap ? "pin:B1.wrap" : "pin:B1.pos", "pin:S1.com"),
+    clip("TL2", "yellow", "pin:S1.b", "pin:R1.a"),
+    clip("TL3", "green", "pin:R1.b", "pin:D1.anode"),
+    clip("TL4", "black", "pin:D1.cathode", "pin:B1.neg"),
+  ];
+  if (opts.gates) b.parts.push(pp("G1", "gate", { on: "TL3", at: 0.45 }, [0, 0]), pp("G2", "gate", { on: "TL4", at: 0.5 }, [0, 0]));
+  return b;
+}
+
+/** The junk drawer (SH2): the lamp with its gap bridged by the key, the other objects lying by two sorting trays. */
+export function drawerBench(): BenchState {
+  const b = emptyBench(null);
+  b.parts = [
+    pp("B1", "battery", { emf: 9.4, internalOhms: 1.7 }, [-150, -40]),
+    pp("R1", "resistor", { ohms: 1000 }, [-80, -70]),
+    pp("D1", "led", { color: "red", maxmA: 50 }, [-20, -60], 180),
+    pp("K1", "sample", { material: "key" }, [-70, 10]),
+    pp("YES", "bin", { style: "tray", label: "LETS FLOW THROUGH" }, [110, -70]),
+    pp("NO", "bin", { style: "tray", label: "STOPS FLOW" }, [110, 60]),
+    pp("CN1", "sample", { material: "coin" }, [-150, 60]),
+    pp("SP1", "sample", { material: "spoon" }, [-50, 70]),
+    pp("E1", "sample", { material: "eraser" }, [-140, 105]),
+    pp("F1", "sample", { material: "foil" }, [-60, 120]),
+    pp("MB1", "sample", { material: "marble" }, [-100, 60]),
+    pp("WS1", "sample", { material: "wood" }, [10, 125]),
+    pp("P1", "sample", { material: "pencil" }, [20, 80]),
+    pp("ST1", "sample", { material: "string" }, [-130, 150]),
+    pp("PC1", "sample", { material: "clip" }, [20, 40]),
+  ];
+  b.leads = [
+    clip("TL1", "red", "pin:B1.pos", "pin:R1.a"),
+    clip("TL2", "yellow", "pin:R1.b", "pin:K1.a"),
+    clip("TL3", "green", "pin:K1.b", "pin:D1.anode"),
+    clip("TL4", "black", "pin:D1.cathode", "pin:B1.neg"),
+    clip("TL5", "blue", "pin:PC1.coat", null, [0, 0], [70, 20]),
+  ];
+  return held(held(b, "NO", "s1", "SP1"), "YES", "s1", "CN1");
+}
+
+/**
+ * Two sealed boxes, one lamp (SH5): box A holds an AA cell, box B a 9 V battery; the lamp module is clipped to B. The
+ * knob box (SH6) with its tag sits behind them. `open` lifts every lid.
+ */
+export function boxesBench(open = false): BenchState {
+  let b = emptyBench(null);
+  b.parts = [
+    pp("BOXA", "box", { lid: open, label: "A", wiring: { "s1.pos": "t1", "s1.neg": "t2" } }, [-120, 10]),
+    pp("X1", "battery", { size: "aa", emf: 1.58, internalOhms: 0.15 }, [0, 0]),
+    pp("BOXB", "box", { lid: open, label: "B", wiring: { "s1.pos": "t1", "s1.neg": "t2" } }, [0, 10]),
+    pp("B1", "battery", { emf: 9.4, internalOhms: 1.7 }, [0, 0]),
+    pp("R1", "resistor", { ohms: 1000 }, [100, -20]),
+    pp("D1", "led", { color: "red", maxmA: 50 }, [120, 50], 180),
+    pp("KB", "box", { lid: open, knob: true, tag: "10 kΩ", wiring: { "s1.a": "t1", "s1.wiper": "j1", "s2.a": "j1", "s2.b": "t2" } }, [-70, -110]),
+    pp("RV1", "trimmer", { ohms: 10000, position: 0.3, base: true }, [0, 0]),
+    pp("RK", "resistor", { ohms: 470 }, [0, 0]),
+  ];
+  b.leads = [
+    clip("TL1", "red", "pin:BOXB.t1", "pin:R1.a"),
+    clip("TL2", "green", "pin:R1.b", "pin:D1.anode"),
+    clip("TL3", "black", "pin:D1.cathode", "pin:BOXB.t2"),
+  ];
+  b = held(b, "BOXA", "s1", "X1");
+  b = held(b, "BOXB", "s1", "B1");
+  b = held(b, "KB", "s1", "RV1");
+  return held(b, "KB", "s2", "RK");
+}
+
+/** The tired battery (SH7): the lamp on a battery at 8%, the desk clock, an AA cut open beside it. */
+export function tiredBench(): BenchState {
+  const b = lampBench({ charge: 0.08 });
+  b.parts.push(pp("CK1", "clock", {}, [-80, -80]), pp("XA", "battery", { size: "aa", emf: 1.58, internalOhms: 0.15, xray: q("xray") !== "0" }, [-170, 70]));
+  return b;
+}
+
+/** Prefixes and symbols (SH9, SH11, SH12): the cabinet and its padlock, value tags, drawers, the torn blueprint. */
+export function symbolsBench(): BenchState {
+  const b = emptyBench(null);
+  b.parts = [
+    pp("CAB", "box", { style: "cabinet", lock: { wheels: ["4,700 Ω", "0.02 A", "9,000 mV"], set: [true, true, false] } }, [-120, -110]),
+    pp("L1", "tag", { text: "4.7 kΩ" }, [20, -130]),
+    pp("L2", "tag", { text: "20 mA", alt: true }, [60, -130]),
+    pp("L3", "tag", { text: "9 V" }, [100, -130]),
+    pp("DR-BAT", "bin", { style: "drawer", face: "battery" }, [-170, 20]),
+    pp("DR-SW", "bin", { style: "drawer", face: "switch" }, [-90, 20]),
+    pp("DR-RES", "bin", { style: "drawer", face: "resistor" }, [-10, 20]),
+    pp("DR-LED", "bin", { style: "drawer", face: "led" }, [70, 20]),
+    pp("RB", "resistor", { ohms: 10000 }, [0, 0]),
+    pp("SD1", "schematic", { title: "Blueprint", symbols: [{ kind: "battery", part: "B1" }, { kind: "resistor", part: "R1", text: "1 kΩ" }, { kind: "led", part: "D1" }], torn: 2 }, [-110, 130]),
+    pp("PC", "piece", { symbol: "led", turn: 0 }, [10, 130]),
+    pp("SD2", "schematic", { symbols: [{ kind: "battery" }, { kind: "switch" }, { kind: "resistor" }, { kind: "led" }] }, [140, 130]),
+  ];
+  return held(b, "DR-RES", "s1", "RB");
+}
+
+/** The static toy (SH3, wave 2): balloons, a wool scarf, paper bits, a comb, a spoon and a strip of wall. */
+export function staticBench(): BenchState {
+  const b = emptyBench(null);
+  b.parts = [
+    pp("WL1", "wall", {}, [0, -90]),
+    // Stuck to the wall's face: charged.
+    pp("BL0", "balloon", { color: "yellow", charge: -6 }, [-40, -90 + 5 + 17]),
+    pp("BL1", "balloon", { color: "red", charge: -7 }, [40, 30]),
+    pp("BL2", "balloon", { color: "blue" }, [100, -20]),
+    pp("SF1", "scarf", { charge: 7 }, [-70, 80]),
+    pp("PB1", "paper", {}, [42, 62]),
+    pp("CB1", "comb", { charge: -3 }, [110, 100]),
+    pp("MS1", "sample", { material: "metal-spoon" }, [150, 40]),
   ];
   return b;
 }

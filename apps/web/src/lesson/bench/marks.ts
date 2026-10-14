@@ -28,10 +28,13 @@ export type Mark = {
   faded?: boolean;
 };
 
-/** A raw bench anchor for lab shorthand: "D1" -> "part:D1", "D1.anode" -> "pin:D1.anode", "e12" -> "hole:e12". */
+/**
+ * A raw bench anchor for lab shorthand: "D1" -> "part:D1", "D1.anode" -> "pin:D1.anode", "e12" -> "hole:e12". Raw anchors
+ * and marks ("part:M1/dial") pass through.
+ */
 export function resolveAnchor(bench: BenchState, s: string): string | null {
   if (/^(pin|hole|wire|lead|probe|socket|part):/.test(s)) return s;
-  if (bench.parts.some((p) => p.id === s)) return `part:${s}`;
+  if (bench.parts.some((p) => p.id === s) || bench.meter?.id === s) return `part:${s}`;
   if (bench.wires.some((w) => w.id === s)) return `wire:${s}.b`;
   if (bench.leads.some((l) => l.id === s)) return `lead:${s}.a`;
   return resolveAttach(bench, s);

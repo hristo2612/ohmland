@@ -6,17 +6,17 @@ import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { CameraControls as CameraControlsImpl } from "@react-three/drei";
 import { boardGeometry, boardOrigin } from "../board";
-import { BOARD_TOP } from "../dims";
+import { BOARD_TOP, GATE } from "../dims";
 import { METER, anchorPosition, isOnBoard } from "../layout";
 import { parseAnchor } from "../anchors";
-import { rotateXZ } from "../parts";
+import { partMarks, rotateXZ } from "../parts";
 import type { BenchStore } from "../store";
 import type { BenchState, Vec3 } from "../types";
 import { prefersReducedMotion } from "../three/anim";
 import { isEffect } from "../effects/effects";
 import { SPOT_LAYER, type Spotlight } from "../three/post";
 import type { PaperPalette } from "../three/paper";
-import type { FocusOptions, ScreenPoint } from "../view/controller";
+import type { FocusOptions, Inset, ScreenPoint } from "../view/controller";
 import { meterSpot, parseTarget, targetPoint } from "../view/targets";
 
 export type ViewApi = {
@@ -142,6 +142,7 @@ export function ViewRig({
   store,
   apiRef,
   viewPad,
+  inset,
   setSpotTargets,
   initialCamera,
   onChange,
@@ -150,6 +151,8 @@ export function ViewRig({
   store: BenchStore;
   apiRef: React.MutableRefObject<ViewApi | null>;
   viewPad: React.MutableRefObject<{ left: number; bottom: number }>;
+  /** The part of the view a docked panel covers (focus's `inset`): every framing keeps clear of it. */
+  inset: React.MutableRefObject<Required<Inset>>;
   setSpotTargets: (t: string[] | null) => void;
   initialCamera: boolean;
   /** Called once per drawn frame in which the camera, the canvas size or the bench changed. */
@@ -180,6 +183,10 @@ export function ViewRig({
             return p ? pointBox(p, parsed.sub === "display" ? 30 : 10) : null;
           }
           return meterBox(b);
+        }
+        if (parsed.sub) {
+          const p = targetPoint(b, t);
+          return p ? pointBox(p, 10) : null;
         }
         const obj = scene.getObjectByName(`part:${parsed.id}`);
         const box = obj ? contentBox(obj) : new THREE.Box3();
@@ -263,12 +270,13 @@ export function ViewRig({
       const w = Math.max(1, width);
       const h = Math.max(1, height);
       const pad = viewPad.current;
+      const i = inset.current;
       const px = (x: number) => (x / w) * 2;
       const py = (y: number) => (y / h) * 2;
-      const l = -1 + px(pad.left + padding);
-      const r = 1 - px(padding);
-      const b = -1 + py(pad.bottom + padding);
-      const t = 1 - py(padding);
+      const l = -1 + px(Math.max(pad.left, i.left) + padding);
+      const r = 1 - px(i.right + padding);
+      const b = -1 + py(Math.max(pad.bottom, i.bottom) + padding);
+      const t = 1 - py(i.top + padding);
       return { l: Math.min(l, r - 0.2), r, b: Math.min(b, t - 0.2), t, aspect: w / h };
     };
 
@@ -357,7 +365,18 @@ export function ViewRig({
       if (c.points.has(t)) return c.points.get(t)!;
       const parsed = parseTarget(t);
       let p: Vec3 | null = null;
-      if (parsed?.type === "part" && !(b.meter && parsed.id === b.meter.id)) {
+      const gate = parsed?.type === "part" && parsed.sub ? b.parts.find((x) => x.id === parsed.id && x.kind === "gate") : undefined;
+      if (gate && parsed?.type === "part" && parsed.sub) {
+        // A gate rides its cable as drawn: its marks (the flag, the unit button) are on the rendered gate.
+        const flag = get().scene.getObjectByName(`part:${gate.id}`)?.getObjectByName("gate-flag");
+        const m = partMarks(gate)[parsed.sub];
+        if (flag && m) {
+          // On the flag, which turns to face the camera.
+          flag.updateWorldMatrix(true, false);
+          const w = flag.localToWorld(new THREE.Vector3(m[0], m[1] - GATE.lift, 1.6));
+          p = [w.x, w.y, w.z];
+        } else p = targetPoint(b, t);
+      } else if (parsed?.type === "part" && !parsed.sub && !(b.meter && parsed.id === b.meter.id)) {
         const obj = get().scene.getObjectByName(`part:${parsed.id}`);
         const box = obj ? contentBox(obj) : null;
         if (box && !box.isEmpty()) {
@@ -409,7 +428,7 @@ export function ViewRig({
     return () => {
       apiRef.current = null;
     };
-  }, [get, store, apiRef, viewPad, invalidate, setSpotTargets]);
+  }, [get, store, apiRef, viewPad, inset, invalidate, setSpotTargets]);
 
   // Tell overlays when the camera, the canvas size or the bench changed (once per drawn frame, before it is drawn).
   const last = useRef({ m: new THREE.Matrix4(), p: new THREE.Matrix4(), w: -1, h: -1, bench: null as BenchState | null });

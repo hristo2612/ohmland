@@ -12,9 +12,10 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 import { createBenchStore, type BenchAction, type BenchState, type BenchStore, type MeterMode } from "@ohmland/bench/core";
 import type { InputKey, InputValue, Netlist, SimClient, SimEvent, Snapshot } from "@ohmland/sim";
 import { controlTargets, type BuiltBench, type SimInput } from "./build";
-import { isOptional, type LabDefinition, type LabTask, type Reading, type TaskStatus } from "./define";
+import { isOptional, type LabDefinition, type LabTask, type LabViews, type OverlayName, type Reading, type TaskStatus } from "./define";
 import { parseNote } from "./notes";
 import { LabSession, type FriedRecord } from "./session";
+import { seededRandom } from "./signals";
 import { applyStep, solutionSegments } from "./steps";
 import { createToneMeter } from "./tone";
 
@@ -42,6 +43,8 @@ export type RuntimeUi = {
   panels: number;
   /** The scope's single shot: armed and waiting, capturing, or a finished capture. */
   capture: Capture | null;
+  /** The views and overlays that are on (flow dots, push, x-ray, the tracer). */
+  views: LabViews;
 };
 
 /** A single-shot scope capture: times in seconds from the trigger, one series per trace. */
@@ -84,6 +87,10 @@ export class LabRuntime {
   private noteSpecs = new Map<string, { unit?: string }>();
   /** Simulated seconds per real second (1, or more for a time-lapse). */
   private speed = 1;
+  /** Buttons held from the keys panel or the keyboard: by a key, a finger on the on-screen key, or pinned down. */
+  private held = new Map<string, "key" | "touch" | "pin">();
+  /** A histogram the fast roller is working on. */
+  private fastRolling: string | null = null;
 
   constructor(lab: LabDefinition, built: BuiltBench, done: readonly string[], hooks: RuntimeHooks) {
     this.lab = lab;
@@ -105,6 +112,8 @@ export class LabRuntime {
       if (c.key === "room") patch.ambient = c.value;
     }
     if (Object.keys(patch).length) this.store.setState(patch);
+    // Overlays the lab starts with; the store and the session stay in step from here on.
+    if (built.overlays) this.store.getState().setOverlay({ flow: built.overlays.flow, push: built.overlays.push });
     this.ui = createStore<RuntimeUi>()(() => ({
       ready: false,
       failed: false,
@@ -120,7 +129,13 @@ export class LabRuntime {
       lag: 0,
       panels: 0,
       capture: null,
+      views: { ...this.session.views },
     }));
+    this.store.subscribe((s, prev) => {
+      if (s.overlay === prev.overlay && s.ui.xray === prev.ui.xray) return;
+      this.session.views = { flow: s.overlay.flow, push: s.overlay.push, xray: s.ui.xray, trace: s.overlay.trace?.from ?? null };
+      this.ui.setState({ views: { ...this.session.views } });
+    });
     this.startInputs = start ? [...built.inputs, ...start.inputs] : built.inputs;
   }
 
@@ -161,6 +176,123 @@ export class LabRuntime {
     };
     document.addEventListener("visibilitychange", onVis);
     this.unsub.push(() => document.removeEventListener("visibilitychange", onVis));
+    this.bindKeys();
+  }
+
+  /** Keyboard keys bound to buttons by the lab's keys panels: held while the key is down, all through the lab. */
+  private bindKeys(): void {
+    const buttons = (this.lab.panels ?? []).flatMap((p) => (p.kind === "keys" ? p.buttons : []));
+    if (!buttons.length || typeof window === "undefined") return;
+    const find = (e: KeyboardEvent) => buttons.find((b) => b.key.toLowerCase() === e.key.toLowerCase());
+    const typing = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+    const down = (e: KeyboardEvent) => {
+      const b = find(e);
+      if (!b || e.metaKey || e.ctrlKey || e.altKey || typing(e.target)) return;
+      e.preventDefault();
+      if (!e.repeat && !this.held.has(b.part)) this.holdButton(b.part, "key");
+    };
+    const up = (e: KeyboardEvent) => {
+      const b = find(e);
+      if (b && this.held.get(b.part) === "key") this.releaseButton(b.part);
+    };
+    // Letting go of everything when the window loses focus: a key released elsewhere never sends keyup here.
+    const blur = () => {
+      for (const [part, how] of this.held) if (how === "key") this.releaseButton(part);
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
+    this.unsub.push(() => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
+    });
+  }
+
+  /** Holds a pushbutton down (a key, a finger, or pinned by a tap) until released. */
+  holdButton(part: string, how: "key" | "touch" | "pin"): void {
+    const was = this.held.has(part);
+    this.held.set(part, how);
+    if (!was) {
+      this.sim?.setInput(part, "pressed", true);
+      this.hooks.sound?.("click");
+    }
+    this.bumpPanels();
+  }
+
+  releaseButton(part: string): void {
+    if (!this.held.delete(part)) return;
+    this.sim?.setInput(part, "pressed", false);
+    this.bumpPanels();
+  }
+
+  /** How a button is being held from the keys panel, if it is. */
+  heldBy(part: string): "key" | "touch" | "pin" | null {
+    return this.held.get(part) ?? null;
+  }
+
+  /** The learner starts a slow-motion replay of a timing diagram's latest burst. */
+  replayTiming(panelId: string): void {
+    this.session.replayTiming(panelId);
+    this.bumpPanels();
+  }
+
+  /** Rolls a histogram's dice `times` times by pressing its button (0 stops the roller). */
+  roll(panelId: string, times?: number): void {
+    this.session.startRolls(panelId, times);
+    this.bumpPanels();
+  }
+
+  clearRolls(panelId: string): void {
+    this.session.clearRolls(panelId);
+    this.bumpPanels();
+  }
+
+  get rollingFast(): string | null {
+    return this.fastRolling;
+  }
+
+  /**
+   * Many rolls quickly: holds the button, records 20 ms of the running dice finely (their pips' currents every 20 µs),
+   * lets go, and draws `times` release moments from the recording. Exact for dice clocked faster than a few hundred
+   * hertz (the arcade's 4.8 kHz laps all 36 pairs in 7.5 ms). A slow die rolls one by one instead.
+   */
+  async fastRolls(panelId: string, times = 1000): Promise<void> {
+    const cfg = this.lab.panels?.find((p) => p.id === panelId);
+    const sim = this.sim;
+    if (!cfg || cfg.kind !== "histogram" || !sim || this.fastRolling) return;
+    if (cfg.read) {
+      this.roll(panelId, times);
+      return;
+    }
+    this.fastRolling = panelId;
+    this.bumpPanels();
+    sim.pause();
+    sim.setInput(cfg.button, "pressed", true);
+    await sim.step(0.05);
+    const lit = (snap: Snapshot, id: string) => snap.parts[id]?.health !== "dead" && Math.abs(snap.parts[id]?.i ?? 0) > 2e-4;
+    const samples: number[][] = [];
+    let changes = 0;
+    for (let k = 0; k < 1000 && !this.disposed; k++) {
+      const snap = await sim.step(2e-5);
+      const faces = cfg.dice.map((pips) => pips.filter((id) => lit(snap, id)).length);
+      const prev = samples[samples.length - 1];
+      if (prev && prev.join() !== faces.join()) changes++;
+      samples.push(faces);
+    }
+    sim.setInput(cfg.button, "pressed", false);
+    await sim.step(cfg.settle ?? 0.3);
+    if (this.disposed) return;
+    this.fastRolling = null;
+    if (changes < 12) {
+      // Not running fast enough to sample: roll for real.
+      this.roll(panelId, Math.min(times, 100));
+    } else {
+      const rng = seededRandom(`${panelId}:fast:${this.session.rolls[panelId]?.list.length ?? 0}`);
+      this.session.addRolls(panelId, Array.from({ length: times }, () => samples[Math.floor(rng() * samples.length)]!), true);
+      this.bumpPanels();
+    }
+    if (!document.hidden) sim.run({ speed: this.speed });
   }
 
   dispose(): void {
@@ -173,6 +305,12 @@ export class LabRuntime {
 
   /** The <Bench onAction> handler: simulator inputs from switches, buttons and the dial. */
   readonly onAction = (a: BenchAction): void => {
+    // The board refusing a part (a surface-mount chip on holes), however the bench names that action.
+    const any = a as { type: string; partId?: unknown };
+    if (/refus|reject/.test(any.type) && typeof any.partId === "string") {
+      this.session.noteRejected(any.partId);
+      this.bumpPanels();
+    }
     if (a.type === "input") {
       if (this.ui.getState().capture?.state === "armed" && (a.key === "pressed" || a.key === "to") && this.edgeMatches(a.value)) {
         void this.captureAround({ id: a.partId, key: a.key, value: a.value });
@@ -364,6 +502,29 @@ export class LabRuntime {
     this.bumpPanels();
   }
 
+  /**
+   * Switches an overlay or the board's x-ray on or off (the toggles, a lesson, "Show me"), or opens and closes a chip's
+   * x-ray panel ("xray:U1"). Goals read them with `lab.view(name)`.
+   */
+  setView(name: OverlayName | "xray" | `xray:${string}`, on: boolean): void {
+    if (name.startsWith("xray:")) {
+      if (this.session.panelViews.has(name) === on) return;
+      this.session.setView(name, on);
+      this.bumpPanels();
+      return;
+    }
+    const st = this.store.getState();
+    if (name === "xray") st.setUi({ xray: on });
+    else if (name === "push") st.setOverlay({ push: on });
+    else if (name === "electrons") st.setOverlay({ flow: on ? "electrons" : st.overlay.flow === "electrons" ? "current" : st.overlay.flow });
+    else st.setOverlay({ flow: on ? (st.overlay.flow === "off" ? "current" : st.overlay.flow) : "off" });
+  }
+
+  /** Runs the loop tracer from an anchor ("pin:B1.neg"), or clears its ink with null. */
+  trace(from: string | null): void {
+    this.store.getState().trace(from);
+  }
+
   startLogger(): void {
     this.session.startLogger();
     this.bumpPanels();
@@ -425,6 +586,7 @@ export class LabRuntime {
       sample(await sim.step(dt));
     }
     this.ui.setState({ capture: { state: "done", at: t0, series } });
+    this.session.capture = { at: t0, series };
     if (!this.disposed && !document.hidden) sim.run({ speed: this.lab.speed ?? 1 });
   }
 
@@ -462,7 +624,8 @@ export class LabRuntime {
     for (let i = 0; i < seg.start; i++) {
       const e = applyStep(bench, this.lab.solution[i]!);
       bench = e.bench;
-      for (const inp of e.inputs) if (!inp.after) inputs.push(inp);
+      // A delayed input (a timed press's release) has happened by the next step: keep its final value, undelayed.
+      for (const { after: _after, ...inp } of e.inputs) inputs.push(inp);
     }
     return { bench, inputs };
   }
@@ -495,6 +658,10 @@ export class LabRuntime {
         this.bumpPanels();
       }
       if (e.tapper !== undefined) this.setTapper(e.tapper);
+      if (e.view) this.setView(e.view.name, e.view.on);
+      if (e.panelView) this.setView(e.panelView.name, e.panelView.on);
+      if (e.roll) this.roll(e.roll.id, e.roll.times);
+      if (e.trace !== undefined) this.trace(e.trace);
       // At least the step's own simulated time (a long press must end before the next step), and a beat to watch.
       await sleep(step.do === "wait" ? step.seconds * 1000 : Math.max(850, e.wait * 1000));
     }

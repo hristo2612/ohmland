@@ -5,6 +5,7 @@ import { createContext, useContext } from "react";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
 import type { Snapshot } from "@ohmland/sim";
+import { advanceGates, type GateCounts } from "./flow";
 import * as ops from "./ops";
 import type { StationState } from "./solder/station";
 import type {
@@ -49,6 +50,19 @@ export type BenchUi = {
   pressed: Record<string, boolean>;
 };
 
+/**
+ * Teaching overlays drawn over the bench in both views (docs/BENCH-VIEWS.md, "Overlays"):
+ * - `flow`: dots riding every lead and part at a speed from its current ("current", plus to minus), or electrons
+ *   drifting the other way, slowly ("electrons");
+ * - `push`: ink hatching along every lead by its voltage, and a hill on every battery and sealed box;
+ * - `trace`: the loop tracer inking the path from a terminal (`at` is when it started, performance.now() ms).
+ */
+export type BenchOverlay = {
+  flow: "off" | "current" | "electrons";
+  push: boolean;
+  trace: { from: Anchor; at: number } | null;
+};
+
 export type BenchStoreState = {
   bench: BenchState;
   past: BenchState[];
@@ -71,6 +85,9 @@ export type BenchStoreState = {
   station: StationState | null;
   /** What drives the station's clock: the simulator's time (snapshots) when one runs, else the wall clock. */
   stationClock: "auto" | "wall" | "sim";
+  overlay: BenchOverlay;
+  /** Dots each gate has counted so far (from the snapshots: a gate ticks once per dot that rides past). */
+  gates: GateCounts;
   ui: BenchUi;
   /** Set by <Bench>: receives every BenchAction. */
   emit: (action: BenchAction) => void;
@@ -107,6 +124,10 @@ export type BenchStoreState = {
   deleteSelected: () => void;
   /** Momentary input (pushbutton), not stored in the bench. */
   press: (id: string, pressed: boolean) => void;
+  /** Switch overlays on or off (flow dots, the push view). */
+  setOverlay: (patch: Partial<Omit<BenchOverlay, "trace">>) => void;
+  /** Start the loop tracer from an anchor ("pin:B1.neg"), or clear it with null. */
+  trace: (from: Anchor | null) => void;
 };
 
 export type BenchStore = StoreApi<BenchStoreState>;
@@ -135,8 +156,10 @@ const initialUi = (): BenchUi => ({
   pressed: {},
 });
 
+const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
 export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchStore {
-  return createStore<BenchStoreState>()((set, get) => {
+  const store = createStore<BenchStoreState>()((set, get) => {
     const record = (next: BenchState, action?: BenchAction) => {
       const { bench, txBase, past } = get();
       if (next === bench) return;
@@ -156,6 +179,8 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
       ambient: 1,
       station: null,
       stationClock: "auto",
+      overlay: { flow: "off", push: false, trace: null },
+      gates: {},
       ui: initialUi(),
       emit: () => {},
 
@@ -266,8 +291,17 @@ export function createBenchStore(initial: BenchState = ops.emptyBench()): BenchS
         set({ ui: { ...get().ui, pressed: { ...cur, [id]: pressed } } });
         get().emit({ type: "input", partId: id, key: "pressed", value: pressed });
       },
+      setOverlay: (patch) => set({ overlay: { ...get().overlay, ...patch } }),
+      trace: (from) => set({ overlay: { ...get().overlay, trace: from ? { from, at: now() } : null } }),
     };
   });
+  // Gates count the dots that ride past them, snapshot by snapshot (simulated time).
+  store.subscribe((s, prev) => {
+    if (s.snapshot === prev.snapshot || !s.bench.parts.some((p) => p.kind === "gate")) return;
+    const dt = s.snapshot && prev.snapshot ? s.snapshot.t - prev.snapshot.t : 0;
+    store.setState({ gates: advanceGates(s.gates, s.bench, s.snapshot, dt) });
+  });
+  return store;
 }
 
 export const BenchStoreContext = createContext<BenchStore | null>(null);

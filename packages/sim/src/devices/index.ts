@@ -9,6 +9,7 @@ import { LogicDevice, Timer555Device } from "./chips";
 import { SevenSegDevice } from "./display";
 import { RegulatorDevice } from "./regulator";
 import { SupplyDevice } from "./supply";
+import { McuBoardDevice } from "./mcu";
 
 /**
  * Creates the model for a part, or null for an unknown kind (which is then ignored). `seed` (Netlist.seed) is
@@ -64,6 +65,8 @@ export function createDevice(spec: PartSpec, seed?: string): Device | null {
       return new RegulatorDevice(spec, seed);
     case "supply":
       return new SupplyDevice(spec);
+    case "mcuboard":
+      return new McuBoardDevice(spec);
     default:
       return null;
   }
