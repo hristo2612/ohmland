@@ -1,0 +1,63 @@
+# Blueprint: docs/curriculum/unit-4.md, CH10. A bench lesson (docs/LESSONS.md).
+# One idea: pin 5 is the 2/3 line itself: drive it higher and the capacitor must climb further, so the note drops.
+# New: pin 5 (control); the x-ray draws the ladder of three equal resistors and the 555 map is complete.
+# Lab: content/labs/bend-the-pitch.ts. A half board has no room for the secret's slow 555, so the warble is made by
+# hand: wiggle the knob on pin 5.
+format: bench
+id: bend-the-pitch
+version: 1
+title: Bend the note
+summary: Wire a knob to a 555's pin 5 and bend its note, then see the three resistors inside and finish the 555 map.
+minutes: 6
+lab: bend-the-pitch
+unlocks:
+  parts: []
+  isle: ceramic-cap
+
+start:
+  title: Bend the note
+  say: One pitch is dull. Let's bend my voice.
+  go: Bend it
+
+beats:
+  - say: Plug the knob's green wire into pin 5. Then turn.
+    objective: Bend it
+    tool: scope
+    do: bend-it
+    note: { at: U1.5, text: "pin 5: control, bends the note" }
+
+  - say: Now turn pin 5 up, all the way.
+    tool: scope
+    guess: { options: [The note goes lower, The note goes higher], answer: The note goes lower }
+    do: up-is-down
+    rule: Higher on pin 5, lower note.
+
+  - say: Look inside. The last block is waiting.
+    objective: Finish the map
+    tool: xray
+    do: full-map
+    note: { at: U1, text: "three equal resistors: both lines" }
+
+  - say: Show me the pin that bends the note.
+    tap: { answer: U1.5, among: [U1.1, U1.2, U1.3, U1.4, U1.5, U1.6, U1.7, U1.8] }
+    hint: The green wire's pin.
+
+  - say: What is pin 5?
+    pick: { on: U1.5, options: [Control, Reset, Output], answer: Control }
+    wrong: { Reset: "Reset is pin 4. It clears; it doesn't bend." }
+
+secret:
+  task: warble
+  tool: controls
+  say: Curious? Wiggle the knob back and forth, fast.
+  done: A siren!
+  note: { at: RV2, text: "wiggle pin 5: a siren" }
+
+fixit:
+  say: My pitch knob does nothing. Fix it.
+  tool: scope
+  tasks:
+    - task: fix-knob-wire
+
+end:
+  say: Every pin named. My 555 map is complete.

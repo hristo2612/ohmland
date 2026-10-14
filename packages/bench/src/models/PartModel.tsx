@@ -16,6 +16,7 @@ import { AdapterModel, BraidModel, ClipModel, GunModel, JackModel, PerfboardMode
 import { AaCutawayModel, BalloonModel, BoxModel, CombModel, DrawerModel, EverydayModel, GateModel, PaperBitsModel, PieceModel, ScarfModel, SchematicModel, TrayModel, WallModel } from "./StartProps";
 import { McuBoardModel } from "./McuBoard";
 import { ChipModel, DipSwitchModel, LogicProbeModel, PackModel, RegulatorModel, SevenSegModel, SocketModel, SupplyModel, packExits, probeExits } from "./Chips";
+import { DoorModel, PlugModuleModel } from "./Alarm";
 import type { Mount } from "./common";
 
 export type PartModelProps<K extends BenchPartKind = BenchPartKind> = {
@@ -178,6 +179,10 @@ export function PartModel(props: PartModelProps) {
       return <PackModel {...p} />;
     case "bench-supply":
       return <SupplyModel {...p} />;
+    case "door":
+      return <DoorModel {...p} />;
+    case "plug-module":
+      return <PlugModuleModel {...p} />;
   }
 }
 

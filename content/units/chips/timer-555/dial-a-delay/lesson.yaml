@@ -1,0 +1,65 @@
+# Blueprint: docs/curriculum/unit-4.md, CH5. A bench lesson (docs/LESSONS.md).
+# One idea: the glow lasts about 1.1 × R × C. New: the formula (the trimmer is known from Unit 2).
+# Lab: content/labs/dial-a-delay.ts. The blueprint's 6 V pack secret became "2 s again with 22 µF": swapping a
+# battery means four drags of flying leads, and an unplugged first battery leaves the board without its ground.
+# Its second one-shot for the fix-it does not fit a half board, so the fix-it shorts this one's 10 kΩ instead.
+format: bench
+id: dial-a-delay
+version: 1
+title: Dial a delay
+summary: Turn a knob and swap a capacitor to change a 555's glow, then dial in exactly two seconds with 1.1 × R × C.
+minutes: 7
+lab: dial-a-delay
+unlocks:
+  parts: []
+  isle: pot
+
+start:
+  title: Dial a delay
+  say: I want a glow of exactly two seconds.
+  go: Start dialing
+
+beats:
+  - say: Turn the knob up, then tap.
+    objective: Knob and capacitor
+    tool: stopwatch
+    do: longer-glow
+    note: { at: RV1, text: "more ohms, longer glow" }
+
+  - say: Drop the 22 µF onto the 10 µF. Then tap.
+    tool: stopwatch
+    guess: { options: [About doubles, Stays the same, Halves], answer: About doubles }
+    do: bigger-c
+    note: { at: C2, text: "more C, longer glow too" }
+    rule: "Glow ≈ 1.1 × R × C"
+
+  - say: 47 kΩ and 10 µF glow for about...
+    objective: Use the law
+    pick: { options: [0.05 s, 0.52 s, 5.2 s], answer: 0.52 s }
+    hint: 1.1 × 47,000 × 0.00001 seconds.
+
+  - say: With 10 µF, which R gives 2.0 s?
+    number: { answer: 182, unit: kΩ, tolerance: 5 }
+    hint: 2 ÷ (1.1 × 0.00001) ohms. Then in kΩ.
+
+  - say: Put the 10 µF back. Dial in two seconds.
+    objective: Two seconds
+    tool: stopwatch
+    do: two-seconds
+    note: { at: RV1, text: "2.0 s, by design" }
+
+secret:
+  task: two-seconds-big
+  tool: stopwatch
+  say: Curious? Make 2 s with the 22 µF.
+  done: More C, less R, the same time.
+  note: { at: C2, text: "more C, less R" }
+
+fixit:
+  say: Make my knob safe at zero. Then turn it down.
+  tool: controls
+  tasks:
+    - task: fix-safe
+
+end:
+  say: Two seconds, made to order.
