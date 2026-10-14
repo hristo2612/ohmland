@@ -22,6 +22,8 @@ export type Moment = {
   part?: string;
   /** The one instrument or panel the moment shows (a beat's, the fix-it round's or the secret's `tool`). */
   tool?: string;
+  /** The terminal the loop tracer runs from once the moment's action is done (or as it begins, with no action). */
+  trace?: string;
   done?: string;
   note?: BeatNote;
   rule?: string;
@@ -49,6 +51,7 @@ export function momentsOf(lesson: BenchLessonData): Moment[] {
     if (beat.do) m.task = beat.do;
     if (beat.meet) m.part = beat.meet;
     if (beat.tool) m.tool = beat.tool;
+    if (beat.trace) m.trace = beat.trace;
     if (beat.done) m.done = beat.done;
     if (beat.note) m.note = beat.note;
     if (beat.rule) m.rule = beat.rule;
