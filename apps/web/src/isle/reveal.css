@@ -11,7 +11,12 @@
   padding: 0;
   border: 0;
   overflow: hidden;
-  background: linear-gradient(to bottom, var(--isle-sky-top), var(--isle-sky-bottom));
+  /* grid paper: the island stands on it (paper "clear") */
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(to bottom, var(--grid) var(--border-1), transparent var(--border-1)),
+    linear-gradient(to right, var(--grid) var(--border-1), transparent var(--border-1));
+  background-size: var(--cell) var(--cell);
   color: var(--ink);
 }
 :root[data-motion="full"] .reveal[open] { animation: fade-in var(--dur-fade) var(--ease-out); }
@@ -27,7 +32,7 @@
   width: 24px;
   height: 24px;
   margin: -12px 0 0 -12px;
-  border: var(--border-2) solid var(--paper-slip);
+  border: var(--border-2) solid var(--rule-soft);
   border-top-color: var(--ink);
   border-radius: var(--radius-round);
 }
@@ -42,9 +47,10 @@
   gap: var(--s-2);
   width: min(520px, calc(100% - 2 * var(--gutter)));
   padding: var(--s-6);
-  border: var(--border-1) solid var(--rule);
+  border: var(--border-label) solid var(--rule);
+  border-radius: var(--radius-1);
   background: var(--paper-slip);
-  box-shadow: var(--slip-shadow-lift);
+  box-shadow: var(--slip-shadow);
   transform: translateX(-50%);
 }
 :root[data-motion="full"] .reveal__panel { animation: reveal-rise var(--dur-write) var(--ease-out) var(--delay-1) both; }

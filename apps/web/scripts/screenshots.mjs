@@ -6,7 +6,7 @@
 //
 // Starts `astro preview` itself unless BASE_URL is set. Chromium runs with SwiftShader so the 3D island draws; the
 // island's clock is pinned (day in light shots, night in dark ones) and seeded learners use a fixed date, so the
-// islands look the same in every run. Besides the page names, --only takes landing-live, lesson, lesson2, reveal-module.
+// islands look the same in every run. Besides the page names, --only takes landing-lit, menu, lesson, lesson2, reveal-module.
 import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -52,11 +52,17 @@ const PAGES = [
 const CURATED_SET = new Set([
   "landing-desktop-light",
   "landing-desktop-dark",
+  "landing-phone-light",
   "landing-paint-desktop-dark",
-  "landing-live-desktop-dark",
-  "landing-live-phone-light",
+  "landing-lit-desktop-light",
+  "landing-lit-phone-dark",
+  "landing-full-desktop-light",
+  "menu-desktop-light",
+  "menu-phone-dark",
   "learn-desktop-light",
+  "learn-desktop-dark",
   "learn-phone-dark",
+  "learn-new-desktop-light",
   "learn-module-phone-light",
   "lesson-hook-desktop-light",
   "lesson-hook-phone-dark",
@@ -80,13 +86,18 @@ const CURATED_SET = new Set([
   "isle-label-desktop-dark",
   "isle-empty-desktop-light",
   "isle-empty-phone-dark",
+  "bench-desktop-light",
   "parts-desktop-light",
+  "parts-desktop-dark",
   "parts-drawer-phone-dark",
   "achievements-desktop-light",
   "achievements-phone-dark",
   "account-desktop-light",
+  "account-phone-dark",
   "about-desktop-dark",
+  "about-phone-light",
   "404-desktop-light",
+  "404-phone-dark",
 ]);
 const cleanName = (name) => name.replace(/^(lesson2?)-\d\d-/, "$1-");
 
@@ -105,12 +116,14 @@ async function startServer() {
   return { url, stop: () => process.kill(-child.pid) };
 }
 
-async function newPage(browser, size, theme, reducedMotion = "reduce") {
+async function newPage(browser, size, theme, reducedMotion = "reduce", touch = false) {
   const context = await browser.newContext({
     viewport: VIEWPORTS[size],
     deviceScaleFactor: size === "phone" ? 2 : 1,
     colorScheme: theme,
     reducedMotion,
+    hasTouch: touch,
+    isMobile: touch,
   });
   return { context, page: await context.newPage() };
 }
@@ -147,8 +160,8 @@ async function islandSettled(page) {
       () => {
         const screen = document.querySelector(".isle-screen");
         if (screen && screen.getAttribute("data-status") === "loading") return false;
-        const card = document.querySelector(".isle-card__frame");
-        return !card || card.hasAttribute("data-live");
+        const card = document.querySelector(".isle-card");
+        return !card || card.getAttribute("data-status") !== "waiting";
       },
       null,
       { timeout: 20000 },
@@ -174,8 +187,8 @@ async function pages(browser, url) {
         if (record) await seedLearner(page, url, record);
         await page.goto(url + withClock(path, theme), { waitUntil: "networkidle" });
         await islandSettled(page);
-        // the built module's landmark line, mid-screen
-        if (name === "learn-module") await page.locator(".landmark-card").first().evaluate((el) => el.scrollIntoView({ block: "center" }));
+        // the chapters, with the built module stamped
+        if (name === "learn-module") await page.locator(".map__chapters").first().evaluate((el) => el.scrollIntoView({ block: "start" }));
         await shot(page, `${name}-${size}-${theme}`);
         if (name === "isle" && wanted(`isle-label-${size}-${theme}`)) {
           // tap the module's landmark (where the seeded island puts it) for its label
@@ -185,7 +198,7 @@ async function pages(browser, url) {
           await shot(page, `isle-label-${size}-${theme}`);
         }
         if (name === "parts") {
-          const first = page.locator(".part-tile:not(.part-tile--locked)").first();
+          const first = page.locator(".part-slip:not(.part-slip--locked)").first();
           if (await first.count()) {
             await first.click();
             await page.waitForTimeout(400);
@@ -198,28 +211,54 @@ async function pages(browser, url) {
 }
 
 /**
- * The landing hero at first paint (HTML and CSS only: what shows before any script runs) and once its live island
- * has faded in over the poster (motion allowed, unlike the other shots).
+ * The landing at first paint (HTML and CSS only: what shows before any script runs), with its loop closed (the switch
+ * pointed at on a desktop; on a touch screen it closes by itself), and the whole page. Also the notebook menu.
  */
-async function landingLive(browser, url) {
-  if (ONLY && !ONLY.has("landing-live")) return;
+async function landingLit(browser, url) {
+  if (ONLY && !ONLY.has("landing-lit")) return;
   for (const size of SIZES)
     for (const theme of THEMES) {
       if (wanted(`landing-paint-${size}-${theme}`)) {
-        const { context, page } = await newPage(browser, size, theme, "no-preference");
+        const { context, page } = await newPage(browser, size, theme);
         await page.route(/\.js$/, (r) => r.abort());
         await page.goto(url, { waitUntil: "load" });
         await shot(page, `landing-paint-${size}-${theme}`);
         await context.close();
       }
-      if (wanted(`landing-live-${size}-${theme}`)) {
-        const { context, page } = await newPage(browser, size, theme, "no-preference");
+      if (wanted(`landing-lit-${size}-${theme}`)) {
+        const { context, page } = await newPage(browser, size, theme, "reduce", size === "phone");
         await page.goto(url, { waitUntil: "networkidle" });
-        await page.waitForSelector(".isle-frame--hero [data-live], .isle-frame--hero[data-live]", { timeout: 20000 }).catch(() => undefined);
-        await page.waitForTimeout(1500);
-        await shot(page, `landing-live-${size}-${theme}`);
+        if (size === "phone") await page.waitForSelector("[data-stage].is-lit");
+        else await page.locator("[data-switch]").hover();
+        await page.waitForTimeout(400);
+        await shot(page, `landing-lit-${size}-${theme}`);
         await context.close();
       }
+      if (wanted(`landing-full-${size}-${theme}`)) {
+        const { context, page } = await newPage(browser, size, theme);
+        await page.goto(url, { waitUntil: "networkidle" });
+        await page.waitForTimeout(250);
+        await page.screenshot({ path: join(OUT, `landing-full-${size}-${theme}.png`), fullPage: true, animations: "disabled" });
+        if (CURATED) quantise(join(OUT, `landing-full-${size}-${theme}.png`));
+        console.log(join(OUT, `landing-full-${size}-${theme}.png`));
+        await context.close();
+      }
+    }
+}
+
+/** The notebook menu, open: from the header chip on a desktop, from the bottom bar on a phone. */
+async function menu(browser, url) {
+  if (ONLY && !ONLY.has("menu")) return;
+  for (const size of SIZES)
+    for (const theme of THEMES) {
+      if (!wanted(`menu-${size}-${theme}`)) continue;
+      const { context, page } = await newPage(browser, size, theme);
+      await seedLearner(page, url, "one");
+      await page.goto(url + "/learn", { waitUntil: "networkidle" });
+      await page.locator(size === "phone" ? ".bottom-nav button[aria-expanded]" : ".xp-chip").click();
+      await page.waitForSelector(".nb__panel");
+      await shot(page, `menu-${size}-${theme}`);
+      await context.close();
     }
 }
 
@@ -322,7 +361,8 @@ mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ args: WEBGL_ARGS });
 try {
   await pages(browser, server.url);
-  await landingLive(browser, server.url);
+  await landingLit(browser, server.url);
+  await menu(browser, server.url);
   await lesson();
   await moduleReveal(browser, server.url);
   await lesson2(browser, server.url);

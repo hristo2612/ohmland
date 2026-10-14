@@ -1,5 +1,5 @@
 /**
- * The /isle page: the learner's island, full screen. The page shows at once with a sky and a loading line; the island
+ * The /isle page: the learner's island, full screen on the notebook's own paper. The page shows at once with a loading line; the island
  * code (and three.js) loads after hydration. Drag to turn, pinch or scroll to zoom, tap a piece for its label. A new
  * learner sees the bare starting plot and the way to their first lesson.
  */
@@ -14,7 +14,7 @@ import { resumeTarget } from "../progress/derive";
 import { prefersReducedMotion } from "../progress/prefs";
 import { useLearner, useLearnerReady } from "../progress/useLearner";
 import { completedModules } from "../progress/xp";
-import { timeOption } from "./env";
+import { onThemeChange, pageTime } from "./env";
 import { loadIsle } from "./load";
 import type { IsleEntry } from "./runtime";
 import "./isle-page.css";
@@ -68,7 +68,9 @@ export default function IslePage({ outline }: { outline: CourseOutline }) {
           reducedMotion: prefersReducedMotion(),
           messages,
           onPick: setLabel,
-          ...timeOption(),
+          // the page's own grid paper shows through, and night follows the page's theme
+          paper: "clear",
+          time: pageTime(),
         });
         if (cancelled) {
           v.dispose();
@@ -77,8 +79,10 @@ export default function IslePage({ outline }: { outline: CourseOutline }) {
         view.current = v;
         shownKey.current = `${seed}:${events.length}`;
         const stopPausing = rt.pauseWhenHidden(v);
+        const stopTheme = onThemeChange(() => v.setTime(pageTime()));
         cleanup = () => {
           stopPausing();
+          stopTheme();
           v.dispose();
           view.current = null;
         };

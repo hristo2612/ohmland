@@ -7,7 +7,7 @@ import { firebaseUrl, person, signInWithGoogle, signOut, storedLearner, storedLe
  * in for Google's, in the same popup the real sign-in uses.
  */
 
-const levelBadge = (page: Page) => page.locator(".level-chip__badge");
+const levelBadge = (page: Page) => page.locator("[data-level]").filter({ visible: true }).first();
 const settings = (page: Page) => page.locator(".account__settings");
 
 test.beforeAll(async ({ browser }) => {
@@ -37,18 +37,18 @@ test("a guest signs in: the finished lesson syncs, changes follow, offline chang
 
   // The header shows it on every page.
   await page.goto("/learn");
-  await expect(page.getByRole("link", { name: "Account, signed in. Saved." })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Signed in\. Saved\./ })).toBeVisible();
 
   // A change reaches the account a moment later.
   await page.goto("/account");
   await expect(syncStatus(page)).toHaveText("Saved");
-  await settings(page).getByRole("button", { name: "Night lab" }).click();
+  await settings(page).getByRole("button", { name: "Night" }).click();
   await expect.poll(async () => ((await storedLearner(request, uid))?.settings as { theme?: string } | undefined)?.theme).toBe("dark");
 
   // Offline, a change waits on the device and goes as soon as the browser is back.
   await page.context().setOffline(true);
   await expect(syncStatus(page)).toHaveText("Offline");
-  await settings(page).getByRole("button", { name: "Light" }).click();
+  await settings(page).getByRole("button", { name: "Day" }).click();
   await page.waitForTimeout(3000);
   await page.context().setOffline(false);
   expect(((await storedLearner(request, uid))?.settings as { theme: string }).theme).toBe("dark");
@@ -60,13 +60,13 @@ test("a guest signs in: the finished lesson syncs, changes follow, offline chang
   const second = await other.newPage();
   await signInWithGoogle(second, ada);
   await second.goto("/learn");
-  await expect(levelBadge(second)).toHaveText("2");
+  await expect(levelBadge(second)).toHaveAttribute("data-level", "2");
   // Signing out keeps the device's progress.
   await second.goto("/account");
   await signOut(second);
   await second.goto("/learn");
-  await expect(levelBadge(second)).toHaveText("2");
-  await expect(second.getByRole("link", { name: "Account", exact: true })).toBeVisible();
+  await expect(levelBadge(second)).toHaveAttribute("data-level", "2");
+  await expect(second.locator(".xp-chip")).not.toHaveAccessibleName(/Signed in/);
   await other.close();
 
   // Deleting the account removes the cloud copy and the sign-in; this device keeps its progress.
@@ -76,7 +76,7 @@ test("a guest signs in: the finished lesson syncs, changes follow, offline chang
   await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
   expect(await storedLearner(request, uid)).toBeNull();
   await page.goto("/learn");
-  await expect(levelBadge(page)).toHaveText("2");
+  await expect(levelBadge(page)).toHaveAttribute("data-level", "2");
 });
 
 test("another account on the same device is asked before anything merges", async ({ page, request }) => {
@@ -100,7 +100,7 @@ test("another account on the same device is asked before anything merges", async
   await expect(syncStatus(page)).toHaveText("Saved");
   expect(await storedLessons(request, await uidOf(page))).toEqual([]);
   await page.goto("/learn");
-  await expect(levelBadge(page)).toHaveText("1");
+  await expect(levelBadge(page)).toHaveAttribute("data-level", "1");
 });
 
 test("deleting all progress while signed in clears the account's copy too, and a reload does not bring it back", async ({ page, request }) => {
@@ -113,8 +113,8 @@ test("deleting all progress while signed in clears the account's copy too, and a
   await page.getByRole("dialog", { name: "Delete all progress?" }).getByRole("button", { name: "Delete everything" }).click();
   await expect.poll(() => storedLessons(request, uid)).toEqual([]);
   await page.goto("/learn");
-  await expect(page.getByRole("link", { name: "Account, signed in. Saved." })).toBeVisible();
-  await expect(levelBadge(page)).toHaveText("1");
+  await expect(page.getByRole("button", { name: /Signed in\. Saved\./ })).toBeVisible();
+  await expect(levelBadge(page)).toHaveAttribute("data-level", "1");
   expect(await storedLessons(request, uid)).toEqual([]);
 });
 
@@ -126,7 +126,7 @@ test("a change made just before the tab closes still reaches the account", async
   await expect(syncStatus(page)).toHaveText("Saved");
   const uid = await uidOf(page);
   // Well inside the two-second pause: only the keepalive request sent while the page goes away can carry it.
-  await settings(page).getByRole("button", { name: "Night lab" }).click();
+  await settings(page).getByRole("button", { name: "Night" }).click();
   await page.close({ runBeforeUnload: true });
   await expect.poll(async () => ((await storedLearner(request, uid))?.settings as { theme?: string } | undefined)?.theme).toBe("dark");
   await context.close();

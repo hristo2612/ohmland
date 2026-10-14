@@ -8,7 +8,7 @@ import { emptyLearner } from "../progress/state";
 import type { LearnerState } from "../progress/types";
 import { useLearner, useLearnerReady } from "../progress/useLearner";
 import { Icon } from "./Icon";
-import { IsleArt } from "./IsleArt";
+import IsleCard from "../isle/IsleCard";
 import { Stamp } from "./Stamp";
 import { Tick } from "./Tick";
 import "./course-map.css";
@@ -105,6 +105,8 @@ export default function CourseMap({ units, upcoming, outline }: { units: MapUnit
   const done = lessons.filter((l) => states[l.id] === "done").length;
   const progress = current ? learner.inProgress[current] : undefined;
   const resuming = !!progress && !!lesson;
+  // the step you are on: a bench lesson saves its beat one ahead (0 before its bench opens)
+  const stepNo = lesson && progress ? Math.min(lesson.steps, Math.max(1, lesson.bench ? progress.step : progress.step + 1)) : 0;
   const chapterNo = mod ? unit.modules.indexOf(mod) + 1 : 0;
 
   // Module boundaries, as ticks on the progress line.
@@ -168,7 +170,7 @@ export default function CourseMap({ units, upcoming, outline }: { units: MapUnit
                 {lesson.title}
               </h2>
               <p className="now__meta">
-                {resuming && <b>{m.map.step(Math.min(lesson.steps, (progress?.step ?? 0) + 1), lesson.steps)}</b>}
+                {resuming && <b>{m.map.step(stepNo, lesson.steps)}</b>}
                 {resuming && " · "}
                 {m.map.lessonMeta(lesson.minutes)}
               </p>
@@ -184,14 +186,13 @@ export default function CourseMap({ units, upcoming, outline }: { units: MapUnit
         )}
 
         <figure className="map__isle">
-          <div className="map__isle-art">
-            <IsleArt
-              landmarks={landmarks}
-              note={mod ? m.map.building(mod.landmark.name) : undefined}
-              label={m.map.isleLabel(landmarks.filter((x) => x.built).length, landmarks.length)}
-            />
-          </div>
+          <IsleCard outline={outline} landmarks={landmarks} label={m.map.isleLabel(landmarks.filter((x) => x.built).length, landmarks.length)} />
           <figcaption>
+            {mod && (
+              <p className="map__building" aria-hidden="true">
+                {m.map.building(mod.landmark.name)}
+              </p>
+            )}
             <a className="btn btn--tertiary" href="/isle">
               {m.map.isleLink}
               <Icon name="arrow-right" size={18} />

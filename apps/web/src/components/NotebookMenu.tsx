@@ -76,7 +76,9 @@ export function NotebookMenu({ outline, place = "header", active }: { outline: C
     { id: "bench", href: "/bench", icon: "bench", label: m.nav.menu.bench },
     { id: "account", href: "/account", icon: "user", label: signed ? m.nav.menu.account : m.nav.menu.signIn, ...(signed ? { meta: m.account.status[status] ?? "" } : {}) },
   ];
-  const chipLabel = ready ? m.level.chipLabel(level.level, level.title, level.xp) : m.nav.notebook;
+  const chipLabel = [ready ? m.level.chipLabel(level.level, level.title, level.xp) : m.nav.notebook, signed && m.nav.signedIn(m.account.status[status] ?? "")]
+    .filter(Boolean)
+    .join(". ");
   const toggle = (keyboard: boolean) => {
     viaKeyboard.current = keyboard;
     setOpen((o) => !o);
