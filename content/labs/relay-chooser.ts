@@ -28,16 +28,16 @@ export default defineLab({
       { id: "B1", kind: "battery", at: "desk:-126,-20", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "Coil battery B1" },
       { id: "S1", kind: "pushbutton", at: "desk:-74,-52", params: { base: true, cap: "red", tag: "S1" }, locked: true, label: "Button S1" },
       { id: "K1", kind: "relay", at: "desk:-8,-40", params: { base: true, tag: "K1", poles: 1, coilOhms: 540, pullIn: 6.0, dropOut: 1.8 }, locked: true, label: "Relay K1" },
-      { id: "B2", kind: "battery", at: "desk:-40,40", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "Lamp battery B2" },
-      { id: "R2", kind: "resistor", at: "desk:16,22", params: { ohms: 470 }, locked: true, label: "470 Ω resistor R2" },
-      { id: "D2", kind: "led", at: "desk:96,-16", rot: 180, params: { color: "yellow" }, locked: true, label: "Yellow LED D2" },
-      { id: "D3", kind: "led", at: "desk:96,22", rot: 180, params: { color: "green" }, locked: true, label: "Green LED D3" },
+      { id: "B2", kind: "battery", at: "desk:112,46", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "Lamp battery B2" },
+      { id: "R2", kind: "resistor", at: "desk:40,52", params: { ohms: 470 }, locked: true, label: "470 Ω resistor R2" },
+      { id: "D2", kind: "led", at: "desk:66,-18", rot: 180, params: { color: "yellow" }, locked: true, label: "Yellow LED D2" },
+      { id: "D3", kind: "led", at: "desk:66,14", rot: 180, params: { color: "green" }, locked: true, label: "Green LED D3" },
     ],
     leads: [
       { id: "TL1", from: "B1.pos", to: "S1.a1", color: "red" },
       { id: "TL2", from: "S1.b1", to: "K1.coil1", color: "yellow" },
       { id: "TL3", from: "K1.coil2", to: "B1.neg", color: "black" },
-      { id: "TL4", from: "B2.pos", to: "R2.a", color: "red" },
+      { id: "TL4", from: "B2.pos", to: "R2.b", color: "red" },
       { id: "TL5", from: "D2.cathode", to: "B2.neg", color: "black" },
       { id: "TL6", from: "D3.cathode", to: "B2.neg", color: "black" },
     ],
@@ -54,13 +54,13 @@ export default defineLab({
       id: "changeover",
       prompt: "Using only **B2**: yellow at rest, green while you hold **S1**.",
       goal: (lab) => {
-        if (!apart(lab) || !lab.connected("K1.com1", "R2.b")) return false;
+        if (!apart(lab) || !lab.connected("K1.com1", "R2.a")) return false;
         if (lab.heldFor(0.2, !pressed(lab) && lab.isLit("D2") && !lab.isLit("D3"), "rest")) lab.memory["rest"] = true;
         if (lab.heldFor(0.2, lab.closed("K1") && lab.isLit("D3") && !lab.isLit("D2"), "held")) lab.memory["held"] = true;
         return lab.memory["rest"] === true && lab.memory["held"] === true;
       },
       hints: ["R2's free end to COM. Then NC to one lamp, NO to the other.", "Yellow's long leg on NC, green's long leg on NO. Then press."],
-      highlight: ["pin:K1.com1", "pin:K1.nc1", "pin:K1.no1", "pin:R2.b"],
+      highlight: ["pin:K1.com1", "pin:K1.nc1", "pin:K1.no1", "pin:R2.a"],
       nudges: [{ when: (lab) => !apart(lab), say: "Careful: B2 must not touch B1. Two worlds." }],
       success: "The relay picks the lamp.",
     },
@@ -90,7 +90,7 @@ export default defineLab({
     },
   ],
   solution: [
-    { do: "lead", id: "TL7", from: "R2.b", to: "K1.com1", color: "green" },
+    { do: "lead", id: "TL7", from: "R2.a", to: "K1.com1", color: "green" },
     { do: "lead", id: "TL9", from: "K1.nc1", to: "D2.anode", color: "green" },
     { do: "lead", id: "TL10", from: "K1.no1", to: "D3.anode", color: "green" },
     { do: "wait", seconds: 0.5 },

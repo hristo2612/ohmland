@@ -54,9 +54,9 @@ export default defineLab({
     board: "none",
     frame: ["desk:-150,-70", "desk:110,70"],
     parts: [
-      { id: "B1", kind: "battery", at: "desk:-120,8", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
-      { id: "S1", kind: "pushbutton", at: "desk:-60,-38", params: { base: true, cap: "red", tag: "S1" }, locked: true, label: "Button S1" },
-      { id: "K1", kind: "relay", at: "desk:6,-36", params: { base: true, tag: "K1", poles: 1, coilOhms: 540, pullIn: 6.0, dropOut: 1.8, coilHenries: 0.3 }, locked: true, label: "Relay K1" },
+      { id: "B1", kind: "battery", at: "desk:-112,8", rot: 270, params: { emf: 9, internalOhms: 1.5 }, locked: true, label: "9 V battery" },
+      { id: "S1", kind: "pushbutton", at: "desk:66,-40", params: { base: true, cap: "red", tag: "S1" }, locked: true, label: "Button S1" },
+      { id: "K1", kind: "relay", at: "desk:-14,-38", params: { base: true, tag: "K1", poles: 1, coilOhms: 540, pullIn: 6.0, dropOut: 1.8, coilHenries: 0.3 }, locked: true, label: "Relay K1" },
     ],
     leads: [
       { id: "TL1", from: "B1.pos", to: "S1.a1", color: "red", locked: true },
@@ -110,7 +110,7 @@ export default defineLab({
     { do: "press", part: "S1", seconds: 0.5 },
     { do: "wait", seconds: 0.3 },
     { do: "check", task: "watch-the-spike" },
-    { do: "place", part: "D2", kind: "led", at: "desk:62,30", params: { color: "red" } },
+    { do: "place", part: "D2", kind: "led", at: "desk:40,34", params: { color: "red" } },
     { do: "lead", id: "TL4", from: "K1.coil1", to: "D2.cathode", color: "green" },
     { do: "lead", id: "TL5", from: "D2.anode", to: "K1.coil2", color: "green" },
     { do: "press", part: "S1", seconds: 0.6 },

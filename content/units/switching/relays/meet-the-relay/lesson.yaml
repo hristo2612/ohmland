@@ -5,7 +5,7 @@
 format: bench
 id: meet-the-relay
 version: 2
-title: A switch flipped by a magnet
+title: Flipped by a magnet
 summary: Find the coil and the contacts of an unlabeled relay, and hear it switch for the first time.
 minutes: 8
 lab: meet-the-relay
@@ -23,7 +23,7 @@ beats:
     objective: Find the coil
     tool: meter
     do: find-the-coil
-    done: About 540 Ω. A long coil of thin wire.
+    done: About 540 Ω. A long, thin coil of copper.
     note: { at: wired:K1.coil1, text: "coil: flow makes a magnet" }
 
   - say: Beep dial now. Which other pair beeps at rest?
@@ -62,4 +62,4 @@ fixit:
     - task: fix-lamp-no
 
 end:
-  say: A switch flipped by a magnet. I hear clicks in my dreams.
+  say: Flipped by a magnet. Clicks in my dreams tonight.
