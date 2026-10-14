@@ -517,6 +517,8 @@ const benchLessonObject = z.strictObject({
       timer: z.number().int().min(20).max(300).default(60),
       /** The one instrument or panel the round needs (the meter, to change its range), as on a beat. */
       tool: toolSchema.optional(),
+      /** Parts in play, as on a beat: spotlit and framed through every fix-it task. */
+      spot: z.array(anchor).min(1).optional(),
     })
     .optional(),
   /** The secret bonus: a bonus lab task, offered at the end if the learner has not found it by then. */

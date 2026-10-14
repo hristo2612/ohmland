@@ -85,6 +85,7 @@ export function momentsOf(lesson: BenchLessonData): Moment[] {
       fix: { index: i, count: fixit.tasks.length, intro: fixit.say, timer: fixit.timer },
     };
     if (fixit.tool) m.tool = fixit.tool;
+    if (fixit.spot) m.spot = fixit.spot;
     out.push(m);
   });
   out.push({ key: "end", kind: "end", say: lesson.end.say, action: "finish" });
