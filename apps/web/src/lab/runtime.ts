@@ -11,8 +11,10 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { createBenchStore, type BenchAction, type BenchState, type BenchStore, type MeterMode } from "@ohmland/bench/core";
 import type { InputKey, InputValue, Netlist, SimClient, SimEvent, Snapshot } from "@ohmland/sim";
+import type { Diagnostic } from "@ohmland/code";
 import { controlTargets, type BuiltBench, type SimInput } from "./build";
-import { isOptional, type LabDefinition, type LabTask, type LabViews, type OverlayName, type Reading, type TaskStatus } from "./define";
+import { isOptional, isPanelView, type LabDefinition, type LabTask, type LabViews, type OverlayName, type PanelViewName, type Reading, type TaskStatus } from "./define";
+import { boardPart, DAY_49, flashed, uploadError, uploadTo } from "./mcu";
 import { parseNote } from "./notes";
 import { LabSession, type FriedRecord } from "./session";
 import { seededRandom } from "./signals";
@@ -45,6 +47,8 @@ export type RuntimeUi = {
   capture: Capture | null;
   /** The views and overlays that are on (flow dots, push, x-ray, the tracer). */
   views: LabViews;
+  /** Bumped whenever a board's program, serial output or code drawer changes (the code tools re-render on it). */
+  code: number;
 };
 
 /** A single-shot scope capture: times in seconds from the trigger, one series per trace. */
@@ -130,6 +134,7 @@ export class LabRuntime {
       panels: 0,
       capture: null,
       views: { ...this.session.views },
+      code: this.session.mcu.version,
     }));
     this.store.subscribe((s, prev) => {
       if (s.overlay === prev.overlay && s.ui.xray === prev.ui.xray) return;
@@ -331,6 +336,7 @@ export class LabRuntime {
     }
     this.sim?.load(net.netlist);
     this.syncAudio(bench);
+    this.syncCode();
     // Sliders that drive every part of a kind (the desk lamp) reach parts placed since.
     for (const c of this.built.controls) if (c.part === "*") for (const id of controlTargets(bench, c)) this.sim?.setInput(id, c.key, this.session.controls[c.id] ?? c.value);
     void this.sim?.snapshot().then(() => {
@@ -395,6 +401,7 @@ export class LabRuntime {
       this.hooks.sound?.("fried");
     }
     if (u.captured.length) patch.readings = [...this.session.readings];
+    if (this.session.mcu.version !== this.ui.getState().code) patch.code = this.session.mcu.version;
     if (u.notices.length) patch.notice = { key: this.cardKey++, message: noticeText(u.notices[u.notices.length - 1]!) };
     for (const name of u.triggers) this.hooks.onTrigger?.(name);
     if (Object.keys(patch).length) this.ui.setState(patch);
@@ -506,8 +513,8 @@ export class LabRuntime {
    * Switches an overlay or the board's x-ray on or off (the toggles, a lesson, "Show me"), or opens and closes a chip's
    * x-ray panel ("xray:U1"). Goals read them with `lab.view(name)`.
    */
-  setView(name: OverlayName | "xray" | `xray:${string}`, on: boolean): void {
-    if (name.startsWith("xray:")) {
+  setView(name: OverlayName | "xray" | PanelViewName, on: boolean): void {
+    if (isPanelView(name)) {
       if (this.session.panelViews.has(name) === on) return;
       this.session.setView(name, on);
       this.bumpPanels();
@@ -518,6 +525,61 @@ export class LabRuntime {
     else if (name === "push") st.setOverlay({ push: on });
     else if (name === "electrons") st.setOverlay({ flow: on ? "electrons" : st.overlay.flow === "electrons" ? "current" : st.overlay.flow });
     else st.setOverlay({ flow: on ? (st.overlay.flow === "off" ? "current" : st.overlay.flow) : "off" });
+  }
+
+  // ---- The code drawer (Unit 5) ---------------------------------------------------------------------------
+
+  private syncCode(): void {
+    const v = this.session.mcu.version;
+    if (v !== this.ui.getState().code) this.ui.setState({ code: v });
+  }
+
+  /**
+   * Upload: a program with a mistake is refused (the mistake is returned and noted for `lab.code`), else it goes to the
+   * board, which restarts and runs it from `setup()`. The drawer plays its short upload moment before calling this.
+   */
+  upload(board: string, source: string): Diagnostic | null {
+    const error = uploadError(source);
+    this.session.noteUpload(board, source, error);
+    if (!error) {
+      // An upload is not a bench edit: undo and redo move parts and leads, the board keeps the program it was given.
+      const st = this.store.getState();
+      const bench = uploadTo(st.bench, board, source);
+      const upload = boardPart(bench, board)?.params.upload ?? 0;
+      const keep = (b: BenchState) => flashed(b, board, source, upload);
+      this.store.setState({ bench, past: st.past.map(keep), future: st.future.map(keep) });
+    }
+    this.syncCode();
+    return error;
+  }
+
+  /** The program in a board's code drawer changed (it reaches the board only on Upload). */
+  setDraft(board: string, source: string): void {
+    this.session.setDraft(board, source);
+  }
+
+  private beatPrograms = new Set<string>();
+
+  /**
+   * A lesson beat's starting program goes into the drawer once per visit, the first time that beat's drawer opens
+   * (the learner's edits after that are theirs). Returns whether it did.
+   */
+  beatProgram(beatKey: string, board: string, source: string): boolean {
+    if (this.beatPrograms.has(beatKey)) return false;
+    this.beatPrograms.add(beatKey);
+    this.setDraft(board, source);
+    return true;
+  }
+
+  /** The code drawer switched between its blocks and its text (`lab.view("code:text")`). */
+  setCodeView(board: string, view: "blocks" | "text"): void {
+    this.session.setCodeView(board, view);
+    this.bumpPanels();
+  }
+
+  /** Sets a board's clock so `millis()` reads `ms` now (default: nine seconds before it wraps, the day-49 jump). */
+  jumpMillis(board: string, ms = DAY_49): void {
+    this.sim?.setInput(board, "millis", ms);
   }
 
   /** Runs the loop tracer from an anchor ("pin:B1.neg"), or clears its ink with null. */
@@ -662,6 +724,10 @@ export class LabRuntime {
       if (e.panelView) this.setView(e.panelView.name, e.panelView.on);
       if (e.roll) this.roll(e.roll.id, e.roll.times);
       if (e.trace !== undefined) this.trace(e.trace);
+      if (e.code) {
+        this.session.noteUpload(e.code.part, e.code.source, e.code.error);
+        this.syncCode();
+      }
       // At least the step's own simulated time (a long press must end before the next step), and a beat to watch.
       await sleep(step.do === "wait" ? step.seconds * 1000 : Math.max(850, e.wait * 1000));
     }

@@ -3,11 +3,13 @@
  * snapshot, the recent snapshot history and the notebook.
  */
 import { apart, gateAmps, isThrowSwitch, lifting, partLegs, slotTurn, staticCharge, stuckTo, tagText, traceLoop, type BenchNetlist, type BenchState, type GateCounts, type MeterSocket, type PlacedPart, type StationState } from "@ohmland/bench/core";
-import type { NodeId, PartState, SimEvent, SimEventType, Snapshot } from "@ohmland/sim";
+import { mcuPin, type NodeId, type PartState, type SimEvent, type SimEventType, type Snapshot } from "@ohmland/sim";
+import { pinName } from "@ohmland/code";
 import { resolveAttach } from "./anchors";
 import { solderLab } from "./solder";
 import { chipLeg, chipPinNode, chipPinRef, chipSeat, levelOf, partChip, pinNumber, specChip, type Level } from "./chips";
 import type { CaptureView, DrawingState, EdgeCount, LabView, LabViews, MeterView, PanelState, Reading, RollsView, Stats, StopwatchRun, TaskStatus, TimingView } from "./define";
+import { boardPart, boardView, codeView, serialView, type BoardTrack, type CodeState } from "./mcu";
 import { distinctRun, dutyOf, edgesOf, midLevel, pressesOf, tallyOf, widthsOf, type Edge, type EdgeTrack } from "./signals";
 import { supplyNodeOf, watchKey } from "./watch";
 
@@ -59,6 +61,10 @@ export type LabViewInput = {
   capture?: CaptureView | null;
   /** Parts the board refused to seat. */
   rejected?: readonly string[];
+  /** Microcontroller boards: uploads, serial lines since the last one, clock wraps (see mcu.ts). */
+  boards?: Readonly<Record<string, BoardTrack>>;
+  /** Code drawers, by board. */
+  codes?: Readonly<Record<string, CodeState>>;
 };
 
 const NO_VIEWS: LabViews = { flow: "off", push: false, xray: false, trace: null };
@@ -269,6 +275,12 @@ export function createLabView(input: LabViewInput): LabView {
       return typeof x === "number" ? x : typeof x === "boolean" ? (x ? 1 : 0) : undefined;
     }
     if (key === "gate") return Math.abs(gateAmps(bench, s, target));
+    if (key === "pin") {
+      // A microcontroller board's pin as the program reads it: "pin:U1:13" (or "pin:U1:A0") is 1 HIGH, 0 LOW.
+      const at = target.lastIndexOf(":");
+      const level = mcuPin(s.parts[target.slice(0, at)], target.slice(at + 1))?.level;
+      return level === "HIGH" ? 1 : level === "LOW" ? 0 : undefined;
+    }
     const p = s.parts[target];
     if (!p) return undefined;
     switch (key) {
@@ -700,8 +712,8 @@ export function createLabView(input: LabViewInput): LabView {
       if (name === "electrons" || name === "dots:electrons") return v.flow === "electrons";
       if (name === "xray") return v.xray;
       if (name === "trace") return v.trace !== null;
+      if (input.panelViews?.has(name)) return true;
       if (name.startsWith("xray:")) {
-        if (input.panelViews?.has(name)) return true;
         const p = partOf(name.slice(5));
         return !!(p?.params as { xray?: boolean } | undefined)?.xray;
       }
@@ -743,6 +755,13 @@ export function createLabView(input: LabViewInput): LabView {
     },
 
     pin(chip, ref) {
+      if (boardPart(bench, chip)) {
+        const st = mcuPin(snapshot?.parts[chip], ref);
+        const n = typeof ref === "number" ? ref : /^a[0-5]$/i.test(ref) ? 14 + Number(ref.slice(1)) : Number(ref.replace(/^d/i, ""));
+        if (!st || !(n >= 0 && n < 20)) return null;
+        const leg = n >= 14 ? `a${n - 14}` : `d${n}`;
+        return { n, name: pinName(n), node: simNodeOf(`pin:${chip}.${leg}`), volts: st.volts, level: st.level === "HIGH" ? "H" : st.level === "LOW" ? "L" : "Z", mode: st.mode, mA: st.mA, dead: st.dead };
+      }
       const info = partChip(partOf(chip)) ?? specChip(simNetlist?.parts.find((x) => x.id === chip));
       if (!info) return null;
       const n = pinNumber(info, ref);
@@ -778,6 +797,12 @@ export function createLabView(input: LabViewInput): LabView {
     timing: (id) => input.timing?.[id] ?? NO_TIMING,
     rolls: (id) => input.rolls?.[id] ?? NO_ROLLS,
     capture: () => input.capture ?? null,
+
+    board: (id) => boardView(bench, snapshot, input.boards?.[id], id),
+    uploads: (id) => input.boards?.[id]?.uploads ?? 0,
+    serial: (id) => serialView(snapshot, input.boards?.[id], id),
+    millis: (id) => view.board(id)?.millis ?? null,
+    code: (id) => codeView(input.codes?.[id], bench, id),
   };
   let solder: LabView["solder"] | undefined;
   return view;
