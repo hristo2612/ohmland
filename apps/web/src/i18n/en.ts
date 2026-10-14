@@ -1089,6 +1089,8 @@ export const en = {
       moss: "Moss",
       tuft: "Grass tuft",
       "lemon-tree": "Lemon tree",
+      "spark-gap": ["Spark gap", "Tall spark gap"],
+      "pump-house": ["Pump house", "Marble pump house"],
       "meter-tower": ["Meter house", "Meter tower", "Grand meter tower"],
       "resistor-hall": ["Resistor hall", "Great resistor hall"],
       lighthouse: ["First light", "LED lighthouse", "Great LED lighthouse"],
@@ -1127,6 +1129,7 @@ export const en = {
     isleGrows: "Your isle grows",
     /** Unit titles for captions; the course outline's own titles win. */
     units: {
+      "start-here": "Start here",
       basics: "Basics",
       switching: "Switching",
       permanent: "Making it permanent",

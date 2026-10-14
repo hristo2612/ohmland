@@ -4,7 +4,7 @@
  */
 
 /** Units in course order. Each is its own island; the first one the learner reaches is the main island. */
-export const UNITS = ["basics", "switching", "permanent", "chips", "beyond"] as const;
+export const UNITS = ["start-here", "basics", "switching", "permanent", "chips", "beyond"] as const;
 export type UnitId = (typeof UNITS)[number];
 
 /** Pieces: one per finished lesson. */
@@ -39,7 +39,8 @@ export type PieceId = (typeof PIECES)[number];
 
 /** Landmarks: one per finished module, grouped by the unit whose island they suit. */
 export const LANDMARKS_BY_UNIT: Record<UnitId, readonly string[]> = {
-  basics: ["meter-tower", "resistor-hall", "lighthouse", "observatory", "power-station", "lemon-grove"],
+  "start-here": ["spark-gap", "pump-house", "meter-tower"],
+  basics: ["resistor-hall", "lighthouse", "observatory", "power-station", "lemon-grove"],
   switching: ["switchyard", "relay-clocktower", "breadboard-plaza", "capacitor-water-tower", "transistor-gatehouse", "siren-tower"],
   permanent: ["solder-forge", "perfboard-pier"],
   chips: ["timer-factory", "logic-castle", "counter-billboard", "dice-arcade"],
@@ -82,6 +83,8 @@ const PIECE_FOOT: Record<PieceId, number> = {
 
 /** Landmark footprint radius and how many visual tiers it has (it rises a tier with later modules on its island). */
 const LANDMARK_SPEC: Record<string, { foot: number; tiers: number }> = {
+  "spark-gap": { foot: 2.3, tiers: 2 },
+  "pump-house": { foot: 2.6, tiers: 2 },
   "meter-tower": { foot: 2.3, tiers: 3 },
   "resistor-hall": { foot: 2.8, tiers: 2 },
   lighthouse: { foot: 2.3, tiers: 3 },
