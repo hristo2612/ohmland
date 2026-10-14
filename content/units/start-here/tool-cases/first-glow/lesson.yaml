@@ -20,6 +20,7 @@ start:
 beats:
   - say: Drag the torn piece into the gap. Turn it right.
     objective: Mend the blueprint
+    spot: [CARD, PC]
     do: mend-blueprint
     note: { at: "part:CARD/D1", text: the triangle points away from plus }
 
