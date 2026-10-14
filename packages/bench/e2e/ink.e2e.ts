@@ -187,6 +187,46 @@ test.describe("interaction", () => {
     expect(r1.holes).toEqual({ a: "e11", b: "e15" });
   });
 
+  test("turn a trimmer, move a plug, rotate and delete, draw a pencil line", async ({ page }) => {
+    await open(page, "tray=0");
+    await page.evaluate(() => (window as unknown as InkWindow).__ink.current.focus(["RV1", "M1"], { instant: true }));
+    await page.waitForTimeout(100);
+    // The trimmer's rotor: from its centre, drag round to the right.
+    const rv = await at(page, "part:RV1");
+    const s = await page.evaluate(() => (window as unknown as InkWindow).__ink.current.camera().s);
+    await drag(page, { x: rv.x, y: rv.y }, { x: rv.x + 6 * s, y: rv.y + 2 * s });
+    const pos = (await state(page)).parts.find((p) => p.id === "RV1")!.params.position as number;
+    expect(pos).toBeGreaterThan(0.6);
+
+    // The red plug from VΩ to the mA socket.
+    await drag(page, await at(page, "socket:vohm"), await at(page, "socket:ma"));
+    expect((await state(page)).meter!.probes.red!.socket).toBe("ma");
+
+    // Rotate the NPN a quarter turn with R, then delete it.
+    await page.locator('[data-kb="part:Q1"]').focus();
+    const before = (await state(page)).parts.find((p) => p.id === "Q1")!.holes!;
+    await page.keyboard.press("r");
+    const after = (await state(page)).parts.find((p) => p.id === "Q1")!.holes!;
+    expect(after).not.toEqual(before);
+    await page.keyboard.press("Delete");
+    expect((await state(page)).parts.find((p) => p.id === "Q1")).toBeUndefined();
+
+    await open(page, "scene=props&tray=0");
+    await page.evaluate(() => (window as unknown as InkWindow).__ink.current.focus(["P4"], { instant: true }));
+    await page.waitForTimeout(100);
+    const zero = await page.evaluate(() => {
+      const w = window as unknown as InkWindow;
+      const r = document.querySelector(".ohi-root")!.getBoundingClientRect();
+      const c = w.__ink.current.project("part:P4/p0")!;
+      return { x: c.x + r.left, y: c.y + r.top, s: w.__ink.current.camera().s };
+    });
+    // A stroke from the 0 mark to 8 cm: on a card with a 5 cm line, it shades over and lengthens it.
+    await drag(page, { x: zero.x + 2 * zero.s, y: zero.y }, { x: zero.x + 80 * zero.s, y: zero.y });
+    const card = (await state(page)).parts.find((p) => p.id === "P4")!.params;
+    expect(card.length).toBe(8);
+    expect(card.layers).toBe(3);
+  });
+
   test("touch: two fingers zoom, one finger pans", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
     const page = await ctx.newPage();
