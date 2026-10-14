@@ -252,7 +252,9 @@ from the same store, emits the same actions through the same `benchOps`, and rea
 a lab can switch between the 3D and ink views at any moment without losing anything (see `docs/BENCH-VIEWS.md`).
 It is plain SVG: nothing under `src/ink` imports three.js (a test walks the import graph to keep it that way).
 
-![Ink bench](screenshots/ink-desktop.png)
+![Ink bench: first glow](screenshots/ink-glow.png)
+
+![Ink bench: a populated breadboard, the meter and the tray](screenshots/ink-desktop.png)
 
 Use it through `<BenchView view="ink">`, or alone:
 

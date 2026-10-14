@@ -375,7 +375,7 @@ export const INK_CSS = `
 .ohi-tray{position:absolute;left:10px;top:66px;bottom:10px;width:176px;display:flex;flex-direction:column;overflow:hidden}
 .ohi-tray h2{margin:10px 12px 2px;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--k-ink-3)}
 .ohi-tray-list{overflow:auto;padding:4px 6px 8px;display:grid;grid-template-columns:1fr 1fr;gap:2px}
-.ohi-item{all:unset;box-sizing:border-box;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:2px;min-height:76px;padding:4px 2px 6px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;text-align:center;font-size:12.5px;line-height:1.15;color:var(--k-ink-2)}
+.ohi-item{all:unset;box-sizing:border-box;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:2px;min-height:76px;padding:4px 2px 6px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;text-align:center;font-size:12.5px;line-height:1.15;color:var(--k-ink-2);overflow-wrap:anywhere;hyphens:auto}
 .ohi-item:hover{background:var(--k-sunk);color:var(--k-ink)}
 .ohi-item[aria-pressed=true]{background:var(--k-blue-wash);color:var(--k-blue);outline:1.5px solid var(--k-blue)}
 .ohi-item:focus-visible{outline:2px solid var(--k-focus)}
