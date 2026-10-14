@@ -9,7 +9,8 @@ summary: Crack the resistor colour code with a chart, then label a bag of resist
 minutes: 6
 lab: reading-the-stripes
 unlocks:
-  parts: []
+  # conversion-guide.md D2 moves resistor to Start here (the-squeeze); it stays here until that lesson exists.
+  parts: [resistor]
   isle: resistor
 
 start:
