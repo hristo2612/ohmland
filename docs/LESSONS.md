@@ -110,11 +110,18 @@ Optional, on any beat:
   to the digit just found. Use steps that set a state (`param`, `flip` with `to`, `clip`): a resumed lesson applies
   them again. A step that needs the bench to keep its new state through a later task's setup belongs in the lab's
   solution as well.
+- `palette` and `program` (with `tool: code`, Unit 5): the blocks the drawer offers in this beat, each a block's name
+  or steps in bench C (`palette: ["digitalWrite(13, LOW);", delay]`: one block, not a toolbox; a beat without a
+  palette offers none), and a program the drawer starts the beat from (once per visit; the learner's edits after that
+  are theirs). A code beat's one action is one edit, then Upload; its task's goal reads the bench (the lamp, the serial
+  lines), not the code. Hide the text view until lesson 14 with the lab's `code: { text: false }` (docs/LABS.md, Code).
 - `xray: true`: the breadboard's metal strips show during the beat.
 - `trace: B1.neg`: the loop tracer runs from that terminal once the beat's action is done (the right tap on it, the
   task's goal met), or as the beat begins when it has nothing to do. Its red pencil line clears when the beat ends.
 - `tool`: the one instrument or panel the beat needs: `meter`, `scope`, `logger`, `stopwatch`, `tapper`, `controls`,
-  `views` (the lab's overlay toggles, Flow, Electrons and Push, from `overlays.offer`) or a lab panel id. Without it, a lab panel tied to the beat's task (its `show`) appears. Never two at once. The
+  `views` (the lab's overlay toggles, Flow, Electrons and Push, from `overlays.offer`), the microcontroller board's
+  `code` (the code drawer), `serial` (the serial monitor) or `millis` (its clock, with the day-49 jump), or a lab
+  panel id. Without it, a lab panel tied to the beat's task (its `show`) appears. Never two at once. The
   fix-it round and the secret take a `tool` too (`fixit: { tool: meter, ... }`, `secret: { tool: meter, ... }`): the
   meter's range, for one, can only be changed on its panel.
 
