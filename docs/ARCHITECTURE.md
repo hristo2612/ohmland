@@ -148,11 +148,12 @@ end: { say: "You built that from scratch." }
 
 Optional on a beat: `objective` (groups beats; the robot's eyes fill per objective), `spot` (parts to frame and
 spotlight), `xray`, `tool` (the one instrument or panel shown), `guess` (before a `do`), `done`, `note`, `rule`,
-`hint` and `wrong` (on demand). Word limits per kind of line (robot line 12, note 6, rule 8, chip 4), at most 3 rules
-and one pop-up card, and the budgets (main path under 150 words, on-demand text under 60) are build errors. The
-loader checks the lab file exists; `apps/web/src/lesson/bench/lessons.test.ts` checks a bench lesson against its lab
-(tasks exist, the lab's required tasks are the beats' and fix-it's tasks in order, setups open their solution
-segments, tools and anchors exist).
+`hint` and `wrong` (on demand). Word limits per kind of line (robot line 22, note 6, rule 8, chip 4), at most 3 rules
+and one pop-up card, and the budgets (main path 320 words, on-demand text 120) are build errors (`watch` is refused
+outside try-out copies). The loader checks the lab file exists; `apps/web/src/lesson/bench/lessons.test.ts` checks a
+bench lesson against its lab (tasks exist, the lab's required tasks are the beats' and fix-it's tasks in order, setups
+open their solution segments, tools and anchors exist) and walks the course for first uses of the words in
+`content/glossary.yaml` (docs/LESSONS.md, "Writing beats").
 
 A stepper `lesson.yaml` (fields marked md accept a small markdown subset: paragraphs, `-`/`1.` lists, `**bold**`,
 `*italic*`, `` `code` ``, `[links](https://...)`; everything else is escaped):
