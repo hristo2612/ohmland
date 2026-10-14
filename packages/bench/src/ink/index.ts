@@ -6,4 +6,5 @@ export { INK_KINDS, inkKind, hasInkKind } from "./kinds";
 export type { InkKind, InkRegistry, DrawProps, ShapeCtx } from "./kinds/types";
 export { buildModel, targetPoint, targetRect, type InkModel, type InkPick } from "./model";
 export { hitTest } from "./hit";
+export { inkClutter, inkScene } from "./clutter";
 export type { BenchController, ScreenPoint } from "../view/controller";
