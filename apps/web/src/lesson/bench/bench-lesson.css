@@ -178,6 +178,21 @@ html:has(.bl:not(.bl--finale)) { overflow: hidden; }
   animation: bl-write calc(var(--bl-dur-write) * 1.25) var(--bl-ease-out) backwards;
   animation-delay: var(--bl-dur-write);
 }
+/* A hint the learner asked for, under the robot's line (which stays): graphite like a margin note, with the hint mark. */
+.bl-hint {
+  display: flex;
+  gap: var(--bl-s-2);
+  align-items: flex-start;
+  margin: 0;
+  padding-left: var(--bl-s-3);
+  border-left: 2px solid var(--bl-rose);
+  color: var(--bl-ink-2);
+  font-family: var(--bl-hand);
+  font-size: var(--bl-text-lg);
+  line-height: 1.3;
+  animation: bl-write calc(var(--bl-dur-write) * 1.25) var(--bl-ease-out) backwards;
+}
+.bl-hint svg { flex: none; margin-top: 0.15em; color: var(--bl-red); }
 .bl-kicker {
   margin: 0;
   color: var(--bl-ink-2);
@@ -713,7 +728,8 @@ html:has(.bl:not(.bl--finale)) { overflow: hidden; }
   .bl-margin__foot { margin-top: 0; }
   .bl-steps { margin: 0; }
   .bl-line { font-size: var(--bl-text-lg); }
-  .bl-watch { font-size: var(--bl-text-md); line-height: 1.25; }
+  .bl-watch,
+  .bl-hint { font-size: var(--bl-text-md); line-height: 1.25; }
   .bl-xp { top: -14px; right: auto; left: 0; font-size: var(--bl-text-md); }
   .bl-stamped { padding: var(--bl-s-2); }
   /* The margin's rule stamp only: the CHECKED and LEVEL UP stamps keep their own size. */
