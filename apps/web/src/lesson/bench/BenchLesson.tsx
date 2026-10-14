@@ -5,7 +5,7 @@
  * bench. At the end the notebook page is signed off and the island grows.
  *
  * The shell (this file) is light: the bench, the simulator and three.js arrive in the Stage chunk, warmed on the
- * learner's first gesture or after a few seconds, never in the page's first load.
+ * learner's first gesture or once the loaded page goes idle, never in the page's first load.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { BenchLessonData } from "../../content/load";
@@ -51,6 +51,14 @@ import "@fontsource/kalam/700.css";
 import "./bench-lesson.css";
 
 const StageChunk = preloadable<StageProps, typeof import("./Stage")>(() => import("./Stage"));
+
+/**
+ * How long after the page's load event (ms) the bench starts warming by itself, at the browser's next idle moment (or
+ * WARM_IDLE_WAIT ms later on a busy one): past the first load, so a lesson's first load carries no three.js and no
+ * simulator, but well before most learners press Start.
+ */
+const WARM_AFTER_LOAD = 1000;
+const WARM_IDLE_WAIT = 500;
 
 const warmed = new Set<string>();
 /** Starts loading the bench: the stage chunk, the 3D chunk (and its textures when idle), the lab and the simulator. */
@@ -179,7 +187,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
     storeViewPref(pref);
   };
 
-  // ---- Warm the bench on the first gesture or after a few seconds, never in the first load ----------------------
+  // ---- Warm the bench on the first gesture, or once the loaded page goes idle, never in the first load -------------
   useEffect(() => {
     if (warm) {
       warmBench(lesson.lab);
@@ -195,12 +203,19 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
     window.addEventListener("pointerdown", go, opts);
     window.addEventListener("pointermove", go, opts);
     window.addEventListener("keydown", go, opts);
-    const timer = window.setTimeout(go, 3000);
+    // A learner reading the mission (a touch screen or a keyboard sends no gesture until Start) finds the bench built.
+    let timer = 0;
+    const settled = () => {
+      timer = window.setTimeout(() => whenIdle(go, WARM_IDLE_WAIT), WARM_AFTER_LOAD);
+    };
+    if (document.readyState === "complete") settled();
+    else window.addEventListener("load", settled, { once: true });
     return () => {
       done = true;
       window.removeEventListener("pointerdown", go);
       window.removeEventListener("pointermove", go);
       window.removeEventListener("keydown", go);
+      window.removeEventListener("load", settled);
       window.clearTimeout(timer);
     };
   }, [warm, lesson.lab]);
@@ -643,6 +658,10 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
   // A hole check brings the marked hole's corner of the board close, without veiling the holes around it.
   const frame = started && moment.beat?.tap?.joinedTo ? [moment.beat.tap.joinedTo] : null;
   const popup = started && phase === "act" && moment.action === "popup" ? (moment.beat?.popup ?? null) : null;
+  // The beat's tool. A tool new to this beat waits for its guess (it could give the answer away); one the beat before
+  // named too stays docked through it, so it never closes and opens again between two beats that both use it.
+  const kept = !!moment.tool && moments[index - 1]?.tool === moment.tool;
+  const tool = started && (phase !== "guess" || kept) ? (moment.tool ?? null) : null;
   const friedHere = friedAll.filter((f) => f.lessonId === lesson.id).map((f) => f.label);
   const fixedCount = moments.filter((mo) => mo.kind === "fix" && mo.task && tasks.includes(mo.task)).length;
 
@@ -967,7 +986,7 @@ export function BenchLesson({ lesson, outline, parts, module, next, mapHref }: P
               marks={marks}
               check={check}
               popup={popup}
-              tool={started && phase !== "guess" ? (moment.tool ?? null) : null}
+              tool={tool}
               code={started ? { key: moment.key, ...moment.code } : null}
               keyboardOpen={keyboard}
               onApi={setApi}

@@ -1,12 +1,13 @@
-// Visual review: screenshots of every page and every lesson step, light and dark, desktop and phone.
+// Visual review: screenshots of every page, light and dark, desktop and phone, with a bench lesson at its start and
+// resumed at a beat. scripts/lesson-shots.mjs plays every moment of the reference bench lessons.
 //
-//   pnpm build && pnpm shots                      all pages and steps into ./screenshots-review
+//   pnpm build && pnpm shots                      all pages into ./screenshots-review
 //   pnpm shots -- --out=screenshots --curated     the curated set committed under apps/web/screenshots
 //   pnpm shots -- --only=landing,learn --full     a subset, full-page
 //
 // Starts `astro preview` itself unless BASE_URL is set. Chromium runs with SwiftShader so the 3D island draws; the
 // island's clock is pinned (day in light shots, night in dark ones) and seeded learners use a fixed date, so the
-// islands look the same in every run. Besides the page names, --only takes landing-lit, menu, lesson, lesson2, reveal-module.
+// islands look the same in every run. Besides the page names, --only takes landing-lit, menu, lesson, reveal-module.
 import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -46,8 +47,9 @@ const PAGES = [
 ];
 
 /**
- * The set committed under apps/web/screenshots (names without the step numbers). Lab shots (lab-*, lesson-lab-*,
- * bench-*) come from scripts/lab-shots.mjs, signed-in account shots from the accounts end-to-end run.
+ * The set committed under apps/web/screenshots. Lab shots (lab-*, lesson-lab-*) come from scripts/lab-shots.mjs, bench
+ * lesson and code drawer shots (bench-lesson-*, code-*) are picked from scripts/lesson-shots.mjs and
+ * scripts/code-shots.mjs, signed-in account shots come from the accounts end-to-end run.
  */
 const CURATED_SET = new Set([
   "landing-desktop-light",
@@ -64,21 +66,6 @@ const CURATED_SET = new Set([
   "learn-phone-dark",
   "learn-new-desktop-light",
   "learn-module-phone-light",
-  "lesson-hook-desktop-light",
-  "lesson-hook-phone-dark",
-  "lesson-quiz-right-desktop-light",
-  "lesson-quiz-match-one-phone-dark",
-  "lesson-wrap-desktop-light",
-  "lesson-reveal-desktop-light",
-  "lesson-reveal-phone-dark",
-  "lesson-finale-desktop-light",
-  "lesson-finale-desktop-dark",
-  "lesson-finale-phone-light",
-  "lesson2-explain-widget-desktop-dark",
-  "lesson2-numeric-prefix-desktop-light",
-  "lesson2-colour-built-desktop-light",
-  "lesson2-hotspot-right-desktop-light",
-  "lesson2-order-phone-light",
   "reveal-module-desktop-dark",
   "reveal-module-phone-light",
   "isle-desktop-light",
@@ -99,7 +86,6 @@ const CURATED_SET = new Set([
   "404-desktop-light",
   "404-phone-dark",
 ]);
-const cleanName = (name) => name.replace(/^(lesson2?)-\d\d-/, "$1-");
 
 async function startServer() {
   if (process.env.BASE_URL) return { url: process.env.BASE_URL, stop: () => {} };
@@ -128,11 +114,10 @@ async function newPage(browser, size, theme, reducedMotion = "reduce", touch = f
   return { context, page: await context.newPage() };
 }
 
-const wanted = (name) => !CURATED || CURATED_SET.has(cleanName(name));
+const wanted = (name) => !CURATED || CURATED_SET.has(name);
 
 const shot = async (page, name) => {
   if (!wanted(name)) return;
-  if (CURATED) name = cleanName(name);
   const file = join(OUT, `${name}.png`);
   await page.waitForTimeout(250);
   await page.screenshot({ path: file, fullPage: FULL, animations: "disabled" });
@@ -191,8 +176,8 @@ async function pages(browser, url) {
         if (name === "learn-module") await page.locator(".map__chapters").first().evaluate((el) => el.scrollIntoView({ block: "start" }));
         await shot(page, `${name}-${size}-${theme}`);
         if (name === "isle" && wanted(`isle-label-${size}-${theme}`)) {
-          // tap the module's landmark (where the seeded island puts it) for its label
-          const [x, y] = size === "phone" ? [215, 410] : [545, 370];
+          // tap the module's landmark, the Meter Tower (where the seeded island puts it), for its label
+          const [x, y] = size === "phone" ? [142, 400] : [640, 410];
           await page.mouse.click(x, y);
           await page.waitForTimeout(500);
           await shot(page, `isle-label-${size}-${theme}`);
@@ -263,13 +248,29 @@ async function menu(browser, url) {
 }
 
 /**
- * The first lessons are bench lessons now: scripts/lesson-shots.mjs plays every moment of the three reference lessons
- * (start, beats, checks, the secret, the fix-it, the notebook, the reveal and the signed-off page). The stepper's own
- * steps are still covered by lesson2 below and the module reveal.
+ * A bench lesson, the page every lesson uses: the course's first lesson at its start screen (the bench warms by itself
+ * behind the mission), and the seeded learner's lesson in progress, resumed at its beat with the bench up.
  */
-async function lesson() {
+async function lesson(browser, url) {
   if (ONLY && !ONLY.has("lesson")) return;
-  console.log("lesson: bench lessons are shot by scripts/lesson-shots.mjs");
+  const resumed = SEED_MODULE.lessons[1].id;
+  for (const size of SIZES)
+    for (const theme of THEMES)
+      for (const [name, record, path] of [
+        ["lesson-start", null, null],
+        ["lesson-resumed", "one", `/learn/${SEED_MODULE.unit}/${resumed}`],
+      ]) {
+        if (!wanted(`${name}-${size}-${theme}`)) continue;
+        const { context, page } = await newPage(browser, size, theme);
+        if (record) await seedLearner(page, url, record);
+        // A new visitor's first lesson is where the landing's switch leads.
+        if (!path) await page.goto(url, { waitUntil: "networkidle" });
+        await page.goto(url + (path ?? (await page.locator("[data-switch]").getAttribute("href"))), { waitUntil: "networkidle" });
+        await page.waitForSelector("[data-bench-ready]", { state: "attached", timeout: 30000 });
+        await page.waitForTimeout(600);
+        await shot(page, `${name}-${size}-${theme}`);
+        await context.close();
+      }
 }
 
 /** Finishes the seeded module's last lesson (resumed at its sign-off), which builds the module's landmark. */
@@ -290,73 +291,6 @@ async function moduleReveal(browser, url) {
     }
 }
 
-/** Uses the order item's data-key hints (each step's place in the right order) to sort via the move buttons. */
-export async function solveOrder(page) {
-  for (let guard = 0; guard < 40; guard++) {
-    const idx = await page.locator("[data-order-item]").evaluateAll((els) => els.map((e) => Number(e.getAttribute("data-key"))));
-    const wrong = idx.findIndex((v, i) => v !== i);
-    if (wrong === -1) return;
-    const from = idx.indexOf(wrong);
-    await page.locator("[data-order-item]").nth(from).locator("[data-move=up]").click();
-  }
-}
-
-/** Opens a lesson and clicks through its hook (making a guess when it asks for one) and lab, to the first card. */
-async function toExplain(page, url, id) {
-  await page.goto(`${url}/learn/basics/${id}`, { waitUntil: "networkidle" });
-  await page.waitForSelector("[data-step-type]");
-  const guess = page.locator("[data-predict-option]");
-  if (await guess.count()) await guess.first().click();
-  await page.locator("[data-primary]").click();
-  await page.waitForSelector("[data-lab-ready]");
-  await page.locator("[data-primary]").click();
-  await page.waitForSelector("[data-step-type=explain]");
-}
-
-/** Opens a lesson and clicks through to its quiz. */
-async function toQuiz(page, url, id, cards) {
-  await toExplain(page, url, id);
-  for (let i = 0; i < cards; i++) await page.locator("[data-primary]").click();
-  await page.waitForSelector("[data-step-type=quiz]");
-}
-
-/** A tour of the other step and question types, in the real lessons that use them. */
-async function lesson2(browser, url) {
-  if (ONLY && !ONLY.has("lesson2")) return;
-  for (const size of SIZES)
-    for (const theme of THEMES) {
-      const { context, page } = await newPage(browser, size, theme);
-      const primary = () => page.locator("[data-primary]").click();
-
-      // An explain card with a widget (Find the law yourself).
-      await toExplain(page, url, "find-the-law");
-      await page.waitForTimeout(300);
-      await shot(page, `lesson2-01-explain-widget-${size}-${theme}`);
-
-      // Numeric: a prefix slip (Tiny numbers, huge numbers).
-      await toQuiz(page, url, "tiny-and-huge-numbers", 4);
-      await page.locator("[data-numeric-input]").fill("0.047");
-      await primary();
-      await shot(page, `lesson2-02-numeric-prefix-${size}-${theme}`);
-
-      // Colour code, read and build (Reading the stripes).
-      await toQuiz(page, url, "reading-the-stripes", 3);
-      await shot(page, `lesson2-03-colour-read-${size}-${theme}`);
-      await page.locator("[data-numeric-input]").fill("4k7");
-      await primary();
-      await primary();
-      await shot(page, `lesson2-04-colour-build-${size}-${theme}`);
-      for (const [band, colour] of [[0, "orange"], [1, "orange"], [2, "brown"]]) {
-        await page.locator(`[data-band="${band}"]`).click();
-        await page.locator(`[data-swatch="${colour}"]`).click();
-      }
-      await shot(page, `lesson2-05-colour-built-${size}-${theme}`);
-
-      // Hotspot and order lived in Your first glow's quiz; it is a bench lesson now (checks on the bench instead).
-      await context.close();
-    }
-}
-
 const server = await startServer();
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ args: WEBGL_ARGS });
@@ -364,9 +298,8 @@ try {
   await pages(browser, server.url);
   await landingLit(browser, server.url);
   await menu(browser, server.url);
-  await lesson();
+  await lesson(browser, server.url);
   await moduleReveal(browser, server.url);
-  await lesson2(browser, server.url);
 } finally {
   await browser.close();
   server.stop();
