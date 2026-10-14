@@ -12,15 +12,17 @@ const filled = (lab: LabView, id: string) => {
 
 /**
  * The fix-it bench: a selector (battery plus to S2, each throw to one LED, both LEDs back through R1), with the plus
- * lead on throw a instead of the pole. The meter's probes come off first: no continuity tests on a live circuit.
+ * lead on throw a instead of the pole. The meter's probes come off first (no continuity tests on a live circuit), and S1
+ * makes room.
  */
 const SELECTOR_ON_A_THROW: SolutionStep[] = [
   { do: "probe", red: null, black: null, mode: "off" },
   { do: "flip", part: "S2", to: "a" },
-  { do: "place", part: "B1", kind: "battery", at: "desk:-118,44", params: { emf: 9.4, internalOhms: 1.7, mAh: 500 } },
-  { do: "place", part: "D1", kind: "led", at: "desk:-10,52", rot: 180, params: { color: "green" } },
-  { do: "place", part: "D2", kind: "led", at: "desk:30,52", rot: 180, params: { color: "yellow" } },
-  { do: "place", part: "R1", kind: "resistor", at: "desk:-56,74", params: { ohms: 1000 } },
+  { do: "remove", part: "S1" },
+  { do: "place", part: "B1", kind: "battery", at: "desk:-112,22", rot: 270, params: { emf: 9.4, internalOhms: 1.7, mAh: 500 } },
+  { do: "place", part: "D1", kind: "led", at: "desk:44,22", rot: 180, params: { color: "green" } },
+  { do: "place", part: "D2", kind: "led", at: "desk:44,52", rot: 180, params: { color: "yellow" } },
+  { do: "place", part: "R1", kind: "resistor", at: "desk:-34,62", params: { ohms: 1000 } },
   { do: "lead", id: "TL1", from: "B1.pos", to: "S2.a", color: "red" },
   { do: "lead", id: "TL2", from: "S2.a", to: "D1.anode", color: "green" },
   { do: "lead", id: "TL3", from: "S2.b", to: "D2.anode", color: "yellow" },
@@ -34,13 +36,13 @@ export default defineLab({
   title: "Poles and throws",
   bench: {
     board: "none",
-    frame: ["desk:-140,-40", "desk:150,90"],
+    frame: ["desk:-140,-62", "desk:160,84"],
     parts: [
-      { id: "S1", kind: "toggle-switch", at: "desk:-110,-8", params: { base: true, throws: 1, to: "a", tag: "S1" }, locked: true, label: "On/off switch S1" },
-      { id: "S2", kind: "slide-switch", at: "desk:-30,-8", params: { base: true, to: "a", tag: "S2" }, locked: true, label: "Slide switch S2" },
+      { id: "S1", kind: "toggle-switch", at: "desk:-96,-30", params: { base: true, throws: 1, to: "a", tag: "S1" }, locked: true, label: "On/off switch S1" },
+      { id: "S2", kind: "slide-switch", at: "desk:-26,-30", params: { base: true, to: "a", tag: "S2" }, locked: true, label: "Slide switch S2" },
     ],
     tray: [],
-    instruments: [{ kind: "meter", at: "desk:104,-14", rot: -18, mode: "off" }],
+    instruments: [{ kind: "meter", at: "desk:112,-12", rot: -18, mode: "off" }],
   },
   panels: [
     { kind: "continuity", id: "s2", part: "S2", show: ["find-the-pole"] },

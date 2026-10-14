@@ -25,7 +25,6 @@ beats:
 
   - say: Probe S2's three pairs, both positions. Who changes partner?
     objective: Find the pole
-    spot: [S2]
     guess: { options: [The left leg, The middle leg, The right leg], answer: The middle leg }
     do: find-the-pole
     done: The middle leg. It swaps partners at every slide.
