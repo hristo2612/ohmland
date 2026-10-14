@@ -3,7 +3,7 @@
 import { PITCH, boardGeometry, boardOrigin } from "../board";
 import { clipTargets, type ClipTarget } from "../layout";
 import type { Anchor, BenchState, Vec2 } from "../types";
-import { PRIORITY, toLocal, type HitItem, type InkModel, type InkPick, type Shape } from "./model";
+import { pickRank, toLocal, type HitItem, type InkModel, type InkPick, type Shape } from "./model";
 
 /** Distance from a point to a shape's edge (0 or less inside), in mm. */
 export function shapeDistance(s: Shape, x: number, z: number): number {
@@ -35,16 +35,23 @@ export function shapeDistance(s: Shape, x: number, z: number): number {
 export function hitTest(model: InkModel, x: number, z: number, tol: number): InkPick | null {
   let best: HitItem | null = null;
   let bestKey = -Infinity;
+  let bestD = Infinity;
+  let drawn: HitItem | null = null;
   for (const h of model.hits) {
     const d = shapeDistance(h.shape, x, z);
     if (d > tol) continue;
+    if (h.pick.type === "draw" && d <= 0) drawn = h;
     // Inside counts as distance 0; a handle a little way off still beats the body under the pointer.
-    const key = PRIORITY[h.pick.type] * 1000 - Math.max(0, d) * 10 + h.order * 1e-3;
+    const key = pickRank(h.pick) * 1000 - Math.max(0, d) * 10 + h.order * 1e-3;
     if (key > bestKey) {
       bestKey = key;
       best = h;
+      bestD = d;
     }
   }
+  // On a pencil card's drawing strip a stroke starts, even beside a probe resting on it: only a press right on the
+  // probe's grip takes the probe.
+  if (drawn && best?.pick.type === "probe" && (best.pick.tip || bestD > 0)) return drawn.pick;
   return best?.pick ?? null;
 }
 

@@ -152,7 +152,9 @@ export function useInteraction({
         const p = pickOf(h.object);
         if (!p) continue;
         // Prefer handles, but only among things close to the nearest hit (do not reach through a whole part).
-        const score = PRIORITY[p.type] * 100 - (h.distance - nearest);
+        // A probe's tip end gives way to a pencil card's drawing strip under it (the grip does not).
+        const rank = p.type === "probe" && p.tip ? 1.4 : PRIORITY[p.type];
+        const score = rank * 100 - (h.distance - nearest);
         if (h.distance - nearest > 40) break;
         seen.push(p);
         if (score > bestScore) {
