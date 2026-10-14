@@ -32,10 +32,6 @@ import { LeadView, MeterView, PartView, TargetMarker, WireView, makeFloor, snaps
 export type BenchProps = BenchRendererProps & {
   /** Initial camera. Defaults to a framing of the work area. */
   camera?: { position: Vec3; target: Vec3 };
-  /** A desk rectangle [x0, z0, x1, z1] in mm for the camera to frame (and return to on "reset view"). */
-  frame?: [number, number, number, number] | null;
-  /** Page colours: follow the page's notebook tokens (default), or force the light or the night page. */
-  theme?: "light" | "dark";
   /** Draw the notebook's margin line left of the work area (default true). */
   margin?: boolean;
 };

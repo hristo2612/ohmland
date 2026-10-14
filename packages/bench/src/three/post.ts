@@ -67,9 +67,10 @@ export class InkEffect extends Effect {
       ]),
     });
   }
-  set(ink: string, thickness: number): void {
+  set(ink: string, thickness: number, strength = 0.82): void {
     (this.uniforms.get("ink")!.value as THREE.Color).set(ink);
     this.uniforms.get("thickness")!.value = thickness;
+    this.uniforms.get("strength")!.value = strength;
   }
 }
 

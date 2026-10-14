@@ -28,6 +28,10 @@ export type BenchRendererProps = {
   highlight?: string[];
   /** Translated UI strings. */
   labels?: Partial<BenchLabels>;
+  /** A desk rectangle [x0, z0, x1, z1] in mm to frame at the start and on "reset view" (a lab's working area). */
+  frame?: [number, number, number, number] | null;
+  /** Page colours: follow the page's notebook tokens (default), or force the light or the night page. */
+  theme?: "light" | "dark";
   className?: string;
   style?: CSSProperties;
   /** Called once the first frame has rendered. */

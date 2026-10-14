@@ -25,6 +25,8 @@ export const ACCENT = "#B23A1C";
 export const SELECT_HEX = "#1F3C9A";
 
 const v3 = (p: Vec3) => new THREE.Vector3(p[0], p[1], p[2]);
+/** Selection frames and markers: drawn over the scene, never part of a model's size or shadow. */
+const OVERLAY = { fx: true };
 
 /** Height of whatever a cable would rest on at (x, z): the board, the meter, or the desk. */
 export function makeFloor(bench: BenchState): FloorFn {
@@ -76,7 +78,7 @@ function SelectionFrame({ box, color, pulse: wantPulse = false }: { box: THREE.B
   return (
     <group ref={ref} position={[c.x, Math.max(box.min.y, 0) + 0.15, c.z]}>
       {bars.map(([x, z, bw, bd], i) => (
-        <mesh key={i} position={[x, 0, z]} rotation={[-Math.PI / 2, 0, 0]} material={mat} renderOrder={20}>
+        <mesh key={i} position={[x, 0, z]} rotation={[-Math.PI / 2, 0, 0]} material={mat} renderOrder={20} userData={OVERLAY}>
           <planeGeometry args={[bw, bd]} />
         </mesh>
       ))}
@@ -382,7 +384,7 @@ export function LeadView({
               <Proxy pick={{ type: "clip", id: lead.id, end }} size={[CLIP_LEN + 6, 11, 11]} position={[-CLIP_LEN / 2 + 1, 0, 0]} />
             </group>
             {(selected || hinted) && (
-              <mesh position={p.tip} renderOrder={20}>
+              <mesh position={p.tip} renderOrder={20} userData={OVERLAY}>
                 <sphereGeometry args={[1.8, 16, 12]} />
                 <meshBasicMaterial color={hinted && !selected ? pal.red : pal.blue} transparent opacity={0.3} depthWrite={false} toneMapped={false} />
               </mesh>
@@ -514,7 +516,7 @@ export function TargetMarker({ at, color = ACCENT, pulse: wantPulse = false, siz
     if (pulse && ref.current) ref.current.scale.setScalar(1 + 0.25 * (0.5 + 0.5 * Math.sin(s.clock.elapsedTime * 5)));
   });
   return (
-    <mesh ref={ref} position={at} rotation={[-Math.PI / 2, 0, 0]} renderOrder={30}>
+    <mesh ref={ref} position={at} rotation={[-Math.PI / 2, 0, 0]} renderOrder={30} userData={OVERLAY}>
       <ringGeometry args={[size * 0.62, size, 28]} />
       <meshBasicMaterial color={color} transparent opacity={0.95} depthTest={!onTop} depthWrite={false} toneMapped={false} />
     </mesh>

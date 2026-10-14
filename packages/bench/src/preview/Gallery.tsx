@@ -80,13 +80,19 @@ export const DEFAULT_GALLERY: GalleryItem[][] = [
 
 const FOV = 22;
 
+
 const SERIF = `"Literata", Georgia, "Times New Roman", serif`;
 
 /** A name written on the page under the part, in pencil. */
 function cardTexture(text: string, p: PaperPalette): THREE.Texture {
   return canvasTexture(`card:${text}:${p.ink}`, 512, 128, (ctx, w, h) => {
     ctx.fillStyle = p.ink;
-    ctx.font = `500 ${text.length > 14 ? 46 : 54}px ${SERIF}`;
+    // As large as fits the card.
+    let size = 72;
+    ctx.font = `600 ${size}px ${SERIF}`;
+    const fit = (w - 16) / Math.max(1, ctx.measureText(text).width);
+    if (fit < 1) size = Math.floor(size * fit);
+    ctx.font = `600 ${size}px ${SERIF}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(text, w / 2, h / 2 + 3);
@@ -95,7 +101,7 @@ function cardTexture(text: string, p: PaperPalette): THREE.Texture {
 
 function Card({ text, width, palette }: { text: string; width: number; palette: PaperPalette }) {
   const material = useMemo(() => {
-    const m = new THREE.MeshBasicMaterial({ map: cardTexture(text, palette), transparent: true, depthWrite: false, toneMapped: false, opacity: 0.86 });
+    const m = new THREE.MeshBasicMaterial({ map: cardTexture(text, palette), transparent: true, depthWrite: false, toneMapped: false, opacity: 0.9 });
     m.userData.keepColor = true;
     return m;
   }, [text, palette]);
@@ -151,7 +157,7 @@ function ItemModel({ item, quality }: { item: GalleryItem; quality: Quality }) {
   if (item.kind === "multimeter") return <MultimeterModel mode={item.mode ?? "dcv"} display={item.display} unit={item.unit} />;
   if (item.kind === "test-lead")
     return (
-      <group rotation={[Math.PI / 2, Math.PI / 2, 0]} position={[0, 3.1, -13]}>
+      <group rotation={[0, -0.75, 0]} position={[-9, 0, -9]}>
         <AlligatorClip color={item.color ?? "red"} open={0.5} />
       </group>
     );
@@ -273,7 +279,7 @@ export function PartGallery({ items = DEFAULT_GALLERY, quality = "high", classNa
                 </AutoLift>
               </group>
               <group position={[x, 0, z + cellDepth(item) / 2 + 7]}>
-                <Card text={item.label} width={item.kind === "multimeter" ? 40 : Math.min(w, 28)} palette={palette} />
+                <Card text={item.label} width={item.kind === "multimeter" ? 48 : Math.min(w + 4, 30)} palette={palette} />
               </group>
             </Fragment>
           ))}

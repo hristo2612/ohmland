@@ -12,6 +12,16 @@ import { RoomLight } from "../models/common";
  * Glows on a light page are a tinted wash (light added to a near-white page barely shows); on a dark page, or with
  * the room lights down, they add light.
  */
+/** Marks effect meshes (glows, smoke, scorch): not part of a model's size, its hit area or its shadow. */
+const FX = { fx: true };
+
+/** True for the effect meshes above (and for additive glows made elsewhere). */
+export function isEffect(o: THREE.Object3D): boolean {
+  if (o.userData.fx) return true;
+  const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+  return !!m && !Array.isArray(m) && m.blending === THREE.AdditiveBlending;
+}
+
 function useGlowBlending(): THREE.Blending {
   const dark = useContext(PaletteContext).dark;
   const room = useContext(RoomLight);
@@ -150,7 +160,7 @@ export function Smoke({ active, amount = 1, dark = false, spread = 2 }: { active
   }, [active, invalidate]);
   return (
     <>
-      <mesh geometry={geometry} material={material} frustumCulled={false} renderOrder={10} />
+      <mesh geometry={geometry} material={material} frustumCulled={false} renderOrder={10} userData={FX} />
     </>
   );
 }
@@ -177,7 +187,7 @@ export function Halo({ color, intensity, size = 16 }: { color: string; intensity
   if (intensity <= 0.01) return null;
   return (
     <>
-      <sprite material={material} scale={[s, s, s]} renderOrder={12} />
+      <sprite material={material} scale={[s, s, s]} renderOrder={12} userData={FX} />
     </>
   );
 }
@@ -204,7 +214,7 @@ export function LightSpill({ color, intensity, radius = 10 }: { color: string; i
   if (intensity <= 0.01) return null;
   return (
     <>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]} material={material} renderOrder={4}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]} material={material} renderOrder={4} userData={FX}>
         <planeGeometry args={[radius * 2, radius * 2]} />
       </mesh>
     </>
@@ -247,7 +257,7 @@ export function Scorch({ width = 12, depth = 7, opacity = 1 }: { width?: number;
   material.opacity = opacity;
   return (
     <>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]} material={material} renderOrder={3}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]} material={material} renderOrder={3} userData={FX}>
         <planeGeometry args={[width, depth]} />
       </mesh>
     </>

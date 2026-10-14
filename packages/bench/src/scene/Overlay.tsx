@@ -34,7 +34,7 @@ const CSS = `
 .ohb-tray h2{margin:8px 10px 2px;font-weight:600;font-size:12px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3,#6B655B)}
 .ohb-tray-list{overflow:auto;padding:2px 4px 4px;display:grid;grid-template-columns:1fr;gap:2px}
 .ohb-wide .ohb-tray-list{grid-template-columns:1fr 1fr}
-.ohb-item{all:unset;box-sizing:border-box;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:2px;min-height:64px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-align:center;font-size:14px;line-height:18px;overflow-wrap:anywhere;color:var(--ink,#24221E)}
+.ohb-item{all:unset;box-sizing:border-box;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:2px;min-height:64px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-align:center;font-size:14px;line-height:18px;overflow-wrap:break-word;hyphens:auto;-webkit-hyphens:auto;color:var(--ink,#24221E)}
 .ohb-item:hover{background:var(--paper-sunk,#EEE8DC)}
 .ohb-item[aria-pressed=true]{background:var(--blue-wash,#E1E6F4);box-shadow:inset 0 0 0 1.5px var(--blue,#1F3C9A)}
 .ohb-item:focus-visible{outline:2px solid var(--focus,#1F3C9A);outline-offset:-2px}

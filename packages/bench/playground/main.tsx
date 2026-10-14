@@ -2,12 +2,14 @@ import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Health, PartState, Snapshot } from "@ohmland/sim";
 import { type BenchController, BenchView, type BenchViewKind, DEFAULT_GALLERY, PartGallery, PartPreview, benchToNetlist, createBenchStore, emptyBench, type BenchAction, type BenchState, type Quality } from "../src";
-import { FULL_TRAY, clipBench, demoBench, glowBench, propsBench, smokeBench } from "./scenes";
+import { FULL_TRAY, clipBench, demoBench, glowBench, modulesBench, propsBench, smokeBench } from "./scenes";
 
 const q = new URLSearchParams(location.search);
 const num3 = (s: string | null) => (s ? (s.split(",").map(Number) as [number, number, number]) : undefined);
 const markReady = () => ((window as unknown as { __ready: boolean }).__ready = true);
 const quality: Quality = q.get("q") === "low" ? "low" : "high";
+// The night page: the bench reads the notebook tokens (index.html defines both themes).
+if (q.get("theme") === "dark") document.documentElement.dataset.theme = "dark";
 
 function initialBench(): BenchState {
   switch (q.get("scene")) {
@@ -25,6 +27,8 @@ function initialBench(): BenchState {
       return glowBench(false);
     case "props":
       return propsBench();
+    case "modules":
+      return modulesBench();
     default:
       return demoBench();
   }

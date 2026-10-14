@@ -13,6 +13,7 @@ import { rotateXZ } from "../parts";
 import type { BenchStore } from "../store";
 import type { BenchState, Vec3 } from "../types";
 import { prefersReducedMotion } from "../three/anim";
+import { isEffect } from "../effects/effects";
 import { SPOT_LAYER, type Spotlight } from "../three/post";
 import type { PaperPalette } from "../three/paper";
 import type { FocusOptions, ScreenPoint } from "../view/controller";
@@ -46,7 +47,7 @@ export function contentBox(root: THREE.Object3D, out = new THREE.Box3()): THREE.
     const m = o as THREE.Mesh;
     if (!m.isMesh || !m.visible || !m.layers.isEnabled(0) || (m as THREE.InstancedMesh).isInstancedMesh || !m.geometry) return;
     const mat = m.material as THREE.Material;
-    if (!mat || Array.isArray(mat) || mat.blending === THREE.AdditiveBlending || (mat.transparent && !mat.depthWrite)) return;
+    if (!mat || Array.isArray(mat) || isEffect(m) || !mat.visible || (mat.transparent && mat.opacity < 0.05)) return;
     if (m.geometry.type === "InstancedBufferGeometry") return;
     if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
     tmpBox.copy(m.geometry.boundingBox!).applyMatrix4(m.matrixWorld);

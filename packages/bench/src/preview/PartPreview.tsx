@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type { PartState } from "@ohmland/sim";
 import { PartModel } from "../models/PartModel";
+import { isEffect } from "../effects/effects";
 import { MultimeterModel } from "../models/Multimeter";
 import { defaultParams } from "../parts";
 import { StudioEnvironment, StudioLights } from "../scene/Studio";
@@ -35,7 +36,7 @@ export function AutoLift({ children, onSize, deps, center = false }: { children:
       const m = o as THREE.Mesh;
       if (!m.isMesh || !m.geometry || !m.visible) return;
       const material = m.material as THREE.Material & { blending?: THREE.Blending };
-      if (material.blending === THREE.AdditiveBlending) return;
+      if (isEffect(m) || material.blending === THREE.AdditiveBlending) return;
       m.geometry.computeBoundingBox();
       m4.multiplyMatrices(toLocal, m.matrixWorld);
       box.union(m.geometry.boundingBox!.clone().applyMatrix4(m4));

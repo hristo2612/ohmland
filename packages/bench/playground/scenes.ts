@@ -155,3 +155,23 @@ export function glowBench(wired = true): BenchState {
   }
   return b;
 }
+
+/** Desk modules (switches, a trimmer and relays on wooden blocks), a mystery relay, touch pads and bent capacitor legs. */
+export function modulesBench(): BenchState {
+  const b = emptyBench({ kind: "bb400", pos: [80, 80] });
+  const p = (id: string, kind: BenchState["parts"][number]["kind"], params: Record<string, unknown>, pos: [number, number], extra: Partial<BenchState["parts"][number]> = {}) =>
+    ({ id, kind, params, pos, rot: 0, ...extra }) as BenchState["parts"][number];
+  b.parts = [
+    p("S1", "pushbutton", { base: true, tag: "S1" }, [-230, -50]),
+    p("S2", "slide-switch", { base: true, to: "a", tag: "S2" }, [-160, -50]),
+    p("S3", "toggle-switch", { base: true, to: "b", tag: "S3" }, [-90, -50]),
+    p("RV1", "trimmer", { base: true, ohms: 10000, position: 0.4 }, [-20, -50]),
+    p("K1", "relay", { base: true }, [95, -50]),
+    p("S4", "dpdt-switch", { to: "a", tag: "S4" }, [230, -50]),
+    p("K2", "relay", { base: true, mystery: "31402" }, [-150, 60]),
+    p("TP1", "touch-pads", {}, [0, 0], { holes: { a: "e5", b: "e7" } }),
+    p("C1", "electrolytic-cap", { farads: 100e-6, span: 4 }, [0, 0], { holes: { pos: "c12", neg: "c16" } }),
+    p("C2", "ceramic-cap", { farads: 100e-9 }, [0, 0], { holes: { a: "h20", b: "h22" } }),
+  ];
+  return b;
+}

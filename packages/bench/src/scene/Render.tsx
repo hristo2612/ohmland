@@ -7,6 +7,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { ContactShadow, paperizeScene, type PaperPalette } from "../three/paper";
 import { createPaperComposer, type Spotlight } from "../three/post";
 import type { Quality } from "../types";
+import { isEffect } from "../effects/effects";
 
 /** Ink line width in CSS px. */
 export const INK_PX = 1.6;
@@ -30,8 +31,9 @@ export function PaperRenderer({ quality, palette, spot, bloom = 1.15 }: { qualit
   useEffect(() => () => composer?.dispose(), [composer]);
   useLayoutEffect(() => {
     composer?.setSize(size.width, size.height);
-    composer?.ink.set(palette.ink, INK_PX * dpr);
-  }, [composer, size.width, size.height, dpr, palette.ink]);
+    // Light lines on the night page carry more weight than dark ones on paper: draw them a little softer.
+    composer?.ink.set(palette.ink, INK_PX * dpr, palette.dark ? 0.6 : 0.82);
+  }, [composer, size.width, size.height, dpr, palette.ink, palette.dark]);
   useFrame((_, delta) => {
     if (composer) {
       composer.render(delta);
@@ -51,7 +53,7 @@ export function isCaster(o: THREE.Object3D): boolean {
   if (!m.isMesh || !m.layers.isEnabled(0) || m.userData.paper || (m as THREE.InstancedMesh).isInstancedMesh) return false;
   const mat = m.material as THREE.Material;
   if (!mat || Array.isArray(mat) || !mat.visible) return false;
-  if (mat.blending === THREE.AdditiveBlending || (mat.transparent && !mat.depthWrite) || (mat as THREE.ShaderMaterial).isShaderMaterial) return false;
+  if (isEffect(m) || (mat.transparent && !mat.depthWrite) || (mat as THREE.ShaderMaterial).isShaderMaterial) return false;
   return true;
 }
 
