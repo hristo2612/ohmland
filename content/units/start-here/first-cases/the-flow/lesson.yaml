@@ -1,0 +1,55 @@
+# Blueprint: docs/curriculum/start-here.md, SH4 "The counting gates". A bench lesson (docs/LESSONS.md).
+# One idea: flow is the same all the way round; the lamp uses none of it up. Lab: content/labs/the-flow.ts.
+format: bench
+id: the-flow
+version: 1
+title: The flow
+summary: Clip counting gates on either side of the lamp and find out whether it eats any of the flow.
+minutes: 6
+lab: the-flow
+unlocks:
+  parts: []
+  isle: wire-spool
+
+start:
+  title: The counting gates
+  say: Does my lamp eat some of the flow?
+  go: Count it
+
+beats:
+  - say: Switch me on. Watch the dots.
+    objective: Watch it flow
+    do: see-the-flow
+    note: { at: TL1.a, text: "flow: from + round to −" }
+
+  - say: This is a gate. It counts the flow. Clip it on.
+    do: first-gate
+
+  - say: Gate two goes after the lamp. It counts...
+    objective: Count both sides
+    guess: { options: [less, the same, more], answer: the same }
+    do: same-both-sides
+    note: { at: D1, text: "same flow in, same flow out" }
+    rule: Flow is the same all the way round.
+
+  - say: Show me the flow. Make it stop.
+    do: stop-it
+    done: Stopped everywhere at once.
+
+  - say: What did you just stop?
+    pick: { options: [flow, a gap, a loop], answer: flow }
+
+secret:
+  task: show-electrons
+  tool: views
+  say: Curious? Light me up, then show the dots as electrons.
+  done: Electrons crawl the other way, slower than a snail.
+  note: { at: TL3.a, text: "electrons drift − to +" }
+
+fixit:
+  say: Fix-it time. The gate ticks. My lamp's dark.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. My lamp eats nothing.

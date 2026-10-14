@@ -1,0 +1,59 @@
+# Blueprint: docs/curriculum/start-here.md, SH5 "Two boxes, one lamp". A bench lesson (docs/LESSONS.md).
+# One idea: push drives the flow; a red LED needs enough of it. Lab: content/labs/the-push.ts.
+format: bench
+id: the-push
+version: 1
+title: The push
+summary: Two sealed boxes, one lamp. Find the box with enough push, then see what each one hides.
+minutes: 6
+lab: the-push
+unlocks:
+  parts: [battery-aa]
+  isle: battery
+
+start:
+  title: Two boxes, one lamp
+  say: Two sealed boxes. Which one lights my lamp?
+  go: Test them
+
+beats:
+  - say: Clip my lamp to box A. Red to +.
+    objective: Test both boxes
+    do: box-a-dark
+
+  - say: Now box B.
+    do: box-b-lit
+
+  - say: Switch on the push view.
+    objective: See the push
+    tool: views
+    do: push-view
+    note: { at: BOXB, text: "push: it drives the flow" }
+
+  - say: Show me the box with more push.
+    tap: { answer: BOXB, among: [BOXA, BOXB] }
+
+  - say: What's inside box A? Guess, then open both lids.
+    objective: Open the boxes
+    guess: { options: [a small push, nothing, a broken lamp], answer: a small push }
+    do: open-boxes
+    done: Push is counted in volts. 1.5 V and 9 V.
+    note: { at: X1, text: "1.5 V: too little push" }
+    rule: Red LEDs need about 2 V of push.
+
+  - say: What does this hill show?
+    pick: { on: BOXB, options: [push, flow, a loop], answer: push }
+
+secret:
+  task: no-push-here
+  say: Curious? Clip both lamp clips to one post.
+  done: Dark. No push between them.
+  note: { at: TL1.a, text: "same post, no push across" }
+
+fixit:
+  say: Fix-it time. My reading lamp runs on one AA.
+  tasks:
+    - task: fix-it
+
+end:
+  say: Case closed. Box B had the push.
