@@ -67,6 +67,9 @@ export function makeFloor(bench: BenchState): FloorFn {
 // ---------------------------------------------------------------------------------------------------------------
 // Selection frame: corner brackets on the surface around a box (always visible, both quality tiers).
 
+/** Where a probe's grip begins, above its tip and finger guard (mm along the probe). */
+const PROBE_GRIP = 20;
+
 function SelectionFrame({ box, color, pulse: wantPulse = false }: { box: THREE.Box3; color: string; pulse?: boolean }) {
   const reduced = useMemo(() => prefersReducedMotion(), []);
   const pulse = wantPulse && !reduced;
@@ -616,7 +619,9 @@ export function MeterView({
             </group>
             <group position={tip} quaternion={quatFromY(axis)}>
               <Probe color={color} />
-              <Proxy pick={{ type: "probe", color }} size={[12, PROBE_LEN - 10, 12]} position={[0, PROBE_LEN / 2 + 4, 0]} />
+              {/* The tip end (to the finger guard) and the grip: a stroke on a pencil card under a resting tip draws. */}
+              <Proxy pick={{ type: "probe", color, tip: true }} size={[12, PROBE_GRIP - 9, 12]} position={[0, (PROBE_GRIP + 9) / 2, 0]} />
+              <Proxy pick={{ type: "probe", color }} size={[12, PROBE_LEN - 1 - PROBE_GRIP, 12]} position={[0, (PROBE_LEN - 1 + PROBE_GRIP) / 2, 0]} />
             </group>
             <Cable from={back} fromDir={axis} to={plugTop} toDir={plugDir} length={back.distanceTo(plugTop) * 1.12 + 70} radius={PROBE_CABLE_R} color={color} floor={floor} bend={0.42} stiff={1} />
           </group>
