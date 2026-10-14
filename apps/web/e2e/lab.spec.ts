@@ -71,7 +71,8 @@ test("first-glow: mend the torn drawing, build it on the board, see the drawing 
   await page.locator("[data-guess='1']").click();
   await step(page, { do: "move", part: "D1", at: "b9" });
   await taskDone(page, "move-it");
-  await expect(page.locator(".bl-guess")).toContainText("Called it.");
+  // The guess against what happened is folded into the robot's line.
+  await expect(page.locator(".bl-line")).toContainText("Called it.");
   await expect(page.locator(".bl-stamped")).toContainText("A drawing shows connections, not places.");
   await primary(page).click();
   await atMoment(page, "b4", "act");
@@ -122,7 +123,8 @@ test("welcome-to-the-bench: find the gap with the tracer, break and mend the loo
   await page.locator("[data-guess='2']").click();
   await unclip(page, "TL2", "a");
   await taskDone(page, "break-the-loop");
-  await expect(page.locator(".bl-guess")).toContainText("Called it.");
+  // The guess against what happened is folded into the robot's line.
+  await expect(page.locator(".bl-line")).toContainText("Called it.");
   await primary(page).click();
   await atMoment(page, "b4", "act");
   await clipTo(page, "TL2", "a", "pin:S1.b");
