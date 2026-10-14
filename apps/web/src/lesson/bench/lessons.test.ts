@@ -177,7 +177,7 @@ describe("bench lessons", () => {
  * to "strict" once the rewrite lands. OHMLAND_FIRST_USE=strict runs it strict without editing this file, and
  * OHMLAND_FIRST_USE=<lesson-id>,<lesson-id> also holds those lessons to it.
  */
-const FIRST_USE_MODE: "report" | "strict" = "report";
+const FIRST_USE_MODE = "report" as "report" | "strict";
 /** Lessons already in the new voice: a term they use first must be introduced there. */
 const STRICT_LESSONS = ["welcome-to-the-bench", "what-resists"];
 
